@@ -26,3 +26,6 @@ Every Lean fence anywhere below `docs/` follows the
 fences in guides. A guide's location does not exempt its teaching examples from checking.
 
 Return to the [project overview](../README.md).
+
+- [Linter and website architecture](guides/linter-architecture.md): selected interfaces, pins, versioned help links and delivery sequence.
+- [Complete rule coverage](guides/rule-coverage.md): twenty selected diagnostics and all residual checklist obligations.

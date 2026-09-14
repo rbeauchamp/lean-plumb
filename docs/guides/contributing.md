@@ -74,3 +74,9 @@ For review, use the repository-local
 [compliance checklist](../standard/9-compliance-audit.md). Scope verification to
 the affected claims, retain required checks, and distinguish historical results
 from evidence for the current revision.
+
+## Linter and website development
+
+Follow the [architecture](linter-architecture.md) and [coverage map](rule-coverage.md). A rule change updates its descriptor, actual detector, source fixtures, expected typed diagnostics and explanatory page together. Keep con-leche design credit and any adapted-code license notices; Lean/Verso and Microsoft presentation credit remain distinct. Never replace semantic review with docstring presence or generated-page counts.
+
+The [prototype README](../../examples/rule-reference-prototype/README.md) specifies separate pinned website setup and `python3 examples/rule-reference-prototype/run.py`. This bounded integration check complements the unchanged 420-second acceptance command. Review workflow must inspect rule IDs, exact scopes/modes, source ranges, versioned help routes and generated-source agreement where affected; no extra mandatory benchmark campaign is introduced.

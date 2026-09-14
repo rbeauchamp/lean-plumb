@@ -184,3 +184,7 @@ not the gate alone.
 - **`DOGFOOD-*` rows apply only to this repository.**
 - **`freshChecker`** (fresh `leanchecker` over the serialized module graph) is optional
   defense in depth for the separate `MUT-05` claim, not part of the ordinary loop.
+
+## Planned linter and linked rule reference
+
+The [product architecture](linter-architecture.md) describes the typed rule catalogue, conventional `lake lint`, editor integration and GitHub Pages site under development. Use the existing supported instructions above until their delivery issues integrate. The [one-rule prototype](../../examples/rule-reference-prototype/README.md) is interface evidence, not a complete adopter configuration or a published site. Canonical metadata and accepted-result design credit con-leche as detailed in the architecture.
