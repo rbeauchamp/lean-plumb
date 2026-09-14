@@ -17,7 +17,7 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     # Provisioning has its own allowance; verify.sh enforces exactly 420 seconds.
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,3 +86,28 @@ jobs:
 
       - name: Verify (same command and seven-minute limit as local)
         run: ./scripts/verify.sh
+
+      # PRODUCT-01 integration; canonical metadata design credits con-leche.
+      # Separate from, and never a partition of, 420-second acceptance.
+      - name: Restore pinned Verso dependencies
+        id: verso
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/rule-reference-prototype/site/.lake/packages
+          key: verso-prototype-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('examples/rule-reference-prototype/site/lean-toolchain', 'examples/rule-reference-prototype/site/lake-manifest.json') }}
+
+      - name: Provision pinned Verso
+        timeout-minutes: 15
+        working-directory: examples/rule-reference-prototype/site
+        run: lake build verso/VersoManual
+
+      - name: Save pinned Verso dependencies
+        if: steps.verso.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: examples/rule-reference-prototype/site/.lake/packages
+          key: ${{ steps.verso.outputs.cache-primary-key }}
+
+      - name: Verify one-rule linter and Verso integration
+        timeout-minutes: 10
+        run: python3 examples/rule-reference-prototype/run.py

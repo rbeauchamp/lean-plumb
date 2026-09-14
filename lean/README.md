@@ -32,3 +32,5 @@ this does not make the operational checker a claimed proof surface.
 For runnable consumers with their own configurations, use the
 [standalone examples](../examples/README.md). For commands and review instructions,
 use the [contributor guide](../docs/guides/contributing.md).
+
+The [linter product architecture](../docs/guides/linter-architecture.md) fixes the planned registry, diagnostic and editor modules. The [coverage map](../docs/guides/rule-coverage.md) distinguishes current detectors from new work and semantic review.

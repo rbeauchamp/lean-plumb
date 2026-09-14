@@ -1,8 +1,8 @@
 # Strict Lean
 
-A strict standard for Lean projects that requires correctness guarantees to be stated precisely in types or propositions and supported by kernel-checked evidence.
+A strict Lean linter and linked rule-reference website, backed by a standard requiring precise types, propositions, and kernel-checked evidence.
 
-The normative product is the [standard](docs/standard/README.md). Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
+The [standard](docs/standard/README.md) defines normative meaning. The current checker enforces declaration, foundation, execution-boundary, and checked-example requirements; the [product architecture](docs/guides/linter-architecture.md) specifies the typed rule catalogue, editor integration, and GitHub Pages website being built. The website and complete editor integration are not yet published. Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
 
 ## Community review
 

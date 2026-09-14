@@ -2,10 +2,11 @@
 
 ## Mission and scope
 
-- This repository defines a strict public standard for dependent types, theorem statements,
+- This repository delivers a strict Lean linter and linked rule-reference website backed
+  by a strict public standard for dependent types, theorem statements,
   proofs, axioms, elaboration, modules, and Lean code in Lean 4 projects, especially where
   correctness is critical.
-- `docs/standard/` is the normative product; `docs/guides/` contains practical guidance.
+- `docs/standard/` defines normative meaning; `docs/guides/` contains practical guidance.
   `lean/Audit/` and the Lean-oriented checkers must dogfood the applicable rules.
 - `lean/StrictLean/` implements mechanically checkable requirements; `examples/build-lint/`
   is the reference build integration. Keep enforced rules, required proof evidence, and
@@ -16,6 +17,11 @@
   a separate general-practices standard is out of scope.
 - Strict rules must have a precise Lean, dependent-type, proof, or Lean-code rationale. Put
   domain-specific material in examples or named Lean-domain profiles.
+
+- Follow `docs/guides/linter-architecture.md` and `docs/guides/rule-coverage.md` for the
+  Project 8 product contract. Keep typed rule metadata, diagnostics and checked website
+  examples synchronized, with appropriate con-leche credit. Distinguish planned work
+  from currently supported enforcement and published pages.
 
 ## Start every task
 

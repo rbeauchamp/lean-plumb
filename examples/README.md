@@ -8,3 +8,5 @@ and proof-required executable contract. The linter implementation lives in
 Start with the [adoption guide](../docs/guides/adoption.md) for package setup and
 conformance obligations. The repository's mathematical and application proof surfaces
 are described in the [Lean module map](../lean/README.md).
+
+[rule-reference-prototype](rule-reference-prototype/README.md) is the bounded PRODUCT-01 architecture probe: one real policy rule, a native diagnostic, Lake lint dispatch and a generated Verso page. It is not the finished adopter/editor product.
