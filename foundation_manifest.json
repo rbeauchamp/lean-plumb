@@ -1,0 +1,45 @@
+{
+  "schema-version": 2,
+  "surfaces": [
+    {
+      "library": "Audit",
+      "claim": "standard-logical",
+      "rationale": "The Audit library contains Real-based examples. Every declaration is still labeled from its own exact axiom set under docs/standard/4 §4.5."
+    },
+    {
+      "library": "AuditApp",
+      "executables": ["auditApp"],
+      "claim": "standard-logical",
+      "execution": "report",
+      "rationale": "The complete-application dogfooding surface: admission, update, and strict state/error composition contracts are proved about the definitions auditApp runs, alongside the retained total fold. The limiter state/error operations and their proofs are choice-free; the input parser and dependent required-contract interface transitively use Classical.choice through core String internals, as does the IO root. The surface claim is standard-logical and each declaration retains its exact axiom report. The IO shell is trusted execution substrate, so the execution mode stays report."
+    }
+  ],
+  "excluded-libraries": [
+    {
+      "library": "Fixtures",
+      "rationale": "Positive controls and intentionally invalid mutations are queryable for exact contamination checks but are not part of the conforming Audit surface."
+    },
+    {
+      "library": "StrictLean",
+      "rationale": "Operational Lean checker code is mutation-qualified separately and is not a conforming proof surface."
+    }
+  ],
+  "excluded-executables": [
+    {
+      "executable": "axiomGate",
+      "rationale": "Checker tooling executable; its root module belongs to the excluded StrictLean library and is qualified by the §8.8 mutation suite, not claimed as a conforming proof surface."
+    },
+    {
+      "executable": "docFenceAudit",
+      "rationale": "Checker tooling executable; its root module belongs to the excluded StrictLean library and is qualified by the §8.8 mutation suite, not claimed as a conforming proof surface."
+    },
+    {
+      "executable": "freshChecker",
+      "rationale": "Checker tooling executable; its root module belongs to the excluded StrictLean library and is qualified by the §8.8 mutation suite, not claimed as a conforming proof surface."
+    },
+    {
+      "executable": "checkerSelftest",
+      "rationale": "Checker tooling executable; its root module belongs to the excluded StrictLean library and is qualified by the §8.8 mutation suite, not claimed as a conforming proof surface."
+    }
+  ]
+}

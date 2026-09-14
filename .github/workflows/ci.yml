@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    # Provisioning has its own allowance; verify.sh enforces exactly 420 seconds.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Restore pinned toolchain
+        id: toolchain
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.elan/toolchains
+          key: lean-toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}
+
+      - name: Install Elan and pinned Lean
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 \
+            https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
+            -o "$RUNNER_TEMP/elan.tar.gz"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/elan-init" -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/lean" --version
+          if ! command -v timeout >/dev/null || ! command -v shellcheck >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --yes coreutils shellcheck
+          fi
+          timeout --version
+          shellcheck --version
+
+      - name: Save pinned toolchain
+        if: steps.toolchain.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.elan/toolchains
+          key: ${{ steps.toolchain.outputs.cache-primary-key }}
+
+      - name: Restore pinned dependencies
+        id: dependencies
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          # Cache dependency checkouts and unpacked artifacts, never root builds
+          # or duplicate Mathlib download archives. No cross-pin restore fallback.
+          path: .lake/packages
+          key: lean-dependencies-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
+
+      - name: Provision Mathlib artifacts on cache miss
+        if: steps.dependencies.outputs.cache-hit != 'true'
+        run: lake exe cache get
+
+      # Save provisioned dependencies before verification, even if it later fails.
+      - name: Save pinned dependencies
+        if: steps.dependencies.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .lake/packages
+          key: ${{ steps.dependencies.outputs.cache-primary-key }}
+
+      - name: Report runner resources
+        run: |
+          uname -m
+          nproc
+          free -h
+          vmstat
+          df -h .
+          uptime
+
+      - name: Verify (same command and seven-minute limit as local)
+        run: ./scripts/verify.sh

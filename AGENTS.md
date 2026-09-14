@@ -1,0 +1,131 @@
+# Repository instructions
+
+## Mission and scope
+
+- This repository defines a strict public standard for dependent types, theorem statements,
+  proofs, axioms, elaboration, modules, and Lean code in Lean 4 projects, especially where
+  correctness is critical.
+- `docs/standard/` is the normative product; `docs/guides/` contains practical guidance.
+  `lean/Audit/` and the Lean-oriented checkers must dogfood the applicable rules.
+- `lean/StrictLean/` implements mechanically checkable requirements; `examples/build-lint/`
+  is the reference build integration. Keep enforced rules, required proof evidence, and
+  remaining semantic-review obligations distinct.
+- The normative standard excludes general software-process requirements: lifecycle,
+  traceability, provenance, CI/CD, release, deployment, operations, risk/waiver, certification,
+  and organizational policy. Repository maintenance instructions belong here or in the guides;
+  a separate general-practices standard is out of scope.
+- Strict rules must have a precise Lean, dependent-type, proof, or Lean-code rationale. Put
+  domain-specific material in examples or named Lean-domain profiles.
+
+## Start every task
+
+- Verify the checkout and worktree status before making claims or edits. Record exact
+  `HEAD` when present; for a repository with no commits, state that explicitly and identify
+  the staged tree when one is available. Do not create a commit merely to obtain a `HEAD`.
+- Use `README.md` and `docs/README.md` to establish scope when needed; read every affected
+  normative module completely before changing or auditing its Lean claims. For unrelated
+  skill, handoff, or mechanical edits, read the governing instructions and affected sources.
+  When working an open issue, that issue is authoritative until closed; existing green checks
+  are scoped results only.
+- For a PR review, pre-merge pass, or independent compliance audit, use the repository-local
+  `.agents/skills/pr-review-toolkit/SKILL.md`. `docs/standard/9-compliance-audit.md` is the checklist SSOT.
+- Every delivery PR requires independent review by at least one fresh-context reviewer.
+  Scope reading and checks to the changed claims; use distinct reviewers for materially
+  different semantic and implementation risks. The local review skill owns assignments
+  and completion criteria.
+- After repair, obtain focused independent verification of the affected claims. Reuse
+  evidence whose relevant inputs and claims remain unchanged; rerun only invalidated checks.
+- Preserve unrelated changes. Use `tmp/` for isolated probes and remove your probes afterward.
+
+## Issue delivery
+
+- When working an issue, its acceptance criteria define the deliverable. Follow the local
+  review skill for delivery review. A planning issue or an agent's review response alone
+  is not a completed delivery. Keep workflow requirements here and in skill guidance,
+  outside the normative Lean standard.
+- Complete authorized implementation, local repairs, checks, and targeted review without
+  repeatedly requesting permission. Use existing session authorization for external actions;
+  requiring a PR does not itself grant permission to publish, merge, or change visibility.
+- Mark an issue Done only after its acceptance criteria and required review/checks pass and
+  its completing PR is integrated. A partial PR references the issue without closing it.
+
+## Lean-specific requirements
+
+- State the exact elaborated theorem, quantifiers, assumptions, and transitive dependencies. Do
+  not strengthen a Lean result into a claim about an unrelated implementation.
+- Ban `sorryAx`, project logical `axiom` declarations (Lean 4 has no `constant` command;
+  `opaque` is classified separately), `sorry`, and `admit` from every
+  conforming proof surface. Express assumptions as parameters, hypotheses, or proof-bearing
+  fields.
+- Report exact foundation strength: Kernel-only is empty; Choice-Free permits only `propext` and
+  `Quot.sound`; Standard-Logical additionally permits `Classical.choice`. Do not treat these as
+  general software-assurance rankings.
+- Distinguish logical and executable decidability, noncomputability, kernel reduction, native
+  evaluation, `partial`, `unsafe`, runtime replacement, `extern`, and FFI wherever the
+  distinction affects a Lean claim.
+- Discover modules, declarations, and dependencies through Lean/Lake semantics, not fixed file
+  lists or source-format regexes. Unknowns and omissions fail the affected claim.
+- Check every positive and negative Lean behavior claim on the declared supported toolchain.
+  Isolate intentionally invalid fixtures from positive checked surfaces.
+
+## Changes and verification
+
+- Change normative prose, Lean fixtures, and Lean-specific checkers together when they encode
+  the same claim. Prefer Lean-native inspection and include positive controls plus adversarial
+  mutations.
+- Reuse established Lean and Mathlib definitions when they fit. Avoid arbitrary style mandates
+  and application governance in the universal standard.
+- Keep documentation, diagnostics, checker names, and checker output no stronger than the exact
+  Lean property established.
+- Respect the assurance boundary stated in `docs/standard/8`: custom or ambiguous evaluator paths fail
+  generated-role exceptions, but a modified Lean executable, compromised process, and arbitrary
+  trusted plugins are outside this Lean-source standard. Do not recursively expand reviews into
+  stronger threat models after the documented boundary has direct positive and negative evidence.
+- For a PR, establish the `docs/standard/9` rows affected by its changes and dependencies.
+  A full repository-compliance claim requires every applicable row across all claimed surfaces
+  to be `PASS`; a scoped PR review does not establish that broader claim.
+  `MUT-*` applies when checker behavior is implemented or changed; `DOGFOOD-*` applies
+  to this repository; `MUT-05` applies to the optional serialized-graph claim. A `FAIL`,
+  `INCOMPLETE`, unknown, omission, skip, timeout, or unsupported check blocks the affected claim.
+
+Use `lake build` for the Lean development loop. The complete local acceptance command is:
+
+```sh
+./scripts/verify.sh
+```
+
+It has a hard, no-exception 420-second deadline, including cold root-package builds.
+There is no override or grace period; GNU coreutils timeout sends SIGKILL to the
+verification process group at the deadline. A partial or over-budget run fails.
+Do not bypass the deadline by treating separately run inner checks as acceptance.
+Provision pinned dependency artifacts and GNU coreutils timeout before verification;
+network/toolchain installation is setup, not a verification pass. OS scheduling and
+signal delivery are trusted mechanisms, not a hard real-time theorem.
+
+The command builds the acceptance executables and type-checks the diagnostic modules,
+checks every claimed declaration with fresh source elaboration and kernel admission,
+and audits every documentation example. Diagnostic native binaries are built when
+those diagnostics are requested.
+Complete applicable theorem/type/prose review too; command success alone is not full
+semantic conformance.
+
+Checker changes receive focused qualification for affected capabilities and invocation
+paths under docs/standard/8 §8.8. Long mutation, external-adopter, build-integration,
+and optional serialized-graph campaigns are diagnostics, not automatic merge gates.
+Retain their controls and applicable evidence; never relabel an unrun campaign PASS.
+`./scripts/verify.sh diagnostics [partition]` runs a selected existing campaign under
+the same 420-second deadline. Use `./scripts/verify.sh serialized-graph` for an
+explicit separate graph-checking claim. Do not partition one mandatory acceptance run to evade
+its limit. A requested broader claim still needs its actual evidence.
+
+CI runs `./scripts/verify.sh` once after provisioning pinned toolchain and dependency
+caches. Merge requires
+passing CI on the reviewed PR head, applicable focused review and diagnostics.
+Preserve PR, signature, history, and conversation protections. Finish authorized publication,
+exact-head merge, and owned branch cleanup. Skill/handoff-only edits need proportionate
+checks when Lean inputs and claims are unchanged.
+
+Report the tested Lean/Mathlib versions, exact Lake modules and declaration/axiom
+coverage, applicable diagnostics, and failures or missing evidence. Keep performance
+budgets and delivery workflow here,
+not as universal requirements in the normative Lean standard.

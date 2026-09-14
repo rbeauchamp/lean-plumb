@@ -1,0 +1,321 @@
+{
+ "Fixtures.Positive.KernelOnly": {
+  "expect": "pass",
+  "claim": "kernel-only",
+  "label": "kernel-only"
+ },
+ "Fixtures.Positive.ChoiceFree": {
+  "expect": "pass",
+  "claim": "choice-free",
+  "label": "choice-free"
+ },
+ "Fixtures.Positive.StandardLogical": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "label": "standard-logical"
+ },
+ "Fixtures.Positive.ExternalUse": {
+  "expect": "pass",
+  "claim": "standard-logical"
+ },
+ "Fixtures.Positive.SafeRecursion": {
+  "expect": "pass",
+  "claim": "kernel-only",
+  "label": "kernel-only"
+ },
+ "Fixtures.Positive.Countdown": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "label": "kernel-only"
+ },
+ "Fixtures.Positive.NamespacedWfRecursion": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "label": "kernel-only"
+ },
+ "Fixtures.Positive.RuntimeReplacement": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "output": [
+   "runtime-replacement",
+   "correspondence=trusted",
+   "fixtures_twice"
+  ]
+ },
+ "Fixtures.Positive.ExternBoundary": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "output": [
+   "[external]",
+   "correspondence=trusted",
+   "fixtures_ext_fn"
+  ]
+ },
+ "Fixtures.Positive.Float32Wrapper": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "label": "standard-logical",
+  "output": [
+   "Float32.add",
+   "[native-runtime]",
+   "correspondence=trusted"
+  ]
+ },
+ "Fixtures.Positive.CheckedReplacement": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "execution": "checked",
+  "output": [
+   "runtime-replacement",
+   "correspondence=checked",
+   "fixtures_checked_twice_correspondence"
+  ]
+ },
+ "Fixtures.Mutations.DirectAxiom": {
+  "expect": "fail",
+  "reason": "project-axiom"
+ },
+ "Fixtures.Mutations.IndirectAxiom": {
+  "expect": "fail",
+  "reason": "unknown-axiom"
+ },
+ "Fixtures.Mutations.HiddenSorry": {
+  "expect": "fail",
+  "reason": "hole"
+ },
+ "Fixtures.Mutations.AttributedSorry": {
+  "expect": "fail",
+  "reason": "hole"
+ },
+ "Fixtures.Mutations.ProofValuedDef": {
+  "expect": "fail",
+  "reason": "hole"
+ },
+ "Fixtures.Mutations.ProofValuedInstance": {
+  "expect": "fail",
+  "reason": "hole"
+ },
+ "Fixtures.Mutations.ChoiceInChoiceFree": {
+  "expect": "fail",
+  "reason": "label-exceeds-claim",
+  "claim": "choice-free"
+ },
+ "Fixtures.Mutations.TransitiveChoice": {
+  "expect": "fail",
+  "reason": "label-exceeds-claim",
+  "claim": "choice-free"
+ },
+ "Fixtures.Mutations.NativeProof": {
+  "expect": "fail",
+  "reason": "compiler-trusting"
+ },
+ "Fixtures.Mutations.NativeNameSpoof": {
+  "expect": "fail",
+  "reason": "project-axiom"
+ },
+ "Fixtures.Mutations.NativeSemanticForge": {
+  "expect": "fail",
+  "reasons": [
+   "project-axiom",
+   "unknown-axiom"
+  ]
+ },
+ "Fixtures.Mutations.TrustCompiler": {
+  "expect": "fail",
+  "reason": "compiler-trusting"
+ },
+ "Fixtures.Mutations.PrivateChoice": {
+  "expect": "fail",
+  "reason": "label-exceeds-claim",
+  "claim": "choice-free"
+ },
+ "Fixtures.Mutations.PartialDef": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.UnsafeDef": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.UnsafeOpaque": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.AuxiliaryLookingUnsafe": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.UnsafeRecNameSpoof": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.UnsafeRecMetadataForge": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.RunTacUnsafeRecForge": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.CustomTacticUnsafeRecForge": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.CustomTermUnsafeRecForge": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.ByElabUnsafeRecForge": {
+  "expect": "fail",
+  "reason": "escape-hatch"
+ },
+ "Fixtures.Mutations.ObserverCommandCollision": {
+  "expect": "fail",
+  "reason": "project-axiom"
+ },
+ "Fixtures.Mutations.UncheckedReplacementClaim": {
+  "expect": "fail",
+  "reason": "execution-trusted-boundary",
+  "execution": "checked"
+ },
+ "Fixtures.Mutations.NamespacedVariants": {
+  "expect": "fail",
+  "reason": "hole"
+ },
+ "Fixtures.Mutations.OpaqueConstruct": {
+  "expect": "fail",
+  "reason": "compile-error",
+  "pattern": "Type mismatch"
+ },
+ "Fixtures.Mutations.OpaqueObserve": {
+  "expect": "fail",
+  "reason": "compile-error",
+  "pattern": "Type mismatch"
+ },
+ "Fixtures.Mutations.OpaquePrivateAccess": {
+  "expect": "fail",
+  "reason": "compile-error",
+  "pattern": "Unknown constant|Unknown identifier|unknown constant|unknown identifier"
+ },
+ "Fixtures.Mutations.TimeCrossUse": {
+  "expect": "fail",
+  "reason": "compile-error",
+  "pattern": "Type mismatch|is expected to have type"
+ },
+ "Fixtures.Mutations.UnlawfulInstance": {
+  "expect": "fail",
+  "reason": "compile-error",
+  "pattern": "Fields missing|fields missing|missing.*law|field.*law"
+ },
+ "Fixtures.Positive.DependentCorrespondence": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "execution": "checked",
+  "output": [
+   "correspondence=checked",
+   "fixtures_dependent_correspondence",
+   "required="
+  ]
+ },
+ "Fixtures.Positive.PointwiseCorrespondence": {
+  "expect": "pass",
+  "claim": "standard-logical",
+  "execution": "checked",
+  "output": [
+   "correspondence=checked",
+   "fixtures_pointwise_correspondence",
+   "required="
+  ]
+ },
+ "Fixtures.Mutations.ConditionalCorrespondence": {
+  "expect": "fail",
+  "claim": "standard-logical",
+  "execution": "checked",
+  "reason": "execution-trusted-boundary",
+  "output": [
+   "no kernel-checked unconditional correspondence proof"
+  ]
+ },
+ "Fixtures.Mutations.RepeatedCorrespondence": {
+  "expect": "fail",
+  "claim": "standard-logical",
+  "execution": "checked",
+  "reason": "execution-trusted-boundary",
+  "output": [
+   "no kernel-checked unconditional correspondence proof"
+  ]
+ },
+ "Fixtures.Mutations.OmittedCorrespondence": {
+  "expect": "fail",
+  "claim": "standard-logical",
+  "execution": "checked",
+  "reason": "execution-trusted-boundary",
+  "output": [
+   "no kernel-checked unconditional correspondence proof"
+  ]
+ },
+ "Fixtures.Mutations.SpecializedUniverseCorrespondence": {
+  "expect": "fail",
+  "claim": "standard-logical",
+  "execution": "checked",
+  "reason": "execution-trusted-boundary",
+  "output": [
+   "no kernel-checked unconditional correspondence proof"
+  ]
+ },
+ "Fixtures.Mutations.LocalUncheckedAdmission": {
+  "expect": "fail",
+  "reason": "kernel-admission",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Mutations.RestoredUncheckedAdmission": {
+  "expect": "fail",
+  "reason": "kernel-admission",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Mutations.DirectUncheckedAdmission": {
+  "expect": "fail",
+  "reason": "kernel-admission",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Mutations.ForgedAdmissionCorrespondence": {
+  "expect": "fail",
+  "reason": "kernel-admission",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Positive.CheckedReplayAdmission": {
+  "expect": "pass",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Positive.RestoredCheckedAdmission": {
+  "expect": "pass",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Positive.NestedRecursion": {
+  "expect": "pass",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Positive.SpecializedRecursion": {
+  "expect": "pass",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Mutations.SpecializeHandlerReplacement": {
+  "expect": "fail",
+  "reason": "escape-hatch",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Positive.MutualAdmission": {
+  "expect": "pass",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Mutations.UncheckedDefinitionAdmission": {
+  "expect": "fail",
+  "reason": "kernel-admission",
+  "claim": "kernel-only"
+ },
+ "Fixtures.Mutations.UncheckedOpaqueAdmission": {
+  "expect": "fail",
+  "reason": "kernel-admission",
+  "claim": "kernel-only"
+ }
+}
