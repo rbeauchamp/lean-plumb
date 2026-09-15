@@ -65,7 +65,7 @@ the final attribute map nor optimized IR preserves. Isolate the frontend's
 initializers, and memoize once per module in one audit invocation. -/
 private def replacementHistory (sourceRoots : Array FilePath)
     (moduleSources : Array (Name × FilePath)) (moduleName : Name) :
-    IO (Except String (Array (Name × Name))) := do
+    IO ProducerReport.HistoryOutcome := do
   try
     let olean ← Lean.findOLean moduleName
     let alongside := olean.withExtension "lean"
@@ -94,11 +94,12 @@ private def replacementHistory (sourceRoots : Array FilePath)
         throw <| IO.userError s!"{result.stdout}{result.stderr}"
       let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
       let payload ← IO.ofExcept <| readWorkerPacket request json
-      unless (← IO.FS.readFile source) == sourceBefore do
+      let sourceAfter ← IO.FS.readFile source
+      unless sourceAfter == sourceBefore do
         throw <| IO.userError "replacement history source changed"
       let edges : Array (Name × Name) ← IO.ofExcept <| fromJson? payload
-      return .ok edges
-  catch error => return .error error.toString
+      return .completed source.toString sourceBefore sourceAfter edges
+  catch error => return .unavailable error.toString
 
 private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
@@ -138,12 +139,12 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
     declarations := ← selected.mapM fun key => do
       return (key, ← Lean.findDocString? env key.2)
   }
-  let histories ← IO.mkRef ({} : NameMap (Except String (Array (Name × Name))))
+  let histories ← IO.mkRef ({} : NameMap ProducerReport.HistoryOutcome)
   let loadHistory (moduleName : Name) := do
-    if let some result := (← histories.get).find? moduleName then return result
+    if let some result := (← histories.get).find? moduleName then return result.edges
     let result ← replacementHistory sourceRoots moduleSources moduleName
     histories.modify (·.insert moduleName result)
-    return result
+    return result.edges
   let ctx : Elab.Command.Context := {
     fileName := "<trusted-environment-probe>"
     fileMap := FileMap.ofString ""
@@ -155,10 +156,17 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       (StrictLean.Probe.environmentReport requested.toList loadHistory includeExecution includeModuleOrigins).run ctx |>.run state with
   | .error ex => throw <| IO.userError (← ex.toMessageData.toString)
   | .ok (report, _) =>
+    let historyTable ← histories.get
+    let historyKeys := StrictLeanPolicy.canonicalNames (historyTable.toArray.map (·.1))
+    let historyRecords ← historyKeys.mapM fun name => do
+      let some outcome := historyTable.find? name
+        | throw <| IO.userError "producer-history: missing recorded lookup"
+      pure (name, outcome)
     let report : ProducerReport.Environment := {
       toCollected := report
       admission := some admission
       documentation := some documentation
+      histories := historyRecords
     }
     IO.ofExcept report.validate
     return report

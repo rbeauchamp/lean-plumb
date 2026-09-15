@@ -482,6 +482,7 @@ def environmentReport (modules : List Name)
     else pure #[]
   -- Documentation consumes only `declarations`; avoid constructing unused
   -- execution graphs. The full gate and all other callers retain them.
+  let historyRequests ← liftIO <| IO.mkRef (#[] : Array (Name × Name))
   let execution ← if includeExecution then do
     -- Names alone do not establish toolchain ownership: an adopter or dependency
     -- can supply Init.* modules. Resolve each candidate once, and require the
@@ -505,7 +506,10 @@ def environmentReport (modules : List Name)
     let proofCache ← liftIO <| IO.mkRef ({} : Std.HashMap (Name × Name) (Correspondence × Option String))
     roots.mapM fun (moduleName, root) => do
       let (boundaries, unresolved, compilerEdges) ←
-        executionWalk env modules nativeModules loadReplacementHistory candidates proofCache recursorHelpers root
+        executionWalk env modules nativeModules (fun name => do
+          historyRequests.modify fun requests =>
+            if requests.contains (root, name) then requests else requests.push (root, name)
+          loadReplacementHistory name) candidates proofCache recursorHelpers root
       return ({
         name := root
         «module» := moduleName
@@ -519,7 +523,8 @@ def environmentReport (modules : List Name)
     declarations := entries
     execution
     census := { modules := modules.toArray, declarations := declarationKeys
-                executionRoots := if includeExecution then some roots else none }
+                executionRoots := if includeExecution then some roots else none
+                historyRequests := ← liftIO historyRequests.get }
   }
 
 /-- `audit_dump_json`: compatibility command for direct interactive use. The
