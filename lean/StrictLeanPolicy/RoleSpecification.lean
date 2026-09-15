@@ -1,4 +1,8 @@
-import StrictLeanPolicy.Foundation
+module
+
+public import StrictLeanPolicy.Foundation
+
+@[expose] public section
 
 /-! Generated-role relations over the complete observation inventory. Each component
 states exact metadata, value/equation observations, ordered attribution, and uniqueness.

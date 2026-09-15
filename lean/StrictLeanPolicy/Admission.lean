@@ -1,4 +1,8 @@
-import StrictLeanPolicy.Domain
+module
+
+public import StrictLeanPolicy.Domain
+
+@[expose] public section
 
 /-! Admission of observations before policy. These proofs establish data validity,
 not the truth of compiler extraction. Generated roles remain bound to this entire
@@ -34,10 +38,10 @@ The operational bridge separately checks correspondence with Lean's FileMap. -/
 def Position.validFor (p : Position) (source : String) : Bool :=
   p.line > 0 && ((source.splitOn "\n")[p.line - 1]?).any (fun line => p.column ≤ line.length)
 
-private def positionLE (a b : Position) : Bool :=
+def positionLE (a b : Position) : Bool :=
   a.line < b.line || (a.line == b.line && a.column ≤ b.column)
 
-private def utf16Column (p : Position) (source : String) : Nat :=
+def utf16Column (p : Position) (source : String) : Nat :=
   ((((source.splitOn "\n")[p.line - 1]?).getD "").toList.take p.column).foldl
     (fun n c => n + if c.toNat > 65535 then 2 else 1) 0
 

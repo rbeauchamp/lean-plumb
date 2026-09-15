@@ -47,8 +47,8 @@ def main : IO Unit := do
   require (!succeeded (validatePages producer manifest [.projectAxiom] [page, page])) "duplicate page"
   require (!succeeded (validatePages producer manifest [.projectAxiom] [{ page with route := "wrong" }])) "wrong route"
   require (!succeeded (validatePages producer manifest [.projectAxiom] [{ page with checkedExample := false }])) "unchecked example"
-  require (!succeeded (validatePages producer manifest [.moduleDocumentation]
-    [⟨.moduleDocumentation, RuleId.moduleDocumentation.route, true, true⟩])) "advertised planned detector"
+  require (succeeded (validatePages producer manifest [.moduleDocumentation]
+    [⟨.moduleDocumentation, RuleId.moduleDocumentation.route, true, true⟩])) "implemented module-doc detector"
   let candidate : SourceCandidate := ⟨⟨"qualification://unicode", "α😀\r\nx"⟩, ⟨0, 9⟩, ⟨2, 6⟩⟩
   let source ← IO.ofExcept (admitSource candidate)
   require (source.selectionLsp.start.line == 0 && source.selectionLsp.start.character == 1 &&
@@ -67,8 +67,8 @@ def main : IO Unit := do
   require (!succeeded (DiagnosticCodec.parseDiagnostic (json.setObjVal! "mode" (.str "serializedGraph")))) "unsupported diagnostic mode"
   require (!succeeded (DiagnosticCodec.parseDiagnostic (json.setObjVal! "impact" (.str "pass")))) "unknown impact"
   require (!succeeded (DiagnosticCodec.parseDiagnostic (json.setObjVal! "severity" (.str "hidden")))) "unknown severity"
-  require (!succeeded (makeDiagnostic .moduleDocumentation ⟨"M", "missing docs"⟩
-    (.module `M) .freshProject none .violation)) "planned detector admission"
+  require (succeeded (makeDiagnostic .moduleDocumentation ⟨"M", "missing docs"⟩
+    (.module `M) .freshProject none .violation)) "module-doc detector admission"
   let native ← IO.ofExcept d.nativeMessage
   require (native.pos.line == 1 && native.pos.column == 1 &&
     native.endPos == some ⟨1, 2⟩) "native codepoint coordinates"

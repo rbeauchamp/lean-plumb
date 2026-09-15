@@ -63,17 +63,11 @@ private def inspection : Option Profile → StrictLeanPolicy.InspectionRequest
   | some .choiceFree => .conforming .choiceFree
   | some .standardLogical => .conforming .standardLogical
 
-private def failureId : StrictLeanPolicy.DeclarationFailure → RuleId
-  | .projectAxiom => .projectAxiom | .proofHole => .proofHole
-  | .unknownAxiom => .unknownAxiom | .escapeHatch => .escapeHatch
-  | .compilerTrusting => .compilerTrusting | .executableContract => .executableContract
-  | .profileExceeded => .profileExceeded | .invalidInventory => .coverage
-
 abbrev declarationNeedsTranscript := StrictLeanPolicy.declarationNeedsTranscript
 abbrev needsFrontendTranscript := StrictLeanPolicy.needsFrontendTranscript
 
 def ruleFor (decl : Declaration) (claim : Option Profile) (scope : PolicyScope) : Option RuleId :=
-  (StrictLeanPolicy.policyFor scope.inventory scope.roles decl (inspection claim)).map failureId
+  (StrictLeanPolicy.policyFor scope.inventory scope.roles decl (inspection claim)).map StrictLean.ruleForFailure
 
 def reasonFor (decl : Declaration) (claim : Option Profile) (scope : PolicyScope) : Option String :=
   (ruleFor decl claim scope).map (fun id => (descriptor id).applicability)

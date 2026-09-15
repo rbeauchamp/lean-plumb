@@ -1,6 +1,10 @@
-import StrictLean.Rule
-import StrictLeanPolicy.Domain
-import Lean.Data.Lsp.Utf16
+module
+
+public import StrictLean.Rule
+public import StrictLeanPolicy.Domain
+public import Lean.Data.Lsp.Utf16
+
+@[expose] public section
 
 /-! Canonical diagnostic values and source conversion. The indexed representation credits
 con-leche (see RuleId); source conversion uses pinned Lean FileMap/LSP APIs. -/
@@ -18,7 +22,7 @@ structure SourceCandidate where
   deriving Repr, BEq
 
 namespace SourceCandidate
-private def boundary (source : String) (n : Nat) : Bool :=
+def boundary (source : String) (n : Nat) : Bool :=
   n ≤ source.utf8ByteSize &&
     (source.toFileMap.ofPosition (source.toFileMap.toPosition ⟨n⟩)).byteIdx == n
 

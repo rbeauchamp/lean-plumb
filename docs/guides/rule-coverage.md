@@ -7,6 +7,8 @@ The map was read against all numbered chapters, the standard README and critical
 at baseline `f943f41c50876b25c8c5c2285e6ae4315645521e`. Changes to those requirements must update
 this map and affected typed descriptors together, with semantic review.
 
+See [native-linter.md](native-linter.md) for the delivered partial command feedback and complete module metadata observers.
+
 ## Exact selected diagnostic vocabulary
 
 Twenty stable IDs are reserved for the initial product. Grouping related failures under one ID
@@ -35,8 +37,8 @@ paths are under `lean/StrictLean/Checker/`; `Probe` and `Report` are in `lean/St
 | SL4002 | A positive fence does not elaborate verbatim warning-free and complete its owned admission/foundation checks. | `Documentation`, SourceAudit, Admission; preserve underlying SL100x/200x subdiagnostics. | DocumentationExample plus fresh claimed-import preparation. | No imports/wrappers inserted into checked source. Default Standard-Logical only; narrower/execution claims need explicit evidence. |
 | SL4003 | A negative example lacks completed intended rejection matching its expected diagnostic within one effective-error message. | `Diagnostics` restricted pattern matcher, worker completion; add stable-ID expectations for website cases. | DocumentationExample. | Worker crash, timeout, wrong reason, info-only output and cross-message matching do not pass. Site lint violations may elaborate successfully before checker rejection. |
 | SL4004 | A trusted-compiler teaching example fails warning-free elaboration or required authenticated compiler classification. | `Documentation`, SourceAudit, Frontend; typed ID/adapters. | DocumentationExample. | Never count teaching example as conforming positive. No blanket native-name whitelist. |
-| SL5001 | A claimed module lacks module-doc metadata. | New #13 presence check using Lean's module-doc metadata; existing semantic review retained. | Module/environment; project/editor when module completed. | Presence alone says nothing about identifying all material declarations/assumptions. No imposed headings or layout. |
-| SL5002 | A public declaration explicitly registered as evidence for a material normative claim lacks a docstring. | New #13 explicit material-claim selector plus `findDocString?`; Core missingDocs predicate is broader. | Elaboration/environment; project/editor. | Do not require all public/private/trivial declarations to have docs. Registration completeness and meaning remain semantic review; no name heuristic. |
+| SL5001 | A claimed module lacks module-doc metadata. | `Linter.Documentation.modulePresent/moduleFinding`; Markdown and Verso metadata; #7 owns mandatory project jobs. | Module/environment; project/editor when module completed. | Presence alone says nothing about identifying all material declarations/assumptions. No imposed headings or layout. |
+| SL5002 | A public declaration explicitly registered as evidence for a material normative claim lacks a docstring. | `MaterialClaim` registration and `Linter.Documentation.declarationFinding` plus `findDocString?`; #7 owns mandatory project jobs. | Elaboration/environment; project/editor. | Do not require all public/private/trivial declarations to have docs. Registration completeness and meaning remain semantic review; no name heuristic. |
 
 The engine must preserve every existing advertised failure condition, including warning and
 worker completion handling, while grouping its presentation. A new or unclassified internal

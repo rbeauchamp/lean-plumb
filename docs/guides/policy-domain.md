@@ -111,3 +111,13 @@ con-leche code or claim its proofs establish Strict Lean policy.
 
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean
+
+## Raw computations and receipt APIs
+
+The native module import chain exposes proof-facing definitions for Lean's module
+system. Computational helpers `declarationFailure`, `labelOf` and `compilerAxiom`
+accept caller-supplied sets and do not authorize roles. Use `policyFor` and
+`foundationFor` with the inventory-bound `Roles` receipt. Similarly,
+`boundaryEvidenceCandidate` may discard incompatible fields; use
+`admitBoundaryEvidence` when preserving every supplied observation field is required.
+Public indexed constructors remain values, not attestations about an external producer.

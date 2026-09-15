@@ -20,10 +20,11 @@ message-template identifiers, strict default, supported evidence modes,
 implementation availability, lifecycle and attribution. `existingChecker`
 means the named existing predicate has a checker implementation; it does not
 mean that every planned live editor or production website adapter is complete.
-`plannedEngine` currently identifies SL5001 and SL5002. Their mode lists are
-empty, so `makeDiagnostic` cannot advertise their enforcement. SL1001's editor
-mode is exercised by the explicit imported-module prototype; production live
-collection remains ENGINE-01.
+SL5001 and SL5002 now have native metadata-presence observers. SL1001–SL1007
+have partial command feedback; SL2002 covers invalid local foundation requests,
+and SL2005 covers unavailable or pending local analysis. Full project integration
+is separate from those local modes. See [native-linter.md](native-linter.md) for
+actual APIs, scope, options and qualification. Production pages remain #15.
 
 To add a rule, establish its exact Lean predicate and coverage-map entry first.
 Add its constructor, stable spelling/parser branch, exhaustive descriptor and

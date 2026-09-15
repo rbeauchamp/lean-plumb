@@ -1,5 +1,9 @@
-import StrictLeanPolicy.Specification
-import StrictLeanPolicy.RoleSpecification
+module
+
+public import StrictLeanPolicy.Specification
+public import StrictLeanPolicy.RoleSpecification
+
+@[expose] public section
 
 /-! Actual generated-role validators and declaration decisions over admitted observations.
 Role receipts carry equality to these executed validators for the exact inventory.
@@ -26,10 +30,13 @@ theorem authorizedUnsafeRecHelpers_iff (ds : Array Declaration) (ts : Array Tran
     n ∈ authorizedUnsafeRecHelpers ds ts ↔ ∃ h ∈ ds, h.name = n ∧ RecursiveHelperOK ds ts h := by
   simp [authorizedUnsafeRecHelpers, Array.mem_map, Array.mem_filter, and_left_comm, and_comm]
 
-private def compilerAxiom (native : Array Name) (name : Name) : Bool :=
+/-- Raw membership calculation over a caller-supplied set; it authorizes no role. -/
+def compilerAxiom (native : Array Name) (name : Name) : Bool :=
   builtinCompilerAxiom name || native.contains name
 
-private def labelOf (axioms : Array Name) (native : Array Name := #[]) : FoundationClass :=
+/-- Raw classification over supplied axiom sets. Use `foundationFor` for an
+inventory-bound classification with recomputed generated-role evidence. -/
+def labelOf (axioms : Array Name) (native : Array Name := #[]) : FoundationClass :=
   if axioms.contains `sorryAx then .hole
   else if axioms.any fun name => !standardLogicalAxiom name && !compilerAxiom native name then
     .unknownAxiom
@@ -38,7 +45,10 @@ private def labelOf (axioms : Array Name) (native : Array Name := #[]) : Foundat
   else if axioms.all (ConformingProfile.permits .choiceFree) then .choiceFree
   else .standardLogical
 
-private def declarationFailure (decl : Declaration) (claim : InspectionRequest)
+/-- Raw computational kernel over supplied role sets; callers can supply arbitrary
+sets here. This is not an admission or authorization API. Production decisions
+use `policyFor`, whose inventory and Roles arguments enforce the receipt boundary. -/
+def declarationFailure (decl : Declaration) (claim : InspectionRequest)
     (native : Array Name := #[]) (unsafeHelpers : Array Name := #[]) :
     Option DeclarationFailure :=
   if decl.kind == .«axiom» then
@@ -102,7 +112,8 @@ private theorem conditional_none (p : Prop) [Decidable p] (a b : Option α) :
   by_cases h : p <;> simp [h]
 
 /-- Exact success relation for the executable declaration decision, for every observation,
-request and supplied role set. Public consumers additionally require inventory-bound Roles. -/
+request and supplied role set. `policyFor` additionally requires inventory-bound Roles. Raw computational helpers
+do not establish that receipt or any whole-project acceptance claim. -/
 theorem declarationFailure_none_iff (d : Declaration) (r : InspectionRequest)
     (native helpers : Array Name) :
     declarationFailure d r native helpers = none ↔ DeclarationOK d r native helpers := by

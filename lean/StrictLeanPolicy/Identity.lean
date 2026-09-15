@@ -1,5 +1,9 @@
-import Std
-import Init.Data.Ord.String
+module
+
+public import Std
+public import Init.Data.Ord.String
+
+@[expose] public section
 
 /-! Structural Lean identities. The tagged component sequence preserves string and
 numeric constructors (including empty strings). No display-name round trip is used.

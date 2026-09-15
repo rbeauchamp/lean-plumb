@@ -1,3 +1,7 @@
+module
+
+
+@[expose] public section
 /-!
 Closed public rule identity. Canonical construction is inspired by con-leche's
 `PropWhen.lean` and `Cached/Installed.lean`, revision

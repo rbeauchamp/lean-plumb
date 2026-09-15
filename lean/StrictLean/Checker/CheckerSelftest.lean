@@ -1621,11 +1621,49 @@ private def combinedSnapshotQualification (repo : FilePath) : IO (Array String) 
       if !accepted then failures := failures.push s!"combined snapshot/{phase}: {result.output}"
     return failures
 
+/-- Distinguish the canonical force-loaded collector from a real import of an
+excluded root-library module, through the public fresh project entry point. -/
+private def forcedCollectorQualification (repo scratch : FilePath) : IO (Array String) := do
+  let layout ← loadSourceLayout repo
+  prepareScratchRepo repo scratch
+  -- Retain the complete original manifest, including pure-policy dependencies.
+  -- Excluding them would reject the positive for an unrelated import reason.
+  let root := scratch / layout.relativeDir / "AuditApp.lean"
+  let source ← IO.FS.readFile root
+  let invoke := runBinaryFrom repo scratch "axiomGate" #[]
+  let positive ← invoke
+  unless positive.succeeded do return #[s!"forced-collector-positive: {positive.output}"]
+  IO.FS.writeFile root ("import StrictLean.Collect\n" ++ source)
+  let negative ← invoke
+  IO.FS.writeFile root source
+  let restored ← invoke
+  let mut failures := #[]
+  if let some failure := expectedFailure "source-imported-excluded-collector" negative
+      #["unexpected-project-module", "excluded module StrictLean.Collect"] then
+    failures := failures.push failure
+  unless restored.succeeded do failures := failures.push s!"forced-collector-restored: {restored.output}"
+  return failures
+
 unsafe def run (args : List String) : IO UInt32 := do
+  if args == ["--forced-collector-only"] then
+    let repo ← repoRoot
+    let build ← runProcess repo "lake" #["build", "axiomGate"]
+    if !build.succeeded then IO.println build.output; return 1
+    let failures ← withScratch repo "forced-collector-control" (forcedCollectorQualification repo)
+    for failure in failures do IO.println s!"FAIL: {failure}"
+    if failures.isEmpty then IO.println "forced collector qualification: PASS (fresh positive, excluded-source refusal, restored)"
+    return if failures.isEmpty then 0 else 1
   if args == ["--policy-transport-only"] then
     let failures := PolicyQualification.transport
     for failure in failures do IO.println s!"FAIL: {failure}"
     if failures.isEmpty then IO.println "policy transport qualification: PASS"
+    return if failures.isEmpty then 0 else 1
+  if args == ["--native-adopter-only"] then
+    let repo ← repoRoot
+    let build ← runProcess repo "lake" #["build", "axiomGate", "StrictLean.Linter"]
+    if !build.succeeded then IO.println build.output; return 1
+    let failures ← withScratch repo "native-adopter-control" (PolicyQualification.nativeImport repo)
+    for failure in failures do IO.println s!"FAIL: {failure}"
     return if failures.isEmpty then 0 else 1
   if args == ["--policy-domain-only"] then
     let repo ← repoRoot

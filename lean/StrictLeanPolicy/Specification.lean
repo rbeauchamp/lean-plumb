@@ -1,4 +1,8 @@
-import StrictLeanPolicy.Foundation
+module
+
+public import StrictLeanPolicy.Foundation
+
+@[expose] public section
 
 /-! Declaration-policy meaning over observations. These predicates state membership,
 safety, and recorded contract obligations independently of decision outputs. Extraction

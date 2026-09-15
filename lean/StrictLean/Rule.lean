@@ -1,5 +1,9 @@
-import StrictLean.RuleId
-import StrictLeanPolicy.Domain
+module
+
+public import StrictLean.RuleId
+public import StrictLeanPolicy.Foundation
+
+@[expose] public section
 
 /-! Shared metadata. See RuleId for con-leche attribution and docs/guides/rule-registry.md
 for the boundary between existing checker detection and planned product adapters. -/
@@ -97,8 +101,15 @@ def identity {id : RuleId} (_ : RuleDescriptor id) : RuleId := id
 def helpRoute {id : RuleId} (_ : RuleDescriptor id) : String := id.route
 end RuleDescriptor
 
-private def declarationModes : List EvidenceMode :=
+def declarationModes : List EvidenceMode :=
   [.incrementalProject, .freshProject, .freshFile, .documentationExample]
+
+/-- Total bridge from the executed policy decision to the single rule registry. -/
+def ruleForFailure : StrictLeanPolicy.DeclarationFailure → RuleId
+  | .projectAxiom => .projectAxiom | .proofHole => .proofHole
+  | .unknownAxiom => .unknownAxiom | .escapeHatch => .escapeHatch
+  | .compilerTrusting => .compilerTrusting | .executableContract => .executableContract
+  | .profileExceeded => .profileExceeded | .invalidInventory => .coverage
 
 /-- Total metadata for the reserved vocabulary. Planned detectors never claim availability. -/
 def descriptor : (id : RuleId) → RuleDescriptor id
@@ -113,37 +124,37 @@ def descriptor : (id : RuleId) → RuleDescriptor id
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
       applicability := "hole", messageTemplate := "SL1002:{subject}:{detail}"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .unknownAxiom => {
       title := "Unknown transitive axioms are forbidden", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
       applicability := "unknown-axiom", messageTemplate := "SL1003:{subject}:{detail}"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .compilerTrusting => {
       title := "Compiler-trusting proofs require separate classification", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
       applicability := "compiler-trusting", messageTemplate := "SL1004:{subject}:{detail}"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .profileExceeded => {
       title := "Transitive axioms must fit the selected profile", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
       applicability := "label-exceeds-claim", messageTemplate := "SL1005:{subject}:{detail}"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .escapeHatch => {
       title := "Unsafe and partial declarations require exact helper authentication", category := .declaration
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.4"]
       applicability := "escape-hatch", messageTemplate := "SL1006:{subject}:{detail}"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .executableContract => {
       title := "Executable contracts require supported closed evidence", category := .execution
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.6"]
       applicability := "executable-contract", messageTemplate := "SL1007:{subject}:{detail}"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .environment => {
       title := "The declared Lean environment must be available", category := .environment
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.1"]
@@ -155,7 +166,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.2"]
       applicability := "configuration", messageTemplate := "SL2002:{subject}:{detail}"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .sourceBuild => {
       title := "Claimed source must elaborate warning-free", category := .elaboration
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.3"]
@@ -173,7 +184,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.3"]
       applicability := "admission", messageTemplate := "SL2005:{subject}:{detail}"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .executionUnresolved => {
       title := "Execution closure must have no unresolved paths", category := .execution
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.6"]
@@ -214,13 +225,13 @@ def descriptor : (id : RuleId) → RuleDescriptor id
       title := "Claimed modules require module documentation", category := .documentation
       normativeClauses := ["docs/standard/5-documentation-standards.md §5.3"]
       applicability := "module-documentation", messageTemplate := "SL5001:{subject}:{detail}"
-      availability := .plannedEngine
-      evidenceModes := [] }
+      availability := .existingChecker
+      evidenceModes := .editorSnapshot :: declarationModes }
   | .materialDocumentation => {
       title := "Registered public material declarations require docstrings", category := .documentation
       normativeClauses := ["docs/standard/5-documentation-standards.md §5.1"]
       applicability := "material-documentation", messageTemplate := "SL5002:{subject}:{detail}"
-      availability := .plannedEngine
-      evidenceModes := [] }
+      availability := .existingChecker
+      evidenceModes := .editorSnapshot :: declarationModes }
 
 end StrictLean

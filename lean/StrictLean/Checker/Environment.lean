@@ -35,16 +35,29 @@ def probeModuleName : String := "StrictLean.Probe"
 /-- The reporter also force-loads this public, neutral name codec. Its presence is
 not a source import of excluded policy machinery. Validate the exact durable artifact
 before distinguishing it from a claimed module's ordinary imports. -/
-def forcedStructuralName (report : StrictLean.Report.Environment) : IO Name := do
-  let name := `StrictLean.StructuralName
+private def forcedPublicModule (report : StrictLean.Report.Environment) (name : Name)
+    (description : String) : IO Name := do
   let origins := report.moduleOrigins.filter (·.name == name)
-  let some origin := origins[0]? | throw <| IO.userError "missing structural-name codec origin"
-  unless origins.size == 1 do throw <| IO.userError "ambiguous structural-name codec origin"
+  let some origin := origins[0]? | throw <| IO.userError s!"missing {description} origin"
+  unless origins.size == 1 do throw <| IO.userError s!"ambiguous {description} origin"
   let some lib ← checkerPackageLibDir | throw <| IO.userError "checker library path unavailable"
   let expected ← IO.FS.realPath (Lean.modToFilePath lib name "olean")
   unless (← IO.FS.realPath origin.olean) == expected do
-    throw <| IO.userError "structural-name codec origin mismatch"
+    throw <| IO.userError s!"{description} origin mismatch"
   return name
+
+def forcedStructuralName (report : StrictLean.Report.Environment) : IO Name :=
+  forcedPublicModule report `StrictLean.StructuralName "structural-name codec"
+
+/-- The extracted constructor is also force-loaded by Probe. Its artifact must
+be the checker's exact artifact. Unlike the neutral name codec, it remains in
+the excluded-library scan whenever another module actually imports it. -/
+def forcedCollectorOnly (report : StrictLean.Report.Environment) : IO (Option Name) := do
+  let name ← forcedPublicModule report `StrictLean.Collect "shared collector"
+  if report.moduleOrigins.any (fun origin =>
+      !probeModuleNames.contains origin.name.toString && origin.imports.contains name) then
+    return none
+  return some name
 
 /-- Re-elaboration recovers overwritten `implemented_by` choices that neither
 the final attribute map nor optimized IR preserves. Isolate the frontend's
