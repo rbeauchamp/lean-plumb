@@ -1,15 +1,15 @@
 # Session context: Strict Lean Project 8
 
-**Date:** 2026-09-14
-**Starting basis for CATALOG-01:** public `main`, `ae27b3b87e0881f39d60593ad2af01ce144b8160` (CL-01 design PR #18).
-**Persistence / resume authority:** this handoff is committed and pushed through a separate PR. Resume from the resulting public `main` after that PR merges; the starting basis above is not the eventual handoff HEAD.
+**Date:** 2026-09-15
+**Starting basis for DESIGN-01:** public `main`, `79851f567ac8c1000575b707630e7ea593bfccb0` (CATALOG-01 PR #19).
+**Persistence / resume authority:** this handoff accompanies the DESIGN-01 delivery PR. Resume from the resulting public `main` after that PR merges; the starting basis above is not the eventual handoff HEAD.
 **Working root:** `/Users/richard/Developer/github/strict-lean`.
 **Repository:** `origin` is now `https://github.com/rbeauchamp/strict-lean.git`.
 **Resume focus after this delivery merges:** [#5 policy-domain types](https://github.com/rbeauchamp/strict-lean/issues/5). #5–#7 implement the CL-01 policy types, proofs and complete-result integration; #13 also requires #5.
 
 ## Plan and completed work
 
-[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full live issue bodies are authoritative. Native dependencies govern prerequisites. #5 follows #4 and #12 and is next in project order after this delivery. Optional #8/#9 never replace the core unit. Verify the completing CATALOG-01 PR is integrated with passing checks/reviews before beginning #5.
+[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full live issue bodies are authoritative. Native dependencies govern prerequisites. #5 follows #4, #12 and #20 and is next in project order after this delivery. Optional #8/#9 never replace the core unit. Verify the completing CL-01, CATALOG-01 and DESIGN-01 PRs are integrated with passing checks/reviews before beginning #5.
 
 CL-01 supplies `docs/guides/policy-acceptance.md`: actual success/data flow, independent claim/census/job coverage, noncircular policy predicates, pure `StrictLeanPolicy` library plan, typed role/codec boundaries and successor assignments. Independent semantic and source-flow reviews passed after repairs for documentation presence, policy-negative website examples and FreshChecker plan-only completion. New theorems remain planned; no whole-checker/runtime proof is claimed. Successor handoffs are copied to issue bodies before integration. Read the completing PR for final CI/review evidence.
 
@@ -61,11 +61,40 @@ Three independent fresh-context reviews covered registry/proofs, executing integ
 
 Final local ordinary acceptance passed in 84.26 seconds under the hard 420-second deadline: Lean 4.33.1, Mathlib `0df444a360eaa60ab8c11dca51a86af692955474`, Audit/AuditApp, 12 owned modules, 510 declarations, 70 positive examples, 23 intended negative examples and one trusted example. Registry and malformed-CLI controls passed. The migrated prototype passed in 28.74 seconds; documentation remains pinned to Lean 4.33.0/Verso. A separate non-Git adopter rebuilt the checker and exercised positive/negative file results and incremental project results, including checker-source revision identity. Exact-head CI and integration are recorded on the completing PR; verify them live. Optional long diagnostic campaigns were not rerun or claimed PASS. Production collection/editor UX, policy `Accepted` proofs and website deployment remain successor work.
 
+## DESIGN-01 research delivery
+
+Issue #20 added comparative ecosystem research and a concrete developer-experience contract.
+Read `docs/guides/ecosystem-design.md` and `docs/guides/developer-experience.md` with the
+maintained architecture. Lean already has native linters; the design combines local hooks,
+semantic environment inspection and a Lake project driver, using the existing language
+server/infoview. CA1416, Ruff and Pyrefly are illustrative references, alongside Clippy,
+ESLint, HLint/HLS and Lean/Batteries/Mathlib; none is an exact-copy requirement.
+
+Retain the twenty rules, pure policy/registry boundaries and Verso. New decisions cover
+explicit configuration explanation, Mathlib-driver coexistence, scope-correct Lake arguments,
+concise human rendering with lossless evidence, stale/pending feedback, searchable accessible
+rule pages and no initial automatic source rewriting. Reuse established definitions and their
+proofs where semantics match; use intended extension APIs and qualify any specialized internal
+adapter. Move existing neutral diagnostic definitions out of the probe-only import chain before
+public editor reuse, preserving the probe contamination guard. The guides distinguish source evidence,
+the observed pinned API check, design inference and unverified production/user behavior.
+Successor issue bodies receive settled decisions before integration; verify #20's completing
+PR/reviews/CI and closure live before starting #5. No full-user study or new latency guarantee
+is claimed. The ordinary 420-second deadline remains unchanged.
+
 ## Immediate next action and evidence gate
 
-1. Verify origin, checkout/current main and worktree ownership. Read the full live #5 and native blockers #4/#12; confirm their completing PRs are integrated. Read AGENTS and maintained architecture, rule-registry, coverage and policy-acceptance guides.
-2. Implement #5's exact policy-domain contract on a scoped `codex/` branch. Reuse RuleId and structural names, preserve the separate pure `StrictLeanPolicy` package boundary, and distinguish policy categories from diagnostic IDs. Consume the authoritative issue's full CL-01 predicates, including its intentional fresh-file warning behavior change.
-3. Preserve all twenty rules, documentation-presence obligations and compiler-rejection versus policy-diagnostic distinctions. Neither empty diagnostics nor a plan-only worker exit supplies complete accepted evidence.
-4. Complete applicable independent review, proof/compiler checks, the hard 420-second acceptance and exact-head CI; integrate and reconcile successor bodies/dependencies and Project 8. Stop after #5 unless scope is expanded.
+1. Verify origin, checkout/current main and worktree ownership. Read the full live #5 and its
+   native blockers #4/#12/#20; confirm their completing PRs are integrated. Read AGENTS and
+   maintained architecture, ecosystem-design, developer-experience, registry, coverage and
+   policy-acceptance guides.
+2. Implement #5's exact pure policy-domain contract on a scoped `codex/` branch. Keep diagnostic
+   IDs separate from policy categories; preserve claim/snapshot/configuration origins without
+   admitting presentation or configuration-query completion as policy authority.
+3. Preserve full CL-01 predicates and the intentional fresh-file warning change. Empty
+   diagnostics, worker/plan-only completion and a clean buffer never establish project acceptance.
+4. Complete independent review, applicable proof/compiler checks, hard 420-second acceptance
+   and exact-head CI; integrate and reconcile successors and Project 8. Stop after #5 unless
+   scope is expanded.
 
 **Mission-leverage card:** N/A; no separate card or active goal object is used.

@@ -215,6 +215,7 @@ The source and native-message adapters use Lean 4.33.1, commit
 and [command linter hooks](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Elab/Command.lean).
 Credit Lean's authors for these APIs. The existing prototype retains Verso credit
 and the [Microsoft CA1416](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416)
-presentation reference; neither supplies Lean policy semantics or suppression
-permission. Root Mathlib remains pinned to
+illustrative presentation reference. The [ecosystem study](ecosystem-design.md) broadens
+the comparison; none of these examples prescribes an exact UX or supplies Lean policy
+semantics or suppression permission. Root Mathlib remains pinned to
 `0df444a360eaa60ab8c11dca51a86af692955474`.

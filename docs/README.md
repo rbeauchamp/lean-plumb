@@ -32,3 +32,6 @@ Return to the [project overview](../README.md).
 - [Complete rule coverage](guides/rule-coverage.md): twenty selected diagnostics and all residual checklist obligations.
 
 - [Policy acceptance contract](guides/policy-acceptance.md): exact scope, complete results, pure proof boundary and migration.
+
+- [Ecosystem research and design](guides/ecosystem-design.md): evidence from Lean and other language tools, alternatives and selected architecture.
+- [Developer experience](guides/developer-experience.md): planned native workflows, diagnostics, configuration and website interactions.
