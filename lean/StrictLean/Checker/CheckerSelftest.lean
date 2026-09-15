@@ -917,7 +917,7 @@ private unsafe def structuralPartA (layout : SourceLayout) (repo copy : FilePath
         failures.modify (·.push failure)
 
   withNewFile (sources / "AuditApp" / "DiscoveryAxiom.lean")
-      "axiom selftest_discovered_axiom : False\n" do
+      "/-! Discovery control for an otherwise unused owned axiom. -/\naxiom selftest_discovered_axiom : False\n" do
     if let some failure := expectedFailure "add-only-discovery" (← gate)
         #["project-axiom", "selftest_discovered_axiom"] then
       failures.modify (·.push failure)
@@ -1038,7 +1038,7 @@ private unsafe def structuralPartB (layout : SourceLayout) (repo copy : FilePath
     "{\"executable\":\"checkerSelftest\",\"rationale\":\"tooling\"}]}"
   let claimedGate := gate #["--manifest", claimedManifest.toString, "--incremental"]
 
-  withNewFile (sources / "SelftestMain.lean") "def main : IO Unit := pure ()\n" do
+  withNewFile (sources / "SelftestMain.lean") "/-! Standalone no-effect IO entrypoint. -/\ndef main : IO Unit := pure ()\n" do
     withReplacedFile lakefile (originalLakefile ++ exeDecl) do
       if let some failure := expectedFailure "unclassified-exe" (← gate)
           #["manifest-incomplete", "selftestTool"] then
@@ -1060,7 +1060,7 @@ private unsafe def structuralPartB (layout : SourceLayout) (repo copy : FilePath
           failures.modify (·.push failure)
 
   withNewFile (sources / "SelftestMain.lean")
-      "import Fixtures.Mutations.DirectAxiom\ndef main : IO Unit := pure ()\n" do
+      "import Fixtures.Mutations.DirectAxiom\n/-! Standalone import-contamination control. -/\ndef main : IO Unit := pure ()\n" do
     withReplacedFile lakefile (originalLakefile ++ exeDecl) do
       IO.FS.writeFile claimedManifest claimedManifestText
       if let some failure := expectedFailure "exe-contamination" (← claimedGate)
@@ -1397,10 +1397,10 @@ private unsafe def adopterQualification (repo scratch : FilePath) : IO (Array St
     IO.FS.writeFile (adopter / s!"lakefile.{format}") (lakefileText checkerDir)
     IO.FS.writeBinFile (adopter / "lean-toolchain")
       (← IO.FS.readBinFile (repo / "lean-toolchain"))
-    IO.FS.writeFile (adopter / "Widget.lean") "import Widget.Extra\n"
+    IO.FS.writeFile (adopter / "Widget.lean") "import Widget.Extra\n/-! Re-export the arithmetic identity in Widget.Extra. -/\n"
     IO.FS.writeFile (adopter / "Widget" / "Extra.lean")
-      "theorem widget_extra_thm : 1 + 1 = 2 := rfl\n"
-    IO.FS.writeFile (adopter / "Main.lean") "def main : IO Unit := pure ()\n"
+      "/-! Closed natural-number arithmetic identity. -/\ntheorem widget_extra_thm : 1 + 1 = 2 := rfl\n"
+    IO.FS.writeFile (adopter / "Main.lean") "/-! Standalone no-effect IO entrypoint. -/\ndef main : IO Unit := pure ()\n"
     IO.FS.writeFile (adopter / "foundation_manifest.json") (adopterManifestText ++ "\n")
     writeJson (adopter / "lake-manifest.json") lakeManifest
     IO.FS.createDirAll (adopter / ".lake")
@@ -1435,7 +1435,7 @@ private unsafe def adopterQualification (repo scratch : FilePath) : IO (Array St
       failures.modify (·.push failure)
 
     withNewFile (adopter / "Widget" / "Rogue.lean")
-        "axiom widget_rogue_axiom : False\n" do
+        "/-! Discovery control for a glob-owned axiom. -/\naxiom widget_rogue_axiom : False\n" do
       if let some failure := expectedFailure s!"adopter/{label}/rogue-module" (← gate)
           #["project-axiom", "widget_rogue_axiom"] then
         failures.modify (·.push failure)
@@ -1601,11 +1601,13 @@ private def combinedSnapshotQualification (repo : FilePath) : IO (Array String) 
     let mut failures := #[]
     for phase in #["baseline", "invalid", "restored", "invalid-source", "invalid-companion", "source-restored"] do
       IO.FS.writeFile (project / "Snapshot.lean") <|
-        if phase == "invalid-source" then "axiom unproved : True\n"
-        else "theorem snapshot_ok : True := True.intro\n"
+        "/-! Source used for fence-import isolation qualification. -/\n" ++
+        (if phase == "invalid-source" then "axiom unproved : True\n"
+        else "theorem snapshot_ok : True := True.intro\n")
       IO.FS.writeFile (project / "Companion.lean") <|
-        if phase == "invalid-companion" then "axiom companion_unproved : True\n"
-        else "theorem companion_ok : True := True.intro\n"
+        "/-! Companion surface for fence-import isolation qualification. -/\n" ++
+        (if phase == "invalid-companion" then "axiom companion_unproved : True\n"
+        else "theorem companion_ok : True := True.intro\n")
       let body := if phase == "invalid" then "def docWitness : Nat := \"bad\""
         else "theorem docWitness : True := True.intro"
       IO.FS.writeFile (docs / "sentinel.md") s!"```lean\n{body}\n```\n"

@@ -242,7 +242,12 @@ private def addSupport (adopter : FilePath) (source : String) : IO Unit := do
 private def runCase (repo adopter : FilePath) (test : Case) : IO (Array String) := do
   setup repo adopter
   if let some source := test.support then addSupport adopter source
-  for (path, source) in test.files do IO.FS.writeFile (adopter / path) source
+  for (path, source) in test.files do
+    -- A control's intended defect is independent of module-doc presence.
+    let source := if (FilePath.mk path).extension == some "lean" then
+        source ++ s!"\n/-! Build integration control for {test.name}. -/\n"
+      else source
+    IO.FS.writeFile (adopter / path) source
   let mut failures := positive s!"{test.name}/positive" (← build adopter)
   if !failures.isEmpty then return failures
   let path := adopter / test.path
@@ -272,7 +277,7 @@ private def disabledControl (repo adopter : FilePath) : IO (Array String) := do
   IO.FS.writeFile path disabled
   let source := adopter / "Widget.lean"
   let original ← IO.FS.readFile source
-  IO.FS.writeFile source "axiom disabledAssumption : True\n"
+  IO.FS.writeFile source "/-! Cached axiom used to qualify disabling and reenabling policy. -/\naxiom disabledAssumption : True\n"
   let result ← build adopter
   let mut failures := if result.succeeded && !result.output.contains "build policy linter:" then #[]
     else #[s!"build-lint/disabled: ordinary build did not remain disabled:\n{result.output}"]

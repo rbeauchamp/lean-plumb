@@ -159,7 +159,7 @@ instance : FromJson ReportWorkerRequest := ⟨fun j => do
 
 private structure SurfaceInspection where
   info : LibraryInfo
-  report : StrictLean.Report.Environment
+  report : StrictLean.Checker.ProducerReport.Environment
   transcripts : Array Frontend.Transcript
   frontendFailures : Array String
 
@@ -268,7 +268,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       moduleSources := inventory.moduleSources.map fun (name, path) => (name, path.toString)
       ownedOutput := inventory.leanLibDir.toString
     }
-    let report : StrictLean.Report.Environment ← timedPhase s!"declaration inspection {surface.library}" <|
+    let report : StrictLean.Checker.ProducerReport.Environment ← timedPhase s!"declaration inspection {surface.library}" <|
       runTypedWorker "--declaration-report-worker" request
     let mut frontendFailures : Array String := #[]
     let mut transcripts : Array Frontend.Transcript := #[]
@@ -293,6 +293,8 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
   for (surface, outcome) in inspections do
     let inspected ← IO.ofExcept outcome
     let { info, report, transcripts, frontendFailures } := inspected
+    unless report.census.modules == info.modules && report.census.executionRoots.isSome do
+      throw <| IO.userError "producer-census: report does not match requested project scope"
     let forcedNameCodec ← Environment.forcedStructuralName report
     let forcedCollector ← Environment.forcedCollectorOnly report
     let envModules := report.modules.filter
@@ -350,6 +352,29 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
     let native := scope.native
     let unsafeHelpers := scope.helpers
     totalDeclarations := totalDeclarations + report.declarations.size
+    let mode : StrictLean.EvidenceMode := if fresh then .freshProject else .incrementalProject
+    let some documentation := report.documentation
+      | throw <| IO.userError "producer-documentation: project observations unavailable"
+    for (moduleName, present) in documentation.modules do
+      unless present do
+        let finding ← IO.ofExcept <| StrictLean.makeDiagnostic .moduleDocumentation
+          ⟨moduleName.toString, "module-documentation: add a module doc comment describing this module"⟩
+          (.module moduleName) mode (some surface.claim.toString) .violation
+        findings := findings.push ⟨.moduleDocumentation, finding⟩
+        failures := failures.push s!"module-documentation: {moduleName}"
+    for (key, docstring) in documentation.declarations do
+      if docstring.isSome then continue
+      let some decl := report.declarations.find? (fun d => (d.module, d.name) == key)
+        | throw <| IO.userError "producer-documentation: selected declaration missing"
+      let snapshot ← match info.sources.find? (·.module == key.1) with
+        | some entry => pure <| some (⟨entry.source.toString, ← IO.FS.readFile entry.source⟩ : StrictLean.SourceSnapshot)
+        | none => pure none
+      let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl snapshot
+      findings := findings.push (← IO.ofExcept <| RuleDiagnostics.declarationFinding
+        .materialDocumentation key.2
+        "material-documentation: document the claim, assumptions and evidence at this declaration"
+        location mode (some surface.claim.toString))
+      failures := failures.push s!"material-documentation: {key.2}"
     for decl in report.declarations do
       if let some id := Policy.ruleFor decl (some surface.claim) scope then
         let reason := (StrictLean.descriptor id).applicability
