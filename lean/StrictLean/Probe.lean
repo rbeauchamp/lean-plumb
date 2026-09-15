@@ -448,7 +448,7 @@ def environmentReport (modules : List Name)
     (loadReplacementHistory : Name → IO (Except String (Array (Name × Name))) :=
       fun _ => pure (.error "trusted source-history loader was not supplied"))
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    CommandElabM StrictLean.Report.Environment := do
+    CommandElabM StrictLean.Report.Collected := do
   if modules.isEmpty then
     throwError "environmentReport: no owned module names were supplied"
   if Lean.githash != "819816b2e0a3bf405af45ae5c7af2491d8f5bee6" then
@@ -464,7 +464,22 @@ def environmentReport (modules : List Name)
           StrictLean.Report.ModuleOrigin)
     else pure #[]
   let own ← ownedDecls env modules
+  let declarationKeys ← own.mapM fun (name, _) => do
+    let some idx := env.getModuleIdxFor? name
+      | throwError "declaration census has no owner for {name}"
+    return (env.header.modules[(idx : Nat)]!.module, name)
   let entries ← own.mapM fun (name, _) => StrictLean.Collect.declaration name .replayCandidate
+  let roots ← if includeExecution then do
+    let mut roots ← executableRoots env own
+    for entry in entries do
+      if let some contract := entry.executableContract then
+        if contract.failure.isNone && !roots.contains contract.root then
+          roots := roots.push contract.root
+    roots.mapM fun root => do
+      let some idx := env.getModuleIdxFor? root
+        | throwError "executable root census has no owner for {root}"
+      return (env.header.modules[(idx : Nat)]!.module, root)
+    else pure #[]
   -- Documentation consumes only `declarations`; avoid constructing unused
   -- execution graphs. The full gate and all other callers retain them.
   let execution ← if includeExecution then do
@@ -486,19 +501,11 @@ def environmentReport (modules : List Name)
               | .error error => throwError "{error}"
             nativeModules := nativeModules.insert origin.name receipt
     let recursorHelpers := brecOnHelpers env own
-    let mut roots ← executableRoots env own
-    for entry in entries do
-      if let some contract := entry.executableContract then
-        if contract.failure.isNone && !roots.contains contract.root then
-          roots := roots.push contract.root
     let candidates := simplificationCandidates env
     let proofCache ← liftIO <| IO.mkRef ({} : Std.HashMap (Name × Name) (Correspondence × Option String))
-    roots.mapM fun root => do
+    roots.mapM fun (moduleName, root) => do
       let (boundaries, unresolved, compilerEdges) ←
         executionWalk env modules nativeModules loadReplacementHistory candidates proofCache recursorHelpers root
-      let some moduleName := (env.getModuleIdxFor? root).map
-          fun idx => env.header.modules[(idx : Nat)]!.module
-        | throwError "owned executable root {root} has no module index"
       return ({
         name := root
         «module» := moduleName
@@ -511,6 +518,8 @@ def environmentReport (modules : List Name)
     moduleOrigins
     declarations := entries
     execution
+    census := { modules := modules.toArray, declarations := declarationKeys
+                executionRoots := if includeExecution then some roots else none }
   }
 
 /-- `audit_dump_json`: compatibility command for direct interactive use. The
@@ -525,6 +534,6 @@ elab (name := auditDumpJsonCmd) "audit_dump_json" : command => do
       let t := t.trimAscii.toString
       if t.isEmpty then none else some t.toName
   let report ← environmentReport modules
-  liftIO <| IO.FS.writeFile (System.FilePath.mk pathStr) (Json.pretty (toJson report))
+  liftIO <| IO.FS.writeFile (System.FilePath.mk pathStr) (Json.pretty (toJson report.toEnvironment))
 
 end StrictLean.Probe

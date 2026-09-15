@@ -28,7 +28,8 @@ standard_verify_checks() {
       # The declaration gate owns fresh claimed-source elaboration.
       lake build StrictLeanPolicy axiomGate docFenceAudit \
         +StrictLean.Checker.CheckerSelftest:olean +StrictLean.Checker.FreshChecker:olean \
-        +StrictLean.RegistryChecks:olean +StrictLean.Linter:olean
+        +StrictLean.RegistryChecks:olean +StrictLean.Linter:olean \
+        +StrictLean.Checker.ProducerQualification:olean
       lake env lean --run lean/StrictLean/RegistryChecks.lean
       python3 scripts/registry_cli_checks.py
       python3 scripts/native_linter_checks.py
@@ -44,6 +45,10 @@ standard_verify_checks() {
       shift
       if (( $# > 1 )); then echo "diagnostics accepts at most one partition" >&2; exit 2; fi
       case "${1:-}" in
+        producers)
+          lake build axiomGate +StrictLean.Checker.ProducerQualification:olean
+          python3 scripts/producer_checks.py
+          ;;
         "") lake exe checkerSelftest --build-bound --jobs 4 ;;
         fixtures|structural|cli|environments|build-policy)
           lake exe checkerSelftest --build-bound --partition "$1" --jobs 4 ;;
@@ -51,7 +56,7 @@ standard_verify_checks() {
       esac
       echo "diagnostic qualification: PASS (selected scope only; not ordinary verification)"
       ;;
-    *) echo "usage: scripts/verify.sh [serialized-graph | diagnostics [fixtures|structural|cli|environments|build-policy]]" >&2; exit 2 ;;
+    *) echo "usage: scripts/verify.sh [serialized-graph | diagnostics [fixtures|structural|cli|environments|build-policy|producers]]" >&2; exit 2 ;;
   esac
 }
 export -f standard_verify_checks

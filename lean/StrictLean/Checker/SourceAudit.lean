@@ -65,7 +65,7 @@ instance : FromJson Compilation := ⟨fun j => do
 
 structure Inspected where
   compilation : Compilation
-  report : StrictLean.Report.Environment
+  report : StrictLean.Checker.ProducerReport.Environment
   transcripts : Array Frontend.Transcript
   deriving Repr
 
@@ -91,7 +91,7 @@ instance : FromJson GroupRequest := ⟨fun j => do
   }⟩
 
 structure GroupReport where
-  report : StrictLean.Report.Environment
+  report : StrictLean.Checker.ProducerReport.Environment
   transcripts : Array Frontend.Transcript
   deriving ToJson
 
@@ -137,6 +137,9 @@ def inspectGroupCurrentSearchPath (modules : Array Name)
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
     let payload ← IO.ofExcept <| readWorkerPacket (toJson request) json
     let inspected : GroupReport ← IO.ofExcept (fromJson? payload)
+    unless inspected.report.census.modules == modules &&
+        inspected.report.census.executionRoots.isSome == includeExecution do
+      throw <| IO.userError "producer-census: inspection response scope mismatch"
     -- The report worker has exited before any frontend imports are loaded.
     -- Each transcript likewise releases its imports before the next one.
     let mut transcripts := #[]

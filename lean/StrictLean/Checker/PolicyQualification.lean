@@ -94,6 +94,7 @@ def transport : Array String := Id.run do
 
 private def source : String :=
   "import StrictLean.Diagnostic\nimport StrictLean.StructuralName\nimport Lean\n" ++
+  "/-! Public name-codec proof and compiler-root classification controls. -/\n" ++
   "inductive Branch where\n  | node : List Branch → Branch\n" ++
   "theorem publicNameRoundtrip (n : Lean.Name) :\n" ++
   "    StrictLean.RegistryCodec.parseName (StrictLean.RegistryCodec.nameJson n) = .ok n :=\n" ++

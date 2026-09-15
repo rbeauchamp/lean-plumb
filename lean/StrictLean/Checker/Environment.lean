@@ -2,6 +2,7 @@ import StrictLean.Checker.PolicyCodec
 import StrictLean.Probe
 import StrictLean.Checker.Common
 import StrictLean.Checker.Admission
+import StrictLean.Linter.Documentation
 
 /-!
 Trusted environment loading for checker policy. The fully qualified reporter
@@ -35,7 +36,7 @@ def probeModuleName : String := "StrictLean.Probe"
 /-- The reporter also force-loads this public, neutral name codec. Its presence is
 not a source import of excluded policy machinery. Validate the exact durable artifact
 before distinguishing it from a claimed module's ordinary imports. -/
-private def forcedPublicModule (report : StrictLean.Report.Environment) (name : Name)
+private def forcedPublicModule (report : StrictLean.Checker.ProducerReport.Environment) (name : Name)
     (description : String) : IO Name := do
   let origins := report.moduleOrigins.filter (·.name == name)
   let some origin := origins[0]? | throw <| IO.userError s!"missing {description} origin"
@@ -46,13 +47,13 @@ private def forcedPublicModule (report : StrictLean.Report.Environment) (name : 
     throw <| IO.userError s!"{description} origin mismatch"
   return name
 
-def forcedStructuralName (report : StrictLean.Report.Environment) : IO Name :=
+def forcedStructuralName (report : StrictLean.Checker.ProducerReport.Environment) : IO Name :=
   forcedPublicModule report `StrictLean.StructuralName "structural-name codec"
 
 /-- The extracted constructor is also force-loaded by Probe. Its artifact must
 be the checker's exact artifact. Unlike the neutral name codec, it remains in
 the excluded-library scan whenever another module actually imports it. -/
-def forcedCollectorOnly (report : StrictLean.Report.Environment) : IO (Option Name) := do
+def forcedCollectorOnly (report : StrictLean.Checker.ProducerReport.Environment) : IO (Option Name) := do
   let name ← forcedPublicModule report `StrictLean.Collect "shared collector"
   if report.moduleOrigins.any (fun origin =>
       !probeModuleNames.contains origin.name.toString && origin.imports.contains name) then
@@ -102,7 +103,7 @@ private def replacementHistory (sourceRoots : Array FilePath)
 private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Report.Environment := do
+    IO StrictLean.Checker.ProducerReport.Environment := do
   if modules.isEmpty || modules.toList.eraseDups.length != modules.size then
     throw <| IO.userError "environment report requires unique nonempty modules"
   unsafe Lean.enableInitializersExecution
@@ -120,7 +121,23 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       if !ownedModules.contains name && !probeModuleNames.contains name.toString then
         if ← pathWithin (← Lean.findOLean name) root then
           throw <| IO.userError s!"unexpected-project-module: kernel-admission cannot classify {name}"
-  timedPhase "kernel admission" <| Admission.validate env ownedModules
+  let admission ← timedPhase "kernel admission" <| Admission.validate env ownedModules
+  -- Freeze the selector from the completed environment before reading docstrings.
+  -- Loading server/private data above is necessary for both Lean doc formats.
+  let own := StrictLean.Probe.ownedConstants env requested.toList
+  let mut selected := #[]
+  for (name, _) in own do
+    if StrictLean.Linter.Documentation.selected env name then
+      let some idx := env.getModuleIdxFor? name
+        | throw <| IO.userError s!"material declaration has no module: {name}"
+      selected := selected.push (env.header.modules[(idx : Nat)]!.module, name)
+  let documentation : StrictLean.Checker.ProducerReport.DocumentationObservation := {
+    modules := ← requested.mapM fun name => do
+      return (name, ← IO.ofExcept <| StrictLean.Linter.Documentation.modulePresent env name)
+    materialDeclarations := selected
+    declarations := ← selected.mapM fun key => do
+      return (key, ← Lean.findDocString? env key.2)
+  }
   let histories ← IO.mkRef ({} : NameMap (Except String (Array (Name × Name))))
   let loadHistory (moduleName : Name) := do
     if let some result := (← histories.get).find? moduleName then return result
@@ -137,7 +154,14 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
   match ← timedPhase "declaration report" <| EIO.toIO' <|
       (StrictLean.Probe.environmentReport requested.toList loadHistory includeExecution includeModuleOrigins).run ctx |>.run state with
   | .error ex => throw <| IO.userError (← ex.toMessageData.toString)
-  | .ok (report, _) => return report
+  | .ok (report, _) =>
+    let report : ProducerReport.Environment := {
+      toCollected := report
+      admission := some admission
+      documentation := some documentation
+    }
+    IO.ofExcept report.validate
+    return report
 
 /-- Lean resolves a whole module prefix at the first matching directory.
 A fresh project that builds only `Contract` must not mask the trusted probe,
@@ -146,7 +170,7 @@ Expose only the checker-owned prefix ahead of the audited search roots. -/
 private unsafe def loadReportCore (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Report.Environment := do
+    IO StrictLean.Checker.ProducerReport.Environment := do
   let some selfLib ← checkerPackageLibDir
     | throw <| IO.userError "trusted checker library directory unavailable"
   withScratch (← IO.currentDir) "probe-search" fun overlay => do
@@ -166,7 +190,7 @@ search-path scope. -/
 unsafe def loadReportCurrentSearchPath (modules : Array Name)
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Report.Environment :=
+    IO StrictLean.Checker.ProducerReport.Environment :=
   loadReportCore modules #[] moduleSources ownedOutput includeExecution includeModuleOrigins
 
 /-- Load exact modules through Lean's import semantics and return their typed
@@ -175,7 +199,7 @@ unsafe def loadReport (modules : Array Name)
     (extraSearchRoots : Array FilePath := #[]) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Report.Environment := do
+    IO StrictLean.Checker.ProducerReport.Environment := do
   let selfLib ← checkerPackageLibDir
   let oldSearchPath ← Lean.searchPathRef.get
   Lean.searchPathRef.set (extraSearchRoots.toList ++ selfLib.toList ++ oldSearchPath)

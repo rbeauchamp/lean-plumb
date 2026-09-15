@@ -1,3 +1,4 @@
+import StrictLean.Checker.ProducerReport
 import Lean.Replay
 import StrictLean.Probe
 
@@ -14,7 +15,8 @@ open Lean
 /-- Replay the completed owned logical declarations against trusted imports.
 The original environment is retained for compiler metadata only after replay
 succeeds. This is not a fresh replay of the imported dependency graph. -/
-unsafe def validate (env : Environment) (ownedModules : Array Name) : IO Unit := do
+unsafe def validate (env : Environment) (ownedModules : Array Name) :
+    IO StrictLean.Checker.ProducerReport.AdmissionReceipt := do
   let mut replayModules := ownedModules
   -- The force-loaded reporter now depends on the positive policy library.
   -- Replay these exact checker implementation modules too; importing them into
@@ -29,8 +31,14 @@ unsafe def validate (env : Environment) (ownedModules : Array Name) : IO Unit :=
         replayModules := replayModules.push name
   let owned := replayModules.foldl (fun names name => names.insert name) ({} : NameSet)
   let mut declarations : Std.HashMap Name ConstantInfo := {}
-  for (name, info) in StrictLean.Probe.ownedConstants env replayModules.toList do
+  let own := StrictLean.Probe.ownedConstants env replayModules.toList
+  let mut required := #[]
+  for (name, info) in own do
     declarations := declarations.insert name info
+    if !info.isUnsafe && !info.isPartial then
+      let some idx := env.getModuleIdxFor? name
+        | throw <| IO.userError s!"[VIOLATION[kernel-admission]] missing owner for {name}"
+      required := required.push (env.header.modules[(idx : Nat)]!.module, name)
   let mut imports : Array Import := #[]
   for (name, data) in env.header.moduleNames.zip env.header.moduleData do
     if owned.contains name then continue
@@ -45,9 +53,13 @@ unsafe def validate (env : Environment) (ownedModules : Array Name) : IO Unit :=
       if (base.toKernelEnv.find? name).isSome then
         throw <| IO.userError s!"owned declaration {name} already exists in replay base"
     let checked ← base.replay declarations
-    for (name, info) in declarations do
-      if !info.isUnsafe && !info.isPartial && (checked.toKernelEnv.find? name).isNone then
+    let mut admitted := #[]
+    for key in required do
+      let name := key.2
+      if (checked.toKernelEnv.find? name).isNone then
         throw <| IO.userError s!"missing replayed declaration {name}"
+      admitted := admitted.push key
+    return { modules := StrictLeanPolicy.canonicalNames replayModules, required, admitted }
   catch error =>
     throw <| IO.userError s!"[VIOLATION[kernel-admission]] {error}"
   finally

@@ -40,3 +40,4 @@ Return to the [project overview](../README.md).
 
 - [Typed policy domain](guides/policy-domain.md): implemented categories, admission invariants, worker bindings and proof boundaries.
 - [Policy proofs](guides/policy-proofs.md): executable decision theorems, concrete acceptance and remaining operational boundaries.
+- [Project producer evidence](guides/engine-producers.md): extraction census, replay receipts, documentation diagnostics and source-owned examples.

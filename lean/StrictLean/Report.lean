@@ -234,4 +234,18 @@ instance : FromJson StrictLeanPolicy.Environment := ⟨fun j => do
     execution := ← j.getObjValAs? _ "execution"
   }⟩
 
+/-- Frozen extraction keys, captured before declaration observations and execution walks.
+These are unbound operational inputs to POLICY-04's claim-indexed `Census`, not acceptance. -/
+structure Census where
+  modules : Array Name
+  declarations : Array (Name × Name)
+  executionRoots : Option (Array (Name × Name))
+  deriving Repr
+
+/-- Extraction keys alongside the original pure policy report. Operational transport
+and receipt validation live in the checker layer, outside the force-loaded replay closure. -/
+structure Collected extends StrictLeanPolicy.Environment where
+  census : Census
+  deriving Repr
+
 end StrictLean.Report
