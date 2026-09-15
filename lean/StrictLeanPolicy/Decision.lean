@@ -1,235 +1,30 @@
 import StrictLeanPolicy.Specification
+import StrictLeanPolicy.RoleSpecification
 
 /-! Actual generated-role validators and declaration decisions over admitted observations.
 Role receipts carry equality to these executed validators for the exact inventory.
-Independent predicate equivalence and least-foundation theorems belong to #6. -/
+Theorems below connect the actual public policy functions to the independent relations. -/
 namespace StrictLeanPolicy
 open Lean (Name)
 open Frontend
 
-/-- Semantic failures are mapped to the one diagnostic registry by the adapter. -/
-inductive DeclarationFailure where
-  | projectAxiom | proofHole | unknownAxiom | escapeHatch | compilerTrusting
-  | executableContract | profileExceeded | invalidInventory
-  deriving Repr, DecidableEq
+/-- Execute the finite independent native relation; preserve inventory order. -/
+def authorizedNativeAxioms (ds : Array Declaration) (ts : Array Transcript := #[]) : Array Name :=
+  (ds.filter (fun a => decide (NativeTeachingOK ds ts a))).map (·.name)
 
-/-- Inspection and teaching cannot serve as a positive conformance profile. -/
-inductive InspectionRequest where
-  | classification | teaching | conforming (profile : ConformingProfile)
-  deriving Repr, DecidableEq
+/-- Execute the finite independent recursive-helper relation; no caller whitelist. -/
+def authorizedUnsafeRecHelpers (ds : Array Declaration) (ts : Array Transcript := #[]) : Array Name :=
+  (ds.filter (fun h => decide (RecursiveHelperOK ds ts h))).map (·.name)
 
-def ConformingProfile.permits : ConformingProfile → Name → Bool
-  | .kernelOnly, _ => false
-  | .choiceFree, n => n == `propext || n == `Quot.sound
-  | .standardLogical, n => n == `propext || n == `Quot.sound || n == `Classical.choice
+/-- Authorization is equivalent to existence of the complete native relation at this name. -/
+theorem authorizedNativeAxioms_iff (ds : Array Declaration) (ts : Array Transcript) (n : Name) :
+    n ∈ authorizedNativeAxioms ds ts ↔ ∃ a ∈ ds, a.name = n ∧ NativeTeachingOK ds ts a := by
+  simp [authorizedNativeAxioms, Array.mem_map, Array.mem_filter, and_left_comm, and_comm]
 
-def standardLogicalAxiom (name : Name) : Bool :=
-  ConformingProfile.permits .standardLogical name
-
-def builtinCompilerAxiom (name : Name) : Bool :=
-  name == `Lean.trustCompiler || name == `Lean.ofReduceBool
-    || name == `Lean.ofReduceNat
-
-private def arraySubset (values allowed : Array Name) : Bool :=
-  values.all allowed.contains
-
-private def nativeParent? : Name → Option Name
-  | .str (.str (.str parent "_native") "native_decide") suffix => do
-      guard (parent != .anonymous && suffix.startsWith "ax_")
-      let numbers := (suffix.drop 3).toString.splitOn "_"
-      guard (!numbers.isEmpty && numbers.all fun n => !n.isEmpty && n.toList.all Char.isDigit)
-      return parent
-  | _ => none
-
-/-- Only declaration kinds that could receive a generated-role exception need
-the extra fresh frontend transcript. This core works over primitive fields so
-a batched harness can apply the identical predicate to raw environment
-constant records before paying any environment load. -/
-def declarationNeedsTranscript (isUnsafe isPartial : Bool) (kind : DeclarationKind) (name : Name) : Bool :=
-  isUnsafe || isPartial || (kind == .«axiom» && (nativeParent? name).isSome)
-
-/-- Only declaration kinds that could receive a generated-role exception need
-the extra fresh frontend transcript. -/
-def needsFrontendTranscript (decls : Array Declaration) : Bool :=
-  decls.any fun decl =>
-    declarationNeedsTranscript decl.isUnsafe decl.isPartial decl.kind decl.name
-
-private def positionLE (a b : Position) : Bool :=
-  a.line < b.line || (a.line == b.line && a.column <= b.column)
-
-private def declarationRange? (decl : Declaration) : Option SyntaxRange := do
-  let ranges ← decl.ranges
-  return { start := ranges.range.start, «end» := ranges.range.«end» }
-
-private def commandForDecl (transcripts : Array Transcript)
-    (moduleName declarationName : Name) : Option Command := Id.run do
-  let mut found : Array Command := #[]
-  for transcript in transcripts do
-    if transcript.«module» == moduleName then
-      for command in transcript.commands do
-        if command.added.contains declarationName then
-          found := found.push command
-  if found.size == 1 then found[0]? else none
-
-private def nativeCommandForAxiom (transcripts : Array Transcript)
-    (ax : Declaration) (parentName : Name) : Option Command := Id.run do
-  let mut found : Array Command := #[]
-  for transcript in transcripts do
-    if transcript.«module» == ax.«module» then
-      for command in transcript.commands do
-        let roleMatches := command.addedDeclarations.filter fun added =>
-          nativeParent? added.name == some parentName
-            && added.kind == .«axiom» && added.«type» == ax.«type»
-        if roleMatches.size == 1 then found := found.push command
-  if found.size == 1 then found[0]? else none
-
-private def declarationElaborator := `Lean.Elab.Command.elabDeclaration
-private def namespacedDeclarationElaborator :=
-  `Lean.Elab.Command.expandNamespacedDeclaration
-private def declarationKind := `Lean.Parser.Command.declaration
-private def nativeDecideElaborator := `Lean.Elab.Tactic.evalNativeDecide
-private def nativeDecideKind := `Lean.Parser.Tactic.nativeDecide
-
-structure EvaluatorKey where
-  role : EvaluatorRole
-  elaborator : Name
-  kind : Name
-  deriving Repr, BEq
-
-private def key (value : Evaluator) : EvaluatorKey :=
-  { role := value.role, elaborator := value.elaborator, kind := value.kind }
-
-private def nativeDecideChain : Array EvaluatorKey := #[
-  ⟨.command, declarationElaborator, declarationKind⟩,
-  ⟨.tactic, .anonymous, `Lean.Parser.Term.byTactic⟩,
-  ⟨.tactic, .anonymous, `by⟩,
-  ⟨.tactic, `Lean.Elab.Tactic.evalTacticSeq, `Lean.Parser.Tactic.tacticSeq⟩,
-  ⟨.tactic, `Lean.Elab.Tactic.evalTacticSeq1Indented,
-    `Lean.Parser.Tactic.tacticSeq1Indented⟩,
-  ⟨.tactic, nativeDecideElaborator, nativeDecideKind⟩
-]
-
-private def literalDeclarationCommand (command : Command)
-    (declRange : SyntaxRange) : Bool :=
-  command.commandKind == declarationKind && command.commandRange == some declRange
-    && (command.commandElaborator == declarationElaborator
-      || (command.commandElaborator == namespacedDeclarationElaborator
-        && (command.evaluators.filter fun evaluator =>
-          evaluator.role == .command
-            && evaluator.elaborator == declarationElaborator
-            && evaluator.kind == declarationKind
-            && evaluator.range == some declRange).size == 1))
-
-private def evaluatorChain (command : Command) : Array EvaluatorKey :=
-  (command.evaluators.filter (·.role != .term)).map key
-
-private def supportedEvaluator (evaluator : Evaluator) : Bool :=
-  evaluator.pinned && evaluator.elaborator != `Lean.Elab.Tactic.evalRunTac
-    && evaluator.elaborator != `Lean.Elab.Term.elabRunElab
-
-/-- Recognize one built-in declaration command at any namespace depth with any
-`termination_by`/`decreasing_by` block: the command is Lean's literal
-declaration elaborator for the base's exact range, every recorded evaluator is
-pinned to the toolchain, an imported library, or a pure syntax macro, and no
-evaluator is `run_tac` or `by_elab`, which execute audited-source metaprograms inside
-the declaration command. -/
-private def supportedRecursiveCommand (command : Command)
-    (base : Declaration) (declRange : SyntaxRange) : Bool :=
-  let nested := do
-    let outer ← command.commandRange
-    let ranges ← base.ranges
-    let selection : SyntaxRange := {
-      start := ranges.selectionRange.start, «end» := ranges.selectionRange.«end» }
-    pure <| literalDeclarationCommand command outer &&
-      positionLE outer.start declRange.start && positionLE declRange.«end» outer.«end» &&
-      command.bindings.any (fun binding => binding.name == base.name && binding.range == some selection)
-  (literalDeclarationCommand command declRange || nested.getD false)
-    && command.evaluators.all supportedEvaluator
-
-private def supportedNativeCommand (command : Command)
-    (declRange : SyntaxRange) : Bool :=
-  literalDeclarationCommand command declRange
-    && command.evaluators.all supportedEvaluator
-    && evaluatorChain command == nativeDecideChain
-
-private def findDecl? (decls : Array Declaration) (name : Name) :
-    Option Declaration :=
-  decls.find? (·.name == name)
-
-/-- Authenticate native proof axioms by exact semantics and fresh built-in
-frontend attribution. -/
-private def authorizedNativeAxioms (decls : Array Declaration)
-    (transcripts : Array Transcript := #[]) : Array Name := Id.run do
-  let mut authorized : Array Name := #[]
-  for ax in decls do
-    let some parentName := nativeParent? ax.name | continue
-    if ax.kind != .«axiom» || !ax.internal || !ax.isProp
-        || ax.isUnsafe || ax.isPartial || ax.implementedBy.isSome
-        || ax.«extern» || !ax.nativeBoolShape
-        || ax.nativeReplay != some true || !ax.axioms.contains ax.name
-        || !ax.axioms.all (fun name => name == ax.name || standardLogicalAxiom name) then
-      continue
-    let some parent := findDecl? decls parentName | continue
-    if !parent.isProp || !#[DeclarationKind.theorem, .opaque, .definition].contains parent.kind
-        || parent.«module» != ax.«module» || !parent.axioms.contains ax.name
-        || ax.nativeUseParents != #[parent.name] || parent.isUnsafe
-        || parent.isPartial || parent.implementedBy.isSome || parent.«extern» then
-      continue
-    let directUsers := decls.filter fun decl => decl.valueConstants.contains ax.name
-    let some directUser := directUsers[0]? | continue
-    if directUsers.size != 1 || directUser.name != parent.name then continue
-    let some parentRange := declarationRange? parent | continue
-    let some axRange := declarationRange? ax | continue
-    if !positionLE parentRange.start axRange.start
-        || !positionLE axRange.«end» parentRange.«end» then continue
-    let some command := nativeCommandForAxiom transcripts ax parent.name | continue
-    let some parentCommand := commandForDecl transcripts parent.«module» parent.name | continue
-    if command != parentCommand || !supportedNativeCommand command parentRange
-        || !command.added.contains parent.name then continue
-    let nativeEvaluators := command.evaluators.filter fun evaluator =>
-      evaluator.role == .tactic && evaluator.elaborator == nativeDecideElaborator
-        && evaluator.kind == nativeDecideKind
-    let some nativeEvaluator := nativeEvaluators[0]? | continue
-    if nativeEvaluators.size != 1 || nativeEvaluator.range != some axRange then
-      continue
-    authorized := authorized.push ax.name
-  authorized
-
-/-- Authenticate only Lean's exact range-less helper for a safe recursive base. -/
-private def authorizedUnsafeRecHelpers (decls : Array Declaration)
-    (transcripts : Array Transcript := #[]) : Array Name := Id.run do
-  let mut authorized : Array Name := #[]
-  for helper in decls do
-    let some baseName := helper.unsafeRecBase | continue
-    let some base := findDecl? decls baseName | continue
-    if base.kind != .«definition» || helper.kind != .«definition»
-        || helper.«module» != base.«module» || !helper.internal
-        || helper.ranges.isSome || !helper.isPartial || helper.isUnsafe
-        || helper.hints != some .opaque || helper.implementedBy.isSome
-        || helper.«extern» then continue
-    if helper.unsafeRecValueOrigin.isNone
-        || helper.unsafeRecValueExact != some true
-        || helper.unsafeRecValueDefeq != some true
-        || helper.unsafeRecEquationExact != some true
-        || helper.unsafeRecEquationDefeq != some true then continue
-    let some equationAxioms := helper.unsafeRecEquationAxioms | continue
-    if !equationAxioms.all (fun name =>
-        standardLogicalAxiom name || base.axioms.contains name) then continue
-    if base.isPartial || base.isUnsafe || base.hints != some .regular
-        || !base.recursive || base.implementedBy.isSome || base.«extern»
-        || helper.«type» != base.«type» || helper.levelParams != base.levelParams
-        || !arraySubset helper.axioms base.axioms || base.all.isEmpty then continue
-    let expectedHelpers := base.all.map (fun n => Name.str n "_unsafe_rec")
-    if helper.all != expectedHelpers || !expectedHelpers.contains helper.name
-        || !helper.valueConstants.contains helper.name then continue
-    let some baseRange := declarationRange? base | continue
-    let some command := commandForDecl transcripts helper.«module» helper.name | continue
-    let some baseCommand := commandForDecl transcripts base.«module» baseName | continue
-    if command != baseCommand || !supportedRecursiveCommand command base baseRange
-        || !base.all.all command.added.contains
-        || !expectedHelpers.all command.added.contains then continue
-    authorized := authorized.push helper.name
-  authorized
+/-- Authorization is equivalent to existence of the complete helper relation at this name. -/
+theorem authorizedUnsafeRecHelpers_iff (ds : Array Declaration) (ts : Array Transcript) (n : Name) :
+    n ∈ authorizedUnsafeRecHelpers ds ts ↔ ∃ h ∈ ds, h.name = n ∧ RecursiveHelperOK ds ts h := by
+  simp [authorizedUnsafeRecHelpers, Array.mem_map, Array.mem_filter, and_left_comm, and_comm]
 
 private def compilerAxiom (native : Array Name) (name : Name) : Bool :=
   builtinCompilerAxiom name || native.contains name
@@ -289,4 +84,203 @@ def foundationFor (i : Inventory) (roles : Roles i) (d : Declaration) :
     Except String FoundationClass :=
   if d ∈ i.declarations then .ok (labelOf d.axioms roles.native)
   else .error "declaration is not a member of the authenticated inventory"
+
+@[simp] theorem compilerAxiom_iff (native : Array Name) (n : Name) :
+    compilerAxiom native n = true ↔ CompilerAxiom native n := by
+  simp [compilerAxiom, builtinCompilerAxiom, CompilerAxiom, or_assoc]
+
+@[simp] theorem permits_false_iff (p : ConformingProfile) (n : Name) :
+    p.permits n = false ↔ ¬ Permitted p n := by
+  simp only [Bool.eq_false_iff, ne_eq, permits_iff]
+
+@[simp] theorem compilerAxiom_false_iff (native : Array Name) (n : Name) :
+    compilerAxiom native n = false ↔ ¬ CompilerAxiom native n := by
+  simp only [Bool.eq_false_iff, ne_eq, compilerAxiom_iff]
+
+private theorem conditional_none (p : Prop) [Decidable p] (a b : Option α) :
+    (if p then a else b) = none ↔ (p ∧ a = none) ∨ (¬p ∧ b = none) := by
+  by_cases h : p <;> simp [h]
+
+/-- Exact success relation for the executable declaration decision, for every observation,
+request and supplied role set. Public consumers additionally require inventory-bound Roles. -/
+theorem declarationFailure_none_iff (d : Declaration) (r : InspectionRequest)
+    (native helpers : Array Name) :
+    declarationFailure d r native helpers = none ↔ DeclarationOK d r native helpers := by
+  simp only [declarationFailure, DeclarationOK, KnownDependencies, SafetyOK,
+    CompilerPolicyOK, ContractOK, ProfileOK]
+  cases r <;>
+    simp [standardLogicalAxiom, permits_iff, compilerAxiom_iff,
+      -Array.any_eq_true, -Array.any_eq_false, -Array.all_eq_true, -Array.all_eq_false,
+      Array.any_eq_true', Array.all_eq_true', Option.any_eq_true,
+      conditional_none, Option.isSome_iff_ne_none] <;>
+    grind
+
+/-- The actual public decision is sound and complete for the exact inventory member. -/
+theorem policyFor_none_iff (i : Inventory) (roles : Roles i) (d : Declaration)
+    (r : InspectionRequest) :
+    policyFor i roles d r = none ↔
+      d ∈ i.declarations ∧ DeclarationOK d r roles.native roles.helpers := by
+  by_cases hd : d ∈ i.declarations
+  · simp [policyFor, hd, declarationFailure_none_iff]
+  · simp [policyFor, hd]
+
+/-- Logical classification is an embedding of exactly the three conforming profiles. -/
+def ConformingProfile.foundationClass : ConformingProfile → FoundationClass
+  | .kernelOnly => .kernelOnly | .choiceFree => .choiceFree | .standardLogical => .standardLogical
+
+/-- Authenticated native names cannot be any of the three standard logical axioms. -/
+theorem native_not_logical (i : Inventory) (roles : Roles i) (n : Name)
+    (hn : n ∈ roles.native) : ¬ Permitted .standardLogical n := by
+  rw [roles.native_exact, authorizedNativeAxioms_iff] at hn
+  rcases hn with ⟨a, _, ha, hrole⟩
+  rcases hrole.2.2 with ⟨p, _, hparent, _⟩
+  intro hp
+  rcases hp with hp | hp | hp
+  all_goals
+    rw [ha, hp] at hparent
+    simp [nativeParent?] at hparent
+
+/-- The compiler-trusting and logical sets are disjoint for actual inventory-bound roles. -/
+theorem compiler_not_logical (i : Inventory) (roles : Roles i) (n : Name)
+    (hc : CompilerAxiom roles.native n) : ¬ Permitted .standardLogical n := by
+  rcases hc with hc | hc | hc | hc
+  · subst n; simp [Permitted]
+  · subst n; simp [Permitted]
+  · subst n; simp [Permitted]
+  · exact native_not_logical i roles n hc
+
+/-- For any logically admissible observed set, the actual diagnostic classifier returns
+its least profile. The role argument is bound to the same admitted inventory. -/
+theorem labelOf_logical (i : Inventory) (roles : Roles i) (a : Array Name)
+    (ha : ContainsFoundation .standardLogical a) :
+    labelOf a roles.native = (leastFoundation a).foundationClass := by
+  have hole : `sorryAx ∉ a := by
+    intro h
+    have := ha _ h
+    simp [Permitted] at this
+  have known : (a.any fun n => !standardLogicalAxiom n && !compilerAxiom roles.native n) = false := by
+    rw [Array.any_eq_false']
+    intro n hn
+    have hp := (permits_iff .standardLogical n).mpr (ha n hn)
+    simp [standardLogicalAxiom, hp]
+  have comp : (a.any (compilerAxiom roles.native)) = false := by
+    rw [Array.any_eq_false']
+    intro n hn
+    intro hc
+    exact compiler_not_logical i roles n ((compilerAxiom_iff _ _).mp hc) (ha n hn)
+  have empty : ContainsFoundation .kernelOnly a ↔ a = #[] := by
+    simp [ContainsFoundation, Permitted, Array.eq_empty_iff_forall_not_mem]
+  simp only [labelOf, Array.contains_eq_mem, decide_eq_true_eq, hole, ↓reduceIte, known,
+    Bool.false_eq_true, comp, leastFoundation, empty, Array.isEmpty_iff]
+  split
+  · rfl
+  · simp only [Array.all_eq_true', permits_iff]
+    change (if ContainsFoundation .choiceFree a then FoundationClass.choiceFree else .standardLogical) = _
+    split <;> rfl
+
+/-- Foundation output is both the least containing profile and bound to the supplied record. -/
+theorem foundationFor_least (i : Inventory) (roles : Roles i) (d : Declaration)
+    (hd : d ∈ i.declarations) (ha : ContainsFoundation .standardLogical d.axioms) :
+    foundationFor i roles d = .ok (leastFoundation d.axioms).foundationClass ∧
+      LeastFoundation d.axioms (leastFoundation d.axioms) := by
+  exact ⟨by simp [foundationFor, hd, labelOf_logical i roles _ ha], leastFoundation_spec _ ha⟩
+
+/-- Decision instances used by acceptance execute the same proved checker function. -/
+instance (d : Declaration) (r : InspectionRequest) (native helpers : Array Name) :
+    Decidable (DeclarationOK d r native helpers) :=
+  decidable_of_iff (declarationFailure d r native helpers = none)
+    (declarationFailure_none_iff d r native helpers)
+
+
+/-- Each conforming profile is contained in Standard-Logical. -/
+theorem permitted_standard (p : ConformingProfile) (n : Name) (h : Permitted p n) :
+    Permitted .standardLogical n := by
+  cases p with
+  | kernelOnly => exact False.elim h
+  | choiceFree => rcases h with h | h; exact Or.inl h; exact Or.inr (Or.inl h)
+  | standardLogical => exact h
+
+/-- Positive inspection is exactly the permitted foundation, safety exception and recorded
+contract requirements. Teaching authorization never relaxes a conforming profile. -/
+theorem conforming_iff (i : Inventory) (roles : Roles i) (d : Declaration) (p : ConformingProfile) :
+    DeclarationOK d (.conforming p) roles.native roles.helpers ↔
+      FoundationOK d p ∧ SafetyOK d roles.helpers ∧ ContractOK d := by
+  constructor
+  · intro h
+    rcases h with h | ⟨ha, _, _, hs, hc, ht, hp⟩
+    · cases h.2.2
+    · refine ⟨⟨ha, ?_⟩, hs, ht⟩
+      have free : ∀ n ∈ d.axioms, ¬ CompilerAxiom roles.native n := by
+        rcases hc with hc | hc
+        · cases hc
+        · exact hc
+      intro n hn
+      rcases hp n hn with hcomp | hperm
+      · exact False.elim (free n hn hcomp)
+      · exact hperm
+  · rintro ⟨⟨ha, hp⟩, hs, ht⟩
+    have logical : ContainsFoundation .standardLogical d.axioms :=
+      fun n hn => permitted_standard p n (hp n hn)
+    have free : ∀ n ∈ d.axioms, ¬ CompilerAxiom roles.native n :=
+      fun n hn hc => compiler_not_logical i roles n hc (logical n hn)
+    refine Or.inr ⟨ha, ?_, ?_, hs, Or.inr free, ht, ?_⟩
+    · intro hh
+      have := logical _ hh
+      simp [Permitted] at this
+    · exact fun n hn => Or.inl (logical n hn)
+    · exact fun n hn => Or.inr (hp n hn)
+
+/-- The actual public checker decision proves all positive declaration requirements and
+refuses exactly when membership or one of those requirements fails. -/
+theorem policyFor_conforming_iff (i : Inventory) (roles : Roles i) (d : Declaration)
+    (p : ConformingProfile) :
+    policyFor i roles d (.conforming p) = none ↔ d ∈ i.declarations ∧
+      FoundationOK d p ∧ SafetyOK d roles.helpers ∧ ContractOK d := by
+  rw [policyFor_none_iff, conforming_iff]
+
+/-- Every actual classifier outcome has exactly its independent six-way meaning, including
+hole-before-unknown-before-compiler precedence. This holds even for raw role-name arrays. -/
+theorem labelOf_iff (axioms native : Array Name) (label : FoundationClass) :
+    labelOf axioms native = label ↔ ClassificationOK axioms native label := by
+  cases label <;>
+    simp [labelOf, ClassificationOK, ContainsFoundation, standardLogicalAxiom, permits_iff,
+      compilerAxiom_iff, -Array.any_eq_true, -Array.any_eq_false, -Array.all_eq_true,
+      -Array.all_eq_false, Array.any_eq_true', Array.all_eq_true', Array.isEmpty_iff] <;> (repeat' split) <;> (try simp_all) <;> grind
+
+/-- Public foundation output retains exact classification and inventory membership for all
+six outcomes, not only the three permitted logical profiles. -/
+theorem foundationFor_iff (i : Inventory) (roles : Roles i) (d : Declaration) (label : FoundationClass) :
+    foundationFor i roles d = .ok label ↔ d ∈ i.declarations ∧ ClassificationOK d.axioms roles.native label := by
+  by_cases hd : d ∈ i.declarations <;> simp [foundationFor, hd, labelOf_iff]
+
+/-- The actual declaration diagnostic is the first failed independent requirement. All
+success and refusal outputs, including their precedence, follow this same relation. -/
+theorem declarationFailure_ordered (d : Declaration) (r : InspectionRequest) (native helpers : Array Name) :
+    OrderedDecision (DeclarationRequirements d r native helpers) (declarationFailure d r native helpers) := by
+  by_cases hd : d.kind = .«axiom» <;> cases r <;>
+    simp [DeclarationRequirements, hd, declarationFailure,
+      KnownDependencies, SafetyOK, CompilerPolicyOK, ContractOK, ProfileOK,
+      standardLogicalAxiom, permits_iff, compilerAxiom_iff,
+      -Array.any_eq_true, -Array.any_eq_false, -Array.all_eq_true, -Array.all_eq_false,
+      Array.any_eq_true', Array.all_eq_true', Option.any_eq_true, Option.isSome_iff_ne_none] <;>
+    (repeat' split) <;> (try simp_all) <;> grind
+
+/-- Exact outcome equivalence follows from existence and uniqueness of the first failure. -/
+theorem declarationFailure_iff (d : Declaration) (r : InspectionRequest) (native helpers : Array Name)
+    (result : Option DeclarationFailure) :
+    declarationFailure d r native helpers = result ↔
+      OrderedDecision (DeclarationRequirements d r native helpers) result := by
+  constructor
+  · intro h; rw [← h]; exact declarationFailure_ordered d r native helpers
+  · intro h; exact (declarationFailure_ordered d r native helpers).unique h
+
+/-- Invalid inventory membership precedes all declaration-policy diagnostics. -/
+theorem policyFor_ordered (i : Inventory) (roles : Roles i) (d : Declaration) (r : InspectionRequest) :
+    (d ∉ i.declarations ∧ policyFor i roles d r = some .invalidInventory) ∨
+    (d ∈ i.declarations ∧ OrderedDecision (DeclarationRequirements d r roles.native roles.helpers)
+      (policyFor i roles d r)) := by
+  by_cases hd : d ∈ i.declarations
+  · exact Or.inr ⟨hd, by simpa [policyFor, hd] using declarationFailure_ordered d r roles.native roles.helpers⟩
+  · exact Or.inl ⟨hd, by simp [policyFor, hd]⟩
+
 end StrictLeanPolicy

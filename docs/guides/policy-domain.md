@@ -3,8 +3,8 @@
 `StrictLeanPolicy` is the public, pure library used by the checker. Import
 `StrictLeanPolicy` for its current domain and admission APIs. The normative meaning
 of the rules remains in [the standard](../standard/README.md); the
-[policy acceptance contract](policy-acceptance.md) describes the remaining semantic
-proofs and complete-result integration.
+[policy proofs guide](policy-proofs.md) describes the semantic guarantees. The
+[acceptance contract](policy-acceptance.md) specifies complete-result integration.
 
 Every normative requirement needs an explicit coverage disposition. Mechanically
 checkable requirements become checks; other requirements need Lean proof evidence
@@ -22,15 +22,16 @@ mechanical contributions and residual obligations.
 | `BoundaryEvidence kind` | Replacement equality, simplification equality and opaque-body admission are distinct. A trusted native-runtime observation carries matching origin data. | The record observes compiler/kernel work; strings and serialized proof fields cannot authenticate that work. |
 | `admitBoundaryEvidence` | Successful admission preserves correspondence, detail and native origin; incompatible extra evidence is refused. Every representable value round-trips. | Canonical path acquisition remains an operational check. |
 | `Inventory`, `admitInventory` | Declaration and transcript identities are unique, references are structural, set fields are canonical, safety fields agree, and transcripts bind source bytes, supported compiler identity and valid coordinates. | An inventory is not an independently complete declaration census. |
-| `Roles inventory`, `authorize` | Role arrays equal the actual validators' results for this exact admitted inventory. Declaration decisions require membership in the same inventory. | Independent semantic equivalence of these validators is subsequent proof work. |
+| `Roles inventory`, `authorize` | Role arrays equal the actual validators' results for this exact admitted inventory. Declaration decisions require membership in the same inventory. | Validator success is proved equivalent to the named role predicates; observation authenticity remains external. |
 | `ExecutionInventory`, `admitExecution` | Root identities and boundary occurrences are unique; references and native-origin module bindings are valid. | Closure completeness still depends on the operational collector. |
 | `Claim`, `admitClaim`, typed keys | Scope/mode combinations, positive profiles, exact source/configuration/dependency observations and key bindings are explicit. | A requested claim is not an accepted result. Teaching and no-profile inspection remain separate. |
-| `ResultState`, `insertResult` | Each occupied key belongs to the fixed required set and satisfies its binding relation. Insertion rejects an occupied slot, including an identical repeat. | Direct proof-bearing construction enforces the stated invariant; completeness and accepted-result soundness are separate obligations. |
+| `ResultState`, `insertResult` | Each occupied key belongs to the fixed required set and satisfies its binding relation. Insertion rejects an occupied slot, including an identical repeat. | Insertion success/refusal and frame laws are proved. Whole-table acceptance additionally requires the fixed plan and every stage relation. |
 
 The core imports Init/Std and its own modules. It does not import the operational
-reporter, frontend, registry, Mathlib or IO execution. `Specification` and
-`Acceptance` expose the current admission dependencies without inventing the
-subsequent independent policy predicates or an `Accepted` success alias.
+reporter, frontend, registry, Mathlib or IO execution. `Specification` states
+independent declaration predicates; `Plan` and `Observation`
+define the concrete census, derived jobs and stage relations; `Acceptance` proves
+soundness, completeness and report identity for those fixed inputs.
 `Checker.PolicyDomain` and `Checker.Acceptance` are compatibility re-exports.
 
 ## Connection to execution
@@ -50,12 +51,11 @@ batches use `ResultState` to admit indexed payloads against their requested sour
 and artifact paths, then require all requested slots. Source workers additionally
 bind their exact input text.
 
-This local request/result validation does not supply the future whole-project
-census, fixed job plan, accepted result or project/documentation composition.
-Those remain tracked by POLICY-03/POLICY-04. The current core fence-expectation
-record also does not replace the registry's checked example interface: successor
-integration must retain exact diagnostic IDs, subreasons and source locations,
-validate IDs through the sole registry, and refuse incomplete outcomes.
+This local request/result validation does not yet populate the proved whole-project
+census/plan or make every success boundary consume `Accepted`. POLICY-04 (#7)
+owns that integration and project/documentation composition. The core expectation
+record retains exact diagnostic identities, optional subreasons and locations; the
+registry adapter must validate its vocabulary and authenticate its observations.
 
 ## Compatibility and evidence
 
@@ -93,8 +93,10 @@ runtime-modified genuine helper.
 
 The universal results cover the actual category/name codecs, structural ordering,
 canonical set projections, evidence admission, inventory/claim admission and result
-insertion. JSON text parsing, filesystem/process authenticity and the remaining
-semantic decision/acceptance theorems are distinct claims.
+insertion, least-foundation classification, role/declaration/execution decisions,
+and concrete acceptance. See the [theorem and caller map](policy-proofs.md) for exact
+hypotheses and limits. JSON text parsing and filesystem/process authenticity remain
+operational boundaries.
 
 ## Reuse and attribution
 

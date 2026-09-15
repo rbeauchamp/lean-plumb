@@ -1,3 +1,4 @@
+import StrictLeanPolicy.Pattern
 import StrictLean.Checker.SourceAudit
 import StrictLean.Checker.Lake
 import StrictLean.Checker.RuleDiagnostics
@@ -92,19 +93,10 @@ def validatePattern (pattern : String) : Except String Unit := do
     if stripped.toList.any unsupportedPatternChar || stripped.contains "*" then
       throw "diagnostic pattern contains unsupported regular-expression syntax"
 
-private partial def orderedLiterals (text : String) : List String → Bool
-  | [] => true
-  | literal :: rest =>
-      match text.splitOn literal with
-      | _ :: suffix :: suffixes =>
-          orderedLiterals (literal.intercalate (suffix :: suffixes)) rest
-      | _ => false
-
-/-- Match the restricted expected-diagnostic pattern against full compiler output. -/
+/-- Match one completed effective-error message using the proved pure pattern decision.
+The scanner retains its detailed grammar-refusal diagnostics before dispatch. -/
 def matchesPattern (pattern output : String) : Bool :=
-  let pattern := if pattern.startsWith "(?s)" then pattern.drop 4 |>.toString else pattern
-  pattern.splitOn "|" |>.any fun alternative =>
-    orderedLiterals output (alternative.splitOn ".*")
+  StrictLeanPolicy.matchesPattern pattern output
 
 /-- Fail-closed, balanced scanner for the documented Lean fence protocol. -/
 def scan (text origin : String) : ScanResult := Id.run do

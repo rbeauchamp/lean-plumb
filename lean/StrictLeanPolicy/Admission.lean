@@ -81,6 +81,7 @@ structure Inventory where
   declarations : Array Declaration
   transcripts : Array Frontend.Transcript
   valid : InventoryValid declarations transcripts
+  deriving DecidableEq
 
 /-- Validate without dropping, substituting, or deduplicating result observations. -/
 def admitInventory (decls : Array Declaration) (transcripts : Array Frontend.Transcript) :
@@ -121,6 +122,7 @@ instance instDecidableExecutionValid (roots : Array ExecutionRoot) : Decidable (
 structure ExecutionInventory where
   roots : Array ExecutionRoot
   valid : ExecutionValid roots
+  deriving DecidableEq
 
 def admitExecution (roots : Array ExecutionRoot) : Except String ExecutionInventory :=
   if h : ExecutionValid roots then .ok ⟨roots, h⟩

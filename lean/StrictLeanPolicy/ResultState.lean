@@ -59,5 +59,82 @@ theorem duplicate_refused [DecidableRel bound] (s : ResultState required bound)
     insertResult s k v = .error .duplicateResult := by
   have hk := (s.valid k old h).1
   simp [insertResult, hk, h]
+
+omit [LawfulEqOrd κ] in
+/-- States with the same map are equal; invariant proofs add no observational state. -/
+theorem ext (s t : ResultState required bound) (h : s.entries = t.entries) : s = t := by
+  cases s
+  cases t
+  cases h
+  rfl
+
+/-- Success stores the requested map insertion, not merely some invariant-preserving state. -/
+theorem insertResult_entries [DecidableRel bound] (s : ResultState required bound)
+    (k : κ) (v : β) (next : ResultState required bound)
+    (h : insertResult s k v = .ok next) : next.entries = s.entries.insert k v := by
+  unfold insertResult at h
+  split at h
+  · split at h
+    · cases h
+    · split at h
+      · cases h; rfl
+      · cases h
+  · cases h
+
+/-- Every admissible fresh binding succeeds; unknown, duplicate and invalid observations
+are the only refusals of this finite insertion API. -/
+theorem insertResult_complete [DecidableRel bound] (s : ResultState required bound)
+    (k : κ) (v : β) (hk : k ∈ required) (hf : s.entries[k]? = none) (hb : bound k v) :
+    ∃ next, insertResult s k v = .ok next := by
+  simp [insertResult, hk, hf, hb]
+
+/-- Successful insertion installs the exact requested payload. -/
+theorem insertResult_lookup [DecidableRel bound] (s : ResultState required bound)
+    (k : κ) (v : β) (next : ResultState required bound)
+    (h : insertResult s k v = .ok next) : next.entries[k]? = some v := by
+  rw [insertResult_entries s k v next h]
+  simp
+
+/-- Every other lookup is preserved, including existing completed observations. -/
+theorem insertResult_frame [DecidableRel bound] (s : ResultState required bound)
+    (k other : κ) (v : β) (next : ResultState required bound)
+    (h : insertResult s k v = .ok next) (hne : other ≠ k) :
+    next.entries[other]? = s.entries[other]? := by
+  rw [insertResult_entries s k v next h, ExtTreeMap.getElem?_insert]
+  split
+  next he => exact False.elim (hne (LawfulEqOrd.eq_of_compare he).symm)
+  next => rfl
+
+/-- Unknown keys are refused before considering a payload or binding. -/
+theorem unknown_refused [DecidableRel bound] (s : ResultState required bound)
+    (k : κ) (v : β) (hk : k ∉ required) :
+    insertResult s k v = .error .unknownKey := by simp [insertResult, hk]
+
+/-- A fresh required key with invalid payload binding is refused. No replacement state
+is returned, so refusal cannot replace or modify the immutable input map. -/
+theorem binding_refused [DecidableRel bound] (s : ResultState required bound)
+    (k : κ) (v : β) (hk : k ∈ required) (hf : s.entries[k]? = none) (hb : ¬ bound k v) :
+    insertResult s k v = .error .invalidBinding := by simp [insertResult, hk, hf, hb]
+
+/-- Exact success admission conditions, universally quantified over payloads and keys. -/
+theorem insertResult_success_iff [DecidableRel bound] (s : ResultState required bound)
+    (k : κ) (v : β) :
+    (∃ next, insertResult s k v = .ok next) ↔
+      k ∈ required ∧ s.entries[k]? = none ∧ bound k v := by
+  constructor
+  · rintro ⟨next, h⟩
+    unfold insertResult at h
+    split at h
+    next hk =>
+      split at h
+      · cases h
+      next hf =>
+        split at h
+        next hb => exact ⟨hk, by simpa using hf, hb⟩
+        next => cases h
+    next => cases h
+  · rintro ⟨hk, hf, hb⟩
+    exact insertResult_complete s k v hk hf hb
+
 end ResultState
 end StrictLeanPolicy

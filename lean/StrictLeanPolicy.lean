@@ -7,5 +7,5 @@ import StrictLeanPolicy.Execution
 import StrictLeanPolicy.ResultState
 import StrictLeanPolicy.Acceptance
 
-/-! Public policy observation and admission library. Independent semantic decision
-and accepted-result soundness proofs are subsequent deliverables. -/
+/-! Public pure policy library: admitted observations, executable semantic decisions,
+and concrete accepted-result proofs. Operational acquisition and global integration remain separate. -/
