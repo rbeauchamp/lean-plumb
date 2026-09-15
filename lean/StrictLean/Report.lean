@@ -1,131 +1,237 @@
+import StrictLeanPolicy.Domain
 import Lean.Data.Json
+import StrictLean.Checker.PolicyCodec
+import StrictLean.StructuralName
 
-open Lean
-
-/-!
-Typed machine-audit records shared by the audited environment probe and the
-Lean checker executables. The policy consumes these values directly; JSON is
-only an optional output format, not the semantic boundary between two
-implementation languages.
--/
-
+/-! Operational JSON instances for policy observations. Finite tags are validated
+by the pure codecs. This module remains checker infrastructure. -/
 namespace StrictLean.Report
+open Lean StrictLeanPolicy
+open StrictLean.Checker.PolicyCodec (exactFields)
 
-/-- One source position in Lean's one-based line/zero-based column format. -/
-structure Position where
-  line : Nat
-  column : Nat
-  deriving Repr, BEq, FromJson, ToJson
+scoped instance : ToJson Name := ⟨StrictLean.RegistryCodec.nameJson⟩
+scoped instance : FromJson Name := ⟨StrictLean.RegistryCodec.parseName⟩
+open scoped StrictLean.Report
 
-/-- Lean one-based lines and zero-based codepoint columns, with corresponding
-zero-based UTF-16 columns (not absolute offsets). -/
-structure Range where
-  start : Position
-  «end» : Position
-  startUtf16 : Nat
-  endUtf16 : Nat
-  deriving Repr, BEq, FromJson, ToJson
+instance : ToJson DeclarationKind := ⟨fun x => .str x.spelling⟩
+instance : FromJson DeclarationKind := ⟨fun j => do
+  let s ← j.getStr?
+  match DeclarationKind.parse? s with
+  | some x => return x
+  | none => throw "unknown DeclarationKind"⟩
 
-/-- Full and selection ranges recorded by Lean for a declaration. -/
-structure Ranges where
-  range : Range
-  selectionRange : Range
-  deriving Repr, BEq, FromJson, ToJson
+instance : ToJson BoundaryKind := ⟨fun x => .str x.spelling⟩
+instance : FromJson BoundaryKind := ⟨fun j => do
+  let s ← j.getStr?
+  match BoundaryKind.parse? s with
+  | some x => return x
+  | none => throw "unknown BoundaryKind"⟩
 
-/-- A proof-bearing promise about one named executable and its exact predicate.
-An unsupported or non-executable registration carries a failure, never success. -/
-structure ExecutableContract where
-  root : String
-  requirement : String
-  failure : Option String
-  deriving Repr, FromJson, ToJson
+instance : ToJson Correspondence := ⟨fun x => .str x.spelling⟩
+instance : FromJson Correspondence := ⟨fun j => do
+  let s ← j.getStr?
+  match Correspondence.parse? s with
+  | some x => return x
+  | none => throw "unknown Correspondence"⟩
 
-/-- Complete Lean-semantic report for one owned constant. -/
-structure Declaration where
-  name : String
-  /-- Structural original Name for new diagnostic transport; absent legacy records are unsupported. -/
-  structuralName : Option String := none
-  «module» : String
-  kind : String
-  «type» : String
-  prettyType : String
-  isProp : Bool
-  isUnsafe : Bool
-  isPartial : Bool
-  safety : Option String
-  «instance» : Bool
-  «noncomputable» : Bool
-  implementedBy : Option String
-  «extern» : Bool
-  internal : Bool
-  «private» : Bool
-  projection : Bool
-  matcher : Bool
-  recursive : Bool
-  unsafeRecBase : Option String
-  levelParams : Array String
-  all : Array String
-  hints : Option String
-  valueConstants : Array String
-  unsafeRecValueOrigin : Option String
-  unsafeRecValueExact : Option Bool
-  unsafeRecValueDefeq : Option Bool
-  unsafeRecEquationExact : Option Bool
-  unsafeRecEquationDefeq : Option Bool
-  unsafeRecEquationAxioms : Option (Array String)
-  nativeBoolShape : Bool
-  nativeReplay : Option Bool
-  nativeUseParents : Array String
-  ranges : Option Ranges
-  axioms : Array String
-  executableContract : Option ExecutableContract := none
-  deriving Repr, FromJson, ToJson
+instance : ToJson FoundationClass := ⟨fun x => .str x.spelling⟩
+instance : FromJson FoundationClass := ⟨fun j => do
+  let s ← j.getStr?
+  match FoundationClass.parse? s with
+  | some x => return x
+  | none => throw "unknown FoundationClass"⟩
 
-/-- One boundary in the conservative compiler/source closure of an
-executable root. `boundary` is one of `runtime-replacement`, `compiler-simplification`, `native-runtime`,
-`external`, `unsafe-computation`, `partial-computation`, `opaque-computation`,
-or `compiler-trusted-proof`; `correspondence` is `checked`, `trusted`, or
-`unresolved`. -/
-structure ExecutionBoundary where
-  name : String
-  «module» : String
-  boundary : String
-  correspondence : String
-  owned : Bool
-  replacement : Option String
-  evidence : Option String
-  compilerCallers : Array String := #[]
-  deriving Repr, FromJson, ToJson
+instance : ToJson ConformingProfile := ⟨fun x => .str x.spelling⟩
+instance : FromJson ConformingProfile := ⟨fun j => do
+  let s ← j.getStr?
+  match ConformingProfile.parse? s with
+  | some x => return x
+  | none => throw "unknown ConformingProfile"⟩
 
-/-- Execution coverage for one owned executable root: every boundary its
-conservative compiler/source closure reaches, plus every dependency path the
-analysis could not resolve. -/
-structure ExecutionRoot where
-  name : String
-  structuralName : Option String := none
-  «module» : String
-  boundaries : Array ExecutionBoundary
-  unresolved : Array String
-  /-- Direct calls/closures/initializers retained in the pinned compiler IR;
-  unlike the boundary candidate closure, these record compiled edges. -/
-  compilerEdges : Array (String × String) := #[]
-  deriving Repr, FromJson, ToJson
+instance : ToJson ExecutionClaim := ⟨fun x => .str x.spelling⟩
+instance : FromJson ExecutionClaim := ⟨fun j => do
+  let s ← j.getStr?
+  match ExecutionClaim.parse? s with
+  | some x => return x
+  | none => throw "unknown ExecutionClaim"⟩
 
-/-- Lean-resolved origin of one imported module, with its direct imports as
-recorded in the loaded module header. -/
-structure ModuleOrigin where
-  name : String
-  olean : String
-  imports : Array String
-  deriving Repr, BEq, FromJson, ToJson
+instance : ToJson EvidenceMode := ⟨fun x => .str x.spelling⟩
+instance : FromJson EvidenceMode := ⟨fun j => do
+  let s ← j.getStr?
+  match EvidenceMode.parse? s with
+  | some x => return x
+  | none => throw "unknown EvidenceMode"⟩
 
-/-- Complete report for one exact requested module set. -/
-structure Environment where
-  toolchain : String
-  modules : Array String
-  moduleOrigins : Array ModuleOrigin
-  declarations : Array Declaration
-  execution : Array ExecutionRoot
-  deriving Repr, FromJson, ToJson
+instance : ToJson Safety := ⟨fun x => .str x.spelling⟩
+instance : FromJson Safety := ⟨fun j => do
+  let s ← j.getStr?
+  match Safety.parse? s with
+  | some x => return x
+  | none => throw "unknown Safety"⟩
+
+instance : ToJson Reducibility := ⟨fun x => .str x.spelling⟩
+instance : FromJson Reducibility := ⟨fun j => do
+  let s ← j.getStr?
+  match Reducibility.parse? s with
+  | some x => return x
+  | none => throw "unknown Reducibility"⟩
+
+instance : ToJson RecursionOrigin := ⟨fun x => .str x.spelling⟩
+instance : FromJson RecursionOrigin := ⟨fun j => do
+  let s ← j.getStr?
+  match RecursionOrigin.parse? s with
+  | some x => return x
+  | none => throw "unknown RecursionOrigin"⟩
+
+instance : ToJson EvaluatorRole := ⟨fun x => .str x.spelling⟩
+instance : FromJson EvaluatorRole := ⟨fun j => do
+  match EvaluatorRole.parse? (← j.getStr?) with
+  | some role => return role
+  | none => throw "unknown evaluator role"⟩
+
+abbrev Position := StrictLeanPolicy.Position
+deriving instance ToJson for StrictLeanPolicy.Position
+instance : FromJson StrictLeanPolicy.Position := ⟨fun j => do
+  exactFields j ["line", "column"]
+  return {
+    line := ← j.getObjValAs? _ "line"
+    column := ← j.getObjValAs? _ "column"
+  }⟩
+
+abbrev Range := StrictLeanPolicy.Range
+deriving instance ToJson for StrictLeanPolicy.Range
+instance : FromJson StrictLeanPolicy.Range := ⟨fun j => do
+  exactFields j ["start", "end", "startUtf16", "endUtf16"]
+  return {
+    start := ← j.getObjValAs? _ "start"
+    «end» := ← j.getObjValAs? _ "end"
+    startUtf16 := ← j.getObjValAs? _ "startUtf16"
+    endUtf16 := ← j.getObjValAs? _ "endUtf16"
+  }⟩
+
+abbrev Ranges := StrictLeanPolicy.Ranges
+deriving instance ToJson for StrictLeanPolicy.Ranges
+instance : FromJson StrictLeanPolicy.Ranges := ⟨fun j => do
+  exactFields j ["range", "selectionRange"]
+  return {
+    range := ← j.getObjValAs? _ "range"
+    selectionRange := ← j.getObjValAs? _ "selectionRange"
+  }⟩
+
+abbrev ExecutableContract := StrictLeanPolicy.ExecutableContract
+deriving instance ToJson for StrictLeanPolicy.ExecutableContract
+instance : FromJson StrictLeanPolicy.ExecutableContract := ⟨fun j => do
+  exactFields j ["root", "requirement", "failure"]
+  return {
+    root := ← j.getObjValAs? _ "root"
+    requirement := ← j.getObjValAs? _ "requirement"
+    failure := ← j.getObjValAs? _ "failure"
+  }⟩
+
+abbrev Declaration := StrictLeanPolicy.Declaration
+deriving instance ToJson for StrictLeanPolicy.Declaration
+instance : FromJson StrictLeanPolicy.Declaration := ⟨fun j => do
+  exactFields j ["name", "module", "kind", "type", "prettyType", "isProp", "isUnsafe", "isPartial", "safety", "instance", "noncomputable", "implementedBy", "extern", "internal", "private", "projection", "matcher", "recursive", "unsafeRecBase", "levelParams", "all", "hints", "valueConstants", "unsafeRecValueOrigin", "unsafeRecValueExact", "unsafeRecValueDefeq", "unsafeRecEquationExact", "unsafeRecEquationDefeq", "unsafeRecEquationAxioms", "nativeBoolShape", "nativeReplay", "nativeUseParents", "ranges", "axioms", "executableContract"]
+  return {
+    name := ← j.getObjValAs? _ "name"
+    «module» := ← j.getObjValAs? _ "module"
+    kind := ← j.getObjValAs? _ "kind"
+    «type» := ← j.getObjValAs? _ "type"
+    prettyType := ← j.getObjValAs? _ "prettyType"
+    isProp := ← j.getObjValAs? _ "isProp"
+    isUnsafe := ← j.getObjValAs? _ "isUnsafe"
+    isPartial := ← j.getObjValAs? _ "isPartial"
+    safety := ← j.getObjValAs? _ "safety"
+    «instance» := ← j.getObjValAs? _ "instance"
+    «noncomputable» := ← j.getObjValAs? _ "noncomputable"
+    implementedBy := ← j.getObjValAs? _ "implementedBy"
+    «extern» := ← j.getObjValAs? _ "extern"
+    internal := ← j.getObjValAs? _ "internal"
+    «private» := ← j.getObjValAs? _ "private"
+    projection := ← j.getObjValAs? _ "projection"
+    matcher := ← j.getObjValAs? _ "matcher"
+    recursive := ← j.getObjValAs? _ "recursive"
+    unsafeRecBase := ← j.getObjValAs? _ "unsafeRecBase"
+    levelParams := ← j.getObjValAs? _ "levelParams"
+    all := ← j.getObjValAs? _ "all"
+    hints := ← j.getObjValAs? _ "hints"
+    valueConstants := ← j.getObjValAs? _ "valueConstants"
+    unsafeRecValueOrigin := ← j.getObjValAs? _ "unsafeRecValueOrigin"
+    unsafeRecValueExact := ← j.getObjValAs? _ "unsafeRecValueExact"
+    unsafeRecValueDefeq := ← j.getObjValAs? _ "unsafeRecValueDefeq"
+    unsafeRecEquationExact := ← j.getObjValAs? _ "unsafeRecEquationExact"
+    unsafeRecEquationDefeq := ← j.getObjValAs? _ "unsafeRecEquationDefeq"
+    unsafeRecEquationAxioms := ← j.getObjValAs? _ "unsafeRecEquationAxioms"
+    nativeBoolShape := ← j.getObjValAs? _ "nativeBoolShape"
+    nativeReplay := ← j.getObjValAs? _ "nativeReplay"
+    nativeUseParents := ← j.getObjValAs? _ "nativeUseParents"
+    ranges := ← j.getObjValAs? _ "ranges"
+    axioms := ← j.getObjValAs? _ "axioms"
+    executableContract := ← j.getObjValAs? _ "executableContract"
+  }⟩
+
+abbrev ExecutionBoundary := StrictLeanPolicy.ExecutionBoundary
+instance : ToJson StrictLeanPolicy.NativeOrigin := ⟨fun o => Json.mkObj [
+  ("module", toJson o.moduleName), ("actual", toJson o.actual), ("expected", toJson o.expected)]⟩
+instance : FromJson StrictLeanPolicy.NativeOrigin := ⟨fun j => do
+  exactFields j ["module", "actual", "expected"]
+  StrictLeanPolicy.admitNativeOrigin (← j.getObjValAs? Name "module")
+    (← j.getObjValAs? String "actual") (← j.getObjValAs? String "expected")⟩
+
+instance : ToJson ExecutionBoundary := ⟨fun b => Json.mkObj [
+  ("occurrence", toJson b.occurrence), ("name", toJson b.name), ("module", toJson b.module),
+  ("boundary", toJson b.boundary), ("correspondence", toJson b.correspondence),
+  ("owned", toJson b.owned), ("replacement", toJson b.replacement),
+  ("evidence", toJson b.evidence), ("compilerCallers", toJson b.compilerCallers),
+  ("nativeOrigin", toJson b.account.nativeOrigin?)]⟩
+instance : FromJson ExecutionBoundary := ⟨fun j => do
+  exactFields j ["occurrence", "name", "module", "boundary", "correspondence", "owned", "replacement", "evidence", "compilerCallers", "nativeOrigin"]
+  let boundary ← j.getObjValAs? BoundaryKind "boundary"
+  let state ← j.getObjValAs? Correspondence "correspondence"
+  let detail ← j.getObjValAs? (Option String) "evidence"
+  let origin ← j.getObjValAs? (Option NativeOrigin) "nativeOrigin"
+  let account ← admitBoundaryEvidence boundary state detail origin
+  unless account.detail == detail && account.nativeOrigin? == origin do
+    throw "noncanonical boundary evidence payload"
+  return {
+    occurrence := ← j.getObjValAs? Nat "occurrence"
+    name := ← j.getObjValAs? Name "name", «module» := ← j.getObjValAs? Name "module"
+    boundary, account, owned := ← j.getObjValAs? Bool "owned"
+    replacement := ← j.getObjValAs? (Option Name) "replacement"
+    compilerCallers := ← j.getObjValAs? (Array Name) "compilerCallers" }⟩
+
+abbrev ExecutionRoot := StrictLeanPolicy.ExecutionRoot
+deriving instance ToJson for StrictLeanPolicy.ExecutionRoot
+instance : FromJson StrictLeanPolicy.ExecutionRoot := ⟨fun j => do
+  exactFields j ["name", "module", "boundaries", "unresolved", "compilerEdges"]
+  return {
+    name := ← j.getObjValAs? _ "name"
+    «module» := ← j.getObjValAs? _ "module"
+    boundaries := ← j.getObjValAs? _ "boundaries"
+    unresolved := ← j.getObjValAs? _ "unresolved"
+    compilerEdges := ← j.getObjValAs? _ "compilerEdges"
+  }⟩
+
+abbrev ModuleOrigin := StrictLeanPolicy.ModuleOrigin
+deriving instance ToJson for StrictLeanPolicy.ModuleOrigin
+instance : FromJson StrictLeanPolicy.ModuleOrigin := ⟨fun j => do
+  exactFields j ["name", "olean", "imports"]
+  return {
+    name := ← j.getObjValAs? _ "name"
+    olean := ← j.getObjValAs? _ "olean"
+    imports := ← j.getObjValAs? _ "imports"
+  }⟩
+
+abbrev Environment := StrictLeanPolicy.Environment
+deriving instance ToJson for StrictLeanPolicy.Environment
+instance : FromJson StrictLeanPolicy.Environment := ⟨fun j => do
+  exactFields j ["toolchain", "modules", "moduleOrigins", "declarations", "execution"]
+  return {
+    toolchain := ← j.getObjValAs? _ "toolchain"
+    modules := ← j.getObjValAs? _ "modules"
+    moduleOrigins := ← j.getObjValAs? _ "moduleOrigins"
+    declarations := ← j.getObjValAs? _ "declarations"
+    execution := ← j.getObjValAs? _ "execution"
+  }⟩
 
 end StrictLean.Report

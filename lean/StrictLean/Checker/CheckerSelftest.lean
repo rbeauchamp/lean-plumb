@@ -1,6 +1,8 @@
+import StrictLean.Checker.PolicyCodec
 import StrictLean.Checker.Documentation
 import StrictLean.Checker.Lake
 import StrictLean.Checker.CompilerPaths
+import StrictLean.Checker.PolicyQualification
 import StrictLean.Checker.BuildLintQualification
 
 /-!
@@ -148,7 +150,7 @@ register additional environment extensions. Scratch controls reanchor the
 relative directory without loading cold Lake configurations in this process. -/
 private structure SourceLayout where
   relativeDir : FilePath
-  claimedModules : Array String
+  claimedModules : Array Name
 
 private def loadSourceLayout (repo : FilePath) : IO SourceLayout := do
   let relativeDir ← Workspace.withRootWorkspace repo fun ws => pure ws.root.config.srcDir.normalize
@@ -156,7 +158,7 @@ private def loadSourceLayout (repo : FilePath) : IO SourceLayout := do
     throw <| IO.userError "self-test: package source directory must stay inside the copied repository"
   let manifest ← Manifest.load (Manifest.defaultPath repo)
   let inventory ← Lake.surfaceInventory repo
-  let mut claimedModules : Array String := #[]
+  let mut claimedModules : Array Name := #[]
   for surface in manifest.surfaces do
     let some library := inventory.libraries.find? (·.library == surface.library)
       | throw <| IO.userError s!"fresh control: missing library {surface.library}"
@@ -177,7 +179,7 @@ private def loadFixtureManifest (layout : SourceLayout) (repo : FilePath) : IO (
   let allowed := #["expect", "reason", "reasons", "claim", "execution", "label", "pattern", "output"]
   let mut fixtures : Array FixtureSpec := #[]
   for moduleName in object.keysArray.qsort (· < ·) do
-    let some source := library.sources.find? (·.«module» == moduleName)
+    let some source := library.sources.find? (·.«module» == moduleName.toName)
       | throw <| IO.userError s!"{moduleName}: manifest entry has no Lake fixture module"
     let spec ← IO.ofExcept <| value.getObjVal? moduleName
     let specObject ← IO.ofExcept spec.getObj?
@@ -298,21 +300,23 @@ private def renderFileAudit (fixture : FixtureSpec) (_moduleName : String)
     (declarations : Array StrictLean.Report.Declaration)
     (roots : Array StrictLean.Report.ExecutionRoot)
     (transcripts : Array Frontend.Transcript) : String × Bool := Id.run do
-  let native := Policy.authorizedNativeAxioms declarations transcripts
-  let unsafeHelpers := Policy.authorizedUnsafeRecHelpers declarations transcripts
+  let .ok scope := Policy.admitScope declarations transcripts
+    | return ("invalid policy observation inventory", true)
   let execution := match fixture.execution with
     | some mode => (ExecutionClaim.parse? mode).getD .report
     | none => .report
   let mut lines : Array String := #[]
   let mut failed := false
   for decl in declarations do
-    let reason := Policy.reasonFor decl fixture.claim native unsafeHelpers
+    let reason := Policy.reasonFor decl fixture.claim scope
     failed := failed || reason.isSome
     let verdict := match reason with
       | none => "OK"
       | some value => s!"VIOLATION[{value}]"
-    lines := lines.push s!"[{verdict}] {Policy.classify decl native}"
-  let executionViolations := Policy.executionFailures roots execution
+    lines := lines.push s!"[{verdict}] {Policy.classify decl scope}"
+  let .ok executionInventory := Policy.admitExecution roots
+    | return ("invalid execution inventory", true)
+  let executionViolations := Policy.executionFailures executionInventory execution
   for root in roots do
     if !root.boundaries.isEmpty || !root.unresolved.isEmpty then
       lines := lines.push s!"  execution root {root.name}"
@@ -360,7 +364,7 @@ private unsafe def fixtureVerdicts (repo scratch : FilePath) (jobs : Nat)
         -- (post-load need with no worker transcript) fails closed below.
         wantsTranscript := moduleData.constants.any fun info =>
           Policy.declarationNeedsTranscript info.isUnsafe info.isPartial
-            (StrictLean.Probe.kindOf info) info.name.toString
+            (StrictLean.Probe.kindOf info) info.name
       }
   -- Group by exact constant-name disjointness (the `Documentation.auditTasks`
   -- strategy): one environment load per collision group covers every fixture
@@ -406,14 +410,16 @@ private unsafe def fixtureVerdicts (repo scratch : FilePath) (jobs : Nat)
         let out := scratch / s!"transcript-{item.index + 1}.json"
         let spawned ← runProcess repo
           (repo / ".lake" / "build" / "bin" / "checkerSelftest").toString
-          #["--transcript-worker", moduleName, item.compilation.sourcePath.toString,
+          #["--transcript-worker", (StrictLean.RegistryCodec.nameJson moduleName.toName).compress, item.compilation.sourcePath.toString,
             out.toString]
           #[("LEAN_PATH", some leanPathEnv)]
         if !spawned.succeeded then return (moduleName, none)
-        match Json.parse (← IO.FS.readFile out) with
+        match StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile out) with
         | .error _ => return (moduleName, none)
         | .ok json =>
-          match fromJson? json with
+          let payload := readWorkerPacket (sourceWorkerRequest "transcript" moduleName.toName
+            item.compilation.sourcePath item.compilation.spec.source) json
+          match payload >>= fromJson? with
           | .error _ => return (moduleName, none)
           | .ok transcript => return (moduleName, some (transcript : Frontend.Transcript))
       catch _ => return (moduleName, none)
@@ -426,13 +432,13 @@ private unsafe def fixtureVerdicts (repo scratch : FilePath) (jobs : Nat)
     for (_, items) in groups do
       try
         let inspectedGroup ← SourceAudit.inspectGroupCurrentSearchPath
-          (items.map (·.compilation.spec.«module»))
+          (items.map (·.compilation.spec.«module».toName))
         let report := inspectedGroup.report
         for item in items do
           let moduleName := item.compilation.spec.«module»
-          let declarations := report.declarations.filter (·.«module» == moduleName)
-            |>.qsort fun left right => left.name < right.name
-          let roots := report.execution.filter (·.«module» == moduleName)
+          let declarations := report.declarations.filter (·.«module» == moduleName.toName)
+            |>.qsort fun left right => Name.quickLt left.name right.name
+          let roots := report.execution.filter (·.«module» == moduleName.toName)
           inspected := inspected.push (item, declarations, roots)
       catch error =>
         for item in items do
@@ -500,33 +506,47 @@ boundaries never fail a report-only claim, a checked-correspondence claim
 fails on every non-native trusted boundary, native-runtime primitives stay
 permitted-but-reported, and every unresolved path blocks in both modes. -/
 private def executionPolicyQualification : Array String := Id.run do
-  let boundary (name kind correspondence : String) : StrictLean.Report.ExecutionBoundary :=
-    { name, «module» := "Root", boundary := kind, correspondence, owned := true,
-      replacement := none, evidence := none }
+  let boundary (name : Name) (kind : StrictLeanPolicy.BoundaryKind)
+      (state : StrictLeanPolicy.Correspondence) : StrictLean.Report.ExecutionBoundary := Id.run do
+    let origin : StrictLeanPolicy.NativeOrigin := ⟨`Init.Data.Float32,
+      "qualification-origin", "qualification-origin", rfl, by decide, rfl⟩
+    let detail := if kind == .opaqueComputation then some "kernel-checked-body" else some "qualification"
+    let account := (StrictLeanPolicy.admitBoundaryEvidence kind state detail
+      (if kind == .nativeRuntime && state == .trusted then some origin else none)).toOption
+    -- Failed control construction remains unresolved and cannot silently pass.
+    let account := account.getD (.unresolved (some "invalid control evidence"))
+    return {
+      occurrence := 0
+      name := name
+      «module» := if kind == .nativeRuntime then origin.moduleName else `Root
+      boundary := kind
+      account := account
+      owned := true
+      replacement := none }
   let root (boundaries : Array StrictLean.Report.ExecutionBoundary)
       (unresolved : Array String := #[]) : StrictLean.Report.ExecutionRoot :=
-    { name := "Root.f", «module» := "Root", boundaries, unresolved }
+    { name := `Root.f, «module» := `Root, boundaries, unresolved }
   let cases : Array (String × StrictLean.Report.ExecutionRoot × ExecutionClaim × Option String) := #[
     ("report/trusted-replacement",
-      root #[boundary "Root.g" "runtime-replacement" "trusted"], .report, none),
+      root #[boundary `Root.g .runtimeReplacement .trusted], .report, none),
     ("checked/trusted-replacement",
-      root #[boundary "Root.g" "runtime-replacement" "trusted"], .checked,
+      root #[boundary `Root.g .runtimeReplacement .trusted], .checked,
       some "execution-trusted-boundary"),
     ("checked/proved-replacement",
-      root #[boundary "Root.g" "runtime-replacement" "checked"], .checked, none),
+      root #[boundary `Root.g .runtimeReplacement .checked], .checked, none),
     ("checked/native-runtime-substrate",
-      root #[boundary "Float32.add" "native-runtime" "trusted"], .checked, none),
+      root #[boundary `Float32.add .nativeRuntime .trusted], .checked, none),
     ("checked/trusted-external",
-      root #[boundary "Root.ffi" "external" "trusted"], .checked,
+      root #[boundary `Root.ffi .external .trusted], .checked,
       some "execution-trusted-boundary"),
     ("checked/trusted-partial",
-      root #[boundary "Root.spin" "partial-computation" "trusted"], .checked,
+      root #[boundary `Root.spin .partialComputation .trusted], .checked,
       some "execution-trusted-boundary"),
     ("checked/trusted-compiler-proof",
-      root #[boundary "Lean.ofReduceBool" "compiler-trusted-proof" "trusted"], .checked,
+      root #[boundary `Lean.ofReduceBool .compilerTrustedProof .trusted], .checked,
       some "execution-trusted-boundary"),
     ("checked/opaque-kernel-body",
-      root #[boundary "Root.pack" "opaque-computation" "checked"], .checked, none),
+      root #[boundary `Root.pack .opaqueComputation .checked], .checked, none),
     ("report/unresolved-path",
       root #[] #["Root.missing: constant is not in the environment"], .report,
       some "execution-unresolved"),
@@ -534,12 +554,14 @@ private def executionPolicyQualification : Array String := Id.run do
       root #[] #["Root.missing: constant is not in the environment"], .checked,
       some "execution-unresolved"),
     ("report/unresolved-boundary",
-      root #[boundary "Root.op" "opaque-computation" "unresolved"], .report,
+      root #[boundary `Root.op .opaqueComputation .unresolved], .report,
       some "execution-unresolved")
   ]
   let mut failures : Array String := #[]
   for (name, value, claim, expected) in cases do
-    let reasons := uniqueSorted ((executionFailures #[value] claim).map fun failure =>
+    let .ok inventory := admitExecution #[value]
+      | failures := failures.push s!"execution/{name}: invalid control inventory"; continue
+    let reasons := uniqueSorted ((executionFailures inventory claim).map fun failure =>
       (failure.splitOn ":").head?.getD failure)
     match expected with
     | none =>
@@ -1297,8 +1319,8 @@ private unsafe def fenceEnvironmentQualification (layout : SourceLayout) (repo s
         let covered ← jsonStringArray "fresh control coveredModules" <| ← IO.ofExcept <|
           check.getObjVal? "coveredModules"
         checked := checked ++ covered
-      if uniqueSorted modules != uniqueSorted expected
-          || uniqueSorted checked != uniqueSorted expected then
+      if uniqueSorted modules != uniqueSorted (expected.map (·.toString))
+          || uniqueSorted checked != uniqueSorted (expected.map (·.toString)) then
         failures.modify (·.push
           "fence-env/fresh-checker: successful root checks did not cover the exact Lake inventory")
   failures.get
@@ -1600,6 +1622,20 @@ private def combinedSnapshotQualification (repo : FilePath) : IO (Array String) 
     return failures
 
 unsafe def run (args : List String) : IO UInt32 := do
+  if args == ["--policy-transport-only"] then
+    let failures := PolicyQualification.transport
+    for failure in failures do IO.println s!"FAIL: {failure}"
+    if failures.isEmpty then IO.println "policy transport qualification: PASS"
+    return if failures.isEmpty then 0 else 1
+  if args == ["--policy-domain-only"] then
+    let repo ← repoRoot
+    let build ← runProcess repo "lake" #["build", "axiomGate"]
+    if !build.succeeded then IO.println build.output; return 1
+    let failures ← withScratch repo "policy-domain-controls" fun scratch => do
+      return PolicyQualification.transport ++ (← PolicyQualification.publicPaths repo scratch)
+    for failure in failures do IO.println s!"FAIL: {failure}"
+    if failures.isEmpty then IO.println "policy domain qualification: PASS (transport and public paths)"
+    return if failures.isEmpty then 0 else 1
   if args == ["--combined-snapshot-only"] then
     let failures ← combinedSnapshotQualification (← repoRoot)
     for failure in failures do IO.println s!"FAIL: {failure}"
@@ -1639,9 +1675,10 @@ unsafe def run (args : List String) : IO UInt32 := do
   -- isolated process environment the public CLI provides (a fresh process can
   -- never see the harness's imported attribute state), before the parent
   -- shared environment load.
-  if let ["--transcript-worker", moduleName, source, out] := args then
+  if let ["--transcript-worker", moduleWire, source, out] := args then
+    let moduleName ← IO.ofExcept <| StrictLean.RegistryCodec.parseName (← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse moduleWire)
     let transcript ← Frontend.buildCurrentSearchPath moduleName source
-    IO.FS.writeFile out (Json.compress (toJson transcript))
+    writeJson out (workerPacket (sourceWorkerRequest "transcript" moduleName source transcript.sourceContent) (toJson transcript))
     return 0
   let options ← parseArgs args {}
   if options.help then IO.println usage; return 0

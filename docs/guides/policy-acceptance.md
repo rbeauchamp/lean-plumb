@@ -1,8 +1,10 @@
 # Policy acceptance and implementation linkage
 
 POLICY-01 (#4), inspected baseline `afdc67fe343cbb244fbd788af36173614ca6fa87`.
-This is the design contract for #5–#7, coordinated with #12–#15; its new types,
-functions and theorems are **planned**, not implemented or machine-checked here.
+This is the design contract for #5–#7, coordinated with #12–#15.
+The [typed policy domain guide](policy-domain.md) identifies implemented domain,
+admission and representation guarantees. The independent semantic policy proofs,
+complete census and `Accepted` integration below remain **planned**.
 The [architecture](linter-architecture.md) owns the product and the
 [coverage map](rule-coverage.md) owns the twenty rules and nine residual accounts.
 Normative meaning remains [chapter 8](../standard/8-tooling-and-machine-audit.md)
@@ -294,8 +296,8 @@ guides the new library via Lake discovery, not hardcoded declaration/file lists.
 
 | Owner | Deliverable and gate |
 | --- | --- |
-| #5 POLICY-02 | Domain/codec admission, typed roles/claims/records, canonical keys, invariant-preserving state API, compatibility adapters. Wire every policy caller to typed input; preserve detector behavior on supported baseline data, with explicit fail-closed extensions for malformed/duplicate data and positive file warnings. Record unavailable #6 theorems as pending, not proved. |
-| #6 POLICY-03 | Specification/Decision/Acceptance theorems: codec and collection laws, least-label proof, decision iff predicates, exact role evidence, insertion/frame laws, accepted soundness/completeness and report identity. Check actual functions used by #5; no duplicate reference evaluator assumed equivalent. |
+| #5 POLICY-02 | Domain/codec admission and universal representation/codec/collection laws, typed roles/claims/records, canonical keys, invariant-preserving state API, compatibility adapters. Wire every policy caller to typed input; preserve detector behavior on supported baseline data, with explicit fail-closed extensions for malformed/duplicate data and positive file warnings. Record unavailable #6 theorems as pending, not proved. |
+| #6 POLICY-03 | Remaining Specification/Decision/Acceptance theorems: least-label proof, decision iff predicates, exact role evidence, insertion/frame laws, accepted soundness/completeness and report identity. Check actual functions used by #5; no duplicate reference evaluator assumed equivalent. |
 | #7 POLICY-04 | Freeze census/plan, validate all worker packets and every success boundary in §1, consume Accepted values in renderers/exit adapters, compose project+docs under one snapshot. Refuse empty/missing/duplicate/mismatched responses through public paths. Remove obsolete raw success APIs only after accounting for all callers. |
 | #12 CATALOG | Keep one registry; add `freshFile`, share scope/status identities with core; accepted diagnostics export is read-only projection, never certificate input. |
 | #13 ENGINE | Shared semantic collectors for current-document and imported modules; complete census/roots/role extraction and typed outcomes for all twenty rules; two scoped doc-presence checks retained. |
@@ -366,7 +368,7 @@ cost becomes decision-bearing, define its measurement and resource budget then.
 
 Open **implementation obligations**, assigned rather than silently assumed: #5 proves
 admission/representation closure and validates import limits; #6 elaborates and proves
-all planned laws and reports their exact axiom closure; #7/#13 establish collector/worker
+the remaining semantic laws and reports their exact axiom closure; #7/#13 establish collector/worker
 linkage and acceptance at all call sites; #12/#14/#15 qualify schema/editor/site consumers.
 Unsupported compiler versions, incomplete census/admission, ambiguous role origin and
 unresolved execution are decided refusals. No unresolved design choice blocks starting #5;

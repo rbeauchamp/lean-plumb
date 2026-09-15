@@ -8,10 +8,8 @@ open Lean
 
 /-- New diagnostic identity is recovered from the original structural Name only. -/
 def declarationName (decl : Report.Declaration) : Except String Name := do
-  let some parts := decl.structuralName | throw "missing structural declaration identity"
-  let name ← RegistryCodec.parseName (← Json.parse parts)
-  unless name.toString == decl.name do throw "declaration identity/display disagreement"
-  return name
+  unless decl.name != .anonymous do throw "anonymous declaration identity"
+  return decl.name
 
 def declarationFinding (id : RuleId) (name : Name) (detail : String)
     (location : Location) (mode : EvidenceMode) (claim : Option String) : Except String Finding :=
@@ -45,9 +43,8 @@ def contextFinding (id : RuleId) (subject detail : String) (mode : EvidenceMode)
 
 def executionFinding (failure : Policy.ExecutionFailure) (location : Location)
     (mode : EvidenceMode) (claim : Policy.ExecutionClaim) : Except String Finding := do
-  let some raw := failure.root.structuralName | throw "missing structural execution root identity"
-  let name ← RegistryCodec.parseName (← Json.parse raw)
-  unless name.toString == failure.root.name do throw "execution identity/display disagreement"
+  let name := failure.root.name
+  unless name != .anonymous do throw "anonymous execution root identity"
   let a : ExecutionArguments := ⟨name, failure.detail⟩
   match failure.id with
   | .executionUnresolved =>
@@ -63,6 +60,6 @@ def declarationLocation (decl : Report.Declaration) (snapshot : Option SourceSna
     Except String Location := do
   match decl.ranges, snapshot with
   | some ranges, some source => return .source (← sourceFromReport source ranges)
-  | _, _ => return .module decl.module.toName
+  | _, _ => return .module decl.module
 
 end StrictLean.Checker.RuleDiagnostics

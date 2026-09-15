@@ -1,5 +1,5 @@
 import StrictLean.Diagnostic
-import StrictLean.NameCodec
+import StrictLean.StructuralName
 
 /-! Versioned transport and website admission derived from the registry. The exact
 canonical comparison follows con-leche's representation idea (RuleId attribution).

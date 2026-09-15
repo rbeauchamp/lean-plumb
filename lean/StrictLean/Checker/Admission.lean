@@ -15,9 +15,21 @@ open Lean
 The original environment is retained for compiler metadata only after replay
 succeeds. This is not a fresh replay of the imported dependency graph. -/
 unsafe def validate (env : Environment) (ownedModules : Array Name) : IO Unit := do
-  let owned := ownedModules.foldl (fun names name => names.insert name) ({} : NameSet)
+  let mut replayModules := ownedModules
+  -- The force-loaded reporter now depends on the positive policy library.
+  -- Replay these exact checker implementation modules too; importing them into
+  -- the base would reintroduce unchecked owned policy declarations. They do not
+  -- become claimed surfaces, and arbitrary reverse imports remain forbidden.
+  let reporterModules := #[`StrictLean.Probe, `StrictLean.Report,
+    `StrictLean.Checker.PolicyCodec, `StrictLean.StructuralName]
+  for _ in [:reporterModules.size] do
+    for (name, data) in env.header.moduleNames.zip env.header.moduleData do
+      if reporterModules.contains name && !replayModules.contains name &&
+          data.imports.any (fun imp => replayModules.contains imp.module) then
+        replayModules := replayModules.push name
+  let owned := replayModules.foldl (fun names name => names.insert name) ({} : NameSet)
   let mut declarations : Std.HashMap Name ConstantInfo := {}
-  for (name, info) in StrictLean.Probe.ownedConstants env ownedModules.toList do
+  for (name, info) in StrictLean.Probe.ownedConstants env replayModules.toList do
     declarations := declarations.insert name info
   let mut imports : Array Import := #[]
   for (name, data) in env.header.moduleNames.zip env.header.moduleData do

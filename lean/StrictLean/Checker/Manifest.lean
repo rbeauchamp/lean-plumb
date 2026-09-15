@@ -1,3 +1,4 @@
+import StrictLean.Checker.PolicyCodec
 import StrictLean.Checker.Common
 import StrictLean.Checker.Policy
 
@@ -67,7 +68,7 @@ def load (path : FilePath) : IO Manifest := do
   if !(← path.pathExists) then
     throw <| IO.userError s!"manifest-missing: {path}"
   let text ← IO.FS.readFile path
-  let value ← match Json.parse text with
+  let value ← match StrictLean.Checker.PolicyCodec.parse text with
     | .ok value => pure value
     | .error error => throw <| IO.userError s!"manifest-malformed: {path}: {error}"
   let _ ← objectWithKeys value
@@ -110,7 +111,7 @@ def load (path : FilePath) : IO Manifest := do
       throw <| IO.userError <| s!"manifest-schema: {location}.claim must be one of " ++
         "kernel-only, choice-free, standard-logical"
     let execution ← match item.getObjVal? "execution" with
-      | .error _ => pure ExecutionClaim.report
+      | .error _ => pure (.report : ExecutionClaim)
       | .ok (.str text) => match ExecutionClaim.parse? text with
         | some mode => pure mode
         | none => throw <| IO.userError <|

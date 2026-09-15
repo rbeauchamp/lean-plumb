@@ -15,19 +15,19 @@ structure RootInventory where
   deriving Repr
 
 structure SourceEntry where
-  «module» : String
+  «module» : Name
   source : FilePath
   deriving Repr
 
 structure LibraryInventory where
   library : String
-  modules : Array String
+  modules : Array Name
   sources : Array SourceEntry
   deriving Repr
 
 structure ExecutableInventory where
   executable : String
-  root : String
+  root : Name
   source : FilePath
   deriving Repr
 
@@ -43,8 +43,8 @@ structure SurfaceInventory where
 modules. Reuse these for frontend history instead of a module-prefix search. -/
 def SurfaceInventory.moduleSources (inventory : SurfaceInventory) : Array (Name × FilePath) :=
   inventory.libraries.flatMap (fun library => library.sources.map fun source =>
-    (source.«module».toName, source.source)) ++
-    inventory.executables.map (fun executable => (executable.root.toName, executable.source))
+    (source.«module», source.source)) ++
+    inventory.executables.map (fun executable => (executable.root, executable.source))
 
 private def checkSource (repo : FilePath) (what : String)
     (moduleName sourceRaw : String) : IO FilePath := do
@@ -71,12 +71,12 @@ def surfaceInventory (repo : FilePath) : IO SurfaceInventory :=
     for lib in pkg.leanLibs do
       let library := lib.name.toString
       let libModules ← lib.getModuleArray
-      let modules := libModules.map (·.name.toString)
+      let modules := libModules.map (·.name)
       let mut sources : Array SourceEntry := #[]
       for libModule in libModules do
-        let moduleName := libModule.name.toString
+        let moduleName := libModule.name
         let source ← checkSource repo s!"{library} module {moduleName}"
-          moduleName libModule.leanFile.toString
+          moduleName.toString libModule.leanFile.toString
         sources := sources.push { «module» := moduleName, source }
       if library.isEmpty || modules.isEmpty || libraries.any (·.library == library)
           || modules.toList.eraseDups.length != modules.size then
@@ -87,10 +87,10 @@ def surfaceInventory (repo : FilePath) : IO SurfaceInventory :=
     let mut executables : Array ExecutableInventory := #[]
     for exe in pkg.leanExes do
       let executable := exe.name.toString
-      let root := exe.root.name.toString
+      let root := exe.root.name
       let source ← checkSource repo s!"executable {executable}"
-        root exe.root.leanFile.toString
-      if executable.isEmpty || root.isEmpty || executables.any (·.executable == executable)
+        root.toString exe.root.leanFile.toString
+      if executable.isEmpty || root.isAnonymous || executables.any (·.executable == executable)
           || executables.any (·.root == root) then
         throw <| IO.userError s!"lake-query-malformed: invalid executable {executable}"
       executables := executables.push { executable, root, source }
