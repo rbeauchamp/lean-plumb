@@ -1,5 +1,6 @@
 import StrictLean.Checker.SourceAudit
 import StrictLean.Checker.Lake
+import StrictLean.Checker.RuleDiagnostics
 
 /-!
 Balanced Markdown fence discovery and exact, verbatim Lean-source auditing.
@@ -225,6 +226,8 @@ structure Result where
   task : Task
   status : Status
   detail : String := ""
+  policyProblems : Array (StrictLean.RuleId × StrictLean.Report.Declaration) := #[]
+  incomplete : Bool := false
   deriving Repr
 
 def kindOf (fence : Fence) : Kind :=
@@ -246,7 +249,7 @@ private def compilationFailure (compilation : SourceAudit.Compilation)
   let detail := if warnings.isEmpty then
     "did not elaborate verbatim: " ++ diagnostics compilation.process.output
   else "emitted warning: " ++ " | ".intercalate (warnings.extract 0 4).toList
-  { task, status := .fail, detail }
+  { task, status := .fail, detail, incomplete := !SourceAudit.sourceDiagnosticFailure compilation }
 
 private def assessPositive (task : Task) (declarations : Array StrictLean.Report.Declaration)
     (transcripts : Array Frontend.Transcript) : Result :=
@@ -254,19 +257,22 @@ private def assessPositive (task : Task) (declarations : Array StrictLean.Report
   let helpers := Policy.authorizedUnsafeRecHelpers declarations transcripts
   let claim := if task.kind == .trusted then Profile.compilerTrusting
     else Profile.standardLogical
-  let (problems, compilerCount) := Id.run do
+  let (problems, policyProblems, compilerCount) := Id.run do
+    let mut policyProblems := #[]
     let mut problems : Array String := #[]
     let mut compilerCount := 0
     for decl in declarations do
-      if let some reason := Policy.reasonFor decl (some claim) native helpers then
+      if let some id := Policy.ruleFor decl (some claim) native helpers then
+        let reason := (StrictLean.descriptor id).applicability
         problems := problems.push s!"{reason}: {decl.name} axioms={repr decl.axioms.toList}"
+        policyProblems := policyProblems.push (id, decl)
       if Policy.labelOf decl.axioms native == "compiler-trusting" then
         compilerCount := compilerCount + 1
-    return (problems, compilerCount)
+    return (problems, policyProblems, compilerCount)
   if !problems.isEmpty then
-    { task, status := .fail, detail := "; ".intercalate (problems.extract 0 4).toList }
+    { task, status := .fail, detail := "; ".intercalate (problems.extract 0 4).toList, policyProblems }
   else if task.kind == .trusted && compilerCount == 0 then
-    ⟨task, .fail, "trusted marker found no compiler-trusting declaration"⟩
+    { task, status := .fail, detail := "trusted marker found no compiler-trusting declaration" }
   else
     { task, status := if task.kind == .trusted then .passTrusted else .pass }
 
@@ -279,10 +285,11 @@ private def auditNegative (compilation : SourceAudit.Compilation) (task : Task) 
     if errors.any (matchesPattern pattern) then
       { task, status := .passNegative }
     else
-      ⟨task, .fail, s!"failed, but not with expected diagnostic {repr pattern}: " ++
-        diagnostics ("\n".intercalate errors.toList)⟩
+      { task, status := .fail, detail := s!"failed, but not with expected diagnostic {repr pattern}: " ++
+        diagnostics ("\n".intercalate errors.toList) }
   else
-    ⟨task, .fail, "diagnostic worker did not complete: " ++ diagnostics compilation.process.output⟩
+    { task, status := .fail, detail := "diagnostic worker did not complete: " ++
+      diagnostics compilation.process.output, incomplete := true }
 
 private structure PendingPositive where
   index : Nat
@@ -378,7 +385,7 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
           (item.index, assessPositive item.task declarations transcripts)
       catch error =>
         return group.items.map fun item =>
-          let failure : Result := { task := item.task, status := .fail, detail := s!"checker inspection failed: {error}" }
+          let failure : Result := { task := item.task, status := .fail, detail := s!"checker inspection failed: {error}", incomplete := true }
           (item.index, failure)
   let updates ← try timedPhase "fence inspection" inspectGroups
     finally Lean.searchPathRef.set oldSearchPath
@@ -420,7 +427,8 @@ def snapshotMarkdown (source target : FilePath) : IO Unit := do
 The standalone command creates that workspace itself; combined verification owns
 it from declaration admission through the last fence inspection. -/
 unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.SurfaceInventory)
-    (jobs : Nat) (verbose : Bool) : IO UInt32 := do
+    (jobs : Nat) (verbose : Bool)
+    (emit : StrictLean.Finding → IO Unit := fun _ => pure ()) : IO UInt32 := do
   if !(← docsRoot.isDir) then
     IO.println s!"FAIL: documentation root is not a directory: {docsRoot}"
     return 1
@@ -453,7 +461,12 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
   IO.FS.createDirAll fenceScratch
   let results ← auditTasks repo fenceScratch jobs tasks inventory.leanPath inventory.moduleSources (some inventory.leanLibDir)
   let mut failures := structural.size
-  for problem in structural do IO.println s!"[X] {problem}"
+  for problem in structural do
+    IO.println s!"[X] {problem}"
+    let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .fenceStructure docsRoot.toString
+      problem .documentationExample .violation
+    IO.println finding.2.text
+    emit finding
   for result in results.qsort fun left right => left.task.origin < right.task.origin do
     let mark := match result.status with
       | .pass => "." | .passNegative => "n" | .passTrusted => "t" | .fail => "X"
@@ -463,6 +476,23 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
       let detail := if verbose then result.detail
         else (result.detail.splitOn " | ").head?.getD result.detail |>.take 180 |>.toString
       IO.println s!"      {detail}"
+      let id : StrictLean.RuleId := match result.task.kind with
+        | .positive => .positiveExample | .negative => .negativeExample | .trusted => .trustedExample
+      let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding id result.task.origin
+        result.detail .documentationExample (if result.incomplete then .incomplete else .violation)
+      IO.println finding.2.text
+      emit finding
+      for (rule, decl) in result.policyProblems do
+        -- Ranges are relative to the exact verbatim snippet, explicitly a virtual source.
+        let snapshot : StrictLean.SourceSnapshot := {
+          uri := s!"{docsRoot}/{result.task.origin}#lean-snippet"
+          source := result.task.fence.body }
+        let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl (some snapshot)
+        let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding rule
+          (← IO.ofExcept <| RuleDiagnostics.declarationName decl) result.detail location
+          .documentationExample (some (if result.task.kind == .trusted then "compiler-trusting" else "standard-logical"))
+        IO.println finding.2.text
+        emit finding
   let positivePass := (results.filter (·.status == .pass)).size
   let negativePass := (results.filter (·.status == .passNegative)).size
   let trustedPass := (results.filter (·.status == .passTrusted)).size

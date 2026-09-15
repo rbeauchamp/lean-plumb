@@ -281,3 +281,7 @@ is [issue #3](https://github.com/rbeauchamp/strict-lean/issues/3); its con-ron d
 [interactive]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Widget/InteractiveDiagnostic.lean
 [template]: https://github.com/leanprover/verso-templates/tree/76c9edf5a70f14d272af0f0f354ec833ac22c350/package-docs
 [ca1416]: https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1416
+
+The CATALOG-01 implementation and schema migration are documented in
+[Rule registry and diagnostics](rule-registry.md). Its scoped `completed` observations
+are distinct from the future policy acceptance evidence in CL-02–04.

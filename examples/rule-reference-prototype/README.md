@@ -99,3 +99,13 @@ not prove its collector or policy universally correct; proof-bearing acceptance 
   informs cause/fix/configuration/limits presentation. The Lean explanation is original.
 - Con-ron is excluded. Dependencies retain their own licenses; repository code retains the
   repository license. Later copied code must preserve its actual notices.
+
+## Shared registry migration
+
+CATALOG-01 replaces the prototype-only descriptor with the product registry.
+`Export.lean` emits the full schema-1 registry; the generator selects SL1001 from
+that value and submits actual page/emitted-ID inventory to `axiomGate --validate-site`.
+Native diagnostics use the same typed payload, source admission and renderer as
+the checker. The experiment remains one page and an explicit imported-module
+trigger. See [registry migration](../../docs/guides/rule-registry.md) for contracts,
+con-leche attribution and evidence limits.
