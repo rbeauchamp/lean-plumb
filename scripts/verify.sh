@@ -27,8 +27,11 @@ standard_verify_checks() {
       # Diagnostic native binaries are built by their lake exe invocation below.
       # The declaration gate owns fresh claimed-source elaboration.
       lake build axiomGate docFenceAudit \
-        +StrictLean.Checker.CheckerSelftest:olean +StrictLean.Checker.FreshChecker:olean
-      lake exe axiomGate --with-docs --json-out tmp/axiom-report.json
+        +StrictLean.Checker.CheckerSelftest:olean +StrictLean.Checker.FreshChecker:olean \
+        +StrictLean.RegistryChecks:olean
+      lake env lean --run lean/StrictLean/RegistryChecks.lean
+      python3 scripts/registry_cli_checks.py
+      lake exe axiomGate --with-docs --legacy-json-out tmp/axiom-report.json
       echo "local verification: PASS (complete ordinary conformance commands)"
       ;;
     serialized-graph)

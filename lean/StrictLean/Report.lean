@@ -17,7 +17,8 @@ structure Position where
   column : Nat
   deriving Repr, BEq, FromJson, ToJson
 
-/-- One exact byte/UTF-16 declaration range. -/
+/-- Lean one-based lines and zero-based codepoint columns, with corresponding
+zero-based UTF-16 columns (not absolute offsets). -/
 structure Range where
   start : Position
   «end» : Position
@@ -42,6 +43,8 @@ structure ExecutableContract where
 /-- Complete Lean-semantic report for one owned constant. -/
 structure Declaration where
   name : String
+  /-- Structural original Name for new diagnostic transport; absent legacy records are unsupported. -/
+  structuralName : Option String := none
   «module» : String
   kind : String
   «type» : String
@@ -99,6 +102,7 @@ conservative compiler/source closure reaches, plus every dependency path the
 analysis could not resolve. -/
 structure ExecutionRoot where
   name : String
+  structuralName : Option String := none
   «module» : String
   boundaries : Array ExecutionBoundary
   unresolved : Array String

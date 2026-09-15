@@ -1,4 +1,5 @@
 import StrictLean.Checker.Frontend
+import StrictLean.Rule
 
 /-! Exact foundation, generated-role, and computation policy over typed reports. -/
 
@@ -282,26 +283,31 @@ def labelOf (axioms : Array String) (native : Array String := #[]) : String :=
   else if axioms.all Profile.choiceFree.permits then "choice-free"
   else "standard-logical"
 
-def reasonFor (decl : Declaration) (claim : Option Profile)
+def ruleFor (decl : Declaration) (claim : Option Profile)
     (native : Array String := #[]) (unsafeHelpers : Array String := #[]) :
-    Option String :=
+    Option RuleId :=
   if decl.kind == "axiom" then
     if native.contains decl.name then
-      if claim == some .compilerTrusting then none else some "compiler-trusting"
-    else some "project-axiom"
-  else if decl.axioms.contains "sorryAx" then some "hole"
+      if claim == some .compilerTrusting then none else some .compilerTrusting
+    else some .projectAxiom
+  else if decl.axioms.contains "sorryAx" then some .proofHole
   else if decl.axioms.any fun name =>
-      !standardLogicalAxiom name && !compilerAxiom native name then some "unknown-axiom"
+      !standardLogicalAxiom name && !compilerAxiom native name then some .unknownAxiom
   else if (decl.isUnsafe || decl.isPartial) && !unsafeHelpers.contains decl.name then
-    some "escape-hatch"
+    some .escapeHatch
   else if decl.axioms.any (compilerAxiom native) && claim != some .compilerTrusting then
-    some "compiler-trusting"
-  else if decl.executableContract.any (·.failure.isSome) then some "executable-contract"
+    some .compilerTrusting
+  else if decl.executableContract.any (·.failure.isSome) then some .executableContract
   else match claim with
     | some profile =>
         if decl.axioms.all fun name => compilerAxiom native name || profile.permits name
-        then none else some "label-exceeds-claim"
+        then none else some .profileExceeded
     | none => none
+
+/-- Compatibility subreason is derived from the rule descriptor. -/
+def reasonFor (decl : Declaration) (claim : Option Profile)
+    (native : Array String := #[]) (unsafeHelpers : Array String := #[]) : Option String :=
+  (ruleFor decl claim native unsafeHelpers).map (fun id => (descriptor id).applicability)
 
 /-- Boundary kinds that a checked-correspondence execution claim does not
 require to be checked: the Lean toolchain's own native runtime primitives are
@@ -313,21 +319,32 @@ private def nativeRuntimeBoundary (boundary : String) : Bool :=
 paths and unclassified boundaries block in every mode; a trusted boundary
 blocks a checked-correspondence claim unless it is a toolchain native-runtime
 primitive. -/
-def executionFailures (roots : Array StrictLean.Report.ExecutionRoot)
-    (claim : ExecutionClaim) : Array String := Id.run do
-  let mut failures : Array String := #[]
+structure ExecutionFailure where
+  id : RuleId
+  root : StrictLean.Report.ExecutionRoot
+  detail : String
+
+def executionFailureRecords (roots : Array StrictLean.Report.ExecutionRoot)
+    (claim : ExecutionClaim) : Array ExecutionFailure := Id.run do
+  let mut failures := #[]
   for root in roots do
     for item in root.unresolved do
-      failures := failures.push s!"execution-unresolved: {root.name}: {item}"
+      failures := failures.push ⟨.executionUnresolved, root, s!"{root.name}: {item}"⟩
     for boundary in root.boundaries do
       if boundary.correspondence == "unresolved" then
-        failures := failures.push (s!"execution-unresolved: {root.name} reaches " ++
-          s!"{boundary.name} ({boundary.boundary}): {boundary.evidence.getD "unclassified"}")
+        failures := failures.push ⟨.executionUnresolved, root,
+          s!"{root.name} reaches {boundary.name} ({boundary.boundary}): {boundary.evidence.getD "unclassified"}"⟩
       else if claim == .checked && boundary.correspondence != "checked"
           && !nativeRuntimeBoundary boundary.boundary then
-        failures := failures.push (s!"execution-trusted-boundary: {root.name} reaches " ++
-          s!"{boundary.name} ({boundary.boundary})")
+        failures := failures.push ⟨.executionBoundary, root,
+          s!"{root.name} reaches {boundary.name} ({boundary.boundary})"⟩
   failures
+
+/-- Existing text subreasons derive from the registry and the same decision records. -/
+def executionFailures (roots : Array StrictLean.Report.ExecutionRoot)
+    (claim : ExecutionClaim) : Array String :=
+  (executionFailureRecords roots claim).map fun failure =>
+    s!"{(descriptor failure.id).applicability}: {failure.detail}"
 
 /-- One-line rendering of a single execution boundary. -/
 def describeBoundary (boundary : StrictLean.Report.ExecutionBoundary) : String :=

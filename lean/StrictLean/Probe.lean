@@ -1,3 +1,4 @@
+import StrictLean.NameCodec
 import Lean.Elab.Command
 import Lean.Compiler.Old
 import Lean.Compiler.NoncomputableAttr
@@ -291,6 +292,7 @@ private def declEntry (env : Environment) (name : Name) (info : ConstantInfo) :
     | throwError "owned declaration {name} has no module index"
   return {
     name := name.toString
+    structuralName := some (StrictLean.RegistryCodec.nameJson name).compress
     «module» := env.header.modules[(moduleIdx : Nat)]!.module.toString
     kind := kindOf info
     «type» := toString (repr info.type)
@@ -696,7 +698,11 @@ def environmentReport (modules : List Name)
       let some moduleName := (env.getModuleIdxFor? root).map
           fun idx => env.header.modules[(idx : Nat)]!.module.toString
         | throwError "owned executable root {root} has no module index"
-      return ({ name := root.toString, «module» := moduleName, boundaries, unresolved, compilerEdges } :
+      return ({
+        name := root.toString
+        structuralName := some (StrictLean.RegistryCodec.nameJson root).compress
+        «module» := moduleName
+        boundaries, unresolved, compilerEdges } :
         StrictLean.Report.ExecutionRoot)
     else pure #[]
   return {

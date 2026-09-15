@@ -1,15 +1,15 @@
 # Session context: Strict Lean Project 8
 
 **Date:** 2026-09-14
-**Starting basis for CL-01:** public `main`, `afdc67fe343cbb244fbd788af36173614ca6fa87` (consolidation handoff PR #17).
+**Starting basis for CATALOG-01:** public `main`, `ae27b3b87e0881f39d60593ad2af01ce144b8160` (CL-01 design PR #18).
 **Persistence / resume authority:** this handoff is committed and pushed through a separate PR. Resume from the resulting public `main` after that PR merges; the starting basis above is not the eventual handoff HEAD.
 **Working root:** `/Users/richard/Developer/github/strict-lean`.
 **Repository:** `origin` is now `https://github.com/rbeauchamp/strict-lean.git`.
-**Resume focus after this delivery merges:** [#12 typed registry and diagnostics](https://github.com/rbeauchamp/strict-lean/issues/12). CL-01 delivers a design; #5–#7 still implement its policy types, proofs and complete-result integration.
+**Resume focus after this delivery merges:** [#5 policy-domain types](https://github.com/rbeauchamp/strict-lean/issues/5). #5–#7 implement the CL-01 policy types, proofs and complete-result integration; #13 also requires #5.
 
 ## Plan and completed work
 
-[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full live issue bodies are authoritative. Native dependencies govern prerequisites. #12 follows #11 and is next in project order; #5 still depends on both #4 and #12. Optional #8/#9 never replace the core unit. Stop if the completing CL-01 PR is not integrated or its checks/reviews remain incomplete.
+[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full live issue bodies are authoritative. Native dependencies govern prerequisites. #5 follows #4 and #12 and is next in project order after this delivery. Optional #8/#9 never replace the core unit. Verify the completing CATALOG-01 PR is integrated with passing checks/reviews before beginning #5.
 
 CL-01 supplies `docs/guides/policy-acceptance.md`: actual success/data flow, independent claim/census/job coverage, noncircular policy predicates, pure `StrictLeanPolicy` library plan, typed role/codec boundaries and successor assignments. Independent semantic and source-flow reviews passed after repairs for documentation presence, policy-negative website examples and FreshChecker plan-only completion. New theorems remain planned; no whole-checker/runtime proof is claimed. Successor handoffs are copied to issue bodies before integration. Read the completing PR for final CI/review evidence.
 
@@ -33,7 +33,7 @@ Preparation PR #1 remains open remotely; it was not closed, merged or deleted du
 
 The clean delivery, Verso and Verso-template temporary clones were removed after preserving evidence. Root `.lake/packages` was the shared dependency target and was retained; the documentation dependency cache was moved into the root prototype's ignored site cache. Generated outputs and former build caches are not new verification evidence for changed inputs.
 
-Local-only `.local-state/session-2026-09-14/` contains copied issue/project snapshots, acceptance log, prototype evidence/rendered output, review record, preparation bundle and a snapshot of `.lavish/`. Original `.lavish/con-leche-con-ron.md`, HTML, sources and project JSON remain at root. Original `tmp/axiom-report.json` and `tmp/detailed-report.json` were preserved. These local archives are not required to implement #4; its full live issue and maintained repository guides are authoritative. No unrelated artifacts belong in the handoff commit. Local research/archives are excluded using `.git/info/exclude`, not deleted or published.
+Local-only `.local-state/session-2026-09-14/` contains copied issue/project snapshots, acceptance log, prototype evidence/rendered output, review record, preparation bundle and a snapshot of `.lavish/`. Original `.lavish/con-leche-con-ron.md`, HTML, sources and project JSON remain at root. Original `tmp/axiom-report.json` and `tmp/detailed-report.json` were preserved. These local archives are not required to implement #5; its full live issue and maintained repository guides are authoritative. No unrelated artifacts belong in the handoff commit. Local research/archives are excluded using `.git/info/exclude`, not deleted or published.
 
 ## Ruled out and still unresolved
 
@@ -53,11 +53,19 @@ Local-only `.local-state/session-2026-09-14/` contains copied issue/project snap
 - “An ounce of math is worth a pound of computation.” Prefer invariant-preserving types/construction and proofs about executing definitions. Distinguish mathematical, machine-checked, observed, assumed and unresolved claims. Do not replace admission/qualification controls without accounting for their purpose.
 - Standing authorization permits requested PR publication and merge after applicable checks/review and exact-head CI, without repeated approval. Preserve unrelated work and protections. No software release, visibility change, custom domain, paid service, or Lean fork is authorized by this handoff.
 
+## CATALOG-01 delivery and evidence
+
+The completing delivery supplies one closed twenty-rule registry, indexed diagnostics with validated source ranges and structural Lean names, schema-1 registry/result codecs, native/text/JSON consumers, website artifact validation and a migrated real prototype. `docs/guides/rule-registry.md` is the maintained API/migration contract; successor issue bodies receive its settled interface before integration. `--json-out` is the versioned result; `--legacy-json-out` preserves the old export. Full declaration/execution inventories remain in new results. `completed` describes the existing mechanical observation, not CL-01's future `Accepted` result or full semantic conformance.
+
+Three independent fresh-context reviews covered registry/proofs, executing integration and delivery/adopter boundaries; focused repair reviews were clean. Nine public theorem dependencies were checked: two axiom-free, three using only `propext`, route injectivity using `propext` and `Quot.sound`, and rule/structural-name codec proofs within Standard-Logical. Operational controls are distinct from those universal theorems.
+
+Final local ordinary acceptance passed in 84.26 seconds under the hard 420-second deadline: Lean 4.33.1, Mathlib `0df444a360eaa60ab8c11dca51a86af692955474`, Audit/AuditApp, 12 owned modules, 510 declarations, 70 positive examples, 23 intended negative examples and one trusted example. Registry and malformed-CLI controls passed. The migrated prototype passed in 28.74 seconds; documentation remains pinned to Lean 4.33.0/Verso. A separate non-Git adopter rebuilt the checker and exercised positive/negative file results and incremental project results, including checker-source revision identity. Exact-head CI and integration are recorded on the completing PR; verify them live. Optional long diagnostic campaigns were not rerun or claimed PASS. Production collection/editor UX, policy `Accepted` proofs and website deployment remain successor work.
+
 ## Immediate next action and evidence gate
 
-1. Verify root origin/current main, clean status and ownership. Read the full live #12 and its native blocker #11; confirm #4's design PR is integrated. Read AGENTS and the maintained architecture, coverage and policy-acceptance guides. Use a scoped `codex/` branch.
-2. Implement #12's one typed rule registry, dependent diagnostic payloads, source locations and versioned exports. Preserve all twenty rules; add the planned `freshFile` mode. Keep rule IDs separate from policy categories and one shared registry. Pure policy implementation remains #5–#7; compatibility paths re-export a separate `StrictLeanPolicy` root.
-3. Preserve exact-source checked examples and expected compiler-rejection versus policy-diagnostic outcomes, and the module/material-declaration documentation-presence obligations. Do not let diagnostic export or a worker/plan-only exit become accepted project evidence.
-4. Obtain local-skill independent review, applicable proof/compiler/qualification checks and exact-head CI, integrate the PR, then reconcile #5/#13/#14/#15 and Project 8. Retain the hard 420-second acceptance deadline. Read live issue requirements for the complete deliverable.
+1. Verify origin, checkout/current main and worktree ownership. Read the full live #5 and native blockers #4/#12; confirm their completing PRs are integrated. Read AGENTS and maintained architecture, rule-registry, coverage and policy-acceptance guides.
+2. Implement #5's exact policy-domain contract on a scoped `codex/` branch. Reuse RuleId and structural names, preserve the separate pure `StrictLeanPolicy` package boundary, and distinguish policy categories from diagnostic IDs. Consume the authoritative issue's full CL-01 predicates, including its intentional fresh-file warning behavior change.
+3. Preserve all twenty rules, documentation-presence obligations and compiler-rejection versus policy-diagnostic distinctions. Neither empty diagnostics nor a plan-only worker exit supplies complete accepted evidence.
+4. Complete applicable independent review, proof/compiler checks, the hard 420-second acceptance and exact-head CI; integrate and reconcile successor bodies/dependencies and Project 8. Stop after #5 unless scope is expanded.
 
 **Mission-leverage card:** N/A; no separate card or active goal object is used.

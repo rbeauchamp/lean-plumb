@@ -16,7 +16,7 @@ trusted reporter is always available: the probe and its transitive imports
 inside the checker library. They are never part of an audited surface, so
 their presence in an environment is not evidence about the claimed modules. -/
 def probeModuleNames : Array String :=
-  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.Contract"]
+  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.Contract", "StrictLean.NameCodec"]
 
 /-- The probe modules no claimed module may import. `StrictLean.Contract`
 is the published contract interface (docs/standard/8 §8.12) and is the one checker module
@@ -24,7 +24,7 @@ a claimed surface imports by design; the probe and its report records are
 checker tooling that reach an audited environment only through the force
 import, never through a claimed module's own imports. -/
 def probeOnlyModuleNames : Array String :=
-  #["StrictLean.Probe", "StrictLean.Report"]
+  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.NameCodec"]
 
 /-- The checker-owned probe module force-imported into every report so the
 trusted reporter is always available. It is never part of an audited surface. -/

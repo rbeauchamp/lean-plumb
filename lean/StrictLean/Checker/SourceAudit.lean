@@ -186,6 +186,13 @@ def compilationPassed (value : Compilation) : Bool :=
   value.process.succeeded
     && (!value.spec.rejectWarnings || (warningLines value.process.output).isEmpty)
 
+/-- A normal compiler exit with a source-located error/warning establishes an emitted
+source diagnostic. Crashes, termination and unrelated tool messages remain incomplete.
+The pinned compiler's exit and textual diagnostic protocol is a trusted boundary. -/
+def sourceDiagnosticFailure (value : Compilation) : Bool :=
+  value.process.exitCode ≤ 1 && (outputLines value.process.output).any (fun line =>
+    line.startsWith (value.sourcePath.toString ++ ":") && (isErrorLine line || isWarningLine line))
+
 unsafe def inspect (value : Compilation) (extraSearchRoots : Array FilePath := #[])
     (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none) :

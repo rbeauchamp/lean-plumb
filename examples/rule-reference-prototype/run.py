@@ -31,10 +31,13 @@ def run(args, *, cwd=ROOT, expected=0, env=None):
 
 # Dependencies must be provisioned first; this is not ordinary repository acceptance.
 assert '4.33.1' in run(['lake', 'env', 'lean', '--version'])
+run(['lake', 'build', 'axiomGate'])
 for name in ['Rule', 'Probe']:
     run(['lake', 'env', 'lean', '-o', str(OUT / f'{name}.olean'), str(HERE / f'{name}.lean')])
-metadata = json.loads(run(['lake', 'env', 'lean', '--run', str(HERE / 'Export.lean')]))
-assert metadata['id'] == 'SL1001' and metadata['reason'] == 'project-axiom'
+registry = json.loads(run(['lake', 'env', 'lean', '--run', str(HERE / 'Export.lean')]))
+(OUT / 'registry.json').write_text(json.dumps(registry, indent=2) + '\n')
+metadata = next(rule for rule in registry['rules'] if rule['id'] == 'SL1001')
+assert metadata['id'] == 'SL1001' and metadata['applicability'] == 'project-axiom'
 (OUT / 'rule.json').write_text(json.dumps(metadata, indent=2) + '\n')
 results = {}
 for name, exit_code in [('Fixed', 0), ('Violation', 1), ('Fixed', 0)]:
@@ -53,7 +56,7 @@ for name, exit_code in [('Fixed', 0), ('Violation', 1), ('Fixed', 0)]:
         assert diagnostic['endPos'] == {'line': 2, 'column': 17}
         assert diagnostic['fileName'] == str(source)
         assert metadata['title'] in diagnostic['data']
-        assert diagnostic['data'].endswith('/strict-lean/dev/' + metadata['path'])
+        assert diagnostic['data'].endswith('/strict-lean/dev/' + metadata['helpRoute'])
     else:
         assert not messages
     results[name] = {'source': source.read_text(), 'messages': messages}
@@ -134,7 +137,7 @@ The prototype's explicit command inspects imported modules; immediate editor sch
 complete registry coverage and whole-project conformance remain later deliverables.
 
 # Sources and credit
-[Normative requirement](https://github.com/rbeauchamp/strict-lean/blob/main/''' + metadata['normative'] + ''').
+[Normative requirement](https://github.com/rbeauchamp/strict-lean/blob/main/''' + metadata['normativeClauses'][0].split(' §')[0] + ''').
 Canonical metadata and proof-bearing acceptance design are informed by
 [con-leche](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean).
 The linter and widget interfaces are Lean APIs. Static rendering uses Verso;
@@ -147,7 +150,7 @@ informs the explanation structure. Con-ron is excluded.
 run(['lake', 'build', 'site'], cwd=HERE / 'site', env=clean_env)
 run(['lake', 'exe', 'site'], cwd=HERE / 'site', env=clean_env)
 site_root = OUT / 'public'
-route = site_root / 'strict-lean/dev' / metadata['path']
+route = site_root / 'strict-lean/dev' / metadata['helpRoute']
 shutil.rmtree(site_root, ignore_errors=True)
 shutil.copytree(HERE / 'site/_out/html-single', route)
 assert (route / 'index.html').is_file()
@@ -155,7 +158,7 @@ rendered = (route / 'index.html').read_text()
 assert metadata['id'] in rendered and 'unsupported' in rendered and 'conditional' in rendered
 (site_root / 'index.html').write_text('<!doctype html><title>Diagnostic link probe</title>'
     '<p>' + html.escape(results['Violation']['messages'][0]['data']) + '</p>'
-    '<a href="/strict-lean/dev/' + metadata['path'] + '">Explain ' + metadata['id'] + '</a>')
+    '<a href="/strict-lean/dev/' + metadata['helpRoute'] + '">Explain ' + metadata['id'] + '</a>')
 # Check reproducible generator output at identical inputs, without rerunning Lean checks.
 first = {str(f.relative_to(route)): hashlib.sha256(f.read_bytes()).hexdigest()
          for f in route.rglob('*') if f.is_file()}
@@ -164,6 +167,17 @@ second_root = HERE / 'site/_out/html-single'
 second = {str(f.relative_to(second_root)): hashlib.sha256(f.read_bytes()).hexdigest()
           for f in second_root.rglob('*') if f.is_file()}
 assert first == second, 'static output changed for identical inputs'
+# Admit actual produced pages and every emitted example ID using the product's Lean API.
+artifact = {'required': [metadata['id']],
+            'emitted': sorted({m['kind'].removeprefix('StrictLean.').removesuffix('._namedError')
+                               for value in results.values() for m in value['messages']}),
+            'pages': [{'id': metadata['id'], 'route': metadata['helpRoute'],
+                       'checkedExample': bool(route.is_dir() and results['Violation']['messages']
+                                              and not results['Fixed']['messages']),
+                       'advertisedEnforced': True}]}
+(OUT / 'site-artifact.json').write_text(json.dumps(artifact, indent=2) + '\n')
+run(['lake', 'exe', 'axiomGate', '--validate-site', str(OUT / 'registry.json'),
+     str(OUT / 'site-artifact.json')])
 (OUT / 'evidence.json').write_text(json.dumps({'rule': metadata, 'results': results,
     'reproducibleFiles': len(first), 'elapsedSeconds': round(time.monotonic()-START, 2),
     'editorInteraction': 'NOT RUN; required in ADOPTION-01'}, indent=2) + '\n')
