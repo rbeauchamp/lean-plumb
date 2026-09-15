@@ -1,17 +1,17 @@
 # Session context: Strict Lean Project 8
 
 **Date:** 2026-09-15
-**Starting basis for DESIGN-01:** public `main`, `79851f567ac8c1000575b707630e7ea593bfccb0` (CATALOG-01 PR #19).
+**DESIGN-01 starting basis:** public `main`, `79851f567ac8c1000575b707630e7ea593bfccb0` (CATALOG-01 PR #19).
 **Persistence / resume authority:** this handoff accompanies the DESIGN-01 delivery PR. Resume from the resulting public `main` after that PR merges; the starting basis above is not the eventual handoff HEAD.
 **Working root:** `/Users/richard/Developer/github/strict-lean`.
 **Repository:** `origin` is now `https://github.com/rbeauchamp/strict-lean.git`.
-**Resume focus after this delivery merges:** [#5 policy-domain types](https://github.com/rbeauchamp/strict-lean/issues/5). #5–#7 implement the CL-01 policy types, proofs and complete-result integration; #13 also requires #5.
+**Resume focus after this delivery merges:** [#5 policy-domain types](https://github.com/rbeauchamp/strict-lean/issues/5). #5–#7 implement the POLICY-01 policy types, proofs and complete-result integration; #13 also requires #5.
 
 ## Plan and completed work
 
-[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full live issue bodies are authoritative. Native dependencies govern prerequisites. #5 follows #4, #12 and #20 and is next in project order after this delivery. Optional #8/#9 never replace the core unit. Verify the completing CL-01, CATALOG-01 and DESIGN-01 PRs are integrated with passing checks/reviews before beginning #5.
+[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full live issue bodies are authoritative. Native dependencies govern prerequisites. #5 follows #4, #12 and #20 and is next in project order after this delivery. Optional #8/#9 never replace the core unit. Verify the completing POLICY-01, CATALOG-01 and DESIGN-01 PRs are integrated with passing checks/reviews before beginning #5.
 
-CL-01 supplies `docs/guides/policy-acceptance.md`: actual success/data flow, independent claim/census/job coverage, noncircular policy predicates, pure `StrictLeanPolicy` library plan, typed role/codec boundaries and successor assignments. Independent semantic and source-flow reviews passed after repairs for documentation presence, policy-negative website examples and FreshChecker plan-only completion. New theorems remain planned; no whole-checker/runtime proof is claimed. Successor handoffs are copied to issue bodies before integration. Read the completing PR for final CI/review evidence.
+POLICY-01 supplies `docs/guides/policy-acceptance.md`: actual success/data flow, independent claim/census/job coverage, noncircular policy predicates, pure `StrictLeanPolicy` library plan, typed role/codec boundaries and successor assignments. Independent semantic and source-flow reviews passed after repairs for documentation presence, policy-negative website examples and FreshChecker plan-only completion. New theorems remain planned; no whole-checker/runtime proof is claimed. Successor handoffs are copied to issue bodies before integration. Read the completing PR for final CI/review evidence.
 
 PR #17 was a handoff-only change. Its negated closing phrase accidentally triggered issue #4 closure; the user authorized reopening and actual delivery. Avoid closing keywords next to issue references unless automatic closure is intended. PRODUCT-01 remains delivered through PR #16, source `e5bc6267fa44d03a174c10ba3711e9c32545dff2`, merge `6e3c68c2b93bfa874b5deb9e956befd366a2de0a`.
 
@@ -48,14 +48,14 @@ Local-only `.local-state/session-2026-09-14/` contains copied issue/project snap
 ## Standing user constraints
 
 - “Preserve public repository’s 420 seconds.” This overrides stale supplied 360-second instructions for ordinary `./scripts/verify.sh`; no overrides, partitioning or grace periods. Website checks have a separate named budget.
-- “all issues and deliverabes MUST appropriately cite and credit con-leche.” Cite the actual influences, distinguish inspiration from copied code and upstream proof guarantees, and preserve applicable notices. The architecture credits [con-leche's proof-bearing checks](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean) and [canonical representation](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean).
+- The 2026-09-15 attribution clarification supersedes blanket con-leche credit requirements. Preserve specific registry/policy design citations and actual adapted-code notices; unrelated issues/deliverables need no con-leche mention. See `docs/guides/design-influences.md`. Core issues use linter/policy terminology; #8/#9 remain optional con-leche research, and #3 is linked historical background outside the project board.
 - “as you proceed through the project, update its status and the issue statuses and dependencies as needed.” Keep successor bodies self-contained; copy newly settled requirements before unblocking successors. Done requires integrated acceptance, not a plan or partial PR.
 - “An ounce of math is worth a pound of computation.” Prefer invariant-preserving types/construction and proofs about executing definitions. Distinguish mathematical, machine-checked, observed, assumed and unresolved claims. Do not replace admission/qualification controls without accounting for their purpose.
 - Standing authorization permits requested PR publication and merge after applicable checks/review and exact-head CI, without repeated approval. Preserve unrelated work and protections. No software release, visibility change, custom domain, paid service, or Lean fork is authorized by this handoff.
 
 ## CATALOG-01 delivery and evidence
 
-The completing delivery supplies one closed twenty-rule registry, indexed diagnostics with validated source ranges and structural Lean names, schema-1 registry/result codecs, native/text/JSON consumers, website artifact validation and a migrated real prototype. `docs/guides/rule-registry.md` is the maintained API/migration contract; successor issue bodies receive its settled interface before integration. `--json-out` is the versioned result; `--legacy-json-out` preserves the old export. Full declaration/execution inventories remain in new results. `completed` describes the existing mechanical observation, not CL-01's future `Accepted` result or full semantic conformance.
+The completing delivery supplies one closed twenty-rule registry, indexed diagnostics with validated source ranges and structural Lean names, schema-1 registry/result codecs, native/text/JSON consumers, website artifact validation and a migrated real prototype. `docs/guides/rule-registry.md` is the maintained API/migration contract; successor issue bodies receive its settled interface before integration. `--json-out` is the versioned result; `--legacy-json-out` preserves the old export. Full declaration/execution inventories remain in new results. `completed` describes the existing mechanical observation, not POLICY-01's future `Accepted` result or full semantic conformance.
 
 Three independent fresh-context reviews covered registry/proofs, executing integration and delivery/adopter boundaries; focused repair reviews were clean. Nine public theorem dependencies were checked: two axiom-free, three using only `propext`, route injectivity using `propext` and `Quot.sound`, and rule/structural-name codec proofs within Standard-Logical. Operational controls are distinct from those universal theorems.
 
@@ -91,10 +91,17 @@ is claimed. The ordinary 420-second deadline remains unchanged.
 2. Implement #5's exact pure policy-domain contract on a scoped `codex/` branch. Keep diagnostic
    IDs separate from policy categories; preserve claim/snapshot/configuration origins without
    admitting presentation or configuration-query completion as policy authority.
-3. Preserve full CL-01 predicates and the intentional fresh-file warning change. Empty
+3. Preserve full POLICY-01 predicates and the intentional fresh-file warning change. Empty
    diagnostics, worker/plan-only completion and a clean buffer never establish project acceptance.
 4. Complete independent review, applicable proof/compiler checks, hard 420-second acceptance
    and exact-head CI; integrate and reconcile successors and Project 8. Stop after #5 unless
    scope is expanded.
 
 **Mission-leverage card:** N/A; no separate card or active goal object is used.
+
+## Attribution clarification after DESIGN-01
+
+DESIGN-01 is integrated through PR #21, merge `b43553693f16c061e2e9214116339304c7f93ae0`.
+The attribution follow-up narrows project labeling and blanket credit requirements, preserving
+specific design precedents and optional #8/#9 research. It changes no linter semantics or
+proof guarantees. #5 remains next; verify this follow-up is integrated before resuming.

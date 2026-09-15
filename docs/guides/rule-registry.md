@@ -219,3 +219,6 @@ illustrative presentation reference. The [ecosystem study](ecosystem-design.md) 
 the comparison; none of these examples prescribes an exact UX or supplies Lean policy
 semantics or suppression permission. Root Mathlib remains pinned to
 `0df444a360eaa60ab8c11dca51a86af692955474`.
+
+The shared registry attribution describes a metadata design influence, not authorship of every
+rule or a runtime dependency. See [attribution scope](design-influences.md).

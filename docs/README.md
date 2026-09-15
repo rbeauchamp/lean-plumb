@@ -35,3 +35,5 @@ Return to the [project overview](../README.md).
 
 - [Ecosystem research and design](guides/ecosystem-design.md): evidence from Lean and other language tools, alternatives and selected architecture.
 - [Developer experience](guides/developer-experience.md): planned native workflows, diagnostics, configuration and website interactions.
+
+- [Design influences and attribution](guides/design-influences.md): actual reuse, specific inspiration, optional external checking and project scope.
