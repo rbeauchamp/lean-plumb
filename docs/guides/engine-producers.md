@@ -43,9 +43,10 @@ File/fence results retain their existing scoped enforcement; global mode/job com
 `Report.Collected` adds extraction keys to the unchanged pure policy report.
 `Checker.ProducerReport.Environment` adds the operational receipts and owns their JSON decoder:
 
-- `census`: requested modules, declaration keys and optional execution root keys;
+- `census`: requested modules, declaration keys, optional execution root keys and root/module history requests;
 - `admission`: replay modules, required keys and observed admitted keys;
-- `documentation`: every module's presence, frozen material keys and exact optional docstrings.
+- `documentation`: every module's presence, frozen material keys and exact optional docstrings;
+- `histories`: one completed source receipt or explicit unavailable outcome for every requested module.
 
 Keeping transport validation in the checker layer avoids replaying its implementation from
 the force-loaded reporter in every inspection. The trusted loader validates these fields before returning. The operational JSON decoder
@@ -64,6 +65,34 @@ bind these raw keys to the exact claim/snapshot and construct the existing pure 
 `AdmissionObservation`; no serialized flag substitutes for that work. #13 still owes complete
 closure/source producer linkage, exact policy-example integration and the full twenty-rule
 source-owned corpus. An empty diagnostic list is not `Accepted` or full semantic conformance.
+
+## Source-bound replacement histories
+
+The execution walk registers each `(root, module)` history request before consulting the
+loader. Repeated lookups share one module receipt within that report. The loader retains the
+Lean-resolved path, exact bytes before and after the isolated worker, and the returned ordered
+replacement edges. Its existing worker packet binds the stage, module, path, bytes, producer
+and toolchain; changed source or unsupported evaluator paths yield `unavailable`, never a
+completed receipt. This also preserves earlier choices overwritten by later attributes.
+
+Producer/decoder admission requires unique requests, exact module receipt coverage in canonical
+name order, known roots/modules, nonempty source paths and byte equality. A runtime-replacement
+boundary must have a registered request. Completed execution requires its replacement edge in
+a completed history; unavailable history requires unresolved execution for every requesting
+root. Logical-only inspection has no execution roots, requests or history receipts. Legacy
+JSON omits the added history account.
+
+These are linked operational observations under the existing Lean/process/imported-library
+trust boundary. They do not authenticate arbitrary serialized source claims or establish the
+complete reached-node/edge census, source identity across every stage, or global `Accepted`.
+A temporarily changed source restored between observations is outside what before/after byte
+equality establishes. #13/#7 retain the broader snapshot and producer composition obligations.
+
+The `producers` diagnostic now also runs `scripts/history_checks.py`: real fresh/incremental
+project and file invocations check overwritten history, an unsupported source evaluator, and
+fresh restoration. Actual returned records are mutated through the Lean decoder to qualify
+missing requests/receipts/edges, changed bytes, missing paths and concealed unavailability.
+The existing structural campaign remains separately scoped; this does not report it PASS.
 
 ## Source-owned examples and qualification
 

@@ -29,7 +29,7 @@ standard_verify_checks() {
       lake build StrictLeanPolicy axiomGate docFenceAudit \
         +StrictLean.Checker.CheckerSelftest:olean +StrictLean.Checker.FreshChecker:olean \
         +StrictLean.RegistryChecks:olean +StrictLean.Linter:olean \
-        +StrictLean.Checker.ProducerQualification:olean
+        +StrictLean.Checker.ProducerQualification:olean +StrictLean.Checker.HistoryQualification:olean
       lake env lean --run lean/StrictLean/RegistryChecks.lean
       python3 scripts/registry_cli_checks.py
       python3 scripts/native_linter_checks.py
@@ -46,8 +46,9 @@ standard_verify_checks() {
       if (( $# > 1 )); then echo "diagnostics accepts at most one partition" >&2; exit 2; fi
       case "${1:-}" in
         producers)
-          lake build axiomGate +StrictLean.Checker.ProducerQualification:olean
+          lake build axiomGate +StrictLean.Checker.ProducerQualification:olean +StrictLean.Checker.HistoryQualification:olean
           python3 scripts/producer_checks.py
+          python3 scripts/history_checks.py
           ;;
         "") lake exe checkerSelftest --build-bound --jobs 4 ;;
         fixtures|structural|cli|environments|build-policy)

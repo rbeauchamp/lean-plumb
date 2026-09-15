@@ -71,7 +71,7 @@ def main() -> None:
                     assert report["admission"]["required"] == report["admission"]["admitted"]
                     assert observed["mode"] == mode and observed["unresolved"] == [], observed
                     key = [[["str", "Example"]], [["str", "reflexive"]]]
-                    assert report["census"] == {"modules": [key[0]], "declarations": [key], "executionRoots": []}, report["census"]
+                    assert report["census"] == {"modules": [key[0]], "declarations": [key], "executionRoots": [], "historyRequests": []}, report["census"]
                     assert key in report["admission"]["required"], report["admission"]
                     snapshots = observed["scope"]["sources"]
                     assert len(snapshots) == 1 and snapshots[0]["module"] == key[0], snapshots

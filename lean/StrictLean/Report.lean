@@ -234,12 +234,15 @@ instance : FromJson StrictLeanPolicy.Environment := ⟨fun j => do
     execution := ← j.getObjValAs? _ "execution"
   }⟩
 
-/-- Frozen extraction keys, captured before declaration observations and execution walks.
+/-- Declaration/root keys are frozen before their observations; history requests are registered
+before each on-demand lookup during the walk.
 These are unbound operational inputs to POLICY-04's claim-indexed `Census`, not acceptance. -/
 structure Census where
   modules : Array Name
   declarations : Array (Name × Name)
   executionRoots : Option (Array (Name × Name))
+  /-- (execution root, module) requests registered before consulting history results. -/
+  historyRequests : Array (Name × Name)
   deriving Repr
 
 /-- Extraction keys alongside the original pure policy report. Operational transport

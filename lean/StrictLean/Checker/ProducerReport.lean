@@ -11,10 +11,11 @@ abbrev Census := StrictLean.Report.Census
 deriving instance ToJson for StrictLean.Report.Census
 
 instance : FromJson Census := ⟨fun j => do
-  exactFields j ["modules", "declarations", "executionRoots"]
+  exactFields j ["modules", "declarations", "executionRoots", "historyRequests"]
   return { modules := ← j.getObjValAs? _ "modules"
            declarations := ← j.getObjValAs? _ "declarations"
-           executionRoots := ← j.getObjValAs? _ "executionRoots" }⟩
+           executionRoots := ← j.getObjValAs? _ "executionRoots"
+           historyRequests := ← j.getObjValAs? _ "historyRequests" }⟩
 
 /-- Replay scope can exceed report scope. Required keys come from the original environment;
 admitted keys are observed in the separately replayed kernel after `Environment.replay`. -/
@@ -44,19 +45,50 @@ instance : FromJson DocumentationObservation := ⟨fun j => do
            materialDeclarations := ← j.getObjValAs? _ "materialDeclarations"
            declarations := ← j.getObjValAs? _ "declarations" }⟩
 
+/-- Completed history preserves the exact Lean-resolved source before/after the worker.
+Unavailable history has no successful source receipt or usable edge payload. -/
+inductive HistoryOutcome where
+  | completed (path before after : String) (replacements : Array (Name × Name))
+  | unavailable (detail : String)
+  deriving Repr
+
+instance : ToJson HistoryOutcome := ⟨fun
+  | .completed path before after edges => Json.mkObj [
+      ("kind", toJson "completed"), ("path", toJson path), ("before", toJson before),
+      ("after", toJson after), ("replacements", toJson edges)]
+  | .unavailable detail => Json.mkObj [("kind", toJson "unavailable"), ("detail", toJson detail)]⟩
+
+instance : FromJson HistoryOutcome := ⟨fun j => do
+  match ← j.getObjValAs? String "kind" with
+  | "completed" =>
+    exactFields j ["kind", "path", "before", "after", "replacements"]
+    return .completed (← j.getObjValAs? _ "path") (← j.getObjValAs? _ "before")
+      (← j.getObjValAs? _ "after") (← j.getObjValAs? _ "replacements")
+  | "unavailable" =>
+    exactFields j ["kind", "detail"]
+    return .unavailable (← j.getObjValAs? _ "detail")
+  | _ => throw "producer-history: unknown outcome"⟩
+
+/-- Only a completed receipt supplies execution edges; failure remains explicit. -/
+def HistoryOutcome.edges : HistoryOutcome → Except String (Array (Name × Name))
+  | .completed _ _ _ edges => .ok edges
+  | .unavailable detail => .error detail
+
 /-- Operational producer account extends the unchanged pure policy observations.
 The interactive probe alone has no admission/documentation receipt. Trusted loaders supply
 both; a consumer must validate the account before using its results. -/
 structure Environment extends StrictLean.Report.Collected where
   admission : Option AdmissionReceipt := none
   documentation : Option DocumentationObservation := none
+  histories : Array (Name × HistoryOutcome) := #[]
   deriving Repr
 
 instance : ToJson Environment := ⟨fun r => Json.mkObj [
   ("toolchain", toJson r.toolchain), ("modules", toJson r.modules),
   ("moduleOrigins", toJson r.moduleOrigins), ("declarations", toJson r.declarations),
   ("execution", toJson r.execution), ("census", toJson r.census),
-  ("admission", toJson r.admission), ("documentation", toJson r.documentation)]⟩
+  ("admission", toJson r.admission), ("documentation", toJson r.documentation),
+  ("histories", toJson r.histories)]⟩
 
 /-- Exact key reconciliation at the producer and transport admission boundaries. This
 checks supplied observations; truthful Lean/Lake extraction remains the trusted boundary. -/
@@ -94,9 +126,37 @@ def Environment.validate (r : Environment) : Except String Unit := do
       docs.declarations.map (·.1) == docs.materialDeclarations do
     throw "producer-documentation: selector coverage mismatch"
 
+  let requests := r.census.historyRequests
+  unless (canonicalEdges requests).size == requests.size &&
+      requests.all (fun (root, mod) => r.execution.any (·.name == root) && r.modules.contains mod) &&
+      r.histories.map (·.1) == canonicalNames (requests.map (·.2)) do
+    throw "producer-history: request coverage mismatch"
+  for (mod, outcome) in r.histories do
+    match outcome with
+    | .completed path before after edges =>
+      unless !path.isEmpty && before == after &&
+          edges.all (fun (a, b) => !a.isAnonymous && !b.isAnonymous) do
+        throw "producer-history: invalid completed source observation"
+    | .unavailable detail =>
+      unless !detail.isEmpty && requests.all (fun (root, requested) => requested != mod ||
+          r.execution.any (fun r => r.name == root && !r.unresolved.isEmpty)) do
+        throw "producer-history: unavailable history without unresolved execution"
+  for root in r.execution do
+    for boundary in root.boundaries do
+      if boundary.boundary == .runtimeReplacement then
+        unless requests.contains (root.name, boundary.module) do
+          throw "producer-history: unrequested runtime replacement"
+        if root.unresolved.isEmpty then
+          let some (_, .completed _ _ _ edges) := r.histories.find? (·.1 == boundary.module)
+            | throw "producer-history: completed execution lacks history"
+          let some replacement := boundary.replacement
+            | throw "producer-history: runtime replacement target missing"
+          unless edges.contains (boundary.name, replacement) do
+            throw "producer-history: completed execution omits replacement history edge"
+
 instance : FromJson Environment := ⟨fun j => do
   exactFields j ["toolchain", "modules", "moduleOrigins", "declarations", "execution",
-    "census", "admission", "documentation"]
+    "census", "admission", "documentation", "histories"]
   let r : Environment := {
     toolchain := ← j.getObjValAs? _ "toolchain"
     modules := ← j.getObjValAs? _ "modules"
@@ -106,6 +166,7 @@ instance : FromJson Environment := ⟨fun j => do
     census := ← j.getObjValAs? _ "census"
     admission := ← j.getObjValAs? _ "admission"
     documentation := ← j.getObjValAs? _ "documentation"
+    histories := ← j.getObjValAs? _ "histories"
   }
   r.validate
   return r⟩
