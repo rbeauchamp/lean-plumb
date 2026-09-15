@@ -26,6 +26,10 @@ lean_lib «Fixtures» where
   -- deliberately not a default target: many modules are meant not to build.
   globs := #[.submodules `Fixtures]
 
+@[default_target]
+lean_lib «StrictLeanPolicy» where
+  globs := #[.andSubmodules `StrictLeanPolicy]
+
 lean_lib «StrictLean» where
   -- Lean-only checker implementation. Operational checker modules are
   -- separately qualified; they are not part of the conforming proof surface.

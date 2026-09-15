@@ -1,3 +1,4 @@
+import StrictLean.Checker.PolicyCodec
 import StrictLean.Checker.Environment
 import StrictLean.Checker.Frontend
 import StrictLean.Checker.Policy
@@ -7,6 +8,7 @@ import StrictLean.Checker.Policy
 namespace StrictLean.Checker.SourceAudit
 
 open Lean System
+open scoped StrictLean.Report
 open StrictLean.Checker
 
 structure SourceSpec where
@@ -15,7 +17,17 @@ structure SourceSpec where
   warningAsError : Bool := false
   rejectWarnings : Bool := false
   captureRejection : Bool := false
-  deriving Repr, FromJson, ToJson
+  deriving Repr, ToJson
+
+instance : FromJson SourceSpec := ⟨fun j => do
+  StrictLean.Checker.PolicyCodec.exactFields j ["module", "source", "warningAsError", "rejectWarnings", "captureRejection"]
+  return {
+    «module» := ← j.getObjValAs? _ "module"
+    source := ← j.getObjValAs? _ "source"
+    warningAsError := ← j.getObjValAs? _ "warningAsError"
+    rejectWarnings := ← j.getObjValAs? _ "rejectWarnings"
+    captureRejection := ← j.getObjValAs? _ "captureRejection"
+  }⟩
 
 private instance : ToJson ProcessResult where
   toJson value := Json.mkObj [
@@ -24,6 +36,7 @@ private instance : ToJson ProcessResult where
 
 private instance : FromJson ProcessResult where
   fromJson? value := do
+    StrictLean.Checker.PolicyCodec.exactFields value ["exitCode", "stdout", "stderr"]
     let code : Nat ← value.getObjValAs? Nat "exitCode"
     if code >= 2^32 then throw "invalid process exit code"
     let stdout ← value.getObjValAs? String "stdout"
@@ -37,7 +50,18 @@ structure Compilation where
   ileanPath : FilePath
   process : ProcessResult
   errors : Option (Array String) := none
-  deriving Repr, FromJson, ToJson
+  deriving Repr, ToJson
+
+instance : FromJson Compilation := ⟨fun j => do
+  StrictLean.Checker.PolicyCodec.exactFields j ["spec", "sourcePath", "oleanPath", "ileanPath", "process", "errors"]
+  return {
+    spec := ← j.getObjValAs? _ "spec"
+    sourcePath := ← j.getObjValAs? _ "sourcePath"
+    oleanPath := ← j.getObjValAs? _ "oleanPath"
+    ileanPath := ← j.getObjValAs? _ "ileanPath"
+    process := ← j.getObjValAs? _ "process"
+    errors := ← j.getObjValAs? _ "errors"
+  }⟩
 
 structure Inspected where
   compilation : Compilation
@@ -49,27 +73,44 @@ structure Inspected where
 Only JSON data crosses the process boundary; extension-held references die
 with the worker instead of accumulating across groups in the coordinator. -/
 structure GroupRequest where
-  modules : Array String
-  moduleSources : Array (String × String) := #[]
+  modules : Array Name
+  moduleSources : Array (Name × String) := #[]
   ownedOutput : Option String := none
   includeExecution : Bool := true
   includeModuleOrigins : Bool := true
-  deriving FromJson, ToJson
+  deriving ToJson
+
+instance : FromJson GroupRequest := ⟨fun j => do
+  StrictLean.Checker.PolicyCodec.exactFields j ["modules", "moduleSources", "ownedOutput", "includeExecution", "includeModuleOrigins"]
+  return {
+    modules := ← j.getObjValAs? _ "modules"
+    moduleSources := ← j.getObjValAs? _ "moduleSources"
+    ownedOutput := ← j.getObjValAs? _ "ownedOutput"
+    includeExecution := ← j.getObjValAs? _ "includeExecution"
+    includeModuleOrigins := ← j.getObjValAs? _ "includeModuleOrigins"
+  }⟩
 
 structure GroupReport where
   report : StrictLean.Report.Environment
   transcripts : Array Frontend.Transcript
-  deriving FromJson, ToJson
+  deriving ToJson
+
+instance : FromJson GroupReport := ⟨fun j => do
+  StrictLean.Checker.PolicyCodec.exactFields j ["report", "transcripts"]
+  return {
+    report := ← j.getObjValAs? _ "report"
+    transcripts := ← j.getObjValAs? _ "transcripts"
+  }⟩
 
 unsafe def inspectGroupWorker (request : GroupRequest) : IO GroupReport := do
   let moduleSources := request.moduleSources.map fun (name, path) =>
-    (name.toName, FilePath.mk path)
+    (name, FilePath.mk path)
   let report ← Environment.loadReportCurrentSearchPath request.modules moduleSources
     (request.ownedOutput.map FilePath.mk) request.includeExecution request.includeModuleOrigins
   return { report, transcripts := #[] }
 
-def inspectGroupCurrentSearchPath (modules : Array String)
-    (transcriptSources : Array (String × FilePath) := #[])
+def inspectGroupCurrentSearchPath (modules : Array Name)
+    (transcriptSources : Array (Name × FilePath) := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
     IO GroupReport := do
@@ -81,7 +122,7 @@ def inspectGroupCurrentSearchPath (modules : Array String)
     let output := scratch / "report.json"
     let request : GroupRequest := {
       modules
-      moduleSources := moduleSources.map fun (name, path) => (name.toString, path.toString)
+      moduleSources := moduleSources.map fun (name, path) => (name, path.toString)
       ownedOutput := ownedOutput.map (·.toString)
       includeExecution
       includeModuleOrigins
@@ -93,8 +134,9 @@ def inspectGroupCurrentSearchPath (modules : Array String)
     -- Put the actual failure before timing stdout: documentation displays a
     -- bounded diagnostic excerpt, so progress must not hide the rejection.
     if !result.succeeded then throw <| IO.userError (result.stderr ++ result.stdout)
-    let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile output)
-    let inspected : GroupReport ← IO.ofExcept (fromJson? json)
+    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+    let payload ← IO.ofExcept <| readWorkerPacket (toJson request) json
+    let inspected : GroupReport ← IO.ofExcept (fromJson? payload)
     -- The report worker has exited before any frontend imports are loaded.
     -- Each transcript likewise releases its imports before the next one.
     let mut transcripts := #[]
@@ -119,11 +161,14 @@ private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
     let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
     let output := scratch / s!"{spec.«module»}.diagnostics.json"
     let process ← spawn binary.toString
-      #["--diagnostic-worker", spec.«module», sourcePath.toString, output.toString]
+      #["--diagnostic-worker", (StrictLean.RegistryCodec.nameJson spec.module.toName).compress, sourcePath.toString, output.toString]
     let errors ← if process.succeeded then
         try
-          let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile output)
-          pure <| some (← IO.ofExcept <| fromJson? json)
+          let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+          let payload ← IO.ofExcept <| readWorkerPacket
+            (sourceWorkerRequest "diagnostic" spec.module.toName sourcePath spec.source) json
+          unless (← IO.FS.readFile sourcePath) == spec.source do throw <| IO.userError "diagnostic snapshot changed"
+          pure <| some (← IO.ofExcept <| fromJson? payload)
         catch _ => pure none
       else pure none
     return { spec, sourcePath, oleanPath, ileanPath, process, errors }
@@ -151,7 +196,15 @@ structure CompileBatch where
   scratch : FilePath
   jobs : Nat
   specs : Array SourceSpec
-  deriving FromJson, ToJson
+  deriving ToJson
+
+instance : FromJson CompileBatch := ⟨fun j => do
+  StrictLean.Checker.PolicyCodec.exactFields j ["scratch", "jobs", "specs"]
+  return {
+    scratch := ← j.getObjValAs? _ "scratch"
+    jobs := ← j.getObjValAs? _ "jobs"
+    specs := ← j.getObjValAs? _ "specs"
+  }⟩
 
 /-- Entered only through a scrubbed `lake env` invocation. Each example still
 has its own compiler/diagnostic process; only Lake environment setup is shared. -/
@@ -176,10 +229,28 @@ def compileBatch (repo scratch : FilePath) (jobs : Nat) (specs : Array SourceSpe
       #["env", binary.toString, "--compile-batch-worker", input.toString, output.toString]
       scrubbedLeanPathEnv
     if !result.succeeded then throw <| IO.userError result.output
-    let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile output)
-    let compilations ← IO.ofExcept (fromJson? json)
+    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+    let payload ← IO.ofExcept <| readWorkerPacket (toJson ({ scratch, jobs, specs } : CompileBatch)) json
+    let binding (i : Nat) (actual : Compilation) : Bool :=
+      match specs[i]? with
+      | none => false
+      | some expected => toJson actual.spec == toJson expected &&
+          actual.sourcePath == scratch / s!"{expected.module}.lean" &&
+          actual.oleanPath == scratch / s!"{expected.module}.olean" &&
+          actual.ileanPath == scratch / s!"{expected.module}.ilean"
+    let compilations ← IO.ofExcept <| admitIndexedWorkerResults specs.size binding payload
     if compilations.size != specs.size then
       throw <| IO.userError "compile batch returned incomplete results"
+    for i in [:specs.size] do
+      let some expected := specs[i]? | throw <| IO.userError "missing compile request"
+      let some actual := compilations[i]? | throw <| IO.userError "missing compile result"
+      unless toJson actual.spec == toJson expected &&
+          actual.sourcePath == scratch / s!"{expected.module}.lean" &&
+          actual.oleanPath == scratch / s!"{expected.module}.olean" &&
+          actual.ileanPath == scratch / s!"{expected.module}.ilean" do
+        throw <| IO.userError "compile batch result binding mismatch"
+      unless (← IO.FS.readFile actual.sourcePath) == expected.source do
+        throw <| IO.userError "compile batch source snapshot changed"
     return compilations
 
 def compilationPassed (value : Compilation) : Bool :=
@@ -201,11 +272,11 @@ unsafe def inspect (value : Compilation) (extraSearchRoots : Array FilePath := #
     throw <| IO.userError s!"source did not elaborate: {value.spec.«module»}"
   let some scratch := value.sourcePath.parent
     | throw <| IO.userError "compiled source has no parent directory"
-  let report ← Environment.loadReport #[value.spec.«module»] (#[scratch] ++ extraSearchRoots) sourceRoots moduleSources ownedOutput
+  let report ← Environment.loadReport #[value.spec.«module».toName] (#[scratch] ++ extraSearchRoots) sourceRoots moduleSources ownedOutput
   let declarations := report.declarations
   let transcripts : Array Frontend.Transcript ←
     if Policy.needsFrontendTranscript declarations then
-      pure #[← Frontend.build value.spec.«module» value.sourcePath extraSearchRoots]
+      pure #[← Frontend.build value.spec.«module».toName value.sourcePath extraSearchRoots]
     else pure #[]
   return { compilation := value, report, transcripts }
 
@@ -214,11 +285,11 @@ unsafe def inspectCurrentSearchPath (value : Compilation)
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none) : IO Inspected := do
   if !compilationPassed value then
     throw <| IO.userError s!"source did not elaborate: {value.spec.«module»}"
-  let report ← Environment.loadReportCurrentSearchPath #[value.spec.«module»] moduleSources ownedOutput
+  let report ← Environment.loadReportCurrentSearchPath #[value.spec.«module».toName] moduleSources ownedOutput
   let declarations := report.declarations
   let transcripts : Array Frontend.Transcript ←
     if Policy.needsFrontendTranscript declarations then
-      pure #[← Frontend.buildCurrentSearchPath value.spec.«module» value.sourcePath]
+      pure #[← Frontend.buildCurrentSearchPath value.spec.«module».toName value.sourcePath]
     else pure #[]
   return { compilation := value, report, transcripts }
 

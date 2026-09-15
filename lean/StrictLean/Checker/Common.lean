@@ -1,3 +1,6 @@
+import StrictLean.Checker.Producer
+import StrictLean.Checker.PolicyCodec
+import StrictLeanPolicy.ResultState
 import Lean
 import Lake.Load.Manifest
 import Std.Sync.Mutex
@@ -214,7 +217,7 @@ def copyProject (repo target exclude : FilePath) : IO Unit := do
 
 def readJson (path : FilePath) : IO Json := do
   let text ← IO.FS.readFile path
-  IO.ofExcept <| Json.parse text
+  IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse text
 
 def writeJson (path : FilePath) (value : Json) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
@@ -223,7 +226,7 @@ def writeJson (path : FilePath) (value : Json) : IO Unit := do
 def parseJsonOutput (what : String) (result : ProcessResult) : IO Json := do
   if !result.succeeded then
     throw <| IO.userError s!"lake-query-failed: {what}: {result.output.trimAscii.toString}"
-  match Json.parse result.stdout with
+  match StrictLean.Checker.PolicyCodec.parse result.stdout with
   | .ok value => return value
   | .error error =>
       throw <| IO.userError s!"lake-query-malformed: {what}: {error}"
@@ -307,6 +310,49 @@ def parseNatArg (flag value : String) : IO Nat :=
   | some n => return n
   | none => throw <| IO.userError s!"{flag} requires a natural number"
 
+/-- Exact source request shared by the remaining command-line worker adapters. -/
+def sourceWorkerRequest (stage : String) (moduleName : Name) (path : FilePath) (content : String) : Json :=
+  Json.mkObj [("stage", .str stage), ("module", StrictLean.RegistryCodec.nameJson moduleName),
+    ("source", .str path.toString), ("content", .str content)]
+
+/-- Versioned raw worker transport. Request equality is exact JSON-tree equality;
+this records completion data and never constructs policy acceptance. -/
+def workerPacket (request payload : Json) : Json := Json.mkObj [
+  ("schema", toJson (1 : Nat)),
+  ("producer", Json.mkObj (StrictLean.RegistryCodec.identityFields StrictLean.Checker.Producer.identity ++ [("compilerCommit", .str Lean.githash)])),
+  ("request", request), ("payload", payload)]
+
+def readWorkerPacket (request packet : Json) : Except String Json := do
+  StrictLean.Checker.PolicyCodec.exactFields packet ["schema", "producer", "request", "payload"]
+  unless (← packet.getObjValAs? Nat "schema") == 1 do throw "unsupported worker schema"
+  unless (← packet.getObjVal? "producer") ==
+      Json.mkObj (StrictLean.RegistryCodec.identityFields StrictLean.Checker.Producer.identity ++ [("compilerCommit", .str Lean.githash)]) do
+    throw "worker producer or toolchain mismatch"
+  unless (← packet.getObjVal? "request") == request do throw "worker request binding mismatch"
+  packet.getObjVal? "payload"
+
+/-- Indexed raw results retain multiplicity before admission into the fixed key set. -/
+def indexedWorkerPayload [ToJson α] (values : Array α) : Json :=
+  toJson (values.mapIdx fun i value => (i, toJson value))
+
+/-- The real batch adapter uses the proof-bearing state: unknown and repeated keys
+are refused before insertion; each payload must match its requested slot. -/
+def admitIndexedWorkerResults [FromJson α] (count : Nat) (binding : Nat → α → Bool)
+    (payload : Json) : Except String (Array α) := do
+  let responses : Array (Nat × α) ← fromJson? payload
+  let required := StrictLeanPolicy.CanonicalSet.normalize (List.range count)
+  let bound := fun key value => binding key value = true
+  let mut state : StrictLeanPolicy.ResultState required bound := .empty
+  for (key, value) in responses do
+    match state.insertResult key value with
+    | .error e => throw s!"invalid worker result admission: {repr e}"
+    | .ok next => state := next
+  let mut ordered := #[]
+  for key in [:count] do
+    let some value := state.entries[key]? | throw "worker result missing required key"
+    ordered := ordered.push value
+  return ordered
+
 /-- Await an isolated checker worker and decode its typed result. The child
 stays in the caller’s process group and its scratch files outlive its exit. -/
 def runTypedWorker [ToJson α] [FromJson β]
@@ -329,7 +375,8 @@ def runTypedWorker [ToJson α] [FromJson β]
     }
     let code ← child.wait
     if code != 0 then throw <| IO.userError s!"{flag} failed with exit code {code}"
-    let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile output)
-    IO.ofExcept (fromJson? json)
+    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+    let payload ← IO.ofExcept <| readWorkerPacket (toJson request) json
+    IO.ofExcept (fromJson? payload)
 
 end StrictLean.Checker

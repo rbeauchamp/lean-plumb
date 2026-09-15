@@ -1,3 +1,4 @@
+import StrictLean.Checker.PolicyCodec
 import StrictLean.Checker.Lake
 import StrictLean.Checker.SourceAudit
 import StrictLean.Checker.Diagnostics
@@ -13,6 +14,7 @@ entirely in Lean.
 namespace StrictLean.Checker.AxiomGate
 
 open Lean System
+open scoped StrictLean.Report
 open StrictLean.Checker
 open StrictLean.Checker.Policy
 
@@ -76,16 +78,13 @@ private def resolve (repo path : FilePath) : FilePath :=
 copy back to the checked project's own root. -/
 private def writeRemappedJson (path : FilePath) (value : Json)
     (sourceRoot targetRoot : FilePath) : IO Unit := do
-  let mut text := Json.pretty (ResultProtocol.legacyJson value)
-  if sourceRoot.toString != targetRoot.toString then
-    text := text.replace (sourceRoot.toString ++ "/") (targetRoot.toString ++ "/")
-    text := text.replace (sourceRoot.toString ++ "\"") (targetRoot.toString ++ "\"")
+  let text := Json.pretty (ResultProtocol.legacyJson value sourceRoot.toString targetRoot.toString)
   if let some parent := path.parent then IO.FS.createDirAll parent
   IO.FS.writeFile path (text ++ "\n")
 
 structure LibraryInfo where
   name : String
-  modules : Array String
+  modules : Array Name
   sources : Array Lake.SourceEntry
 
 private def infoFor (libraries : Array LibraryInfo) (name : String) :
@@ -122,16 +121,16 @@ private def manifestJson (manifest : Manifest.Manifest) : Json :=
 private def libraryInfoJson (info : LibraryInfo) : Json :=
   Json.mkObj [
     ("library", Json.str info.name),
-    ("modules", Json.arr <| info.modules.map Json.str),
+    ("modules", Json.arr <| info.modules.map (fun n => Json.str n.toString)),
     ("sources", Json.arr <| info.sources.map fun source => Json.mkObj [
-      ("module", Json.str source.«module»),
+      ("module", Json.str source.«module».toString),
       ("source", Json.str source.source.toString)
     ])
   ]
 
-private def candidateModules (decls : Array StrictLean.Report.Declaration) : Array String :=
+private def candidateModules (decls : Array StrictLean.Report.Declaration) : Array Name :=
   Id.run do
-    let mut modules : Array String := #[]
+    let mut modules : Array Name := #[]
     for decl in decls do
       if Policy.needsFrontendTranscript #[decl]
           && !modules.contains decl.«module» then
@@ -141,12 +140,22 @@ private def candidateModules (decls : Array StrictLean.Report.Declaration) : Arr
 /-- Only typed data crosses these worker boundaries. Each imported environment
 and frontend's persistent import regions die before that surface's next operation. -/
 private structure ReportWorkerRequest where
-  modules : Array String
+  modules : Array Name
   searchRoots : Array String
   sourceRoots : Array String
-  moduleSources : Array (String × String)
+  moduleSources : Array (Name × String)
   ownedOutput : String
-  deriving FromJson, ToJson
+  deriving ToJson
+
+instance : FromJson ReportWorkerRequest := ⟨fun j => do
+  StrictLean.Checker.PolicyCodec.exactFields j ["modules", "searchRoots", "sourceRoots", "moduleSources", "ownedOutput"]
+  return {
+    modules := ← j.getObjValAs? _ "modules"
+    searchRoots := ← j.getObjValAs? _ "searchRoots"
+    sourceRoots := ← j.getObjValAs? _ "sourceRoots"
+    moduleSources := ← j.getObjValAs? _ "moduleSources"
+    ownedOutput := ← j.getObjValAs? _ "ownedOutput"
+  }⟩
 
 private structure SurfaceInspection where
   info : LibraryInfo
@@ -237,7 +246,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
     return 1
 
   let excludedModules := Id.run do
-    let mut result : Array String := #[]
+    let mut result : Array Name := #[]
     for excluded in manifest.excludedLibraries do
       let info := libraries.find? (·.name == excluded.library)
       if let some info := info then result := result ++ info.modules
@@ -256,7 +265,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       modules := info.modules
       searchRoots := inventory.leanPath.map (·.toString)
       sourceRoots := inventory.leanSrcPath.map (·.toString)
-      moduleSources := inventory.moduleSources.map fun (name, path) => (name.toString, path.toString)
+      moduleSources := inventory.moduleSources.map fun (name, path) => (name, path.toString)
       ownedOutput := inventory.leanLibDir.toString
     }
     let report : StrictLean.Report.Environment ← timedPhase s!"declaration inspection {surface.library}" <|
@@ -284,8 +293,9 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
   for (surface, outcome) in inspections do
     let inspected ← IO.ofExcept outcome
     let { info, report, transcripts, frontendFailures } := inspected
+    let forcedNameCodec ← Environment.forcedStructuralName report
     let envModules := report.modules.filter
-      (!Environment.probeModuleNames.contains ·)
+      (fun n => !(Environment.probeModuleNames.map String.toName).contains n && n != forcedNameCodec)
     for moduleName in info.modules do
       if !envModules.contains moduleName then
         failures := failures.push s!"surface-omission: Lake module {moduleName} was not elaborated"
@@ -312,14 +322,14 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
     -- can import root modules, and only a scan of every module's recorded
     -- direct imports closes every chain from a claimed module to the probe.
     for origin in report.moduleOrigins do
-      if Environment.probeModuleNames.contains origin.name then continue
+      if (Environment.probeModuleNames.map String.toName).contains origin.name then continue
       for imported in origin.imports do
-        if Environment.probeOnlyModuleNames.contains imported then
+        if (Environment.probeOnlyModuleNames.map String.toName).contains imported then
           failures := failures.push s!"unexpected-project-module: checker probe module {imported} was imported into positive library {surface.library} by {origin.name}"
           findings := findings.push (← IO.ofExcept <| RuleDiagnostics.contextFinding .coverage
             reportRoot.toString (s!"unexpected-project-module: checker probe module {imported} was imported into positive library {surface.library} by {origin.name}") (if fresh then .freshProject else .incrementalProject) .violation)
     for origin in report.moduleOrigins do
-      if Environment.probeModuleNames.contains origin.name then continue
+      if (Environment.probeModuleNames.map String.toName).contains origin.name then continue
       if ← pathWithin (FilePath.mk origin.olean) rootInventory.leanLibDir then
         if !configuredModules.contains origin.name then
           failures := failures.push s!"unexpected-project-module: root-owned module {origin.name} is outside every manifested Lake library"
@@ -334,46 +344,48 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
     for failure in frontendFailures do
       findings := findings.push (← IO.ofExcept <| RuleDiagnostics.contextFinding .admission
         reportRoot.toString failure (if fresh then .freshProject else .incrementalProject) .incomplete)
-    let native := Policy.authorizedNativeAxioms report.declarations transcripts
-    let unsafeHelpers := Policy.authorizedUnsafeRecHelpers report.declarations transcripts
+    let scope ← IO.ofExcept <| Policy.admitScope report.declarations transcripts
+    let native := scope.native
+    let unsafeHelpers := scope.helpers
     totalDeclarations := totalDeclarations + report.declarations.size
     for decl in report.declarations do
-      if let some id := Policy.ruleFor decl (some surface.claim) native unsafeHelpers then
+      if let some id := Policy.ruleFor decl (some surface.claim) scope then
         let reason := (StrictLean.descriptor id).applicability
-        failures := failures.push s!"{reason}: {decl.name} [claim: {surface.claim}] {Policy.classify decl native}"
-        let snapshot ← match info.sources.find? (·.module == decl.module) with
+        failures := failures.push s!"{reason}: {decl.name} [claim: {surface.claim}] {Policy.classify decl scope}"
+        let snapshot ← match info.sources.find? (fun source => source.module == decl.module) with
           | some entry => do
               let source ← IO.FS.readFile entry.source
               pure (some (⟨entry.source.toString, source⟩ : StrictLean.SourceSnapshot))
           | none => pure none
         let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl snapshot
         let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding id (← IO.ofExcept (RuleDiagnostics.declarationName decl))
-          (Policy.classify decl native) location
+          (Policy.classify decl scope) location
           (if fresh then .freshProject else .incrementalProject) (some surface.claim.toString)
         findings := findings.push finding
       if let some contract := decl.executableContract then
         IO.println s!"executable contract {decl.name}: {contract.root} requires {contract.requirement}"
-    failures := failures ++ Policy.executionFailures report.execution surface.execution
-    for failure in Policy.executionFailureRecords report.execution surface.execution do
+    let executionInventory ← IO.ofExcept <| Policy.admitExecution report.execution
+    failures := failures ++ Policy.executionFailures executionInventory surface.execution
+    for failure in Policy.executionFailureRecords executionInventory surface.execution do
       let location ← match report.declarations.find? (·.name == failure.root.name) with
         | some decl => do
-            let snapshot ← match info.sources.find? (·.module == decl.module) with
+            let snapshot ← match info.sources.find? (fun source => source.module == decl.module) with
               | some entry => do
                   let source ← IO.FS.readFile entry.source
                   pure (some (⟨entry.source.toString, source⟩ : StrictLean.SourceSnapshot))
               | none => pure none
             IO.ofExcept <| RuleDiagnostics.declarationLocation decl snapshot
-        | none => pure (StrictLean.Location.module failure.root.module.toName)
+        | none => pure (StrictLean.Location.module failure.root.module)
       findings := findings.push (← IO.ofExcept <| RuleDiagnostics.executionFinding failure location
         (if fresh then .freshProject else .incrementalProject) surface.execution)
     if verbose then
       for moduleName in info.modules do
         IO.println s!"module {moduleName} [claimed: {surface.claim}]"
         let declarations := report.declarations.filter (·.«module» == moduleName)
-          |>.qsort fun left right => left.name < right.name
-        for decl in declarations do IO.println s!"  {Policy.classify decl native}"
+          |>.qsort fun left right => Name.quickLt left.name right.name
+        for decl in declarations do IO.println s!"  {Policy.classify decl scope}"
     let (rootCount, boundaryCount, checkedCount, trustedCount, unresolvedCount) :=
-      Policy.executionSummary report.execution
+      Policy.executionSummary executionInventory
     IO.println <| s!"execution coverage for {surface.library} [claim: {surface.execution}]: " ++
       s!"{rootCount} root(s), {boundaryCount} boundary(ies) " ++
       s!"({checkedCount} checked, {trustedCount} trusted), {unresolvedCount} unresolved"
@@ -388,9 +400,9 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       ("library", Json.str surface.library),
       ("claim", Json.str surface.claim.toString),
       ("execution", Json.str surface.execution.toString),
-      ("modules", Json.arr <| info.modules.map Json.str),
-      ("authorizedNativeAxioms", Json.arr <| native.map Json.str),
-      ("authorizedUnsafeRecHelpers", Json.arr <| unsafeHelpers.map Json.str),
+      ("modules", Json.arr <| info.modules.map (fun n => Json.str n.toString)),
+      ("authorizedNativeAxioms", Json.arr <| native.map (Json.str ∘ Name.toString)),
+      ("authorizedUnsafeRecHelpers", Json.arr <| unsafeHelpers.map (Json.str ∘ Name.toString)),
       ("frontendTranscripts", Json.arr <| transcripts.map toJson),
       ("report", toJson report)
     ]
@@ -420,7 +432,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         ("libraries", Json.arr <| rootInventory.libraries.map Json.str),
         ("executables", Json.arr <| inventory.executables.map fun exe => Json.mkObj [
           ("executable", Json.str exe.executable),
-          ("root", Json.str exe.root),
+          ("root", Json.str exe.root.toString),
           ("source", Json.str exe.source.toString)
         ]),
         ("leanLibDir", Json.str rootInventory.leanLibDir.toString)
@@ -464,7 +476,18 @@ private structure SurfaceWorkerRequest where
   jsonOut : Option String
   resultOut : Option String
   verbose : Bool
-  deriving FromJson, ToJson
+  deriving ToJson
+
+instance : FromJson SurfaceWorkerRequest := ⟨fun j => do
+  StrictLean.Checker.PolicyCodec.exactFields j ["project", "manifest", "reportRoot", "jsonOut", "resultOut", "verbose"]
+  return {
+    project := ← j.getObjValAs? _ "project"
+    manifest := ← j.getObjValAs? _ "manifest"
+    reportRoot := ← j.getObjValAs? _ "reportRoot"
+    jsonOut := ← j.getObjValAs? _ "jsonOut"
+    resultOut := ← j.getObjValAs? _ "resultOut"
+    verbose := ← j.getObjValAs? _ "verbose"
+  }⟩
 
 /-- Frontend attribution uses persistent imported environments. End that process
 before compiling fences, retaining the same freshly built source copy on disk. -/
@@ -504,7 +527,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       else auditSurfaceAt copy (manifest.getD (Manifest.defaultPath copy)) true verbose repo jsonOut resultOut
     if result != 0 || !withDocs then return result
     if let some output := resultOut then
-      let value ← IO.ofExcept <| Json.parse (← IO.FS.readFile output)
+      let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
       writeJson output <| (value.setObjVal! "status" (.str "incomplete")).setObjVal!
         "unresolved" (toJson #["documentation audit has not completed"])
     let inventory ← Lake.surfaceInventory copy
@@ -512,7 +535,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
     let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory 4 verbose
       (fun finding => docFindings.modify (·.push finding))
     if let some output := resultOut then
-      let value ← IO.ofExcept <| Json.parse (← IO.FS.readFile output)
+      let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
       let scope ← IO.ofExcept (value.getObjVal? "scope")
       let docs ← docFindings.get
       let previous ← IO.ofExcept <| (← IO.ofExcept (value.getObjVal? "diagnostics")).getArr?
@@ -543,7 +566,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
   let source ← IO.FS.readFile path
   withScratch repo "file-audit" fun scratch => do
     let moduleName := s!"AuditFile_{← IO.monoNanosNow}"
-    let compilation ← SourceAudit.compile repo scratch { «module» := moduleName, source }
+    let compilation ← SourceAudit.compile repo scratch { «module» := moduleName, source, rejectWarnings := claim.isSome }
     let sourceRejected := !SourceAudit.compilationPassed compilation && SourceAudit.sourceDiagnosticFailure compilation
     let result : Except String SourceAudit.Inspected ←
       if !SourceAudit.compilationPassed compilation then pure (.error compilation.process.output)
@@ -562,37 +585,39 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
         return 1
     | .ok inspected =>
         let declarations := inspected.report.declarations.qsort fun left right =>
-          left.name < right.name
-        let native := Policy.authorizedNativeAxioms declarations inspected.transcripts
-        let unsafeHelpers := Policy.authorizedUnsafeRecHelpers declarations inspected.transcripts
+          Name.quickLt left.name right.name
+        let scope ← IO.ofExcept <| Policy.admitScope declarations inspected.transcripts
+        let native := scope.native
+        let unsafeHelpers := scope.helpers
         let mut reasons : Array String := #[]
         let mut findings : Array StrictLean.Finding := #[]
         for decl in declarations do
-          let reason := Policy.reasonFor decl claim native unsafeHelpers
+          let reason := Policy.reasonFor decl claim scope
           let verdict := match reason with
             | none => "OK"
             | some value => s!"VIOLATION[{value}]"
-          IO.println s!"[{verdict}] {Policy.classify decl native}"
+          IO.println s!"[{verdict}] {Policy.classify decl scope}"
           if let some value := reason then
             reasons := reasons.push value
-            let some id := Policy.ruleFor decl claim native unsafeHelpers
+            let some id := Policy.ruleFor decl claim scope
               | throw <| IO.userError "internal rule classification mismatch"
             let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl
               (some ⟨path.toString, source⟩)
             let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding id (← IO.ofExcept (RuleDiagnostics.declarationName decl))
-              (Policy.classify decl native) location .freshFile (claim.map Profile.toString)
+              (Policy.classify decl scope) location .freshFile (claim.map Profile.toString)
             findings := findings.push finding
             IO.println finding.2.text
-        let executionViolations := Policy.executionFailures inspected.report.execution execution
-        for failure in Policy.executionFailureRecords inspected.report.execution execution do
+        let executionInventory ← IO.ofExcept <| Policy.admitExecution inspected.report.execution
+        let executionViolations := Policy.executionFailures executionInventory execution
+        for failure in Policy.executionFailureRecords executionInventory execution do
           let location ← match declarations.find? (·.name == failure.root.name) with
             | some decl => IO.ofExcept <| RuleDiagnostics.declarationLocation decl (some ⟨path.toString, source⟩)
-            | none => pure (StrictLean.Location.module failure.root.module.toName)
+            | none => pure (StrictLean.Location.module failure.root.module)
           let finding ← IO.ofExcept <| RuleDiagnostics.executionFinding failure location .freshFile execution
           findings := findings.push finding
           IO.println finding.2.text
         let (rootCount, boundaryCount, checkedCount, trustedCount, unresolvedCount) :=
-          Policy.executionSummary inspected.report.execution
+          Policy.executionSummary executionInventory
         IO.println <| s!"execution coverage [claim: {execution}]: {rootCount} root(s), " ++
           s!"{boundaryCount} boundary(ies) ({checkedCount} checked, {trustedCount} trusted), " ++
           s!"{unresolvedCount} unresolved"
@@ -611,8 +636,8 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
           writeJson output <| ResultProtocol.legacyJson <| Json.mkObj [
             ("claim", (claim.map (Json.str ∘ Profile.toString)).getD Json.null),
             ("execution", Json.str execution.toString),
-            ("authorizedNativeAxioms", Json.arr <| native.map Json.str),
-            ("authorizedUnsafeRecHelpers", Json.arr <| unsafeHelpers.map Json.str),
+            ("authorizedNativeAxioms", Json.arr <| native.map (Json.str ∘ Name.toString)),
+            ("authorizedUnsafeRecHelpers", Json.arr <| unsafeHelpers.map (Json.str ∘ Name.toString)),
             ("frontendTranscripts", Json.arr <| inspected.transcripts.map toJson),
             ("report", toJson inspected.report)
           ]
@@ -660,56 +685,62 @@ unsafe def run (args : List String) : IO UInt32 := do
       | _ => throw <| IO.userError "duplicate --project option"
     for path in relative do invalidate (resolve root path)
   if let ["--validate-site", registryPath, artifactPath] := args then
-    let registry ← IO.ofExcept <| Json.parse (← IO.FS.readFile registryPath)
-    let artifact ← IO.ofExcept <| Json.parse (← IO.FS.readFile artifactPath)
+    let registry ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile registryPath)
+    let artifact ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile artifactPath)
     IO.ofExcept <| StrictLean.Website.validateArtifact ResultProtocol.producer registry artifact
     return 0
   if let ["--registry-out", output] := args then
     writeJson output (StrictLean.RegistryCodec.registryJson ResultProtocol.producer)
     return 0
   if let ["--validate-registry", input] := args then
-    let value ← IO.ofExcept <| Json.parse (← IO.FS.readFile input)
+    let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     IO.ofExcept <| StrictLean.RegistryCodec.validateRegistry ResultProtocol.producer value
     return 0
   if let ["--declaration-report-worker", input, out] := args then
-    let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile input)
+    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request : ReportWorkerRequest ← IO.ofExcept (fromJson? json)
     let report ← Environment.loadReport request.modules
       (request.searchRoots.map FilePath.mk) (request.sourceRoots.map FilePath.mk)
-      (request.moduleSources.map fun (name, path) => (name.toName, FilePath.mk path))
+      (request.moduleSources.map fun (name, path) => (name, FilePath.mk path))
       (some (FilePath.mk request.ownedOutput))
-    writeJson out (toJson report)
+    writeJson out (workerPacket json (toJson report))
     return 0
   if let ["--frontend-worker", input, out] := args then
-    let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile input)
+    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request : Frontend.WorkerRequest ← IO.ofExcept (fromJson? json)
     let transcript ← Frontend.build request.moduleName request.source
       (request.searchRoots.map FilePath.mk)
-    writeJson out (toJson transcript)
+    writeJson out (workerPacket json (toJson transcript))
     return 0
   if let ["--surface-worker", input] := args then
-    let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile input)
+    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request : SurfaceWorkerRequest ← IO.ofExcept (fromJson? json)
     return ← auditSurfaceAt request.project request.manifest true request.verbose
       request.reportRoot (request.jsonOut.map FilePath.mk) (request.resultOut.map FilePath.mk)
   if let ["--compile-batch-worker", input, out] := args then
-    let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile input)
+    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request ← IO.ofExcept (fromJson? json)
-    writeJson out (toJson (← SourceAudit.compileBatchWorker request))
+    writeJson out (workerPacket json (indexedWorkerPayload (← SourceAudit.compileBatchWorker request)))
     return 0
   if let ["--inspection-group-worker", input, out] := args then
-    let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile input)
+    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request ← IO.ofExcept (fromJson? json)
-    writeJson out (toJson (← SourceAudit.inspectGroupWorker request))
+    writeJson out (workerPacket json (toJson (← SourceAudit.inspectGroupWorker request)))
     return 0
-  if let ["--diagnostic-worker", moduleName, source, out] := args then
-    writeJson out (toJson (← Diagnostics.errors moduleName.toName source))
+  if let ["--diagnostic-worker", moduleWire, source, out] := args then
+    let moduleName ← IO.ofExcept <| StrictLean.RegistryCodec.parseName (← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse moduleWire)
+    let before ← IO.FS.readFile source
+    let errors ← Diagnostics.errors moduleName source
+    unless (← IO.FS.readFile source) == before do throw <| IO.userError "diagnostic source changed"
+    writeJson out (workerPacket (sourceWorkerRequest "diagnostic" moduleName source before) (toJson errors))
     return 0
-  if let ["--replacement-history-worker", moduleName, source, out] := args then
+  if let ["--replacement-history-worker", moduleWire, source, out] := args then
+    let moduleName ← IO.ofExcept <| StrictLean.RegistryCodec.parseName (← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse moduleWire)
     let transcript ← Frontend.buildReplacementHistoryCurrentSearchPath moduleName source
     if !transcript.replacementHistoryUnsupported.isEmpty then
       throw <| IO.userError s!"unsupported replacement-history evaluators: {transcript.replacementHistoryUnsupported}"
-    writeJson out (toJson transcript.runtimeReplacements)
+    writeJson out (workerPacket (sourceWorkerRequest "history" moduleName source transcript.sourceContent)
+      (toJson transcript.runtimeReplacements))
     return 0
   for flag in #["--json-out", "--legacy-json-out", "--project", "--file", "--manifest", "--claim", "--execution"] do
     if (optionValues flag args).length > 1 then

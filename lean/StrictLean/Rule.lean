@@ -1,18 +1,12 @@
 import StrictLean.RuleId
+import StrictLeanPolicy.Domain
 
 /-! Shared metadata. See RuleId for con-leche attribution and docs/guides/rule-registry.md
 for the boundary between existing checker detection and planned product adapters. -/
 namespace StrictLean
 
-inductive EvidenceMode where
-  | editorSnapshot | incrementalProject | freshProject | freshFile
-  | documentationExample | serializedGraph
-  deriving Repr, DecidableEq, Inhabited
-
-def EvidenceMode.spelling : EvidenceMode → String
-  | .editorSnapshot => "editorSnapshot" | .incrementalProject => "incrementalProject"
-  | .freshProject => "freshProject" | .freshFile => "freshFile"
-  | .documentationExample => "documentationExample" | .serializedGraph => "serializedGraph"
+abbrev EvidenceMode := StrictLeanPolicy.EvidenceMode
+abbrev EvidenceMode.spelling (mode : EvidenceMode) : String := StrictLeanPolicy.EvidenceMode.spelling mode
 
 /-- Retired IDs remain descriptors; replacement cannot be the retired ID itself. -/
 inductive Lifecycle (id : RuleId) where

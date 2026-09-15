@@ -37,3 +37,5 @@ Return to the [project overview](../README.md).
 - [Developer experience](guides/developer-experience.md): planned native workflows, diagnostics, configuration and website interactions.
 
 - [Design influences and attribution](guides/design-influences.md): actual reuse, specific inspiration, optional external checking and project scope.
+
+- [Typed policy domain](guides/policy-domain.md): implemented categories, admission invariants, worker bindings and proof boundaries.

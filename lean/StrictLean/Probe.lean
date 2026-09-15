@@ -1,4 +1,4 @@
-import StrictLean.NameCodec
+import StrictLean.StructuralName
 import Lean.Elab.Command
 import Lean.Compiler.Old
 import Lean.Compiler.NoncomputableAttr
@@ -75,19 +75,20 @@ of this repository's audited positive surface.
 namespace StrictLean.Probe
 
 open Lean Elab Command
+open StrictLeanPolicy (DeclarationKind BoundaryKind Correspondence Safety Reducibility RecursionOrigin)
 
 /-- Constant kind of a declaration, as reported by the environment. Public so
 the checker self-test can apply `Policy.declarationNeedsTranscript` to raw
 module constant records with the identical kind mapping. -/
-def kindOf : ConstantInfo → String
-  | .axiomInfo _   => "axiom"
-  | .defnInfo _    => "def"
-  | .thmInfo _     => "theorem"
-  | .opaqueInfo _  => "opaque"
-  | .ctorInfo _    => "ctor"
-  | .inductInfo _  => "inductive"
-  | .recInfo _     => "recursor"
-  | .quotInfo _    => "quot"
+def kindOf : ConstantInfo → DeclarationKind
+  | .axiomInfo _   => .«axiom»
+  | .defnInfo _    => .«definition»
+  | .thmInfo _     => .«theorem»
+  | .opaqueInfo _  => .«opaque»
+  | .ctorInfo _    => .«constructor»
+  | .inductInfo _  => .«inductive»
+  | .recInfo _     => .«recursor»
+  | .quotInfo _    => .«quotient»
 
 /-- Compact source position used in declaration-range evidence. -/
 private def positionReport (p : Lean.Position) : StrictLean.Report.Position :=
@@ -105,10 +106,10 @@ private def rangesReport (r : DeclarationRanges) : StrictLean.Report.Ranges :=
   { range := rangeReport r.range
     selectionRange := rangeReport r.selectionRange }
 
-private def hintsString : ReducibilityHints → String
-  | .opaque    => "opaque"
-  | .abbrev    => "abbrev"
-  | .regular _ => "regular"
+private def hintsString : ReducibilityHints → Reducibility
+  | .opaque    => .«opaque»
+  | .abbrev    => .«abbrev»
+  | .regular _ => .«regular»
 
 /-- Kernel value of a definition/theorem/opaque declaration when present. -/
 private def valueOf? : ConstantInfo → Option Expr
@@ -119,17 +120,17 @@ private def valueOf? : ConstantInfo → Option Expr
 
 /-- Retrieve the original built-in recursion predefinition for a safe base. -/
 private def recursionPredefinition? (env : Environment) (baseName : Name) :
-    Option (String × List Name × Expr × Array Name) :=
+    Option (RecursionOrigin × List Name × Expr × Array Name) :=
     match Lean.Elab.Structural.eqnInfoExt.find? env baseName with
-    | some info => some ("structural", info.levelParams, info.value, info.declNames)
+    | some info => some (.structural, info.levelParams, info.value, info.declNames)
     | none => match Lean.Elab.WF.eqnInfoExt.find? env baseName with
-      | some info => some ("well-founded", info.levelParams, info.value, info.declNames)
+      | some info => some (.wellFounded, info.levelParams, info.value, info.declNames)
       | none => none
 
 /-- Reconstruct the exact executable body transformation used by Lean 4.33.1's
 `addAndCompilePartialRec` from the built-in recursion equation metadata. -/
 private def unsafeRecExpected? (env : Environment) (baseName : Name) :
-    Option (String × Expr) := do
+    Option (RecursionOrigin × Expr) := do
   let (origin, _, value, group) ← recursionPredefinition? env baseName
   let expected := value.replace fun expr => match expr with
     | .const name levels =>
@@ -165,7 +166,7 @@ private def unsafeRecEquationEvidence (env : Environment) (name : Name) :
 /-- Whether a helper's entire value is the pinned compiler transformation of
 the built-in structural/well-founded predefinition stored for its safe base. -/
 private def unsafeRecValueEvidence (env : Environment) (name : Name)
-    (info : ConstantInfo) : CommandElabM (Option (String × Bool × Bool)) := do
+    (info : ConstantInfo) : CommandElabM (Option (RecursionOrigin × Bool × Bool)) := do
   let some baseName := Lean.Compiler.isUnsafeRecName? name | return none
   let some (origin, expected) := unsafeRecExpected? env baseName | return none
   let .defnInfo helper := info | return none
@@ -226,7 +227,7 @@ an existential proof. Its execution closure is inspected even if it is private.
 -/
 private def executableContract? (env : Environment) (info : ConstantInfo) :
     CommandElabM (Option StrictLean.Report.ExecutableContract) := do
-  if !#["def", "theorem", "opaque"].contains (kindOf info) then return none
+  if !#[DeclarationKind.definition, .theorem, .opaque].contains (kindOf info) then return none
   liftTermElabM <| Meta.withTransparency .all <|
     Meta.forallTelescopeReducing info.type (whnfType := true) fun parameters type => do
     if !type.isAppOfArity ``StrictLean.ExecutableContract 3 then return none
@@ -245,12 +246,12 @@ private def executableContract? (env : Environment) (info : ConstantInfo) :
           pure <| some "promised implementation is noncomputable"
         else if target.isUnsafe || target.isPartial then
           pure <| some "promised implementation is unsafe or partial"
-        else if !(← Meta.isProp target.type) && (kindOf target == "def" || kindOf target == "opaque") then
+        else if !(← Meta.isProp target.type) && (kindOf target == .definition || kindOf target == .opaque) then
           let typeProducing ← returnsSort target.type
           pure <| if typeProducing then some "promised implementation returns a type, not runtime data" else none
         else pure <| some "promised implementation is not an executable data/function definition"
     return some {
-      root := root.map Name.toString |>.getD (toString (← Meta.ppExpr implementation))
+      root := root.getD .anonymous
       requirement := toString requirement
       failure }
 
@@ -266,12 +267,12 @@ private def declEntry (env : Environment) (name : Name) (info : ConstantInfo) :
   let unsafeRecValueEvidence? ← unsafeRecValueEvidence env name info
   let unsafeRecEquationEvidence? ← unsafeRecEquationEvidence env name
   let nativeReplay? ← replayNative? info.type
-  let nativeUseParents : Array String :=
+  let nativeUseParents : Array Name :=
     match nativeBoolExpr? info.type with
     | none => #[]
     | some decideExpr => env.constants.fold (init := #[]) fun parents parentName parentInfo =>
         if isExactNativeUse name decideExpr parentInfo then
-          parents.push parentName.toString
+          parents.push parentName
         else parents
   let levelParams : List Name := info.levelParams
   let all : List Name :=
@@ -280,7 +281,7 @@ private def declEntry (env : Environment) (name : Name) (info : ConstantInfo) :
     | .thmInfo value    => value.all
     | .opaqueInfo value => value.all
     | _                 => []
-  let hints : Option String :=
+  let hints : Option Reducibility :=
     match info with
     | .defnInfo value => some (hintsString value.hints)
     | _               => none
@@ -291,43 +292,42 @@ private def declEntry (env : Environment) (name : Name) (info : ConstantInfo) :
   let some moduleIdx := env.getModuleIdxFor? name
     | throwError "owned declaration {name} has no module index"
   return {
-    name := name.toString
-    structuralName := some (StrictLean.RegistryCodec.nameJson name).compress
-    «module» := env.header.modules[(moduleIdx : Nat)]!.module.toString
+    name := name
+    «module» := env.header.modules[(moduleIdx : Nat)]!.module
     kind := kindOf info
     «type» := toString (repr info.type)
     prettyType
     isProp
     isUnsafe := info.isUnsafe
     isPartial := info.isPartial
-    safety := if info.isPartial then some "partial"
-      else if info.isUnsafe then some "unsafe" else none
+    safety := if info.isPartial then some .partial
+      else if info.isUnsafe then some .unsafe else none
     «instance» := Lean.Meta.isInstanceCore env name
     «noncomputable» := Lean.isNoncomputable env name
-    implementedBy := (Lean.Compiler.getImplementedBy? env name).map (·.toString)
+    implementedBy := (Lean.Compiler.getImplementedBy? env name)
     «extern» := Lean.isExtern env name
     internal := name.isInternal
     «private» := Lean.isPrivateName name
     projection := env.isProjectionFn name
     matcher := Lean.Meta.isMatcherCore env name
     recursive
-    unsafeRecBase := (Lean.Compiler.isUnsafeRecName? name).map (·.toString)
-    levelParams := levelParams.toArray.map (·.toString)
-    all := all.toArray.map (·.toString)
+    unsafeRecBase := (Lean.Compiler.isUnsafeRecName? name)
+    levelParams := levelParams.toArray
+    all := all.toArray
     hints
-    valueConstants := valueConstants.map (·.toString)
+    valueConstants := StrictLeanPolicy.canonicalNames valueConstants
     unsafeRecValueOrigin := unsafeRecValueEvidence?.map fun (origin, _, _) => origin
     unsafeRecValueExact := unsafeRecValueEvidence?.map fun (_, exact, _) => exact
     unsafeRecValueDefeq := unsafeRecValueEvidence?.map fun (_, _, value) => value
     unsafeRecEquationExact := unsafeRecEquationEvidence?.map fun (exact, _, _) => exact
     unsafeRecEquationDefeq := unsafeRecEquationEvidence?.map fun (_, value, _) => value
     unsafeRecEquationAxioms := unsafeRecEquationEvidence?.map fun (_, _, values) =>
-      values.map (·.toString)
+      StrictLeanPolicy.canonicalNames values
     nativeBoolShape := (nativeBoolExpr? info.type).isSome
     nativeReplay := nativeReplay?
     nativeUseParents
     ranges := ranges?.map rangesReport
-    axioms := axioms.map (·.toString)
+    axioms := StrictLeanPolicy.canonicalNames axioms
     executableContract := ← executableContract? env info
   }
 
@@ -414,7 +414,7 @@ compiler's positional universe substitution must type-check at those same
 levels. Both definitional and theorem-backed evidence pass the same kernel gate. -/
 private def replacementCorrespondence (env : Environment) (reference replacement : Name)
     (proofCandidates : Array Name := #[]) :
-    CommandElabM (String × Option String) := do
+    CommandElabM (Correspondence × Option String) := do
   try
     liftTermElabM <| Meta.withoutModifyingMCtx do
       let referenceInfo ← getConstInfo reference
@@ -434,20 +434,20 @@ private def replacementCorrespondence (env : Environment) (reference replacement
         try
           let proof ← Meta.mkLambdaFVars domain (← Meta.mkEqRefl lhs)
           let detail ← checkCorrespondenceProof levels required proof
-          return ("checked", some s!"kernel-defeq; {detail}")
+          return (.checked, some s!"kernel-defeq; {detail}")
         catch _ => pure ()
         for name in proofCandidates do
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
-            return ("checked", some evidence)
+            return (.checked, some evidence)
         for (name, info) in env.constants.toList do
           let .thmInfo _ := info | continue
           let used := info.type.getUsedConstants
           if !used.contains reference || !used.contains replacement then continue
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
-            return ("checked", some evidence)
-        return ("trusted", some "no kernel-checked unconditional correspondence proof")
+            return (.checked, some evidence)
+        return (.trusted, some "no kernel-checked unconditional correspondence proof")
   catch _ =>
-    return ("unresolved", some s!"cannot construct exact correspondence for {reference} and {replacement}")
+    return (.unresolved, some s!"cannot construct exact correspondence for {reference} and {replacement}")
 
 private def compilerTrustingAxiom (name : Name) : Bool :=
   name == ``Lean.trustCompiler || name == ``Lean.ofReduceBool
@@ -482,32 +482,66 @@ private def cyclicReplacementPaths (edges : Array (Name × Name)) : Array Name :
       edges.any fun (left, right) => left == source && remaining.contains right
   return remaining
 
+/-- Identify the uncompiled helper produced for an actual kernel inductive by
+Lean's pinned `mkBRecOnFromRec`. Names come from the inductive/recursor records,
+then must agree with the tagged parent's actual projection and helper body.
+This does not waive execution coverage: the helper remains a root, and all
+source, attribute, historical replacement and retained IR edges are inspected. -/
+private def brecOnHelpers (env : Environment) (own : Array (Name × ConstantInfo)) :
+    Array Name := Id.run do
+  let mut helpers := #[]
+  for (indName, info) in own do
+    let .inductInfo ind := info | continue
+    if !ind.isRec then continue
+    let base := (Lean.mkRecName indName, Lean.mkBRecOnName indName)
+    let nested := if ind.all.head? == some indName then
+      (List.range ind.numNested).toArray.map fun i =>
+        (base.1.appendIndexAfter (i + 1), base.2.appendIndexAfter (i + 1))
+      else #[]
+    for (recName, parent) in #[base] ++ nested do
+      let some (.recInfo _) := env.find? recName | continue
+      if !Lean.isBRecOnRecursor env parent then continue
+      let some (.defnInfo parentInfo) := env.find? parent | continue
+      let .proj ``PProd 0 argument := parentInfo.value.getLambdaBody.consumeMData | continue
+      let some helper := argument.getAppFn.constName? | continue
+      if helper != parent.str "go" then continue
+      let some (.defnInfo helperInfo) := env.find? helper | continue
+      if helperInfo.hints != .abbrev then continue
+      if env.getModuleIdxFor? helper != env.getModuleIdxFor? indName then continue
+      if env.getModuleIdxFor? parent != env.getModuleIdxFor? indName then continue
+      if !helperInfo.value.getUsedConstants.contains recName then continue
+      helpers := helpers.push helper
+  return helpers
+
 /-- Finite conservative execution closure: source values, retained compiler IR,
 all supported equality candidates, and observed implementation choices.
 Compiler metadata supplements source dependencies; neither alone retains all
 earlier replacements after inlining. Equality candidates are not a claim that
 the compiler selected them. Extern reference bodies remain boundary leaves. -/
 private def executionWalk (env : Environment) (ownedModules : List Name)
-    (nativeModules : Std.HashSet String)
+    (nativeModules : NameMap StrictLeanPolicy.NativeOrigin)
     (loadReplacementHistory : Name → IO (Except String (Array (Name × Name))))
     (candidates : NameMap (Array Lean.Compiler.CSimp.Entry))
-    (proofCache : IO.Ref (Std.HashMap (Name × Name) (String × Option String)))
-    (root : Name) : CommandElabM (Array StrictLean.Report.ExecutionBoundary ×
-      Array String × Array (String × String)) := do
+    (proofCache : IO.Ref (Std.HashMap (Name × Name) (Correspondence × Option String)))
+    (recursorHelpers : Array Name) (root : Name) : CommandElabM (Array StrictLean.Report.ExecutionBoundary ×
+      Array String × Array (Name × Name)) := do
   let mut visited : Std.HashSet Name := {}
   let mut queue : Array Name := #[root]
   let mut boundaries : Array StrictLean.Report.ExecutionBoundary := #[]
   let mut unresolved : Array String := #[]
   let mut replacementEdges : Array (Name × Name) := #[]
-  let mut compilerEdges : Array (String × String) := #[]
+  let mut compilerEdges : Array (Name × Name) := #[]
   let mut compiledNames : Std.HashSet Name := {}
   -- Meta.mkProjections installs projection bodies without compiling standalone
-  -- IR; ToLCNF handles their uses directly. Retained IR edges still require IR.
+  -- IR; ToLCNF handles their uses directly. The identified brecOn helper also
+  -- has no standalone IR on this pin. Both retain full source/boundary coverage;
+  -- retained compiler edges still require actual IR.
   if (Lean.Compiler.getImplementedBy? env root).isNone &&
-      !Lean.Compiler.hasMacroInlineAttribute env root && !env.isProjectionFn root then
+      !Lean.Compiler.hasMacroInlineAttribute env root && !env.isProjectionFn root &&
+      !(recursorHelpers.contains root && (Lean.IR.findEnvDecl env root).isNone) then
     compiledNames := compiledNames.insert root
-  let moduleOf (name : Name) : Option String :=
-    (env.getModuleIdxFor? name).map fun idx => env.header.modules[(idx : Nat)]!.module.toString
+  let moduleOf (name : Name) : Option Name :=
+    (env.getModuleIdxFor? name).map fun idx => env.header.modules[(idx : Nat)]!.module
   let correspondence (reference target : Name) := do
     if let some result := (← liftIO proofCache.get)[(reference, target)]? then return result
     let proofs := ((candidates.find? reference).getD #[]).filterMap fun candidate =>
@@ -526,7 +560,7 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
     if let some compiled := Lean.IR.findEnvDecl env name then
       let dependencies := (Lean.IR.collectUsedDecls env [compiled]).filter (· != name)
       for dependency in dependencies do
-        compilerEdges := compilerEdges.push (name.toString, dependency.toString)
+        compilerEdges := compilerEdges.push (name, dependency)
         compiledNames := compiledNames.insert dependency
       queue := queue ++ dependencies
     let some info := env.find? name
@@ -536,27 +570,37 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
     let some moduleName := moduleOf name
     | unresolved := unresolved.push s!"{name}: module attribution is unavailable"
       continue
-    let owned := ownedModules.contains moduleName.toName
-    let entry (boundary correspondence : String) (replacement evidence : Option String) :
-        StrictLean.Report.ExecutionBoundary :=
-      { name := name.toString, «module» := moduleName, boundary, correspondence, owned,
-        replacement, evidence }
+    let owned := ownedModules.contains moduleName
+    let entry (boundary : BoundaryKind) (correspondence : Correspondence) (replacement : Option Name) (evidence : Option String) :
+        CommandElabM StrictLean.Report.ExecutionBoundary := do
+      let account ← match StrictLeanPolicy.admitBoundaryEvidence boundary correspondence evidence
+          (if boundary == .nativeRuntime && correspondence == .trusted then nativeModules.find? moduleName else none) with
+        | .ok account => pure account
+        | .error error => throwError "{error}"
+      return {
+        occurrence := boundaries.size
+        name := name
+        «module» := moduleName
+        boundary := boundary
+        account := account
+        owned := owned
+        replacement := replacement }
     if let some active := (Lean.Compiler.CSimp.ext.getState env).map.find? name then
       replacementEdges := replacementEdges.push (name, active.toDeclName)
     for simplification in (candidates.find? name).getD #[] do
       let target := simplification.toDeclName
       let (correspondence, evidence) ← correspondence name target
       boundaries := boundaries.push <|
-        entry "compiler-simplification" correspondence (some target.toString)
-          (some s!"conservative constant-equality candidate={simplification.thmName}; {evidence.getD ""}")
+        (← entry .compilerSimplification correspondence (some target)
+          (some s!"conservative constant-equality candidate={simplification.thmName}; {evidence.getD ""}"))
       queue := queue.push target
     if Lean.isExtern env name then
       let native := nativeModules.contains moduleName
       boundaries := boundaries.push <|
-        entry (if native then "native-runtime" else "external") "trusted" none none
+        (← entry (if native then .nativeRuntime else .external) .trusted none none)
       continue
     if let some target := Lean.Compiler.getImplementedBy? env name then
-      let history ← liftIO <| loadReplacementHistory moduleName.toName
+      let history ← liftIO <| loadReplacementHistory moduleName
       let targets ← match history with
         | .error error =>
             unresolved := unresolved.push s!"{name}: replacement history unavailable: {error}"
@@ -571,15 +615,15 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
         replacementEdges := replacementEdges.push (name, target)
         let (correspondence, evidence) ← correspondence name target
         boundaries := boundaries.push <|
-          entry "runtime-replacement" correspondence (some target.toString) evidence
+          (← entry .runtimeReplacement correspondence (some target) evidence)
         queue := queue.push target
       continue
     if info.isPartial then
-      boundaries := boundaries.push <| entry "partial-computation" "trusted" none none
+      boundaries := boundaries.push <| (← entry .partialComputation .trusted none none)
       if let some value := info.value? then queue := queue ++ value.getUsedConstants
       continue
     if info.isUnsafe then
-      boundaries := boundaries.push <| entry "unsafe-computation" "trusted" none none
+      boundaries := boundaries.push <| (← entry .unsafeComputation .trusted none none)
       if let some value := info.value? then queue := queue ++ value.getUsedConstants
       continue
     match info with
@@ -592,20 +636,20 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
         | some recInfo =>
             if recInfo.isPartial then
               boundaries := boundaries.push <|
-                entry "partial-computation" "trusted" none (some recName.toString)
+                (← entry .partialComputation .trusted none (some recName.toString))
               queue := queue.push recName
             else
-              boundaries := boundaries.push <| entry "opaque-computation" "unresolved" none
-                (some s!"compiled helper {recName} is not partial")
+              boundaries := boundaries.push <| (← entry .opaqueComputation .unresolved none
+                (some s!"compiled helper {recName} is not partial"))
         | none =>
             boundaries := boundaries.push <|
-              entry "opaque-computation" "checked" none (some "kernel-checked-body")
+              (← entry .opaqueComputation .checked none (some "kernel-checked-body"))
             if !(← liftTermElabM <| Meta.isProp info.type) then
               if let some value := info.value? (allowOpaque := true) then
                 queue := queue ++ value.getUsedConstants
     | .axiomInfo _ =>
         if compilerTrustingAxiom name then
-          boundaries := boundaries.push <| entry "compiler-trusted-proof" "trusted" none none
+          boundaries := boundaries.push <| (← entry .compilerTrustedProof .trusted none none)
     | .thmInfo _ | .ctorInfo _ | .inductInfo _ | .recInfo _ | .quotInfo _ => pure ()
   let cycles := cyclicReplacementPaths replacementEdges
   if !cycles.isEmpty then
@@ -618,10 +662,10 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
           unresolved := unresolved.push s!"{name}: compiler body is an opaque export placeholder"
     | none =>
         unresolved := unresolved.push s!"{name}: compiled dependency body is unavailable"
-  boundaries := boundaries.map fun boundary =>
-    { boundary with compilerCallers := compilerEdges.filterMap fun (caller, callee) =>
+  boundaries := boundaries.mapIdx fun occurrence boundary =>
+    { boundary with occurrence, compilerCallers := compilerEdges.filterMap fun (caller, callee) =>
         if callee == boundary.name then some caller else none }
-  return (boundaries, unresolved, compilerEdges)
+  return (boundaries, unresolved, StrictLeanPolicy.canonicalEdges compilerEdges)
 
 /-- Owned executable roots: computable, non-proposition, safe, non-partial,
 non-internal definitions and opaque constants, excluding compiler-generated
@@ -662,9 +706,9 @@ def environmentReport (modules : List Name)
   -- documentation inspection may omit this otherwise unused report payload.
   let moduleOrigins ← if includeExecution || includeModuleOrigins then
       env.header.moduleNames.zip env.header.moduleData |>.mapM fun (moduleName, data) => do
-        let path ← liftIO <| Lean.findOLean moduleName
-        return ({ name := moduleName.toString, olean := path.toString
-                  imports := data.imports.map (·.module.toString) } :
+        let path ← liftIO <| IO.FS.realPath (← Lean.findOLean moduleName)
+        return ({ name := moduleName, olean := path.toString
+                  imports := data.imports.map (·.module) } :
           StrictLean.Report.ModuleOrigin)
     else pure #[]
   let own ← ownedDecls env modules
@@ -677,37 +721,41 @@ def environmentReport (modules : List Name)
     -- exact canonical artifact path in the pinned toolchain's library directory.
     -- Missing origin evidence throws rather than granting a runtime exemption.
     let toolchainLib ← liftIO <| Lean.getLibDir (← Lean.findSysroot)
-    let mut nativeModules : Std.HashSet String := {}
+    let mut nativeModules : NameMap StrictLeanPolicy.NativeOrigin := {}
     for (moduleName, origin) in env.header.moduleNames.zip moduleOrigins do
       if moduleName.getRoot == `Init then
         let actual ← liftIO <| IO.FS.realPath origin.olean
         let expected := Lean.modToFilePath toolchainLib moduleName "olean"
         if ← liftIO expected.pathExists then
           if actual == (← liftIO <| IO.FS.realPath expected) then
-            nativeModules := nativeModules.insert origin.name
+            let receipt ← match StrictLeanPolicy.admitNativeOrigin moduleName actual.toString
+                (← liftIO <| IO.FS.realPath expected).toString with
+              | .ok receipt => pure receipt
+              | .error error => throwError "{error}"
+            nativeModules := nativeModules.insert origin.name receipt
+    let recursorHelpers := brecOnHelpers env own
     let mut roots ← executableRoots env own
     for entry in entries do
       if let some contract := entry.executableContract then
-        if contract.failure.isNone && !roots.contains contract.root.toName then
-          roots := roots.push contract.root.toName
+        if contract.failure.isNone && !roots.contains contract.root then
+          roots := roots.push contract.root
     let candidates := simplificationCandidates env
-    let proofCache ← liftIO <| IO.mkRef ({} : Std.HashMap (Name × Name) (String × Option String))
+    let proofCache ← liftIO <| IO.mkRef ({} : Std.HashMap (Name × Name) (Correspondence × Option String))
     roots.mapM fun root => do
       let (boundaries, unresolved, compilerEdges) ←
-        executionWalk env modules nativeModules loadReplacementHistory candidates proofCache root
+        executionWalk env modules nativeModules loadReplacementHistory candidates proofCache recursorHelpers root
       let some moduleName := (env.getModuleIdxFor? root).map
-          fun idx => env.header.modules[(idx : Nat)]!.module.toString
+          fun idx => env.header.modules[(idx : Nat)]!.module
         | throwError "owned executable root {root} has no module index"
       return ({
-        name := root.toString
-        structuralName := some (StrictLean.RegistryCodec.nameJson root).compress
+        name := root
         «module» := moduleName
         boundaries, unresolved, compilerEdges } :
         StrictLean.Report.ExecutionRoot)
     else pure #[]
   return {
     toolchain := Lean.versionString
-    modules := env.header.moduleNames.map (·.toString)
+    modules := StrictLeanPolicy.canonicalNames env.header.moduleNames
     moduleOrigins
     declarations := entries
     execution

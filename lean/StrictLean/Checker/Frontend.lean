@@ -1,4 +1,5 @@
 import StrictLean.Report
+import StrictLean.Diagnostic
 import StrictLean.Checker.Common
 import Lean
 
@@ -9,74 +10,134 @@ isolated callers release frontend imports before consuming the typed result.
 -/
 
 namespace StrictLean.Checker.Frontend
+open scoped StrictLean.Report
 
 open Lean Lean.Elab
+open StrictLeanPolicy (EvaluatorRole)
+open StrictLean.Checker.PolicyCodec (exactFields)
 
-structure ImportRecord where
-  «module» : String
-  importAll : Bool
-  isExported : Bool
-  isMeta : Bool
-  deriving Repr, BEq, FromJson, ToJson
+abbrev ImportRecord := StrictLeanPolicy.Frontend.ImportRecord
+deriving instance ToJson for StrictLeanPolicy.Frontend.ImportRecord
+instance : FromJson StrictLeanPolicy.Frontend.ImportRecord := ⟨fun j => do
+  exactFields j ["module", "importAll", "isExported", "isMeta"]
+  return {
+    «module» := ← j.getObjValAs? _ "module"
+    importAll := ← j.getObjValAs? _ "importAll"
+    isExported := ← j.getObjValAs? _ "isExported"
+    isMeta := ← j.getObjValAs? _ "isMeta"
+  }⟩
 
-structure SyntaxRange where
-  start : StrictLean.Report.Position
-  «end» : StrictLean.Report.Position
-  deriving Repr, BEq, FromJson, ToJson
+abbrev SyntaxRange := StrictLeanPolicy.Frontend.SyntaxRange
+deriving instance ToJson for StrictLeanPolicy.Frontend.SyntaxRange
+instance : FromJson StrictLeanPolicy.Frontend.SyntaxRange := ⟨fun j => do
+  exactFields j ["start", "end"]
+  return {
+    start := ← j.getObjValAs? _ "start"
+    «end» := ← j.getObjValAs? _ "end"
+  }⟩
 
-structure Evaluator where
-  role : String
-  elaborator : String
-  kind : String
-  range : Option SyntaxRange
-  pinned : Bool
-  deriving Repr, BEq, FromJson, ToJson
+abbrev Evaluator := StrictLeanPolicy.Frontend.Evaluator
+deriving instance ToJson for StrictLeanPolicy.Frontend.Evaluator
+instance : FromJson StrictLeanPolicy.Frontend.Evaluator := ⟨fun j => do
+  exactFields j ["role", "elaborator", "kind", "range", "pinned"]
+  return {
+    role := ← j.getObjValAs? _ "role"
+    elaborator := ← j.getObjValAs? _ "elaborator"
+    kind := ← j.getObjValAs? _ "kind"
+    range := ← j.getObjValAs? _ "range"
+    pinned := ← j.getObjValAs? _ "pinned"
+  }⟩
 
-structure AddedDeclaration where
-  name : String
-  kind : String
-  «type» : String
-  deriving Repr, BEq, FromJson, ToJson
+abbrev AddedDeclaration := StrictLeanPolicy.Frontend.AddedDeclaration
+deriving instance ToJson for StrictLeanPolicy.Frontend.AddedDeclaration
+instance : FromJson StrictLeanPolicy.Frontend.AddedDeclaration := ⟨fun j => do
+  exactFields j ["name", "kind", "type"]
+  return {
+    name := ← j.getObjValAs? _ "name"
+    kind := ← j.getObjValAs? _ "kind"
+    «type» := ← j.getObjValAs? _ "type"
+  }⟩
 
-structure DeclarationBinding where
-  name : String
-  range : Option SyntaxRange
-  deriving Repr, BEq, FromJson, ToJson
+abbrev DeclarationBinding := StrictLeanPolicy.Frontend.DeclarationBinding
+deriving instance ToJson for StrictLeanPolicy.Frontend.DeclarationBinding
+instance : FromJson StrictLeanPolicy.Frontend.DeclarationBinding := ⟨fun j => do
+  exactFields j ["name", "range"]
+  return {
+    name := ← j.getObjValAs? _ "name"
+    range := ← j.getObjValAs? _ "range"
+  }⟩
 
-structure Command where
-  commandElaborator : String
-  commandKind : String
-  commandRange : Option SyntaxRange
-  added : Array String
-  addedDeclarations : Array AddedDeclaration
-  evaluators : Array Evaluator
-  bindings : Array DeclarationBinding := #[]
-  deriving Repr, BEq, FromJson, ToJson
+abbrev Command := StrictLeanPolicy.Frontend.Command
+deriving instance ToJson for StrictLeanPolicy.Frontend.Command
+instance : FromJson StrictLeanPolicy.Frontend.Command := ⟨fun j => do
+  exactFields j ["commandElaborator", "commandKind", "commandRange", "added", "addedDeclarations", "evaluators", "bindings"]
+  return {
+    commandElaborator := ← j.getObjValAs? _ "commandElaborator"
+    commandKind := ← j.getObjValAs? _ "commandKind"
+    commandRange := ← j.getObjValAs? _ "commandRange"
+    added := ← j.getObjValAs? _ "added"
+    addedDeclarations := ← j.getObjValAs? _ "addedDeclarations"
+    evaluators := ← j.getObjValAs? _ "evaluators"
+    bindings := ← j.getObjValAs? _ "bindings"
+  }⟩
 
-structure Transcript where
-  «module» : String
-  source : String
-  sourceBytes : Nat
-  leanVersion : String
-  leanGitHash : String
-  imports : Array ImportRecord
-  commands : Array Command
-  runtimeReplacements : Array (String × String) := #[]
-  replacementHistoryUnsupported : Array String := #[]
-  deriving Repr, BEq, FromJson, ToJson
+abbrev Transcript := StrictLeanPolicy.Frontend.Transcript
+deriving instance ToJson for StrictLeanPolicy.Frontend.Transcript
+instance : FromJson StrictLeanPolicy.Frontend.Transcript := ⟨fun j => do
+  exactFields j ["module", "source", "sourceBytes", "sourceContent", "leanVersion", "leanGitHash", "imports", "commands", "runtimeReplacements", "replacementHistoryUnsupported"]
+  return {
+    «module» := ← j.getObjValAs? _ "module"
+    source := ← j.getObjValAs? _ "source"
+    sourceBytes := ← j.getObjValAs? _ "sourceBytes"
+    sourceContent := ← j.getObjValAs? _ "sourceContent"
+    leanVersion := ← j.getObjValAs? _ "leanVersion"
+    leanGitHash := ← j.getObjValAs? _ "leanGitHash"
+    imports := ← j.getObjValAs? _ "imports"
+    commands := ← j.getObjValAs? _ "commands"
+    runtimeReplacements := ← j.getObjValAs? _ "runtimeReplacements"
+    replacementHistoryUnsupported := ← j.getObjValAs? _ "replacementHistoryUnsupported"
+  }⟩
+
+
+
+/-- Recheck source coordinates against exact transcript bytes using Lean's FileMap.
+This is a data-boundary check; it does not authenticate how a worker acquired the bytes. -/
+def validateCoordinates (declarations : Array StrictLean.Report.Declaration)
+    (transcript : Transcript) : Except String Unit := do
+  let fm := transcript.sourceContent.toFileMap
+  let check (range : SyntaxRange) : Except String Unit := do
+    let a : Lean.Position := ⟨range.start.line, range.start.column⟩
+    let b : Lean.Position := ⟨range.end.line, range.end.column⟩
+    let start := fm.ofPosition a
+    let stop := fm.ofPosition b
+    unless a.line > 0 && b.line > 0 && fm.toPosition start == a &&
+        fm.toPosition stop == b && start.byteIdx ≤ stop.byteIdx do
+      throw "transcript coordinates disagree with source snapshot"
+  for command in transcript.commands do
+    unless command.added == command.addedDeclarations.map (·.name) do
+      throw "transcript declaration inventory mismatch"
+    for range in command.commandRange do check range
+    for evaluator in command.evaluators do
+      for range in evaluator.range do check range
+    for binding in command.bindings do
+      for range in binding.range do check range
+  for declaration in declarations do
+    if declaration.module == transcript.module then
+      for ranges in declaration.ranges do
+        let _ ← StrictLean.sourceFromReport ⟨transcript.source, transcript.sourceContent⟩ ranges
 
 /-- Keep every implementation selected in a command context, before later
 attribute assignments can overwrite it. Nested command contexts matter: a
 namespace's final environment is not its complete compilation history. -/
 private partial def replacementRecords (tree : InfoTree)
-    (seen : Array (String × String)) : Array (String × String) := Id.run do
+    (seen : Array (Name × Name)) : Array (Name × Name) := Id.run do
   let mut seen := seen
   match tree with
   | .context (.commandCtx ctx) child =>
       for env in #[ctx.env] ++ ctx.cmdEnv?.toArray do
         for (reference, target) in
             (Lean.Compiler.implementedByAttr.ext.getState env).2.toArray do
-          let edge := (reference.toString, target.toString)
+          let edge := (reference, target)
           if !seen.contains edge then seen := seen.push edge
       return replacementRecords child seen
   | .context _ child => return replacementRecords child seen
@@ -111,18 +172,18 @@ that exact syntax kind in the module's post-import environment, i.e. by the
 pinned toolchain or an explicitly imported library rather than by the audited
 module itself. -/
 private def pinnedElaborator (baselineEnv commandEnv : Environment)
-    (role : String) (elaborator : Name) (kind : Name) (specializeSame := false) : Bool :=
+    (role : EvaluatorRole) (elaborator : Name) (kind : Name) (specializeSame := false) : Bool :=
   if elaborator.isAnonymous then true
-  else if role == "command" && elaborator == `Lean.Compiler.specializeAttr &&
+  else if role == .command && elaborator == `Lean.Compiler.specializeAttr &&
       #[`Lean.Parser.Attr.specialize, `specialize].contains kind then
     let registered := fun env =>
       (getAttributeImpl env `specialize).toOption.any (·.ref == elaborator)
     specializeSame && registered baselineEnv && registered commandEnv &&
       !(commandEnv.contains elaborator && (commandEnv.getModuleIdxFor? elaborator).isNone)
   else if (macroAttribute.getEntries commandEnv kind).any (·.declName == elaborator) then true
-  else if role == "tactic" then
+  else if role == .tactic then
     (Tactic.tacticElabAttribute.getEntries baselineEnv kind).any (·.declName == elaborator)
-  else if role == "term" then
+  else if role == .term then
     (Term.termElabAttribute.getEntries baselineEnv kind).any (·.declName == elaborator) ||
       -- `do` elements produce TermInfo too, but use their own keyed registry.
       (Do.doElemElabAttribute.getEntries baselineEnv kind).any (·.declName == elaborator)
@@ -131,12 +192,12 @@ private def pinnedElaborator (baselineEnv commandEnv : Environment)
 
 /-- Every information node carrying elaborator attribution participates, including
 unfinished terms and alternative elaboration choices. -/
-private def evaluatorInfo? : Info → Option (String × ElabInfo)
-  | .ofCommandInfo i => some ("command", i.toElabInfo)
-  | .ofTacticInfo i => some ("tactic", i.toElabInfo)
-  | .ofTermInfo i => some ("term", i.toElabInfo)
-  | .ofPartialTermInfo i => some ("term", i.toElabInfo)
-  | .ofChoiceInfo i => some ("term", i.toElabInfo)
+private def evaluatorInfo? : Info → Option (EvaluatorRole × ElabInfo)
+  | .ofCommandInfo i => some (.command, i.toElabInfo)
+  | .ofTacticInfo i => some (.tactic, i.toElabInfo)
+  | .ofTermInfo i => some (.term, i.toElabInfo)
+  | .ofPartialTermInfo i => some (.term, i.toElabInfo)
+  | .ofChoiceInfo i => some (.term, i.toElabInfo)
   | _ => none
 
 private partial def evaluatorRecords (baselineEnv commandEnv : Environment)
@@ -147,8 +208,8 @@ private partial def evaluatorRecords (baselineEnv commandEnv : Environment)
       let own := match evaluatorInfo? info with
         | some (role, i) => #[{
             role
-            elaborator := i.elaborator.toString
-            kind := i.stx.getKind.toString
+            elaborator := i.elaborator
+            kind := i.stx.getKind
             range := syntaxRange fileMap i.stx
             pinned := pinnedElaborator baselineEnv commandEnv role
               i.elaborator i.stx.getKind specializeSame
@@ -168,7 +229,7 @@ private partial def declarationBindings (fileMap : FileMap) (tree : InfoTree) :
       let own := match info with
         | .ofTermInfo i => match i.expr with
           | .const name _ =>
-            if i.isBinder then #[{ name := name.toString, range := syntaxRange fileMap i.stx }]
+            if i.isBinder then #[{ name := name, range := syntaxRange fileMap i.stx }]
             else #[]
           | _ => #[]
         | _ => #[]
@@ -210,19 +271,19 @@ private partial def unsupportedReplacementEvaluators (compilerEnv : Environment)
         found ++ unsupportedReplacementEvaluators compilerEnv attributeRefs baselineEnv commandEnv child) own
   | .hole _ => #[]
 
-private def constantKind : ConstantInfo → String
-  | .axiomInfo _  => "axiom"
-  | .defnInfo _   => "def"
-  | .thmInfo _    => "theorem"
-  | .opaqueInfo _ => "opaque"
-  | .ctorInfo _   => "ctor"
-  | .inductInfo _ => "inductive"
-  | .recInfo _    => "recursor"
-  | .quotInfo _   => "quot"
+private def constantKind : ConstantInfo → StrictLeanPolicy.DeclarationKind
+  | .axiomInfo _  => .axiom
+  | .defnInfo _   => .definition
+  | .thmInfo _    => .theorem
+  | .opaqueInfo _ => .opaque
+  | .ctorInfo _   => .constructor
+  | .inductInfo _ => .inductive
+  | .recInfo _    => .recursor
+  | .quotInfo _   => .quotient
 
 private def constantRecord (env : Environment) (name : Name) : AddedDeclaration :=
   let info := env.constants.find! name
-  { name := name.toString
+  { name := name
     kind := constantKind info
     «type» := toString (repr info.type) }
 
@@ -242,7 +303,7 @@ private unsafe def newConstants (before after : Environment) : Array Name :=
 /-- Elaborate one exact source from a fresh frontend state and return the
 first-introduction transcript. Any diagnostic error or concurrent source
 change fails the call. -/
-private unsafe def buildCore (moduleName : String) (sourcePath : System.FilePath)
+private unsafe def buildCore (moduleName : Name) (sourcePath : System.FilePath)
     (history : Bool := false) : IO Transcript := do
   unsafe Lean.enableInitializersExecution
   let sourceBefore ← IO.FS.readFile sourcePath
@@ -263,7 +324,7 @@ private unsafe def buildCore (moduleName : String) (sourcePath : System.FilePath
     return Except.ok {
       imports := stx.imports
       isModule := stx.isModule
-      mainModuleName := moduleName.toName
+      mainModuleName := moduleName
       opts
       trustLevel := 0
       plugins := #[]
@@ -276,7 +337,7 @@ private unsafe def buildCore (moduleName : String) (sourcePath : System.FilePath
   let mut before? : Option Environment := none
   let mut baseline? : Option Environment := none
   let mut commands : Array Command := #[]
-  let mut runtimeReplacements : Array (String × String) := #[]
+  let mut runtimeReplacements : Array (Name × Name) := #[]
   let mut replacementHistoryUnsupported : Array String := #[]
   for snapshot in snapshots.getAll do
     if let some tree := snapshot.infoTree? then
@@ -303,10 +364,10 @@ private unsafe def buildCore (moduleName : String) (sourcePath : System.FilePath
                     ptrEq expected baseline && ptrEq expected current
                 | _, _, _ => false
               commands := commands.push {
-                commandElaborator := info.elaborator.toString
-                commandKind := info.stx.getKind.toString
+                commandElaborator := info.elaborator
+                commandKind := info.stx.getKind
                 commandRange := syntaxRange commandCtx.fileMap info.stx
-                added := added.map (·.toString)
+                added := added
                 addedDeclarations := added.map (constantRecord after)
                 evaluators := evaluatorRecords (baseline?.getD commandCtx.env)
                   commandCtx.env commandCtx.fileMap tree specializeSame
@@ -322,10 +383,11 @@ private unsafe def buildCore (moduleName : String) (sourcePath : System.FilePath
     «module» := moduleName
     source := sourcePath.toString
     sourceBytes := sourceBefore.toUTF8.size
+    sourceContent := sourceBefore
     leanVersion := Lean.versionString
     leanGitHash := Lean.githash
     imports := imports.map fun item => {
-      «module» := item.module.toString
+      «module» := item.module
       importAll := item.importAll
       isExported := item.isExported
       isMeta := item.isMeta
@@ -337,19 +399,19 @@ private unsafe def buildCore (moduleName : String) (sourcePath : System.FilePath
 
 /-- Elaborate with the already configured module search path. A caller may use
 this variant while it owns one read-only search-path scope for bounded workers. -/
-unsafe def buildCurrentSearchPath (moduleName : String)
+unsafe def buildCurrentSearchPath (moduleName : Name)
     (sourcePath : System.FilePath) : IO Transcript :=
   buildCore moduleName sourcePath
 
 /-- Source-history worker variant; it additionally resolves operational
 elaborator attribution and records overwritten implementation targets. -/
-unsafe def buildReplacementHistoryCurrentSearchPath (moduleName : String)
+unsafe def buildReplacementHistoryCurrentSearchPath (moduleName : Name)
     (sourcePath : System.FilePath) : IO Transcript :=
   buildCore moduleName sourcePath true
 
 /-- Run `buildCore` with any freshly built package search roots taking
 precedence, then restore the executable's original search path. -/
-unsafe def build (moduleName : String) (sourcePath : System.FilePath)
+unsafe def build (moduleName : Name) (sourcePath : System.FilePath)
     (extraSearchRoots : Array System.FilePath := #[]) : IO Transcript := do
   let oldSearchPath ← Lean.searchPathRef.get
   Lean.searchPathRef.set (extraSearchRoots.toList ++ oldSearchPath)
@@ -357,17 +419,32 @@ unsafe def build (moduleName : String) (sourcePath : System.FilePath)
   finally Lean.searchPathRef.set oldSearchPath
 
 structure WorkerRequest where
-  moduleName : String
+  moduleName : Name
   source : String
   searchRoots : Array String
-  deriving FromJson, ToJson
+  deriving ToJson
+
+instance : FromJson WorkerRequest := ⟨fun j => do
+  StrictLean.Checker.PolicyCodec.exactFields j ["moduleName", "source", "searchRoots"]
+  return {
+    moduleName := ← j.getObjValAs? _ "moduleName"
+    source := ← j.getObjValAs? _ "source"
+    searchRoots := ← j.getObjValAs? _ "searchRoots"
+  }⟩
 
 /-- Release the frontend's persistent imported environments on worker exit. -/
-def buildIsolated (moduleName : String) (sourcePath : System.FilePath)
-    (extraSearchRoots : Array System.FilePath := #[]) : IO Transcript :=
-  runTypedWorker "--frontend-worker" ({
+def buildIsolated (moduleName : Name) (sourcePath : System.FilePath)
+    (extraSearchRoots : Array System.FilePath := #[]) : IO Transcript := do
+  let sourceBefore ← IO.FS.readFile sourcePath
+  let transcript : Transcript ← runTypedWorker "--frontend-worker" ({
     moduleName, source := sourcePath.toString,
     searchRoots := extraSearchRoots.map (·.toString)
   } : WorkerRequest)
+  unless transcript.module == moduleName && transcript.source == sourcePath.toString &&
+      transcript.sourceContent == sourceBefore && transcript.sourceBytes == sourceBefore.utf8ByteSize &&
+      transcript.leanVersion == Lean.versionString && transcript.leanGitHash == Lean.githash &&
+      (← IO.FS.readFile sourcePath) == sourceBefore do
+    throw <| IO.userError "frontend worker snapshot or toolchain binding mismatch"
+  return transcript
 
 end StrictLean.Checker.Frontend

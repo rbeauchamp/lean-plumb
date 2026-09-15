@@ -26,7 +26,7 @@ standard_verify_checks() {
       # Build the required executables and type-check diagnostic modules once.
       # Diagnostic native binaries are built by their lake exe invocation below.
       # The declaration gate owns fresh claimed-source elaboration.
-      lake build axiomGate docFenceAudit \
+      lake build StrictLeanPolicy axiomGate docFenceAudit \
         +StrictLean.Checker.CheckerSelftest:olean +StrictLean.Checker.FreshChecker:olean \
         +StrictLean.RegistryChecks:olean
       lake env lean --run lean/StrictLean/RegistryChecks.lean

@@ -1,5 +1,5 @@
 import StrictLean.Rule
-import StrictLean.Report
+import StrictLeanPolicy.Domain
 import Lean.Data.Lsp.Utf16
 
 /-! Canonical diagnostic values and source conversion. The indexed representation credits
@@ -7,16 +7,8 @@ con-leche (see RuleId); source conversion uses pinned Lean FileMap/LSP APIs. -/
 namespace StrictLean
 open Lean
 
-/-- URI and exact source snapshot are evidence, not a digest equality claim. -/
-structure SourceSnapshot where
-  uri : String
-  source : String
-  deriving Repr, BEq
-
-structure ByteRange where
-  start : Nat
-  stop : Nat
-  deriving Repr, BEq
+abbrev SourceSnapshot := StrictLeanPolicy.SourceSnapshot
+abbrev ByteRange := StrictLeanPolicy.ByteRange
 
 /-- Raw coordinates are admitted only after checking character boundaries and containment. -/
 structure SourceCandidate where
@@ -52,10 +44,10 @@ def SourceLocation.selectionLsp (s : SourceLocation) : Lsp.Range :=
     ⟨⟨s.val.selection.start⟩, ⟨s.val.selection.stop⟩⟩
 
 /-- A report's codepoint and UTF-16 columns must both agree with the exact source. -/
-def sourceFromReport (snapshot : SourceSnapshot) (ranges : Report.Ranges) :
+def sourceFromReport (snapshot : SourceSnapshot) (ranges : StrictLeanPolicy.Ranges) :
     Except String SourceLocation := do
   let fm := snapshot.source.toFileMap
-  let convert (r : Report.Range) : Except String ByteRange := do
+  let convert (r : StrictLeanPolicy.Range) : Except String ByteRange := do
     let a : Lean.Position := ⟨r.start.line, r.start.column⟩
     let b : Lean.Position := ⟨r.end.line, r.end.column⟩
     let start := fm.ofPosition a

@@ -1,3 +1,4 @@
+import StrictLean.Checker.PolicyCodec
 import StrictLean.Probe
 import StrictLean.Checker.Common
 import StrictLean.Checker.Admission
@@ -10,13 +11,14 @@ is called directly; audited syntax extensions cannot replace the observation.
 namespace StrictLean.Checker.Environment
 
 open Lean System
+open scoped StrictLean.Report
 
 /-- The checker-owned probe modules force-imported into every report so the
 trusted reporter is always available: the probe and its transitive imports
 inside the checker library. They are never part of an audited surface, so
 their presence in an environment is not evidence about the claimed modules. -/
 def probeModuleNames : Array String :=
-  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.Contract", "StrictLean.NameCodec"]
+  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.Contract", "StrictLean.Checker.PolicyCodec"]
 
 /-- The probe modules no claimed module may import. `StrictLean.Contract`
 is the published contract interface (docs/standard/8 §8.12) and is the one checker module
@@ -24,11 +26,25 @@ a claimed surface imports by design; the probe and its report records are
 checker tooling that reach an audited environment only through the force
 import, never through a claimed module's own imports. -/
 def probeOnlyModuleNames : Array String :=
-  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.NameCodec"]
+  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.Checker.PolicyCodec"]
 
 /-- The checker-owned probe module force-imported into every report so the
 trusted reporter is always available. It is never part of an audited surface. -/
 def probeModuleName : String := "StrictLean.Probe"
+
+/-- The reporter also force-loads this public, neutral name codec. Its presence is
+not a source import of excluded policy machinery. Validate the exact durable artifact
+before distinguishing it from a claimed module's ordinary imports. -/
+def forcedStructuralName (report : StrictLean.Report.Environment) : IO Name := do
+  let name := `StrictLean.StructuralName
+  let origins := report.moduleOrigins.filter (·.name == name)
+  let some origin := origins[0]? | throw <| IO.userError "missing structural-name codec origin"
+  unless origins.size == 1 do throw <| IO.userError "ambiguous structural-name codec origin"
+  let some lib ← checkerPackageLibDir | throw <| IO.userError "checker library path unavailable"
+  let expected ← IO.FS.realPath (Lean.modToFilePath lib name "olean")
+  unless (← IO.FS.realPath origin.olean) == expected do
+    throw <| IO.userError "structural-name codec origin mismatch"
+  return name
 
 /-- Re-elaboration recovers overwritten `implemented_by` choices that neither
 the final attribute map nor optimized IR preserves. Isolate the frontend's
@@ -52,27 +68,32 @@ private def replacementHistory (sourceRoots : Array FilePath)
       | throw <| IO.userError "checker binary directory unavailable"
     withScratch (← IO.currentDir) "replacement-history" fun scratch => do
       let output := scratch / "history.json"
+      let sourceBefore ← IO.FS.readFile source
+      let request := sourceWorkerRequest "history" moduleName source sourceBefore
       let searchPath := System.SearchPath.toString (← Lean.searchPathRef.get)
       let result ← IO.Process.output {
         cmd := (bin / "axiomGate").toString
-        args := #["--replacement-history-worker", moduleName.toString, source.toString,
+        args := #["--replacement-history-worker", (StrictLean.RegistryCodec.nameJson moduleName).compress, source.toString,
           output.toString]
         env := #[("LEAN_PATH", some searchPath)] }
       if result.exitCode != 0 then
         throw <| IO.userError s!"{result.stdout}{result.stderr}"
-      let json ← IO.ofExcept <| Json.parse (← IO.FS.readFile output)
-      let edges : Array (String × String) ← IO.ofExcept <| fromJson? json
-      return .ok <| edges.map fun (reference, target) => (reference.toName, target.toName)
+      let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+      let payload ← IO.ofExcept <| readWorkerPacket request json
+      unless (← IO.FS.readFile source) == sourceBefore do
+        throw <| IO.userError "replacement history source changed"
+      let edges : Array (Name × Name) ← IO.ofExcept <| fromJson? payload
+      return .ok edges
   catch error => return .error error.toString
 
-private unsafe def loadReportCoreAtSearchPath (modules : Array String) (sourceRoots : Array FilePath := #[])
+private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
     IO StrictLean.Report.Environment := do
   if modules.isEmpty || modules.toList.eraseDups.length != modules.size then
     throw <| IO.userError "environment report requires unique nonempty modules"
   unsafe Lean.enableInitializersExecution
-  let requested := modules.map String.toName
+  let requested := modules
   let importNames :=
     if requested.contains probeModuleName.toName then requested
     else requested.push probeModuleName.toName
@@ -109,7 +130,7 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array String) (sourceRo
 A fresh project that builds only `Contract` must not mask the trusted probe,
 and putting the entire checker output first would mask fresh audited modules.
 Expose only the checker-owned prefix ahead of the audited search roots. -/
-private unsafe def loadReportCore (modules : Array String) (sourceRoots : Array FilePath := #[])
+private unsafe def loadReportCore (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
     IO StrictLean.Report.Environment := do
@@ -129,7 +150,7 @@ private unsafe def loadReportCore (modules : Array String) (sourceRoots : Array 
 /-- Load exact modules using the already configured search path. This variant
 supports bounded parallel, read-only imports while a caller owns the global
 search-path scope. -/
-unsafe def loadReportCurrentSearchPath (modules : Array String)
+unsafe def loadReportCurrentSearchPath (modules : Array Name)
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
     IO StrictLean.Report.Environment :=
@@ -137,7 +158,7 @@ unsafe def loadReportCurrentSearchPath (modules : Array String)
 
 /-- Load exact modules through Lean's import semantics and return their typed
 declaration report. Extra search roots are temporary and restored afterward. -/
-unsafe def loadReport (modules : Array String)
+unsafe def loadReport (modules : Array Name)
     (extraSearchRoots : Array FilePath := #[]) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :

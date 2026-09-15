@@ -252,9 +252,9 @@ private def compilationFailure (compilation : SourceAudit.Compilation)
   { task, status := .fail, detail, incomplete := !SourceAudit.sourceDiagnosticFailure compilation }
 
 private def assessPositive (task : Task) (declarations : Array StrictLean.Report.Declaration)
-    (transcripts : Array Frontend.Transcript) : Result :=
-  let native := Policy.authorizedNativeAxioms declarations transcripts
-  let helpers := Policy.authorizedUnsafeRecHelpers declarations transcripts
+    (transcripts : Array Frontend.Transcript) : Result := Id.run do
+  let .ok scope := Policy.admitScope declarations transcripts
+    | return { task, status := .fail, detail := "invalid policy observation inventory", incomplete := true }
   let claim := if task.kind == .trusted then Profile.compilerTrusting
     else Profile.standardLogical
   let (problems, policyProblems, compilerCount) := Id.run do
@@ -262,14 +262,14 @@ private def assessPositive (task : Task) (declarations : Array StrictLean.Report
     let mut problems : Array String := #[]
     let mut compilerCount := 0
     for decl in declarations do
-      if let some id := Policy.ruleFor decl (some claim) native helpers then
+      if let some id := Policy.ruleFor decl (some claim) scope then
         let reason := (StrictLean.descriptor id).applicability
         problems := problems.push s!"{reason}: {decl.name} axioms={repr decl.axioms.toList}"
         policyProblems := policyProblems.push (id, decl)
-      if Policy.labelOf decl.axioms native == "compiler-trusting" then
+      if (Policy.labelOf decl scope).toOption == some .compilerTrusting then
         compilerCount := compilerCount + 1
     return (problems, policyProblems, compilerCount)
-  if !problems.isEmpty then
+  return if !problems.isEmpty then
     { task, status := .fail, detail := "; ".intercalate (problems.extract 0 4).toList, policyProblems }
   else if task.kind == .trusted && compilerCount == 0 then
     { task, status := .fail, detail := "trusted marker found no compiler-trusting declaration" }
@@ -372,16 +372,16 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
     fun (index, group) => do
       IO.println s!"inspection group {index + 1}/{groups.size}: {group.items.size} fence(s)"
       (← IO.getStdout).flush
-      let modules := group.items.map (·.compilation.spec.«module»)
+      let modules := group.items.map (·.compilation.spec.«module».toName)
       try
         let inspected ← SourceAudit.inspectGroupCurrentSearchPath modules
-          (group.items.map fun item => (item.compilation.spec.«module», item.compilation.sourcePath))
+          (group.items.map fun item => (item.compilation.spec.«module».toName, item.compilation.sourcePath))
           moduleSources ownedOutput (includeExecution := false) (includeModuleOrigins := false)
         return group.items.map fun item =>
           let declarations := inspected.report.declarations.filter
-            (·.«module» == item.compilation.spec.«module»)
+            (·.«module» == item.compilation.spec.«module».toName)
           let transcripts := inspected.transcripts.filter
-            (·.«module» == item.compilation.spec.«module»)
+            (·.«module» == item.compilation.spec.«module».toName)
           (item.index, assessPositive item.task declarations transcripts)
       catch error =>
         return group.items.map fun item =>

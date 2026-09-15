@@ -81,10 +81,10 @@ actual source text. They are not assertions that those paths remain live after t
 run. No textual path substitution is applied to the new transport.
 
 Names use outermost-first tagged string/numeric components, preserving anonymous
-roots and names whose printed forms are ambiguous. `Probe` records this structural
-identity before formatting it. The legacy `name` display field is retained and
-checked for agreement. An old record without structural identity cannot supply a
-new declaration diagnostic. JSON syntax parsing and the compiler's collection of
+roots and names whose printed forms are ambiguous. `Probe` retains Lean's actual `Name` throughout collection and policy admission. The operational name
+codec is public `StrictLean.StructuralName`; `NameCodec` is a compatibility import.
+Only the legacy output adapter renders the display `name` field. Old display-only
+worker records cannot supply a new declaration diagnostic. JSON syntax parsing and the compiler's collection of
 names, ranges and source identity remain trusted operational boundaries.
 
 ## Versioned output and compatibility

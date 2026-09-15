@@ -86,7 +86,7 @@ def buildPlan (repo manifestPath : FilePath) : IO Plan := do
       modules := modules.push exe.root
     moduleSets := moduleSets.push {
       library := surface.library
-      modules := modules
+      modules := modules.map (·.toString)
     }
   let modules := uniqueSorted <| moduleSets.foldl (fun all item => all ++ item.modules) #[]
   let mut importSets : Array (String × Array String) := #[]

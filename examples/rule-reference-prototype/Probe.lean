@@ -33,8 +33,9 @@ initialize addLinter {
     let `(#strict_probe $mod:ident $source:str) := stx | return
     let report ← StrictLean.Probe.environmentReport [mod.getId]
       (includeExecution := false) (includeModuleOrigins := false)
+    let scope ← IO.ofExcept <| StrictLean.Checker.Policy.admitScope report.declarations
     for d in report.declarations do
-      if StrictLean.Checker.Policy.reasonFor d (some .standardLogical) == some rule.applicability then
+      if StrictLean.Checker.Policy.reasonFor d (some .standardLogical) scope == some rule.applicability then
         emitRule source.getString d
 }
 -- Verify the supported type without pretending an independent dummy test is the detector.

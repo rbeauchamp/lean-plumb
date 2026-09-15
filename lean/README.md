@@ -12,6 +12,7 @@ imports retain their Lean module names, such as `Audit.Research` and
 | Use the proof-bearing contract interface | [StrictLean.Contract](StrictLean/Contract.lean) | Public interface tying evidence to the named executable definition. |
 | Inspect mathematical/specification examples | [Audit](Audit.lean) | Claimed abstract-specification surface; representative checks of the standard's claims. |
 | Inspect the verified application | [Main](Main.lean), [AuditApp](AuditApp.lean) | Claimed limiter application; proofs concern its actual definitions and its IO boundary remains reported. |
+| Use typed policy data and admission | [StrictLeanPolicy](StrictLeanPolicy.lean), [domain guide](../docs/guides/policy-domain.md) | Separate claimed pure library; representation proofs do not authenticate compiler observations or establish complete acceptance. |
 | Understand declaration and execution auditing | [AxiomGate](StrictLean/Checker/AxiomGate.lean) | Operational checker implementation, qualified separately from the claimed proof surfaces. |
 | Understand documentation auditing | [DocFenceAudit](StrictLean/Checker/DocFenceAudit.lean) | Checks recursively discovered Markdown fences as printed. |
 | Inspect checker qualification | [CheckerSelftest](StrictLean/Checker/CheckerSelftest.lean), [fixture manifest](Fixtures/fixtures.json) | Isolated positive controls and intended-failure mutations; never import mutations into a claimed surface. |
