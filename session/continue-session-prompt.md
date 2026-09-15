@@ -1,3 +1,11 @@
-Read `session/session-context.md` from `/Users/richard/Developer/github/strict-lean`, then refresh Project 8 at https://github.com/users/rbeauchamp/projects/8 and the full authoritative issue https://github.com/rbeauchamp/strict-lean/issues/5.
+Read `session/session-context.md` in `/Users/richard/Developer/github/strict-lean`.
+Refresh the updated main after the handoff PR merges, then read the **Immediate execution plan**
+in https://github.com/users/rbeauchamp/projects/8 and the full authoritative issue
+https://github.com/rbeauchamp/strict-lean/issues/13 with its live native blockers.
 
-Verify origin, checkout/current main, native prerequisites #4/#12/#20 and task/worktree ownership before starting. This continuation applies after DESIGN-01 #20 is integrated and verified complete. The next unit is #5, pure policy-domain types. Consume the architecture, ecosystem-design, developer-experience, design-influences, registry and policy-acceptance guides and the full live issue. Capture user intent: CA1416, Ruff and Pyrefly are illustrative examples; implement the evidence-backed Lean-native design, not an exact copy. Complete #5's authorized implementation, review, checks, integration and successor/project reconciliation, then stop unless scope is expanded. Optional export research does not replace core delivery; current result status does not supply future Accepted guarantees.
+The first implementation action is to inspect `Probe.executionWalk`'s reached-node/edge account
+against `StrictLeanPolicy.Plan`/`Observation` and the existing producer receipts, then implement
+and qualify the remaining linked closure census described by the plan. Complete #13 before
+advancing. Work subsequent issues one by one through verified integration until the project
+is complete; retain optional research's existing go/no-go criteria. Do not resume the obsolete
+#5 task or treat a partial engine PR as issue completion.
