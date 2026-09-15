@@ -20,7 +20,8 @@
 
 - Follow `docs/guides/linter-architecture.md` and `docs/guides/rule-coverage.md` for the
   Project 8 product contract. Keep typed rule metadata, diagnostics and checked website
-  examples synchronized, with appropriate con-leche credit. Distinguish planned work
+  examples synchronized. Follow `docs/guides/design-influences.md` for contribution-specific
+  attribution; no single research reference brands every issue or deliverable. Distinguish planned work
   from currently supported enforcement and published pages.
 
 ## Start every task

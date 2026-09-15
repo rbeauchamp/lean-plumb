@@ -1,6 +1,6 @@
 # Policy acceptance and implementation linkage
 
-CL-01 (#4), inspected baseline `afdc67fe343cbb244fbd788af36173614ca6fa87`.
+POLICY-01 (#4), inspected baseline `afdc67fe343cbb244fbd788af36173614ca6fa87`.
 This is the design contract for #5–#7, coordinated with #12–#15; its new types,
 functions and theorems are **planned**, not implemented or machine-checked here.
 The [architecture](linter-architecture.md) owns the product and the
@@ -294,9 +294,9 @@ guides the new library via Lake discovery, not hardcoded declaration/file lists.
 
 | Owner | Deliverable and gate |
 | --- | --- |
-| #5 CL-02 | Domain/codec admission, typed roles/claims/records, canonical keys, invariant-preserving state API, compatibility adapters. Wire every policy caller to typed input; preserve detector behavior on supported baseline data, with explicit fail-closed extensions for malformed/duplicate data and positive file warnings. Record unavailable #6 theorems as pending, not proved. |
-| #6 CL-03 | Specification/Decision/Acceptance theorems: codec and collection laws, least-label proof, decision iff predicates, exact role evidence, insertion/frame laws, accepted soundness/completeness and report identity. Check actual functions used by #5; no duplicate reference evaluator assumed equivalent. |
-| #7 CL-04 | Freeze census/plan, validate all worker packets and every success boundary in §1, consume Accepted values in renderers/exit adapters, compose project+docs under one snapshot. Refuse empty/missing/duplicate/mismatched responses through public paths. Remove obsolete raw success APIs only after accounting for all callers. |
+| #5 POLICY-02 | Domain/codec admission, typed roles/claims/records, canonical keys, invariant-preserving state API, compatibility adapters. Wire every policy caller to typed input; preserve detector behavior on supported baseline data, with explicit fail-closed extensions for malformed/duplicate data and positive file warnings. Record unavailable #6 theorems as pending, not proved. |
+| #6 POLICY-03 | Specification/Decision/Acceptance theorems: codec and collection laws, least-label proof, decision iff predicates, exact role evidence, insertion/frame laws, accepted soundness/completeness and report identity. Check actual functions used by #5; no duplicate reference evaluator assumed equivalent. |
+| #7 POLICY-04 | Freeze census/plan, validate all worker packets and every success boundary in §1, consume Accepted values in renderers/exit adapters, compose project+docs under one snapshot. Refuse empty/missing/duplicate/mismatched responses through public paths. Remove obsolete raw success APIs only after accounting for all callers. |
 | #12 CATALOG | Keep one registry; add `freshFile`, share scope/status identities with core; accepted diagnostics export is read-only projection, never certificate input. |
 | #13 ENGINE | Shared semantic collectors for current-document and imported modules; complete census/roots/role extraction and typed outcomes for all twenty rules; two scoped doc-presence checks retained. |
 | #14 ADOPTION | All actual Lake lint/build/editor adapters consume the same outcome; cached policy re-evaluation and source-located links retained; freshFile and snapshot modes honestly labeled. |

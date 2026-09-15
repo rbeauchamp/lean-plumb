@@ -30,7 +30,7 @@ not subdivisions or substitutes for that acceptance command.
 
 The [policy acceptance contract](policy-acceptance.md) refines the pure-core module
 boundary, adds the explicit `freshFile` evidence mode, and owns complete-result semantics.
-Its definitions and proofs remain implementation work for CL-02–04.
+Its definitions and proofs remain implementation work for POLICY-02–04.
 
 ## Canonical data and package boundaries
 
@@ -41,8 +41,8 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | `lean/StrictLean/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
 | `lean/StrictLean/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
 | `lean/StrictLean/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
-| `lean/StrictLean/Checker/PolicyDomain.lean` | Canonical decoded inputs and typed failures; CL-02 (#5). |
-| `lean/StrictLean/Checker/Acceptance.lean` | Pure acceptance semantics and proof-bearing results; CL-01/03/04 (#4/#6/#7). |
+| `lean/StrictLean/Checker/PolicyDomain.lean` | Canonical decoded inputs and typed failures; POLICY-02 (#5). |
+| `lean/StrictLean/Checker/Acceptance.lean` | Pure acceptance semantics and proof-bearing results; POLICY-01/03/04 (#4/#6/#7). |
 | `lean/StrictLean/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
 | `lean/StrictLean/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps. |
 | `lean/StrictLean/Checker/Lint.lean` | Whole-project `strictLint` executable using the same registry/policy, not another checker. |
@@ -266,9 +266,10 @@ Canonical semantics, accepted values carrying evidence, and optimized/executable
 informed by **Lean FRO's con-leche** at `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0`:
 [Installed.lean][installed] (`CheckedRecord`, `FullyChecked`),
 [PropWhen.lean][propwhen] and [scanner equivalence][equiv]. These are design precedents, not a
-proof of Strict Lean or an adoption of con-leche's kernel/model. Every implementation, generated
-page and issue must preserve appropriate credit; copied code additionally preserves its actual
-license notices. Lean authors supply the linter, elaboration and message APIs; Verso authors
+proof of Strict Lean or an adoption of con-leche's kernel/model. The
+[attribution account](design-influences.md) distinguishes these specific precedents from actual
+code dependencies and optional exports. Cite influences at the relevant component boundary;
+copied code preserves its actual license notices. Lean authors supply the linter, elaboration and message APIs; Verso authors
 supply rendering and the template. [Microsoft CA1416][ca1416], Ruff and Pyrefly are illustrative
 references, not exclusive templates. The [comparative study](ecosystem-design.md) records
 Lean, Clippy, ESLint and HLint/HLS influences and their exact limits; no external tool defines
@@ -289,4 +290,4 @@ is [issue #3](https://github.com/rbeauchamp/strict-lean/issues/3); its con-ron d
 
 The CATALOG-01 implementation and schema migration are documented in
 [Rule registry and diagnostics](rule-registry.md). Its scoped `completed` observations
-are distinct from the future policy acceptance evidence in CL-02–04.
+are distinct from the future policy acceptance evidence in POLICY-02–04.

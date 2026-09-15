@@ -177,5 +177,5 @@ metadata and complete accepted-result design credit [con-leche's Installed.lean]
 and [PropWhen.lean](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean),
 not an imported proof of these rules. Lean/Std and applicable Mathlib authors supply language
 semantics, lawful definitions and linter APIs. The [ecosystem study](ecosystem-design.md) records the distinct Lean/Verso and
-cross-language presentation influences; CA1416 is one illustrative example. Every generated rule page retains appropriate
-con-leche design credit and identifies any actual adapted code and its license. Con-ron is excluded.
+cross-language presentation influences; CA1416 is one illustrative example. Generated pages identify actual rule/metadata influences and adapted code/licenses at the
+appropriate component boundary; see [attribution scope](design-influences.md). Con-ron is excluded.
