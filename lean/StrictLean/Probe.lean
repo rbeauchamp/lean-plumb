@@ -1,3 +1,4 @@
+import StrictLean.Collect
 import StrictLean.StructuralName
 import Lean.Elab.Command
 import Lean.Compiler.Old
@@ -77,259 +78,8 @@ namespace StrictLean.Probe
 open Lean Elab Command
 open StrictLeanPolicy (DeclarationKind BoundaryKind Correspondence Safety Reducibility RecursionOrigin)
 
-/-- Constant kind of a declaration, as reported by the environment. Public so
-the checker self-test can apply `Policy.declarationNeedsTranscript` to raw
-module constant records with the identical kind mapping. -/
-def kindOf : ConstantInfo → DeclarationKind
-  | .axiomInfo _   => .«axiom»
-  | .defnInfo _    => .«definition»
-  | .thmInfo _     => .«theorem»
-  | .opaqueInfo _  => .«opaque»
-  | .ctorInfo _    => .«constructor»
-  | .inductInfo _  => .«inductive»
-  | .recInfo _     => .«recursor»
-  | .quotInfo _    => .«quotient»
-
-/-- Compact source position used in declaration-range evidence. -/
-private def positionReport (p : Lean.Position) : StrictLean.Report.Position :=
-  { line := p.line, column := p.column }
-
-/-- Typed encoding of one exact Lean declaration range. -/
-private def rangeReport (r : DeclarationRange) : StrictLean.Report.Range :=
-  { start := positionReport r.pos
-    «end» := positionReport r.endPos
-    startUtf16 := r.charUtf16
-    endUtf16 := r.endCharUtf16 }
-
-/-- Typed encoding of full and selection declaration ranges. -/
-private def rangesReport (r : DeclarationRanges) : StrictLean.Report.Ranges :=
-  { range := rangeReport r.range
-    selectionRange := rangeReport r.selectionRange }
-
-private def hintsString : ReducibilityHints → Reducibility
-  | .opaque    => .«opaque»
-  | .abbrev    => .«abbrev»
-  | .regular _ => .«regular»
-
-/-- Kernel value of a definition/theorem/opaque declaration when present. -/
-private def valueOf? : ConstantInfo → Option Expr
-  | .defnInfo value   => some value.value
-  | .thmInfo value    => some value.value
-  | .opaqueInfo value => some value.value
-  | _                 => none
-
-/-- Retrieve the original built-in recursion predefinition for a safe base. -/
-private def recursionPredefinition? (env : Environment) (baseName : Name) :
-    Option (RecursionOrigin × List Name × Expr × Array Name) :=
-    match Lean.Elab.Structural.eqnInfoExt.find? env baseName with
-    | some info => some (.structural, info.levelParams, info.value, info.declNames)
-    | none => match Lean.Elab.WF.eqnInfoExt.find? env baseName with
-      | some info => some (.wellFounded, info.levelParams, info.value, info.declNames)
-      | none => none
-
-/-- Reconstruct the exact executable body transformation used by Lean 4.33.1's
-`addAndCompilePartialRec` from the built-in recursion equation metadata. -/
-private def unsafeRecExpected? (env : Environment) (baseName : Name) :
-    Option (RecursionOrigin × Expr) := do
-  let (origin, _, value, group) ← recursionPredefinition? env baseName
-  let expected := value.replace fun expr => match expr with
-    | .const name levels =>
-        if group.contains name then
-          some <| mkConst (Lean.Compiler.mkUnsafeRecName name) levels
-        else none
-    | _ => none
-  return (origin, expected)
-
-/-- Independently require a kernel-checked unfolding theorem with exactly the
-one-step equation reconstructed from the same built-in predefinition. -/
-private def unsafeRecEquationEvidence (env : Environment) (name : Name) :
-    CommandElabM (Option (Bool × Bool × Array Name)) := do
-  let some baseName := Lean.Compiler.isUnsafeRecName? name | return none
-  let some (_, levelParams, value, _) := recursionPredefinition? env baseName
-    | return none
-  liftTermElabM <| withoutModifyingEnv do
-    try
-      let some equationName ← Meta.getUnfoldEqnFor? baseName
-        | return some (false, false, #[])
-      let some equationInfo := (← getEnv).find? equationName
-        | return some (false, false, #[])
-      let expectedType ← Meta.lambdaTelescope value fun args body => do
-        let lhs := mkAppN (mkConst baseName (levelParams.map mkLevelParam)) args
-        let equality ← Meta.mkEq lhs body
-        Meta.letToHave (← Meta.mkForallFVars args equality)
-      let definitional ← Meta.isDefEq equationInfo.type expectedType
-      let axioms ← collectAxioms equationName
-      return some (equationInfo.type == expectedType, definitional, axioms)
-    catch _ =>
-      return some (false, false, #[])
-
-/-- Whether a helper's entire value is the pinned compiler transformation of
-the built-in structural/well-founded predefinition stored for its safe base. -/
-private def unsafeRecValueEvidence (env : Environment) (name : Name)
-    (info : ConstantInfo) : CommandElabM (Option (RecursionOrigin × Bool × Bool)) := do
-  let some baseName := Lean.Compiler.isUnsafeRecName? name | return none
-  let some (origin, expected) := unsafeRecExpected? env baseName | return none
-  let .defnInfo helper := info | return none
-  let definitional ← liftTermElabM <| Meta.isDefEq helper.value expected
-  return some (origin, helper.value == expected, definitional)
-
-/-- Exact Boolean expression asserted by a native-proof-shaped axiom. -/
-private def nativeBoolExpr? (type : Expr) : Option Expr := do
-  let args := type.getAppArgs
-  guard <| type.getAppFn.isConstOf ``Eq
-  guard <| args.size == 3
-  guard <| args[0]!.isConstOf ``Bool
-  guard <| args[2]!.isConstOf ``Bool.true
-  let decideExpr := args[1]!
-  guard <| decideExpr.getAppFn.isConstOf ``Decidable.decide
-  guard <| decideExpr.getAppArgs.size == 2
-  return decideExpr
-
-/-- Whether a declaration's entire proof is the exact native-decision bridge
-for `axiomName` and the same `decide` expression. -/
-private def isExactNativeUse (axiomName : Name) (decideExpr : Expr)
-    (info : ConstantInfo) : Bool :=
-  match valueOf? info with
-  | none => false
-  | some value =>
-      let args := value.getAppArgs
-      value.getAppFn.isConstOf ``of_decide_eq_true
-        && args.size == 3
-        && args[0]! == info.type
-        && args[2]!.isConst
-        && args[2]!.constName! == axiomName
-        && mkApp2 (mkConst ``Decidable.decide) args[0]! args[1]! == decideExpr
-
-/-- Independently replay the Boolean native evaluation without retaining any
-declaration it creates. This remains compiler evidence, never a kernel proof. -/
-private def replayNative? (type : Expr) : CommandElabM (Option Bool) := do
-  let some decideExpr := nativeBoolExpr? type | return none
-  try
-    let result ← liftTermElabM <| withoutModifyingEnv do
-      Meta.nativeEqTrue `audit_native_replay decideExpr
-    return some <| match result with
-      | .success _ => true
-      | .notTrue   => false
-  catch _ =>
-    return some false
-
-/-- Classify the terminal result after Lean reduction, including aliases of
-function types and universes. Runtime roots cannot return erased types. -/
-private def returnsSort (type : Expr) : MetaM Bool :=
-  Meta.withTransparency .all <|
-    Meta.forallTelescopeReducing type (fun _ body => pure body.isSort) (whnfType := true)
-
-/-- Recognize a closed proof-bearing requirement by its elaborated type. No
-annotation, theorem-name inventory, or proposition matcher supplies evidence:
-the `ExecutableContract` constructor requires the exact proposition in Lean.
-The promised implementation must be a constant, not a partial application or
-an existential proof. Its execution closure is inspected even if it is private.
--/
-private def executableContract? (env : Environment) (info : ConstantInfo) :
-    CommandElabM (Option StrictLean.Report.ExecutableContract) := do
-  if !#[DeclarationKind.definition, .theorem, .opaque].contains (kindOf info) then return none
-  liftTermElabM <| Meta.withTransparency .all <|
-    Meta.forallTelescopeReducing info.type (whnfType := true) fun parameters type => do
-    if !type.isAppOfArity ``StrictLean.ExecutableContract 3 then return none
-    let args := type.getAppArgs
-    let implementation := args[1]!
-    let requirement ← Meta.ppExpr (mkApp args[2]! implementation)
-    let root := implementation.constName?
-    let failure ← if !parameters.isEmpty then
-        pure <| some "registration must be closed; put the implementation's complete domain inside its predicate"
-      else match root with
-      | none => pure <| some "implementation must be a named constant with its complete domain"
-      | some name => do
-        let some target := env.find? name
-          | pure (some "implementation is missing from the environment")
-        if Lean.isNoncomputable env name then
-          pure <| some "promised implementation is noncomputable"
-        else if target.isUnsafe || target.isPartial then
-          pure <| some "promised implementation is unsafe or partial"
-        else if !(← Meta.isProp target.type) && (kindOf target == .definition || kindOf target == .opaque) then
-          let typeProducing ← returnsSort target.type
-          pure <| if typeProducing then some "promised implementation returns a type, not runtime data" else none
-        else pure <| some "promised implementation is not an executable data/function definition"
-    return some {
-      root := root.getD .anonymous
-      requirement := toString requirement
-      failure }
-
-/-- One typed record per audited declaration. -/
-private def declEntry (env : Environment) (name : Name) (info : ConstantInfo) :
-    CommandElabM StrictLean.Report.Declaration := do
-  let axioms ← collectAxioms name
-  let isProp ← liftTermElabM <| Meta.isProp info.type
-  let prettyType ← liftTermElabM do
-    return toString (← Meta.ppExpr info.type)
-  let ranges? ← findDeclarationRangesCore? name
-  let recursive ← liftTermElabM <| Meta.isRecursiveDefinition name
-  let unsafeRecValueEvidence? ← unsafeRecValueEvidence env name info
-  let unsafeRecEquationEvidence? ← unsafeRecEquationEvidence env name
-  let nativeReplay? ← replayNative? info.type
-  let nativeUseParents : Array Name :=
-    match nativeBoolExpr? info.type with
-    | none => #[]
-    | some decideExpr => env.constants.fold (init := #[]) fun parents parentName parentInfo =>
-        if isExactNativeUse name decideExpr parentInfo then
-          parents.push parentName
-        else parents
-  let levelParams : List Name := info.levelParams
-  let all : List Name :=
-    match info with
-    | .defnInfo value   => value.all
-    | .thmInfo value    => value.all
-    | .opaqueInfo value => value.all
-    | _                 => []
-  let hints : Option Reducibility :=
-    match info with
-    | .defnInfo value => some (hintsString value.hints)
-    | _               => none
-  let valueConstants : Array Name :=
-    match valueOf? info with
-    | some value => value.getUsedConstants
-    | none       => #[]
-  let some moduleIdx := env.getModuleIdxFor? name
-    | throwError "owned declaration {name} has no module index"
-  return {
-    name := name
-    «module» := env.header.modules[(moduleIdx : Nat)]!.module
-    kind := kindOf info
-    «type» := toString (repr info.type)
-    prettyType
-    isProp
-    isUnsafe := info.isUnsafe
-    isPartial := info.isPartial
-    safety := if info.isPartial then some .partial
-      else if info.isUnsafe then some .unsafe else none
-    «instance» := Lean.Meta.isInstanceCore env name
-    «noncomputable» := Lean.isNoncomputable env name
-    implementedBy := (Lean.Compiler.getImplementedBy? env name)
-    «extern» := Lean.isExtern env name
-    internal := name.isInternal
-    «private» := Lean.isPrivateName name
-    projection := env.isProjectionFn name
-    matcher := Lean.Meta.isMatcherCore env name
-    recursive
-    unsafeRecBase := (Lean.Compiler.isUnsafeRecName? name)
-    levelParams := levelParams.toArray
-    all := all.toArray
-    hints
-    valueConstants := StrictLeanPolicy.canonicalNames valueConstants
-    unsafeRecValueOrigin := unsafeRecValueEvidence?.map fun (origin, _, _) => origin
-    unsafeRecValueExact := unsafeRecValueEvidence?.map fun (_, exact, _) => exact
-    unsafeRecValueDefeq := unsafeRecValueEvidence?.map fun (_, _, value) => value
-    unsafeRecEquationExact := unsafeRecEquationEvidence?.map fun (exact, _, _) => exact
-    unsafeRecEquationDefeq := unsafeRecEquationEvidence?.map fun (_, value, _) => value
-    unsafeRecEquationAxioms := unsafeRecEquationEvidence?.map fun (_, _, values) =>
-      StrictLeanPolicy.canonicalNames values
-    nativeBoolShape := (nativeBoolExpr? info.type).isSome
-    nativeReplay := nativeReplay?
-    nativeUseParents
-    ranges := ranges?.map rangesReport
-    axioms := StrictLeanPolicy.canonicalNames axioms
-    executableContract := ← executableContract? env info
-  }
+/-- Compatibility name for the shared closed constant-kind mapping. -/
+abbrev kindOf := StrictLean.Collect.kindOf
 
 /-- Select the intersection of current kernel constants and Lean's exact
 import ownership map. For the imported environments used by admission and
@@ -532,12 +282,17 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
   let mut replacementEdges : Array (Name × Name) := #[]
   let mut compilerEdges : Array (Name × Name) := #[]
   let mut compiledNames : Std.HashSet Name := {}
-  -- Meta.mkProjections installs projection bodies without compiling standalone
-  -- IR; ToLCNF handles their uses directly. The identified brecOn helper also
-  -- has no standalone IR on this pin. Both retain full source/boundary coverage;
-  -- retained compiler edges still require actual IR.
+  -- Logical recursor machinery may be installed without standalone IR;
+  -- matcher/noConfusion/projection uses are handled directly by the compiler.
+  -- These tags relax only this initial IR obligation, never root membership,
+  -- body/boundary traversal, or the obligation for a retained compiler call.
+  -- This conservative account does not attest independent compilation of
+  -- every logical machinery root or authenticate its generation.
   if (Lean.Compiler.getImplementedBy? env root).isNone &&
       !Lean.Compiler.hasMacroInlineAttribute env root && !env.isProjectionFn root &&
+      !((Lean.IR.findEnvDecl env root).isNone &&
+        (Lean.isAuxRecursor env root || Lean.isNoConfusion env root ||
+          Lean.Meta.isMatcherCore env root)) &&
       !(recursorHelpers.contains root && (Lean.IR.findEnvDecl env root).isNone) then
     compiledNames := compiledNames.insert root
   let moduleOf (name : Name) : Option Name :=
@@ -668,10 +423,9 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
   return (boundaries, unresolved, StrictLeanPolicy.canonicalEdges compilerEdges)
 
 /-- Owned executable roots: computable, non-proposition, safe, non-partial,
-non-internal definitions and opaque constants, excluding compiler-generated
-eliminator and matcher machinery (reached through the authored roots that use
-it) and declarations whose result is a `Sort` (types are erased before
-execution, like propositions). -/
+non-internal definitions and opaque constants whose result is not a `Sort`
+(types are erased before execution, like propositions). Role metadata never
+removes an otherwise eligible root, including unused tagged declarations. -/
 private def executableRoots (env : Environment) (own : Array (Name × ConstantInfo)) :
     CommandElabM (Array Name) := do
   let mut roots : Array Name := #[]
@@ -680,10 +434,8 @@ private def executableRoots (env : Environment) (own : Array (Name × ConstantIn
     | .defnInfo _ | .opaqueInfo _ =>
         if name.isInternal || info.isUnsafe || info.isPartial
             || Lean.isNoncomputable env name then continue
-        if Lean.isAuxRecursor env name
-            || Lean.isNoConfusion env name || Lean.Meta.isMatcherCore env name then continue
         if ← liftTermElabM <| Meta.isProp info.type then continue
-        let typeProducing ← liftTermElabM <| returnsSort info.type
+        let typeProducing ← liftTermElabM <| StrictLean.Collect.returnsSort info.type
         if typeProducing then continue
         roots := roots.push name
     | _ => continue
@@ -712,7 +464,7 @@ def environmentReport (modules : List Name)
           StrictLean.Report.ModuleOrigin)
     else pure #[]
   let own ← ownedDecls env modules
-  let entries ← own.mapM fun (name, info) => declEntry env name info
+  let entries ← own.mapM fun (name, _) => StrictLean.Collect.declaration name .replayCandidate
   -- Documentation consumes only `declarations`; avoid constructing unused
   -- execution graphs. The full gate and all other callers retain them.
   let execution ← if includeExecution then do

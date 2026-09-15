@@ -1,5 +1,9 @@
-import StrictLeanPolicy.Identity
-import StrictLeanPolicy.Collections
+module
+
+public import StrictLeanPolicy.Identity
+public import StrictLeanPolicy.Collections
+
+@[expose] public section
 
 /-! Closed policy vocabulary and observation data. No operational Lean imports.
 Canonical representation is informed by con-leche PropWhen; these are original domain
@@ -494,8 +498,10 @@ def BoundaryEvidence.nativeOrigin? {k : BoundaryKind} (e : BoundaryEvidence k) :
   | .nativeRuntime, .trusted _ origin => some origin
   | _, _ => none
 
-/-- Operational/wire observations must be admitted through the indexed evidence type. -/
-private def boundaryEvidenceCandidate (kind : BoundaryKind) (state : Correspondence)
+/-- Raw candidate construction may discard incompatible observation fields.
+Operational/wire callers requiring field preservation must use `admitBoundaryEvidence`.
+A candidate is an indexed value, not a receipt for the supplied raw fields. -/
+def boundaryEvidenceCandidate (kind : BoundaryKind) (state : Correspondence)
     (detail : Option String) (origin : Option NativeOrigin) : Except String (BoundaryEvidence kind) :=
   match state with
   | .unresolved => .ok (.unresolved detail)

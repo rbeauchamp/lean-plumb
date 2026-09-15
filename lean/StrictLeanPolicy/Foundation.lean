@@ -1,4 +1,8 @@
-import StrictLeanPolicy.Admission
+module
+
+public import StrictLeanPolicy.Admission
+
+@[expose] public section
 
 /-! Independent finite foundation predicates. Profiles are bounds on exact transitive
 axiom membership, not claims about alternative proofs or native execution. -/

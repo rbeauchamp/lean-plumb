@@ -1,4 +1,8 @@
-import StrictLeanPolicy.Domain
+module
+
+public import StrictLeanPolicy.Domain
+
+@[expose] public section
 
 /-! Pure tagged wire trees. The laws concern these exact encoders and decoders;
 JSON text parsing, UTF-8 transport, and producer authenticity remain operational

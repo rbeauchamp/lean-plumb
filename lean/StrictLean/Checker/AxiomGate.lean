@@ -294,8 +294,10 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
     let inspected ← IO.ofExcept outcome
     let { info, report, transcripts, frontendFailures } := inspected
     let forcedNameCodec ← Environment.forcedStructuralName report
+    let forcedCollector ← Environment.forcedCollectorOnly report
     let envModules := report.modules.filter
-      (fun n => !(Environment.probeModuleNames.map String.toName).contains n && n != forcedNameCodec)
+      (fun n => !(Environment.probeModuleNames.map String.toName).contains n &&
+        n != forcedNameCodec && some n != forcedCollector)
     for moduleName in info.modules do
       if !envModules.contains moduleName then
         failures := failures.push s!"surface-omission: Lake module {moduleName} was not elaborated"

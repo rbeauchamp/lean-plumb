@@ -1,5 +1,9 @@
-import Std.Data.ExtTreeSet
-import Std.Data.ExtTreeMap
+module
+
+public import Std.Data.ExtTreeSet
+public import Std.Data.ExtTreeMap
+
+@[expose] public section
 
 /-! Canonical finite sets reuse Std's extensional ordered trees. Tree balancing is
 not observable equality. Sorted serialization, membership, normalization and equality

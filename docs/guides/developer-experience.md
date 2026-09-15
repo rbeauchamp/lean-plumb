@@ -56,29 +56,14 @@ from the Strict Lean driver. #14 qualifies the recipe; upstream lint results rem
 attributed to their producer and do not substitute for Strict Lean's scope. See the
 [pinned Mathlib configuration][mathlib-lake].
 
-### Public import boundary: required migration
+### Public import boundary
 
-The current `Diagnostic` imports `StrictLean.Report`. The current coverage guard rejects
-non-probe modules importing `Report`, `Probe` or `NameCodec`, including through dependencies.
-Thus simply importing today's canonical diagnostics into the future `StrictLean.Linter`
-would conflict with the existing contamination boundary. This is a source-identified design
-constraint, not an observed failure of an adapter that has not shipped.
-
-#5/#13 must move reusable neutral source/range and name-codec definitions to public modules
-with no transitive dependency on force-import-only probe modules; reuse the existing definitions
-and checked laws, with compatibility re-exports for operational callers. Move
-`sourceFromReport` and other Report-specific adaptation to the checker-side adapter if needed.
-The public diagnostic/collector interface imports only the neutral data, policy domain and
-supported Lean APIs. Keep trusted source/history extraction and probe loading isolated.
-Do not add the entire public linter to the probe exemption or relax coverage to hide the
-cycle. This is an import-graph refactoring, not a second representation or checker.
-
-#13/#14 must qualify an ordinary positive adopter importing the actual `StrictLean.Linter`,
-including its full transitive closure, while retaining the existing forbidden probe/report
-import negative. If a narrowly scoped internal exemption must change after moving code,
-justify it from the actual module roles and requalify the affected guard. These are required
-implementation gates before advertising the import. The registry predicates and transport
-meaning remain unchanged. [Diagnostic dependency][diagnostic-source], [coverage guard][guard-source].
+The neutral `Diagnostic`, `StructuralName`, `Findings`, `Collect` and native
+`Linter` imports use the shared policy domain and supported Lean APIs without
+transitively importing force-import-only `Report`/`Probe`. Operational callers
+retain compatibility adapters. The contamination guard remains in force.
+See [native-linter.md](native-linter.md) for the delivered local scope and its
+qualification; the driver and editor-widget requirements below remain #14.
 
 ## Diagnostic contract
 

@@ -28,9 +28,10 @@ standard_verify_checks() {
       # The declaration gate owns fresh claimed-source elaboration.
       lake build StrictLeanPolicy axiomGate docFenceAudit \
         +StrictLean.Checker.CheckerSelftest:olean +StrictLean.Checker.FreshChecker:olean \
-        +StrictLean.RegistryChecks:olean
+        +StrictLean.RegistryChecks:olean +StrictLean.Linter:olean
       lake env lean --run lean/StrictLean/RegistryChecks.lean
       python3 scripts/registry_cli_checks.py
+      python3 scripts/native_linter_checks.py
       lake exe axiomGate --with-docs --legacy-json-out tmp/axiom-report.json
       echo "local verification: PASS (complete ordinary conformance commands)"
       ;;

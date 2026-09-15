@@ -1,3 +1,7 @@
+module
+
+
+@[expose] public section
 /-!
 Proof requirements for a named executable definition. `ExecutableContract f R`
 requires a proof of `R f`; it does not infer whether `R` expresses the intended

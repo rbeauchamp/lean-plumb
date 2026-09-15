@@ -100,7 +100,16 @@ private def source : String :=
   "  StrictLean.RegistryCodec.name_roundtrip n\n" ++
   "abbrev Pretend.brecOn.go : PProd Nat Nat := ⟨0, 0⟩\n" ++
   "abbrev Pretend.brecOn : Nat := Pretend.brecOn.go.1\n" ++
-  "run_cmd Lean.modifyEnv fun env => Lean.markAuxRecursor env `Pretend.brecOn\n"
+  "run_cmd Lean.modifyEnv fun env => Lean.markAuxRecursor env `Pretend.brecOn\n" ++
+  "def ordinaryUnused : Nat := 0\n" ++
+  "def auxUnused : Nat := 0\n" ++
+  "def confusionUnused : Nat := 0\n" ++
+  "def match_unused : Nat := 0\n" ++
+  "run_cmd Lean.modifyEnv fun env => Lean.markAuxRecursor env `auxUnused\n" ++
+  "run_cmd Lean.modifyEnv fun env => Lean.markNoConfusion env `confusionUnused (.regular 0 0 0)\n" ++
+  "run_cmd Lean.Meta.Match.addMatcherInfo `match_unused default\n" ++
+  "run_cmd Lean.Elab.Command.liftCoreM <| Lean.addDecl (.defnDecl { name := `auxUncompiled, levelParams := [], type := Lean.mkConst ``Nat, value := Lean.mkNatLit 0, hints := .abbrev, safety := .safe })\n" ++
+  "run_cmd Lean.modifyEnv fun env => Lean.markAuxRecursor env `auxUncompiled\n"
 
 private def setup (repo adopter : FilePath) : IO Unit := do
   IO.FS.createDirAll adopter
@@ -138,7 +147,13 @@ def publicPaths (repo scratch : FilePath) : IO (Array String) := do
     ("forged-helper", source.replace "abbrev Pretend.brecOn.go"
       "@[extern \"policy_forgery\"] abbrev Pretend.brecOn.go", #["execution-trusted-boundary", "Pretend.brecOn.go"]),
     ("generated-helper-runtime-change", source ++ "attribute [extern \"policy_recursion\"] Branch.brecOn.go\n",
-      #["execution-trusted-boundary", "Branch.brecOn.go"])]
+      #["execution-trusted-boundary", "Branch.brecOn.go"]),
+    ("tagged-root-placeholder", source ++
+      "run_cmd Lean.modifyEnv fun env => Lean.IR.declMapExt.addEntry env (.extern `auxUncompiled #[] .object default)\n",
+      #["execution-unresolved", "auxUncompiled", "opaque export placeholder"])] ++
+    #["ordinaryUnused", "auxUnused", "confusionUnused", "match_unused"].map (fun name =>
+      (s!"unused-root-{name}", source.replace s!"def {name} : Nat" s!"@[extern \"unused_root_boundary\"] def {name} : Nat",
+        #["execution-trusted-boundary", name]))
   IO.FS.writeFile (adopter / "PublicApi.lean") source
   let positive ← invoke
   unless positive.succeeded do
@@ -171,4 +186,19 @@ def publicPaths (repo scratch : FilePath) : IO (Array String) := do
   let restored ← invokeFile
   unless restored.succeeded do failures := failures.push s!"warning-restored: {restored.output}"
   return failures
+/-- Qualify the actual production import through the unchanged public project gate.
+The preceding domain campaign owns forbidden-import and execution mutations. -/
+def nativeImport (repo scratch : FilePath) : IO (Array String) := do
+  let adopter := scratch / "adopter"
+  setup repo adopter
+  let nativeSource := "import StrictLean.Linter\n" ++ source.replace "import Lean\n"
+    "import Lean\n/-! Native linter adopter with retained execution controls. -/\n"
+  IO.FS.writeFile (adopter / "PublicApi.lean") nativeSource
+  let result ← runProcess adopter (repo / ".lake" / "build" / "bin" / "axiomGate").toString
+    #["--project", adopter.toString] scrubbedLeanPathEnv
+  if result.succeeded then
+    IO.println "native public adopter: PASS"
+    return #[]
+  return #[s!"native public adopter: {result.output}"]
+
 end StrictLean.Checker.PolicyQualification
