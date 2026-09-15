@@ -1,107 +1,121 @@
 # Session context: Strict Lean Project 8
 
 **Date:** 2026-09-15
-**DESIGN-01 starting basis:** public `main`, `79851f567ac8c1000575b707630e7ea593bfccb0` (CATALOG-01 PR #19).
-**Persistence / resume authority:** this handoff accompanies the DESIGN-01 delivery PR. Resume from the resulting public `main` after that PR merges; the starting basis above is not the eventual handoff HEAD.
-**Working root:** `/Users/richard/Developer/github/strict-lean`.
-**Repository:** `origin` is now `https://github.com/rbeauchamp/strict-lean.git`.
-**Resume focus after this delivery merges:** [#5 policy-domain types](https://github.com/rbeauchamp/strict-lean/issues/5). #5–#7 implement the POLICY-01 policy types, proofs and complete-result integration; #13 also requires #5.
+**Source branch / starting basis:** clean `main` / `a1061fe1d5cc0d2eb6c6dd8041263897dfad9e4c` (PR #28).
+**Persistence / expected resume authority:** at writing, the two handoff files are pending on `codex/save-project-session`; the requested persistence path is one commit, push and reviewed PR merge. Resume from the resulting updated `origin/main`; the starting basis above is not the eventual handoff HEAD. Verify the handoff PR is integrated before proceeding.
+**Working root:** `/Users/richard/Developer/github/strict-lean`; origin `https://github.com/rbeauchamp/strict-lean.git`.
+**Owned surface:** only the two rolling session files for this PR; Project 8's existing overview/plan is reconciled separately. No unfinished implementation or owned feature branch remains from PR #28.
+**Active focus:** complete #13, then work the remaining issues one by one until the project is complete.
 
-## Plan and completed work
+## Active plan and resume point
 
-[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full live issue bodies are authoritative. Native dependencies govern prerequisites. #5 follows #4, #12 and #20 and is next in project order after this delivery. Optional #8/#9 never replace the core unit. Verify the completing POLICY-01, CATALOG-01 and DESIGN-01 PRs are integrated with passing checks/reviews before beginning #5.
+[Project 8's overview and execution plan](https://github.com/users/rbeauchamp/projects/8),
+the [full live #13](https://github.com/rbeauchamp/strict-lean/issues/13) and native dependencies
+are authoritative. There is no separate local `plans/` system. The overview now includes
+an **Immediate execution plan**; use it rather than resurrecting the old #5 handoff.
 
-POLICY-01 supplies `docs/guides/policy-acceptance.md`: actual success/data flow, independent claim/census/job coverage, noncircular policy predicates, pure `StrictLeanPolicy` library plan, typed role/codec boundaries and successor assignments. Independent semantic and source-flow reviews passed after repairs for documentation presence, policy-negative website examples and FreshChecker plan-only completion. New theorems remain planned; no whole-checker/runtime proof is claimed. Successor handoffs are copied to issue bodies before integration. Read the completing PR for final CI/review evidence.
+#13 remains **In Progress**. Its prerequisites #5/#12/#25 are complete. The concrete resume
+point is `Probe.executionWalk`'s reached-node/edge account: distinguish retained IR calls
+from conservative logical/candidate/history edges, preserve unresolved paths and exact roots,
+and connect the actual producer to the existing policy census/observation interfaces.
+The plan owns subsequent steps and gates. Do not advance to #7 because a partial #13 PR merged.
 
-PR #17 was a handoff-only change. Its negated closing phrase accidentally triggered issue #4 closure; the user authorized reopening and actual delivery. Avoid closing keywords next to issue references unless automatic closure is intended. PRODUCT-01 remains delivered through PR #16, source `e5bc6267fa44d03a174c10ba3711e9c32545dff2`, merge `6e3c68c2b93bfa874b5deb9e956befd366a2de0a`.
+## Accomplished and reusable evidence
 
-Maintained sources of technical decisions:
+- Product/design/registry #11/#4/#12/#20, domain #5, policy proofs #6 and native feedback #25
+  are delivered. The implemented contracts are in the guides below; their live issue/PR state
+  takes precedence over historical session text.
+- [PR #27](https://github.com/rbeauchamp/strict-lean/pull/27) adds declaration/execution census,
+  completed replay receipts and mandatory project SL5001/SL5002 documentation observations.
+- [PR #28](https://github.com/rbeauchamp/strict-lean/pull/28) adds root/module history requests
+  recorded before lookup, exact source-bound overwritten replacement histories or explicit
+  unavailability, and producer/decoder reconciliation. Source `785eea7232487233dda60bf984daad7c496c9bbb`;
+  signed merge is the starting basis above. [Exact-head CI](https://github.com/rbeauchamp/strict-lean/actions/runs/35018300753)
+  passed. Local acceptance: **241.00s**; combined producer qualification: **187.02s**.
+- The latest acceptance used Lean **4.33.1**, compiler `819816b2e0a3bf405af45ae5c7af2491d8f5bee6`,
+  Mathlib `0df444a360eaa60ab8c11dca51a86af692955474`: **29 modules / 4041 declarations**, all
+  94 documentation fences, registry/CLI and 36 native controls. Exact lists/counts/axiom unions,
+  input hashes, qualification and scope limits are in the [history verification record](evidence/issue-13-history-verification.md).
+- Fresh independent production and evidence reviews were clean after repairing the new
+  mutation assertions to require each exact diagnostic. PR #28's local/remote branch and
+  owned scratch were removed. The original ignored `tmp/axiom-report.json` was restored.
+- #7/#10/#13/#14/#15 contain verified producer handoffs and remain open. #7 retains global
+  jobs/Accepted; #14 actual Lake/editor journeys; #15 the complete website. The plan specifies
+  serial delivery and disposition of optional #8/#9 under their existing criteria.
 
-- [Linter architecture](../docs/guides/linter-architecture.md): typed registry/diagnostics, native integration, modes, trust boundaries, versioned links, selected Verso stack and delivery phases.
-- [Policy acceptance](../docs/guides/policy-acceptance.md): exact planned predicates, identities, trust boundary, mandatory stages and migration.
-- [Rule coverage](../docs/guides/rule-coverage.md): all 20 selected diagnostics, nine residual obligations and reconciliation of all 53 compliance rows.
-- [Prototype instructions](../examples/rule-reference-prototype/README.md): actual commands, pinned dependencies, bounded experiment, evidence and limitations.
-- [Original research archive, issue #3](https://github.com/rbeauchamp/strict-lean/issues/3): full original con-leche/con-ron report, retained as historical reference with current scope overriding obsolete recommendations.
+## Decisions, rejected approaches and unresolved limits
 
-PRODUCT-01 evidence: two independent fresh-context scoped reviews clean; focused successor handoff review clean after adding missing reproduction commands/evidence. Local ordinary acceptance passed within the enforced 420-second deadline (12 owned modules, 510 declarations, Audit/AuditApp Standard-Logical profiles, 70 positive examples, 23 intended negative failures, one trusted classification). Tool/fixture exclusions remain explicit. One-rule prototype and exact-head CI passed. This is scoped evidence, not full-linter completion or universal metaprogram correctness. No implementation changes occurred after the reviewed head before merge.
+The [engine producer guide](../docs/guides/engine-producers.md) owns the settled APIs and
+remaining producer work. Reuse `Report.Collected`, `Checker.ProducerReport.Environment`,
+`Admission.validate`, shared `Collect`, native documentation observers and the typed policy core.
+Pure policy proofs establish properties of admitted observations; they do not authenticate
+external extraction, serialized source claims, runtime behavior or complete operational assembly.
 
-## Consolidation and local preservation
+- New transport validators initially placed in force-loaded `Report` caused PR #27's first
+  ordinary run to hit 420s. Moving them to `Checker.ProducerReport` preserved the guards and
+  allowed a complete passing run. Keep operational validation outside repeated reporter replay;
+  never relax the deadline or use separately run inner checks as acceptance.
+- Preserve unique result paths and exact source checks. Prior harness output reuse could admit
+  stale results; mutation checks accepting any history error could accept the wrong reason.
+  Both are repaired. Negative controls need the intended reason and a fresh restored positive.
+- Older structural-campaign manifests omit classification of the newer `StrictLeanPolicy`
+  root. Simply excluding it conflicts with forced policy imports. This setup needs reconciliation;
+  the broad structural campaign is **unrun/not PASS**. Neutral docs were restored around older
+  axiom controls so missing documentation does not become a second defect.
+- The current history account is on-demand and source-bound, not the complete reached-node/edge
+  census. Before/after equality does not establish absence of transient source changes.
+  The checker Producer revision identifies its last elaboration, not authenticated whole-binary
+  source identity. #13/#7 must complete the remaining source/snapshot/claim linkage.
+- Only SL5001/SL5002 currently have source-owned pairs under `examples/rules/`; #13 still owes
+  eighteen pairs and exact policy-example outcome integration. A compiler failure or incomplete
+  worker cannot stand in for the intended completed policy rejection.
+- Lean native hooks/current-module collection are implemented (#25); the old imported-only
+  prototype limitation is superseded. Full editor journeys still require actual supported
+  VS Code/infoview evidence (#14). Browser evidence does not establish editor behavior.
+- Con-ron remains excluded. Con-leche informs canonical/indexed design, with no imported
+  code/proofs or checker invocation. No universal con-leche branding. Ruff, Pyrefly and CA1416
+  are illustrative design references, not exact-copy instructions.
+- Pinned Verso/GitHub Pages remains selected; no Wiki or Docusaurus replacement is needed.
+  Docs Lean 4.33.0/Verso and checker/examples Lean 4.33.1 stay separate. The full public rule
+  website is still #15; the one-rule prototype is not its completion.
 
-The root previously pointed to `strict-lean-preparation` at `9671c9678b724f2214400ca9d3122d601beb6957`. The public delivery lived in `tmp/issue11-delivery`. All tracked delivery docs/code were already integrated in public main, so switching root to public main brought them in without manual copying.
+## Standing user directives and preservation
 
-Preparation PR #1 remains open remotely; it was not closed, merged or deleted during consolidation. Its head `b35921dc587869c4baae36afdd0b3b3dde1fca3f` and old main are preserved in local `archive/preparation-pr-1` / `archive/preparation-main` branches and a verified complete `.local-state/session-2026-09-14/preparation.bundle`. Comparison found no unique Lean implementation or scripts to port from that PR (only later public additions, documentation and CI changes).
+- “we will work each issue, one by one, until the project is complete.” Complete the current
+  issue's ACs, verification, review, integration and live reconciliation before selecting the next.
+  The save/merge request ends after persistence; the next work session resumes the execution plan.
+- “leverage and re-use as much as we practically can and should rather than re-build it ourselves”;
+  distinguish intended reusable APIs from specialized internal implementations.
+- “An ounce of math is worth a pound of computation.” Preserve exact quantifiers, foundation
+  sets, implementation linkage and trust boundaries. Follow AGENTS.md for proof-first choices.
+- “Preserve public repository’s 420 seconds.” Ordinary `./scripts/verify.sh` has no override,
+  partition or grace period. Focused diagnostics remain separate; never label an unrun campaign PASS.
+- Keep all standard obligations accounted for: mechanically enforced predicates, required proof
+  evidence or explicit residual semantic review. Natural-language MUST/SHOULD is not automatically
+  an implemented detector. Registration completeness and specification adequacy remain review.
+- Use closing syntax only for a genuinely completing PR. A negated closing phrase previously
+  auto-closed #4; use `References #13` for partials and verify `closingIssuesReferences`.
+- Standing PR/push/merge authorization applies with checks, independent review and protections.
+  No release, visibility change, paid hosting, custom domain or Lean fork is authorized here.
+- Preserve unrelated ignored reports, `.lake/packages`, `.lavish/`, `.local-state/` and archive
+  branches. The old preparation repository is not the push target. Historical preparation data
+  may exist in `.local-state/session-2026-09-14/`; it is not needed to resume and is not publication
+  input. Do not delete or publish it. No other task owns these session files at save time.
 
-The clean delivery, Verso and Verso-template temporary clones were removed after preserving evidence. Root `.lake/packages` was the shared dependency target and was retained; the documentation dependency cache was moved into the root prototype's ignored site cache. Generated outputs and former build caches are not new verification evidence for changed inputs.
+## Key files and immediate action
 
-Local-only `.local-state/session-2026-09-14/` contains copied issue/project snapshots, acceptance log, prototype evidence/rendered output, review record, preparation bundle and a snapshot of `.lavish/`. Original `.lavish/con-leche-con-ron.md`, HTML, sources and project JSON remain at root. Original `tmp/axiom-report.json` and `tmp/detailed-report.json` were preserved. These local archives are not required to implement #5; its full live issue and maintained repository guides are authoritative. No unrelated artifacts belong in the handoff commit. Local research/archives are excluded using `.git/info/exclude`, not deleted or published.
+1. Refresh the resulting main and read AGENTS.md, Project 8's **Immediate execution plan**, full
+   #13 and its live blockers. Inspect `lean/StrictLean/Probe.lean` (`executionWalk`),
+   `lean/StrictLean/Checker/{Environment,ProducerReport}.lean`, and
+   `lean/StrictLeanPolicy/{Plan,Observation,Execution}.lean` against that plan.
+2. Read the [producer contract](../docs/guides/engine-producers.md),
+   [policy acceptance](../docs/guides/policy-acceptance.md),
+   [policy proofs](../docs/guides/policy-proofs.md), [coverage map](../docs/guides/rule-coverage.md)
+   and complete affected normative modules before implementation. Architecture, ecosystem-design,
+   developer-experience and design-influences guides retain settled product decisions.
+3. Implement the next #13 producer work through the actual execution path. Use the repository
+   [review skill](../.agents/skills/pr-review-toolkit/SKILL.md), scoped diagnostics and ordinary
+   acceptance; merge only after exact-head CI. Continue within #13 until its ACs are satisfied,
+   then follow the plan's serial issue order.
 
-## Ruled out and still unresolved
-
-- Con-ron is excluded by the user; no Rust/Aeneas/Charon integration or automatic later phase.
-- The product must be an actual Lean-native strict linter and linked website, not only prose and examples. Do not duplicate already-correct detectors or build a separate Lean parser.
-- GitHub Pages from this repository and pinned Verso were selected. The bounded experiment succeeded; Docusaurus fallback is unnecessary, and no GitHub Wiki/manual site catalog should be introduced.
-- Documentation Lean 4.33.0 and checker/example Lean 4.33.1 are deliberately separate. Exact checked fixture source is initially rendered as text; rendering does not recheck examples under the documentation semantics.
-- `Probe.ownedConstants` inventories imported modules, not live current-document declarations. Production collection/scheduling remains #13. The retained prototype uses an explicit imported-module trigger.
-- Lean's built-in named-error widget hardcodes Lean manual URLs; unsupported LSP `codeDescription` is not an available shortcut. The package widget compiles/registers and the textual URL is verified. Actual VS Code infoview interaction remains #14. Browser keyboard activation succeeded; Chrome CLI bridge startup and hidden-tab mouse actions failed. Browser evidence must not be relabeled editor evidence.
-- No public rule website was deployed. Production Pages integration remains #15, integrated adopter experience #10. Optional con-leche external checking (#8/#9) does not gate core delivery.
-
-## Standing user constraints
-
-- “Preserve public repository’s 420 seconds.” This overrides stale supplied 360-second instructions for ordinary `./scripts/verify.sh`; no overrides, partitioning or grace periods. Website checks have a separate named budget.
-- The 2026-09-15 attribution clarification supersedes blanket con-leche credit requirements. Preserve specific registry/policy design citations and actual adapted-code notices; unrelated issues/deliverables need no con-leche mention. See `docs/guides/design-influences.md`. Core issues use linter/policy terminology; #8/#9 remain optional con-leche research, and #3 is linked historical background outside the project board.
-- “as you proceed through the project, update its status and the issue statuses and dependencies as needed.” Keep successor bodies self-contained; copy newly settled requirements before unblocking successors. Done requires integrated acceptance, not a plan or partial PR.
-- “An ounce of math is worth a pound of computation.” Prefer invariant-preserving types/construction and proofs about executing definitions. Distinguish mathematical, machine-checked, observed, assumed and unresolved claims. Do not replace admission/qualification controls without accounting for their purpose.
-- Standing authorization permits requested PR publication and merge after applicable checks/review and exact-head CI, without repeated approval. Preserve unrelated work and protections. No software release, visibility change, custom domain, paid service, or Lean fork is authorized by this handoff.
-
-## CATALOG-01 delivery and evidence
-
-The completing delivery supplies one closed twenty-rule registry, indexed diagnostics with validated source ranges and structural Lean names, schema-1 registry/result codecs, native/text/JSON consumers, website artifact validation and a migrated real prototype. `docs/guides/rule-registry.md` is the maintained API/migration contract; successor issue bodies receive its settled interface before integration. `--json-out` is the versioned result; `--legacy-json-out` preserves the old export. Full declaration/execution inventories remain in new results. `completed` describes the existing mechanical observation, not POLICY-01's future `Accepted` result or full semantic conformance.
-
-Three independent fresh-context reviews covered registry/proofs, executing integration and delivery/adopter boundaries; focused repair reviews were clean. Nine public theorem dependencies were checked: two axiom-free, three using only `propext`, route injectivity using `propext` and `Quot.sound`, and rule/structural-name codec proofs within Standard-Logical. Operational controls are distinct from those universal theorems.
-
-Final local ordinary acceptance passed in 84.26 seconds under the hard 420-second deadline: Lean 4.33.1, Mathlib `0df444a360eaa60ab8c11dca51a86af692955474`, Audit/AuditApp, 12 owned modules, 510 declarations, 70 positive examples, 23 intended negative examples and one trusted example. Registry and malformed-CLI controls passed. The migrated prototype passed in 28.74 seconds; documentation remains pinned to Lean 4.33.0/Verso. A separate non-Git adopter rebuilt the checker and exercised positive/negative file results and incremental project results, including checker-source revision identity. Exact-head CI and integration are recorded on the completing PR; verify them live. Optional long diagnostic campaigns were not rerun or claimed PASS. Production collection/editor UX, policy `Accepted` proofs and website deployment remain successor work.
-
-## DESIGN-01 research delivery
-
-Issue #20 added comparative ecosystem research and a concrete developer-experience contract.
-Read `docs/guides/ecosystem-design.md` and `docs/guides/developer-experience.md` with the
-maintained architecture. Lean already has native linters; the design combines local hooks,
-semantic environment inspection and a Lake project driver, using the existing language
-server/infoview. CA1416, Ruff and Pyrefly are illustrative references, alongside Clippy,
-ESLint, HLint/HLS and Lean/Batteries/Mathlib; none is an exact-copy requirement.
-
-Retain the twenty rules, pure policy/registry boundaries and Verso. New decisions cover
-explicit configuration explanation, Mathlib-driver coexistence, scope-correct Lake arguments,
-concise human rendering with lossless evidence, stale/pending feedback, searchable accessible
-rule pages and no initial automatic source rewriting. Reuse established definitions and their
-proofs where semantics match; use intended extension APIs and qualify any specialized internal
-adapter. Move existing neutral diagnostic definitions out of the probe-only import chain before
-public editor reuse, preserving the probe contamination guard. The guides distinguish source evidence,
-the observed pinned API check, design inference and unverified production/user behavior.
-Successor issue bodies receive settled decisions before integration; verify #20's completing
-PR/reviews/CI and closure live before starting #5. No full-user study or new latency guarantee
-is claimed. The ordinary 420-second deadline remains unchanged.
-
-## Immediate next action and evidence gate
-
-1. Verify origin, checkout/current main and worktree ownership. Read the full live #5 and its
-   native blockers #4/#12/#20; confirm their completing PRs are integrated. Read AGENTS and
-   maintained architecture, ecosystem-design, developer-experience, registry, coverage and
-   policy-acceptance guides.
-2. Implement #5's exact pure policy-domain contract on a scoped `codex/` branch. Keep diagnostic
-   IDs separate from policy categories; preserve claim/snapshot/configuration origins without
-   admitting presentation or configuration-query completion as policy authority.
-3. Preserve full POLICY-01 predicates and the intentional fresh-file warning change. Empty
-   diagnostics, worker/plan-only completion and a clean buffer never establish project acceptance.
-4. Complete independent review, applicable proof/compiler checks, hard 420-second acceptance
-   and exact-head CI; integrate and reconcile successors and Project 8. Stop after #5 unless
-   scope is expanded.
-
-**Mission-leverage card:** N/A; no separate card or active goal object is used.
-
-## Attribution clarification after DESIGN-01
-
-DESIGN-01 is integrated through PR #21, merge `b43553693f16c061e2e9214116339304c7f93ae0`.
-The attribution follow-up narrows project labeling and blanket credit requirements, preserving
-specific design precedents and optional #8/#9 research. It changes no linter semantics or
-proof guarantees. #5 remains next; verify this follow-up is integrated before resuming.
+**Mission-leverage card / active goal object:** N/A; neither is used by this project.
