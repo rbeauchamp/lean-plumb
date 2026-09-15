@@ -1,21 +1,24 @@
 # Session context: Strict Lean Project 8
 
 **Date:** 2026-09-14
-**Starting basis:** public `main`, `6e3c68c2b93bfa874b5deb9e956befd366a2de0a` (PRODUCT-01 merge).
+**Starting basis for CL-01:** public `main`, `afdc67fe343cbb244fbd788af36173614ca6fa87` (consolidation handoff PR #17).
 **Persistence / resume authority:** this handoff is committed and pushed through a separate PR. Resume from the resulting public `main` after that PR merges; the starting basis above is not the eventual handoff HEAD.
 **Working root:** `/Users/richard/Developer/github/strict-lean`.
 **Repository:** `origin` is now `https://github.com/rbeauchamp/strict-lean.git`.
-**Active focus:** next project-order unit is [#4 policy contract](https://github.com/rbeauchamp/strict-lean/issues/4), a source-grounded research/design deliverable, not implementation of all later policy proofs.
+**Resume focus after this delivery merges:** [#12 typed registry and diagnostics](https://github.com/rbeauchamp/strict-lean/issues/12). CL-01 delivers a design; #5–#7 still implement its policy types, proofs and complete-result integration.
 
 ## Plan and completed work
 
-[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full bodies of its open issues are the active plan. Native dependencies govern prerequisites; execution order selects #4 next. #12 is independently ready and optional #8 is unblocked, but neither replaces the immediate unit. Project overview and successor bodies were reconciled before #11 closed. No separate local planning system is needed.
+[Project 8](https://github.com/users/rbeauchamp/projects/8) and the full live issue bodies are authoritative. Native dependencies govern prerequisites. #12 follows #11 and is next in project order; #5 still depends on both #4 and #12. Optional #8/#9 never replace the core unit. Stop if the completing CL-01 PR is not integrated or its checks/reviews remain incomplete.
 
-[#11](https://github.com/rbeauchamp/strict-lean/issues/11) was completed by [PR #16](https://github.com/rbeauchamp/strict-lean/pull/16), reviewed source `e5bc6267fa44d03a174c10ba3711e9c32545dff2`, squash merge equal to the starting basis. Issue is Closed and project item Done. Project stays open. At handoff cold review, live #4 is In Progress (changed since the earlier Todo snapshot); no #4 implementation or completion is claimed by this session. Preserve that status and check current task/worktree ownership before resuming, rather than assuming work is unstarted. All 17 native dependency edges were verified. Nine successor bodies (#4–#7, #10, #12–#15) contain the complete selected architecture, 20-rule inventory, nine residual obligations, commands and evidence. Optional #8/#9 scope is unchanged.
+CL-01 supplies `docs/guides/policy-acceptance.md`: actual success/data flow, independent claim/census/job coverage, noncircular policy predicates, pure `StrictLeanPolicy` library plan, typed role/codec boundaries and successor assignments. Independent semantic and source-flow reviews passed after repairs for documentation presence, policy-negative website examples and FreshChecker plan-only completion. New theorems remain planned; no whole-checker/runtime proof is claimed. Successor handoffs are copied to issue bodies before integration. Read the completing PR for final CI/review evidence.
+
+PR #17 was a handoff-only change. Its negated closing phrase accidentally triggered issue #4 closure; the user authorized reopening and actual delivery. Avoid closing keywords next to issue references unless automatic closure is intended. PRODUCT-01 remains delivered through PR #16, source `e5bc6267fa44d03a174c10ba3711e9c32545dff2`, merge `6e3c68c2b93bfa874b5deb9e956befd366a2de0a`.
 
 Maintained sources of technical decisions:
 
 - [Linter architecture](../docs/guides/linter-architecture.md): typed registry/diagnostics, native integration, modes, trust boundaries, versioned links, selected Verso stack and delivery phases.
+- [Policy acceptance](../docs/guides/policy-acceptance.md): exact planned predicates, identities, trust boundary, mandatory stages and migration.
 - [Rule coverage](../docs/guides/rule-coverage.md): all 20 selected diagnostics, nine residual obligations and reconciliation of all 53 compliance rows.
 - [Prototype instructions](../examples/rule-reference-prototype/README.md): actual commands, pinned dependencies, bounded experiment, evidence and limitations.
 - [Original research archive, issue #3](https://github.com/rbeauchamp/strict-lean/issues/3): full original con-leche/con-ron report, retained as historical reference with current scope overriding obsolete recommendations.
@@ -52,8 +55,9 @@ Local-only `.local-state/session-2026-09-14/` contains copied issue/project snap
 
 ## Immediate next action and evidence gate
 
-1. From this root, check clean status, origin and current main; fetch current target main and read the full live #4 body plus its native blockers. Confirm #11 remains closed. Read AGENTS.md, the architecture and coverage guides. Check whether an existing task/worktree already owns #4, which is currently In Progress; coordinate or resume that work rather than duplicating it. Use a `codex/` branch.
-2. Execute #4's first task: inventory actual data/call flow through discovery, classification, fresh admission, ownership, generated-role authentication, execution closure, workers/JSON, fence/file/build modes, and final acceptance branches. Establish independently specified policy/completeness predicates and their linkage to actual runtime call sites. Resolve unknown/empty/duplicate identities and pure-core import boundaries. Do not mistake string categories for a demonstrated end-to-end bypass.
-3. Deliver the maintained source-grounded policy/acceptance design and migration contract required by #4; keep unproved obligations explicit. Update affected successor bodies with exact decisions. Follow the local review skill, proportionate compiler/proof checks and applicable acceptance/qualification, exact-head CI, merge and status reconciliation. Stop this immediate unit after #4 is complete unless the user expands scope.
+1. Verify root origin/current main, clean status and ownership. Read the full live #12 and its native blocker #11; confirm #4's design PR is integrated. Read AGENTS and the maintained architecture, coverage and policy-acceptance guides. Use a scoped `codex/` branch.
+2. Implement #12's one typed rule registry, dependent diagnostic payloads, source locations and versioned exports. Preserve all twenty rules; add the planned `freshFile` mode. Keep rule IDs separate from policy categories and one shared registry. Pure policy implementation remains #5–#7; compatibility paths re-export a separate `StrictLeanPolicy` root.
+3. Preserve exact-source checked examples and expected compiler-rejection versus policy-diagnostic outcomes, and the module/material-declaration documentation-presence obligations. Do not let diagnostic export or a worker/plan-only exit become accepted project evidence.
+4. Obtain local-skill independent review, applicable proof/compiler/qualification checks and exact-head CI, integrate the PR, then reconcile #5/#13/#14/#15 and Project 8. Retain the hard 420-second acceptance deadline. Read live issue requirements for the complete deliverable.
 
 **Mission-leverage card:** N/A; no separate card or active goal object is used.
