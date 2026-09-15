@@ -25,6 +25,10 @@ block the core linter/site delivery. Preserve the user-selected hard **420-secon
 Website dependency provisioning and the bounded architecture experiment are separate operations,
 not subdivisions or substitutes for that acceptance command.
 
+The [policy acceptance contract](policy-acceptance.md) refines the pure-core module
+boundary, adds the explicit `freshFile` evidence mode, and owns complete-result semantics.
+Its definitions and proofs remain implementation work for CL-02–04.
+
 ## Canonical data and package boundaries
 
 Implement these modules under the existing root package (no mandatory Mathlib imports):
@@ -239,9 +243,9 @@ paid hosting is performed by this design PR.
 1. #11: this design, full map, working one-rule slice, mission/navigation changes.
 2. #4: pure acceptance design; #12: typed registry and diagnostics. Both require #11.
 3. #5 after #4/#12: canonical domain; #6 after #5: proofs about actual policy.
-4. #13 after #12: complete selected engine and current-document bridge; #7 after #6/#13:
+4. #13 after #12/#5: complete selected engine and current-document bridge; #7 after #6/#13:
    complete proof-bearing accepted reports.
-5. #14 after #7/#13: conventional adoption and editor interaction; #15 after #12/#13:
+5. #14 after #7/#13: conventional adoption and editor interaction; #15 after #12/#13/#7:
    complete rule site and publication workflow.
 6. #10 after #7/#14/#15: integrated exact-scope product acceptance and documentation.
 7. Optional #8 after #11 investigates con-leche export compatibility; #9 only on #8's supported go.
