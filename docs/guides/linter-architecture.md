@@ -1,8 +1,11 @@
 # Strict linter and rule-reference architecture
 
 PRODUCT-01 (#11), design baseline: `f943f41c50876b25c8c5c2285e6ae4315645521e`.
-This document fixes the implementation contract for Project 8. It is a maintained design,
-not a claim that the planned registry, live editor engine, or public website already exists.
+This document records the implementation contract for Project 8. The registry is implemented;
+the production live editor engine and public website remain planned. DESIGN-01 supplements
+this contract with [comparative ecosystem research](ecosystem-design.md) and the selected
+[developer experience](developer-experience.md), including command/configuration semantics,
+Mathlib-driver coexistence, presentation, search and the initial no-source-rewriting fix policy.
 The [one-rule probe](../../examples/rule-reference-prototype/README.md) supplies bounded
 interface evidence. The [coverage map](rule-coverage.md) accounts for the complete standard.
 
@@ -49,7 +52,7 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | `scripts/site/` | Build, validate, assemble, and publish-artifact preparation; no semantic Lean detector in scripts. |
 
 `RuleId` is the closed initial vocabulary in the coverage map, not a natural number or free
-string accepted without validation. `descriptor : RuleId → RuleDescriptor` is total by exhaustive
+string accepted without validation. `descriptor : (id : RuleId) → RuleDescriptor id` is total by exhaustive
 matching. External strings are serialized spellings (`SL1001`, etc.), not policy authority.
 Never reuse an ID after changing its semantic predicate. Preserve retired descriptors as
 tombstones; create a new ID for incompatible meaning. Compatible clarifications retain identity
@@ -73,7 +76,7 @@ a generated declaration or use a declaration name as ownership. Validate ranges 
 source snapshot; convert to LSP UTF-16 using Lean's file map at the adapter boundary. Retain full
 and selection ranges and label related dependencies rather than blaming a guessed source token.
 
-Modes are `editorSnapshot`, `incrementalProject`, `freshProject`, `documentationExample`;
+Modes are `editorSnapshot`, `incrementalProject`, `freshProject`, `freshFile`, `documentationExample`;
 optional `serializedGraph` is separate. A result carries its exact module/target/declaration scope,
 source/configuration identity, toolchain and dependency identity, completed stages, violations and
 unresolved obligations. Distinguish rejected, incomplete, and completed accepted outcomes.
@@ -81,8 +84,8 @@ Acceptance requires required coverage and completed admission, not merely an emp
 Cancelled/stale/unsupported/unknown results cannot construct accepted evidence. Editor snapshots
 never construct a fresh whole-project result.
 
-The future output schema is versioned independently from manifest schema 2. Define schema 1
-for registry/diagnostic export in #12: top-level schemaVersion, producerVersion, toolchain,
+The implemented output schema is versioned independently from manifest schema 2. Schema 1
+for registry/diagnostic export from #12 has: top-level schemaVersion, producerVersion, toolchain,
 sourceRevision, rules (registry export) or scope/mode/status/diagnostics/unresolved (result export).
 Encode `Name` reversibly, retain source positions, deterministically order exported collections,
 reject duplicate identities at admission, and prove claimed decoder/encoder laws for actual
@@ -242,7 +245,7 @@ paid hosting is performed by this design PR.
 
 1. #11: this design, full map, working one-rule slice, mission/navigation changes.
 2. #4: pure acceptance design; #12: typed registry and diagnostics. Both require #11.
-3. #5 after #4/#12: canonical domain; #6 after #5: proofs about actual policy.
+3. #20 after the #4/#12 delivery establishes comparative design; #5 after #4/#12/#20: canonical domain; #6 after #5: proofs about actual policy.
 4. #13 after #12/#5: complete selected engine and current-document bridge; #7 after #6/#13:
    complete proof-bearing accepted reports.
 5. #14 after #7/#13: conventional adoption and editor interaction; #15 after #12/#13/#7:
@@ -266,8 +269,10 @@ informed by **Lean FRO's con-leche** at `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd
 proof of Strict Lean or an adoption of con-leche's kernel/model. Every implementation, generated
 page and issue must preserve appropriate credit; copied code additionally preserves its actual
 license notices. Lean authors supply the linter, elaboration and message APIs; Verso authors
-supply rendering and the template. [Microsoft CA1416][ca1416] informs cause/fix/example/version
-presentation, not Lean policy or .NET suppression semantics. The archived comparative reference
+supply rendering and the template. [Microsoft CA1416][ca1416], Ruff and Pyrefly are illustrative
+references, not exclusive templates. The [comparative study](ecosystem-design.md) records
+Lean, Clippy, ESLint and HLint/HLS influences and their exact limits; no external tool defines
+Lean policy or permits suppressing mandatory requirements. The archived comparative reference
 is [issue #3](https://github.com/rbeauchamp/strict-lean/issues/3); its con-ron discussion is historical.
 
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean
