@@ -69,14 +69,31 @@ structure BoundaryKey where
   replacementSnapshot : ∀ r ∈ replacement, r.moduleKey.snapshot = root.moduleKey.snapshot
   deriving Repr, DecidableEq
 
+/-- Location tokens retain exact source bytes or an explicitly broader subject. They are
+not reconstructed from a pretty name; correspondence with compiler diagnostics is operational. -/
+inductive PolicyLocation where
+  | source (snapshot : SourceSnapshot) (range : ByteRange)
+  | module (key : ModuleKey)
+  | project (snapshot : AdmittedSnapshot)
+  deriving Repr, DecidableEq
+
+/-- Transported stable identity from the sole registry adapter. The pure core compares
+these values; it does not define a second RuleId vocabulary or prove the adapter's mapping. -/
+structure ExpectedDiagnostic where
+  rule : String
+  subreason : Option String
+  primary : PolicyLocation
+  related : Array PolicyLocation
+  deriving Repr, DecidableEq
+
 inductive FenceExpectation where
   | positive
   | compilerRejection (pattern : String) (nonempty : pattern ≠ "")
-  | policyRejection (diagnostics : List String) (nonempty : diagnostics ≠ [])
+  | policyRejection (diagnostics : List ExpectedDiagnostic) (nonempty : diagnostics ≠ [])
   | trustedTeaching
   deriving Repr, DecidableEq
 
-/-- Rule ID strings in policy-negative expectations must be validated by the sole
+/-- Rule identity tokens in policy-negative expectations must be validated by the sole
 registry adapter. The policy library deliberately defines no second RuleId enumeration. -/
 structure FenceKey where
   document : SourceSnapshot

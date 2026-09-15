@@ -39,3 +39,4 @@ Return to the [project overview](../README.md).
 - [Design influences and attribution](guides/design-influences.md): actual reuse, specific inspiration, optional external checking and project scope.
 
 - [Typed policy domain](guides/policy-domain.md): implemented categories, admission invariants, worker bindings and proof boundaries.
+- [Policy proofs](guides/policy-proofs.md): executable decision theorems, concrete acceptance and remaining operational boundaries.

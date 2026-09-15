@@ -3,8 +3,10 @@
 POLICY-01 (#4), inspected baseline `afdc67fe343cbb244fbd788af36173614ca6fa87`.
 This is the design contract for #5–#7, coordinated with #12–#15.
 The [typed policy domain guide](policy-domain.md) identifies implemented domain,
-admission and representation guarantees. The independent semantic policy proofs,
-complete census and `Accepted` integration below remain **planned**.
+admission and representation guarantees. The [policy proofs guide](policy-proofs.md)
+records implemented semantic relations, their executable equivalence and concrete
+data-level acceptance. Operational census acquisition and every-success-boundary
+`Accepted` integration remain **planned** under #7.
 The [architecture](linter-architecture.md) owns the product and the
 [coverage map](rule-coverage.md) owns the twenty rules and nine residual accounts.
 Normative meaning remains [chapter 8](../standard/8-tooling-and-machine-audit.md)
@@ -264,11 +266,11 @@ role evidence bound to the whole declaration/transcript inventory, not caller wh
 
 ## 5. Pure module boundary and migration
 
-Select a new root namespace and Lake library **`StrictLeanPolicy`**, with
-`lean/StrictLeanPolicy/{Domain,Specification,Decision,Acceptance,Codec}.lean` and an
-umbrella `lean/StrictLeanPolicy.lean`. Imports are acyclic: Domain uses only Init/Std;
-Specification imports Domain; Decision imports Specification; Acceptance imports Decision;
-Codec imports Domain and defines a pure tagged wire tree using Init/Std data types.
+The root namespace and Lake library **`StrictLeanPolicy`** use the umbrella
+`lean/StrictLeanPolicy.lean`. Imports are acyclic and remain within Init/Std and
+the pure library. Foundation and role specifications support declaration decisions;
+Plan derives required jobs, Observation defines stage predicates, and Acceptance
+assembles complete results. Codec defines a pure tagged wire tree.
 JSON parsing/printing stays in `Checker/PolicyCodec.lean`; prove decoded-tree codec laws
 in Codec and qualify the operational parser, including duplicate-field rejection.
 A tree-codec theorem is not a theorem about JSON text parsing. No Environment, Meta,
@@ -366,10 +368,11 @@ controls where absent; do not report an unrun campaign PASS. `serialized-graph`
 remains separate. No timing experiment is necessary for this design; if implementation
 cost becomes decision-bearing, define its measurement and resource budget then.
 
-Open **implementation obligations**, assigned rather than silently assumed: #5 proves
-admission/representation closure and validates import limits; #6 elaborates and proves
-the remaining semantic laws and reports their exact axiom closure; #7/#13 establish collector/worker
-linkage and acceptance at all call sites; #12/#14/#15 qualify schema/editor/site consumers.
+Implemented proof coverage is recorded in the [domain](policy-domain.md) and
+[proof](policy-proofs.md) guides, with exact axiom evidence in their delivery records.
+Remaining **implementation obligations** are assigned rather than silently assumed:
+#7/#13 establish collector/worker linkage and acceptance at all call sites;
+#12/#14/#15 qualify schema/editor/site consumers.
 Unsupported compiler versions, incomplete census/admission, ambiguous role origin and
 unresolved execution are decided refusals. No unresolved design choice blocks starting #5;
 any failed proof or pin capability blocks its specific guarantee and must be reported.
