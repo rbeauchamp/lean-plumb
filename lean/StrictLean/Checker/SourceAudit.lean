@@ -75,16 +75,18 @@ with the worker instead of accumulating across groups in the coordinator. -/
 structure GroupRequest where
   modules : Array Name
   moduleSources : Array (Name × String) := #[]
+  sourceBindings : Array ProducerReport.SourceBinding
   ownedOutput : Option String := none
   includeExecution : Bool := true
   includeModuleOrigins : Bool := true
   deriving ToJson
 
 instance : FromJson GroupRequest := ⟨fun j => do
-  StrictLean.Checker.PolicyCodec.exactFields j ["modules", "moduleSources", "ownedOutput", "includeExecution", "includeModuleOrigins"]
+  StrictLean.Checker.PolicyCodec.exactFields j ["modules", "moduleSources", "sourceBindings", "ownedOutput", "includeExecution", "includeModuleOrigins"]
   return {
     modules := ← j.getObjValAs? _ "modules"
     moduleSources := ← j.getObjValAs? _ "moduleSources"
+    sourceBindings := ← j.getObjValAs? _ "sourceBindings"
     ownedOutput := ← j.getObjValAs? _ "ownedOutput"
     includeExecution := ← j.getObjValAs? _ "includeExecution"
     includeModuleOrigins := ← j.getObjValAs? _ "includeModuleOrigins"
@@ -103,26 +105,38 @@ instance : FromJson GroupReport := ⟨fun j => do
   }⟩
 
 unsafe def inspectGroupWorker (request : GroupRequest) : IO GroupReport := do
+  SourceBinding.unchanged request.sourceBindings
   let moduleSources := request.moduleSources.map fun (name, path) =>
     (name, FilePath.mk path)
   let report ← Environment.loadReportCurrentSearchPath request.modules moduleSources
     (request.ownedOutput.map FilePath.mk) request.includeExecution request.includeModuleOrigins
+  IO.ofExcept <| SourceBinding.validateAgainst request.sourceBindings report
+  SourceBinding.unchanged request.sourceBindings
   return { report, transcripts := #[] }
 
 def inspectGroupCurrentSearchPath (modules : Array Name)
     (transcriptSources : Array (Name × FilePath) := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
-    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
+    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true)
+    (compiledSources : Array ProducerReport.SourceBinding := #[]) :
     IO GroupReport := do
   let some selfLib ← checkerPackageLibDir
     | throw <| IO.userError "checker library directory unavailable"
   let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+  let mut resolvedSources := moduleSources ++ transcriptSources
+  for name in modules do
+    if !resolvedSources.any (·.1 == name) then
+      resolvedSources := resolvedSources.push (name, (← Lean.findOLean name).withExtension "lean")
+  let sourceBindings ← SourceBinding.capture resolvedSources
+  unless compiledSources.all sourceBindings.contains do
+    throw <| IO.userError "producer-source: grouped inspection differs from compiled source"
   withScratch (← IO.currentDir) "inspection-group" fun scratch => do
     let input := scratch / "request.json"
     let output := scratch / "report.json"
     let request : GroupRequest := {
       modules
-      moduleSources := moduleSources.map fun (name, path) => (name, path.toString)
+      moduleSources := sourceBindings.map fun source => (source.moduleName, source.path)
+      sourceBindings
       ownedOutput := ownedOutput.map (·.toString)
       includeExecution
       includeModuleOrigins
@@ -137,6 +151,7 @@ def inspectGroupCurrentSearchPath (modules : Array Name)
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
     let payload ← IO.ofExcept <| readWorkerPacket (toJson request) json
     let inspected : GroupReport ← IO.ofExcept (fromJson? payload)
+    IO.ofExcept <| SourceBinding.validateAgainst sourceBindings inspected.report
     unless inspected.report.census.modules == modules &&
         inspected.report.census.executionRoots.isSome == includeExecution do
       throw <| IO.userError "producer-census: inspection response scope mismatch"
@@ -147,6 +162,8 @@ def inspectGroupCurrentSearchPath (modules : Array Name)
       let declarations := inspected.report.declarations.filter (·.«module» == name)
       if Policy.needsFrontendTranscript declarations then
         transcripts := transcripts.push (← Frontend.buildIsolated name path)
+    IO.ofExcept <| SourceBinding.transcriptsMatch sourceBindings transcripts
+    SourceBinding.unchanged sourceBindings
     return { inspected with transcripts }
 
 private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
@@ -267,33 +284,60 @@ def sourceDiagnosticFailure (value : Compilation) : Bool :=
   value.process.exitCode ≤ 1 && (outputLines value.process.output).any (fun line =>
     line.startsWith (value.sourcePath.toString ++ ":") && (isErrorLine line || isWarningLine line))
 
-unsafe def inspect (value : Compilation) (extraSearchRoots : Array FilePath := #[])
+unsafe def inspectOutcome (value : Compilation) (extraSearchRoots : Array FilePath := #[])
     (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none) :
-    IO Inspected := do
+    IO (Except ProducerReport.AdmissionFailure Inspected) := do
   if !compilationPassed value then
     throw <| IO.userError s!"source did not elaborate: {value.spec.«module»}"
   let some scratch := value.sourcePath.parent
     | throw <| IO.userError "compiled source has no parent directory"
-  let report ← Environment.loadReport #[value.spec.«module».toName] (#[scratch] ++ extraSearchRoots) sourceRoots moduleSources ownedOutput
+  let source : ProducerReport.SourceBinding := {
+    moduleName := value.spec.module.toName, path := value.sourcePath.toString, content := value.spec.source }
+  SourceBinding.unchanged #[source]
+  let sources ← SourceBinding.capture (moduleSources.push (source.moduleName, value.sourcePath))
+  let reportResult ← Environment.loadReportOutcome #[value.spec.«module».toName] (#[scratch] ++ extraSearchRoots) sourceRoots
+    (sources.map fun s => (s.moduleName, FilePath.mk s.path)) ownedOutput
+  if let .error failure := reportResult then return .error failure
+  let .ok report := reportResult
+    | throw <| IO.userError "unreachable admission outcome"
+  IO.ofExcept <| SourceBinding.validateAgainst sources report
   let declarations := report.declarations
   let transcripts : Array Frontend.Transcript ←
     if Policy.needsFrontendTranscript declarations then
       pure #[← Frontend.build value.spec.«module».toName value.sourcePath extraSearchRoots]
     else pure #[]
-  return { compilation := value, report, transcripts }
+  IO.ofExcept <| SourceBinding.transcriptsMatch sources transcripts
+  SourceBinding.unchanged sources
+  SourceBinding.unchanged #[source]
+  return .ok { compilation := value, report, transcripts }
+
+unsafe def inspect (value : Compilation) (extraSearchRoots : Array FilePath := #[])
+    (sourceRoots : Array FilePath := #[])
+    (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none) :
+    IO Inspected := do
+  IO.ofExcept <| (← inspectOutcome value extraSearchRoots sourceRoots moduleSources ownedOutput).mapError (·.detail)
 
 /-- Inspect with a caller-owned, already configured Lean search path. -/
 unsafe def inspectCurrentSearchPath (value : Compilation)
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none) : IO Inspected := do
   if !compilationPassed value then
     throw <| IO.userError s!"source did not elaborate: {value.spec.«module»}"
-  let report ← Environment.loadReportCurrentSearchPath #[value.spec.«module».toName] moduleSources ownedOutput
+  let source : ProducerReport.SourceBinding := {
+    moduleName := value.spec.module.toName, path := value.sourcePath.toString, content := value.spec.source }
+  SourceBinding.unchanged #[source]
+  let sources ← SourceBinding.capture (moduleSources.push (source.moduleName, value.sourcePath))
+  let report ← Environment.loadReportCurrentSearchPath #[value.spec.«module».toName]
+    (sources.map fun s => (s.moduleName, FilePath.mk s.path)) ownedOutput
+  IO.ofExcept <| SourceBinding.validateAgainst sources report
   let declarations := report.declarations
   let transcripts : Array Frontend.Transcript ←
     if Policy.needsFrontendTranscript declarations then
       pure #[← Frontend.buildCurrentSearchPath value.spec.«module».toName value.sourcePath]
     else pure #[]
+  IO.ofExcept <| SourceBinding.transcriptsMatch sources transcripts
+  SourceBinding.unchanged sources
+  SourceBinding.unchanged #[source]
   return { compilation := value, report, transcripts }
 
 unsafe def compileAndInspect (repo scratch : FilePath) (spec : SourceSpec)

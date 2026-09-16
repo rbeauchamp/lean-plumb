@@ -1,7 +1,7 @@
 # Project producer evidence
 
-ENGINE-01's first producer increment adds independent extraction keys, replay receipts,
-and completed project documentation observations. It does **not** complete ENGINE-01 or
+ENGINE-01's producer increments add independent extraction keys, replay receipts,
+completed documentation observations, closure witnesses and source bindings. They do **not** complete ENGINE-01 or
 POLICY-04's global `Accepted` construction. The [coverage map](rule-coverage.md) and
 [policy acceptance contract](policy-acceptance.md) retain the remaining obligations.
 
@@ -15,7 +15,8 @@ when several registrations share one root. No policy-success filter defines eith
 Execution omitted for logical-only fence inspection is `none`; an inspected empty root
 set is `some #[]`.
 
-`Admission.validate` now returns `Checker.ProducerReport.AdmissionReceipt`. Its required keys come from
+`Admission.validate` returns `Except ProducerReport.AdmissionFailure ProducerReport.AdmissionReceipt`.
+A successful receipt's required keys come from
 safe, nonpartial original kernel entries in the replay scope. It calls the same pinned
 `Environment.replay`, checks that every required entry is present in the resulting kernel,
 and records the admitted keys. Replay scope includes owned dependencies and the existing
@@ -40,13 +41,15 @@ File/fence results retain their existing scoped enforcement; global mode/job com
 
 ## Transport and consumer boundary
 
-`Report.Collected` adds extraction keys to the unchanged pure policy report.
+`Report.Collected` adds extraction keys to the pure policy report.
 `Checker.ProducerReport.Environment` adds the operational receipts and owns their JSON decoder:
 
 - `census`: requested modules, declaration keys, optional execution root keys and root/module history requests;
 - `admission`: replay modules, required keys and observed admitted keys;
 - `documentation`: every module's presence, frozen material keys and exact optional docstrings;
-- `histories`: one completed source receipt or explicit unavailable outcome for every requested module.
+- `histories`: one completed source receipt or explicit unavailable outcome for every requested module;
+- `sourceBindings`: exact loaded-owned module/path/text snapshots;
+- each execution root now retains its `closure` account described below.
 
 Keeping transport validation in the checker layer avoids replaying its implementation from
 the force-loaded reporter in every inspection. The trusted loader validates these fields before returning. The operational JSON decoder
@@ -62,9 +65,9 @@ prior record shape. Use canonical `--json-out` to consume producer evidence.
 These guards reconcile supplied data. They do not prove truthful external extraction, source
 identity, a complete execution-edge/history census, or complete claim-indexed jobs. #7 must
 bind these raw keys to the exact claim/snapshot and construct the existing pure `Census` and
-`AdmissionObservation`; no serialized flag substitutes for that work. #13 still owes complete
-closure/source producer linkage, exact policy-example integration and the full twenty-rule
-source-owned corpus. An empty diagnostic list is not `Accepted` or full semantic conformance.
+`AdmissionObservation`; no serialized flag substitutes for that work. #13 still owes exact
+policy-example integration, the full twenty-rule source-owned corpus and integrated delivery
+evidence; the closure/source increment below does not close the issue. An empty diagnostic list is not `Accepted` or full semantic conformance.
 
 ## Source-bound replacement histories
 
@@ -84,9 +87,10 @@ JSON omits the added history account.
 
 These are linked operational observations under the existing Lean/process/imported-library
 trust boundary. They do not authenticate arbitrary serialized source claims or establish the
-complete reached-node/edge census, source identity across every stage, or global `Accepted`.
-A temporarily changed source restored between observations is outside what before/after byte
-equality establishes. #13/#7 retain the broader snapshot and producer composition obligations.
+complete extraction of reached nodes/edges, source authenticity, or global `Accepted`.
+The closure/source account below extends the supplied observations and their binding. A
+temporarily changed source restored between observations remains outside what before/after
+byte equality establishes. #7 retains global claim/job composition.
 
 The `producers` diagnostic now also runs `scripts/history_checks.py`: real fresh/incremental
 project and file invocations check overwritten history, an unsupported source evaluator, and
@@ -126,3 +130,101 @@ can establish its broader claims; the small adopter qualifies the changed standa
 
 The collectors and documentation lookups reuse Lean 4.33.1 APIs. No con-leche code is imported;
 the existing complete-census design credit remains in [design influences](design-influences.md).
+
+## Reached closure and source snapshot account
+
+The closure increment records `ExecutionRoot.closure` from the **actual**
+`Probe.executionWalk`. Each first visit retains its structural name, available owning
+module and the index of the earlier visit that queued it. The initial visit is the
+root. The sorted `nodes` census is exactly the set of these visits, with no duplicate
+visits. The producer retains every ordinary eligible root (including unused roots), plus
+explicitly registered private/imported roots. Unregistered internal/private declarations
+remain in the logical declaration census; they do not become ordinary execution roots.
+
+The following channels remain separate; their union is a conservative traversal relation,
+not a selected or minimal runtime call graph:
+
+| Field | Observation and use |
+| --- | --- |
+| `compilerEdges` | Retained IR calls, closures and initialization dependencies. |
+| `logicalEdges` | Constants used by the logical bodies the existing walk follows. |
+| `candidateEdges` | All inspected constant-equality simplification candidates, including inactive candidates. |
+| `historyEdges` | Replacement choices from completed, source-bound module histories. |
+| `currentReplacementEdges` | Current `implemented_by` choices, retained even when history is unavailable. |
+| `activeSimplificationEdges` | Active simplifications used by the replacement-only cycle check; each is also a candidate. |
+| `helperEdges` | Explicit opaque-to-partial-helper traversal. |
+| `requiredCode` / `unavailableCode` | Exact retained-code obligations and the unavailable subset; a nonempty unavailable subset requires unresolved execution. |
+
+Every enqueue site records its edge and a parent visit together. Visited-name suppression
+terminates ordinary recursion without deleting self edges. Retained IR dependencies now use
+the declaration step of Lean's pinned
+[`IR.CollectUsedDecls.collectDecl`](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Compiler/IR/EmitUtil.lean):
+`collectUsedDecls` also inserts the declaration itself synthetically, so filtering its
+result by inequality incorrectly discarded genuine recursive calls. This is a specialized
+pinned compiler API, not a promised stable extension interface; upgrades must requalify
+its semantics. No upstream code is copied. Existing source/boundary/IR obligations and
+replacement-cycle refusal remain in force.
+
+`StrictLeanPolicy.ExecutionClosure.Valid` checks the supplied census, discovery witnesses,
+canonical edge channels, endpoints, code obligations and unresolved requirement.
+`ExecutionRoot.Valid` additionally reconciles boundary names, replacement targets and
+compiler callers. `ProducerReport.Environment.validate` calls `admitExecution` at producer
+and decoder boundaries, reconciles visits with available module attribution, requires exact
+candidate/replacement boundary coverage and binds each historical edge set to its actual
+module receipt. Missing or inconsistent observations refuse inspection; no omitted record
+becomes a clean result.
+
+### Exact proof scope
+
+All three theorems below compile over the executed admission definitions in
+`StrictLeanPolicy/Admission.lean`. They quantify over arbitrary supplied records, not a
+separate graph model:
+
+- `ExecutionClosure.discovery_induction`: if every visit has the checked root/earlier-parent
+  witness, any predicate true of the root and preserved by each recorded edge holds at
+  every visit. Its transitive axioms are exactly `propext`, `Quot.sound`.
+- `ExecutionClosure.nodes_induction`: with `Valid`, the same predicate holds for every
+  name in `nodes`. Its transitive axioms are exactly `propext`, `Classical.choice`, `Quot.sound`.
+- `admitExecution_preserves`: a successful `admitExecution roots = .ok inventory` retains
+  exactly `roots` and proves `ExecutionValid roots`. Its transitive axioms are exactly
+  `propext`, `Classical.choice`, `Quot.sound`.
+
+The induction uses the strictly earlier parent index, not another graph search. These
+results establish connectedness and structural admission of supplied observations. They
+**do not prove completeness or authenticity of Lean environment/IR extraction**, that a
+candidate edge executes, machine-code correspondence, or intended-specification adequacy.
+The existing pure execution/Plan/Observation interfaces consume this strengthened admitted
+inventory; global required jobs and construction of `Accepted` remain #7.
+
+### Source and configuration binding
+
+`ProducerReport.SourceBinding` retains module, actual path and exact source text. Project
+checking captures Lake's root-package source map and manifest/Lake/toolchain/dependency-lock
+configuration before building. Requests carry the frozen sources; producer and parent
+compare the report's loaded-owned subset with that request. The loader captures source
+before importing the environment and checks it after inspection. Completed owned histories
+must use the same path and text. Frontend transcripts must match that snapshot. All supplied
+declaration ranges are checked against it, including declarations without diagnostics.
+Locations and result exports reuse the frozen text; they do not recapture newer text as
+if it had been checked. File inspection additionally binds the isolated source to the
+original compilation input; grouped documentation and fixture inspection receive the
+exact `Compilation.spec.source` values instead of recapturing them after compilation. A detected source/configuration mismatch is incomplete SL2005.
+
+This is exact observation equality, not a filesystem lock or source-to-olean theorem.
+Lake build semantics, compiler/imported dependency authenticity, filesystem reads and the
+absence of an undetected change-and-restore race remain trusted boundaries. Imported
+unowned source is inspected only when required by an existing history obligation; this
+does not add full-Mathlib analysis to Core-only adopters. Producer revision still identifies
+its elaboration, not authenticated whole-binary provenance.
+
+Owned logical replay failures now cross the declaration worker as typed
+`ProducerReport.Outcome.admissionFailed`, carrying `AdmissionFailure.detail`. Public project
+and file adapters emit SL2005/incomplete with that original reason and scope. Import/setup
+exceptions and crashed/missing workers cannot manufacture this outcome. Compatibility IO
+wrappers remain for callers whose surrounding stage already reports incomplete inspection.
+The four accepted-example kinds are unchanged. Expected INCOMPLETE diagnostics are separate
+diagnostic demonstrations, never accepted conformance or accepted positive/rejection examples;
+the full corpus and its matching/export adapter are a separate #13 increment.
+
+The [closure verification record](../../session/evidence/issue-13-closure-verification.md)
+records the proved domain, exact axiom sets, focused qualification and pending delivery gates.

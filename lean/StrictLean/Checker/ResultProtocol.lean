@@ -53,7 +53,7 @@ partial def legacyJson (value : Json) (sourceRoot targetRoot : String := "") : J
   | .arr values => .arr (values.map fun v => legacyJson v sourceRoot targetRoot)
   | .obj fields => Json.mkObj <| fields.toList.filterMap fun (k, v) =>
       if ["structuralName", "occurrence", "nativeOrigin", "sourceContent",
-          "census", "admission", "documentation", "histories"].contains k then none
+          "census", "admission", "documentation", "histories", "closure", "sourceBindings"].contains k then none
       else
         let value := if ["name", "module", "root", "replacement", "implementedBy", "unsafeRecBase",
             "elaborator", "kind", "commandElaborator", "commandKind"].contains k then legacyName v

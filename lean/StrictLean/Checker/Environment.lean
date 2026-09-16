@@ -2,6 +2,7 @@ import StrictLean.Checker.PolicyCodec
 import StrictLean.Probe
 import StrictLean.Checker.Common
 import StrictLean.Checker.Admission
+import StrictLean.Checker.SourceBinding
 import StrictLean.Linter.Documentation
 
 /-!
@@ -104,9 +105,17 @@ private def replacementHistory (sourceRoots : Array FilePath)
 private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Checker.ProducerReport.Environment := do
+    IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   if modules.isEmpty || modules.toList.eraseDups.length != modules.size then
     throw <| IO.userError "environment report requires unique nonempty modules"
+  let mut resolvedSources := moduleSources
+  for name in modules do
+    if !resolvedSources.any (·.1 == name) then
+      -- Compiled verbatim snippets live alongside their exact isolated source.
+      -- Ordinary project modules already have authoritative Lake source entries.
+      let source := (← Lean.findOLean name).withExtension "lean"
+      resolvedSources := resolvedSources.push (name, source)
+  let sourceBindings ← SourceBinding.capture resolvedSources
   unsafe Lean.enableInitializersExecution
   let requested := modules
   let importNames :=
@@ -122,7 +131,10 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       if !ownedModules.contains name && !probeModuleNames.contains name.toString then
         if ← pathWithin (← Lean.findOLean name) root then
           throw <| IO.userError s!"unexpected-project-module: kernel-admission cannot classify {name}"
-  let admission ← timedPhase "kernel admission" <| Admission.validate env ownedModules
+  let admissionResult ← timedPhase "kernel admission" <| Admission.validate env ownedModules
+  if let .error failure := admissionResult then return .error failure
+  let .ok admission := admissionResult
+    | throw <| IO.userError "unreachable admission outcome"
   -- Freeze the selector from the completed environment before reading docstrings.
   -- Loading server/private data above is necessary for both Lean doc formats.
   let own := StrictLean.Probe.ownedConstants env requested.toList
@@ -142,7 +154,7 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
   let histories ← IO.mkRef ({} : NameMap ProducerReport.HistoryOutcome)
   let loadHistory (moduleName : Name) := do
     if let some result := (← histories.get).find? moduleName then return result.edges
-    let result ← replacementHistory sourceRoots moduleSources moduleName
+    let result ← replacementHistory sourceRoots resolvedSources moduleName
     histories.modify (·.insert moduleName result)
     return result.edges
   let ctx : Elab.Command.Context := {
@@ -167,9 +179,11 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       admission := some admission
       documentation := some documentation
       histories := historyRecords
+      sourceBindings := sourceBindings.filter (fun s => report.modules.contains s.moduleName)
     }
+    SourceBinding.unchanged report.sourceBindings
     IO.ofExcept report.validate
-    return report
+    return .ok report
 
 /-- Lean resolves a whole module prefix at the first matching directory.
 A fresh project that builds only `Contract` must not mask the trusted probe,
@@ -178,7 +192,7 @@ Expose only the checker-owned prefix ahead of the audited search roots. -/
 private unsafe def loadReportCore (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Checker.ProducerReport.Environment := do
+    IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   let some selfLib ← checkerPackageLibDir
     | throw <| IO.userError "trusted checker library directory unavailable"
   withScratch (← IO.currentDir) "probe-search" fun overlay => do
@@ -195,23 +209,40 @@ private unsafe def loadReportCore (modules : Array Name) (sourceRoots : Array Fi
 /-- Load exact modules using the already configured search path. This variant
 supports bounded parallel, read-only imports while a caller owns the global
 search-path scope. -/
-unsafe def loadReportCurrentSearchPath (modules : Array Name)
+unsafe def loadReportCurrentSearchPathOutcome (modules : Array Name)
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Checker.ProducerReport.Environment :=
+    IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) :=
   loadReportCore modules #[] moduleSources ownedOutput includeExecution includeModuleOrigins
 
 /-- Load exact modules through Lean's import semantics and return their typed
 declaration report. Extra search roots are temporary and restored afterward. -/
-unsafe def loadReport (modules : Array Name)
+unsafe def loadReportOutcome (modules : Array Name)
     (extraSearchRoots : Array FilePath := #[]) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Checker.ProducerReport.Environment := do
+    IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   let selfLib ← checkerPackageLibDir
   let oldSearchPath ← Lean.searchPathRef.get
   Lean.searchPathRef.set (extraSearchRoots.toList ++ selfLib.toList ++ oldSearchPath)
   try loadReportCore modules sourceRoots moduleSources ownedOutput includeExecution includeModuleOrigins
   finally Lean.searchPathRef.set oldSearchPath
+
+/-- Compatibility wrapper for callers that report all incomplete inspection failures
+at their own stage. Public rule adapters use the typed outcome variant above. -/
+unsafe def loadReportCurrentSearchPath (modules : Array Name)
+    (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
+    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
+    IO ProducerReport.Environment := do
+  IO.ofExcept <| (← loadReportCurrentSearchPathOutcome modules moduleSources ownedOutput
+    includeExecution includeModuleOrigins).mapError (·.detail)
+
+unsafe def loadReport (modules : Array Name)
+    (extraSearchRoots : Array FilePath := #[]) (sourceRoots : Array FilePath := #[])
+    (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
+    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
+    IO ProducerReport.Environment := do
+  IO.ofExcept <| (← loadReportOutcome modules extraSearchRoots sourceRoots moduleSources ownedOutput
+    includeExecution includeModuleOrigins).mapError (·.detail)
 
 end StrictLean.Checker.Environment

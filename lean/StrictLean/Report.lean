@@ -201,15 +201,38 @@ instance : FromJson ExecutionBoundary := ⟨fun j => do
     compilerCallers := ← j.getObjValAs? (Array Name) "compilerCallers" }⟩
 
 abbrev ExecutionRoot := StrictLeanPolicy.ExecutionRoot
+deriving instance ToJson for StrictLeanPolicy.ExecutionVisit
+instance : FromJson StrictLeanPolicy.ExecutionVisit := ⟨fun j => do
+  exactFields j ["name", "moduleName", "parent"]
+  return { name := ← j.getObjValAs? _ "name"
+           moduleName := ← j.getObjValAs? _ "moduleName"
+           parent := ← j.getObjValAs? _ "parent" }⟩
+deriving instance ToJson for StrictLeanPolicy.ExecutionClosure
+instance : FromJson StrictLeanPolicy.ExecutionClosure := ⟨fun j => do
+  exactFields j ["nodes", "visits", "logicalEdges", "candidateEdges", "historyEdges",
+    "currentReplacementEdges", "activeSimplificationEdges", "helperEdges", "requiredCode", "unavailableCode"]
+  return {
+    nodes := ← j.getObjValAs? _ "nodes"
+    visits := ← j.getObjValAs? _ "visits"
+    logicalEdges := ← j.getObjValAs? _ "logicalEdges"
+    candidateEdges := ← j.getObjValAs? _ "candidateEdges"
+    historyEdges := ← j.getObjValAs? _ "historyEdges"
+    currentReplacementEdges := ← j.getObjValAs? _ "currentReplacementEdges"
+    activeSimplificationEdges := ← j.getObjValAs? _ "activeSimplificationEdges"
+    helperEdges := ← j.getObjValAs? _ "helperEdges"
+    requiredCode := ← j.getObjValAs? _ "requiredCode"
+    unavailableCode := ← j.getObjValAs? _ "unavailableCode"
+  }⟩
 deriving instance ToJson for StrictLeanPolicy.ExecutionRoot
 instance : FromJson StrictLeanPolicy.ExecutionRoot := ⟨fun j => do
-  exactFields j ["name", "module", "boundaries", "unresolved", "compilerEdges"]
+  exactFields j ["name", "module", "boundaries", "unresolved", "compilerEdges", "closure"]
   return {
     name := ← j.getObjValAs? _ "name"
     «module» := ← j.getObjValAs? _ "module"
     boundaries := ← j.getObjValAs? _ "boundaries"
     unresolved := ← j.getObjValAs? _ "unresolved"
     compilerEdges := ← j.getObjValAs? _ "compilerEdges"
+    closure := ← j.getObjValAs? _ "closure"
   }⟩
 
 abbrev ModuleOrigin := StrictLeanPolicy.ModuleOrigin

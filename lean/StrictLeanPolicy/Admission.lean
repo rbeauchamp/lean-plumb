@@ -106,13 +106,101 @@ instance instDecidableExecutionBoundaryValid (b : ExecutionBoundary) : Decidable
   unfold ExecutionBoundary.Valid
   infer_instance
 
-/-- Occurrence numbers distinguish repeated evidence, while roots have unique keys. -/
+/-- The first visit is the root. Every later visit has an edge from an earlier visit.
+An index bounds the witness check; no second graph search or assumed reachability is used. -/
+def ExecutionClosure.DiscoveryOK (c : ExecutionClosure) (root : Lean.Name)
+    (compilerEdges : Array (Lean.Name × Lean.Name)) : Prop :=
+  ∀ k : Fin c.visits.size, match c.visits[k].parent with
+    | none => k.val = 0 ∧ c.visits[k].name = root
+    | some parent => if h : parent < k.val then
+        (c.visits[parent]'(Nat.lt_trans h k.isLt) |>.name, c.visits[k].name) ∈ c.edges compilerEdges
+      else False
+instance (c : ExecutionClosure) (root : Lean.Name) (edges : Array (Lean.Name × Lean.Name)) :
+    Decidable (c.DiscoveryOK root edges) := by
+  unfold ExecutionClosure.DiscoveryOK
+  exact @Nat.decidableForallFin _ _ (fun k => by split <;> infer_instance)
+
+/-- The checked discovery witnesses support induction from the actual root along the
+recorded traversal edges. This establishes reachability of every visit without a
+second graph walk; edge extraction and its completeness remain observational. -/
+theorem ExecutionClosure.discovery_induction (c : ExecutionClosure) (root : Lean.Name)
+    (edges : Array (Lean.Name × Lean.Name)) (valid : c.DiscoveryOK root edges)
+    (P : Lean.Name → Prop) (base : P root)
+    (step : ∀ edge ∈ c.edges edges, P edge.1 → P edge.2)
+    (k : Fin c.visits.size) : P c.visits[k].name := by
+  have all : ∀ n, ∀ hn : n < c.visits.size, P c.visits[n].name := by
+    intro n
+    induction n using Nat.strongRecOn with
+    | ind n ih =>
+      intro hn
+      have witness := valid ⟨n, hn⟩
+      change (match c.visits[n].parent with
+        | none => n = 0 ∧ c.visits[n].name = root
+        | some parent => if h : parent < n then
+            (c.visits[parent]'(Nat.lt_trans h hn) |>.name, c.visits[n].name) ∈ c.edges edges
+          else False) at witness
+      cases hparent : c.visits[n].parent with
+      | none =>
+        simp only [hparent] at witness
+        exact witness.2.symm ▸ base
+      | some parent =>
+        simp only [hparent] at witness
+        split at witness
+        next earlier => exact step _ witness (ih parent earlier (Nat.lt_trans earlier hn))
+        next => contradiction
+  exact all k.val k.isLt
+
+/-- Reconcile the independently recorded reached census with every traversal channel.
+This finite relation checks the supplied account; truthful and complete extraction still
+depends on the actual Lean collector. Missing code cannot accompany a resolved root. -/
+def ExecutionClosure.Valid (c : ExecutionClosure) (root : Lean.Name)
+    (compilerEdges : Array (Lean.Name × Lean.Name)) (unresolved : Array String) : Prop :=
+  canonicalNames c.nodes = c.nodes ∧ root ∈ c.nodes ∧ (∀ n ∈ c.nodes, named n) ∧
+  c.nodes = canonicalNames (c.visits.map (·.name)) ∧ c.visits.size = c.nodes.size ∧
+  c.DiscoveryOK root compilerEdges ∧
+  (∀ visit ∈ c.visits, ∀ m ∈ visit.moduleName, named m) ∧
+  (∀ edges ∈ #[c.logicalEdges, c.candidateEdges, c.historyEdges,
+      c.currentReplacementEdges, c.activeSimplificationEdges, c.helperEdges],
+    canonicalEdges edges = edges) ∧
+  (∀ edge ∈ c.edges compilerEdges, edge.1 ∈ c.nodes ∧ edge.2 ∈ c.nodes) ∧
+  (∀ edge ∈ c.activeSimplificationEdges, edge ∈ c.candidateEdges) ∧
+  canonicalNames c.requiredCode = c.requiredCode ∧
+  canonicalNames c.unavailableCode = c.unavailableCode ∧
+  (∀ n ∈ c.requiredCode, n ∈ c.nodes) ∧
+  (∀ edge ∈ compilerEdges, edge.2 ∈ c.requiredCode) ∧
+  (∀ n ∈ c.unavailableCode, n ∈ c.requiredCode) ∧
+  (c.unavailableCode ≠ #[] → unresolved ≠ #[])
+instance (c : ExecutionClosure) (root : Lean.Name) (edges : Array (Lean.Name × Lean.Name))
+    (unresolved : Array String) : Decidable (c.Valid root edges unresolved) := by
+  unfold ExecutionClosure.Valid
+  infer_instance
+
+/-- Every admitted reached name follows from the root by the reported traversal
+relation. The census is connected, not merely an endpoint-closed set of names. -/
+theorem ExecutionClosure.nodes_induction (c : ExecutionClosure) (root : Lean.Name)
+    (edges : Array (Lean.Name × Lean.Name)) (unresolved : Array String)
+    (valid : c.Valid root edges unresolved) (P : Lean.Name → Prop) (base : P root)
+    (step : ∀ edge ∈ c.edges edges, P edge.1 → P edge.2)
+    (name : Lean.Name) (member : name ∈ c.nodes) : P name := by
+  rw [valid.2.2.2.1, mem_canonicalNames] at member
+  obtain ⟨visit, hv, rfl⟩ := Array.mem_map.mp member
+  obtain ⟨index, hi, heq⟩ := Array.mem_iff_getElem.mp hv
+  subst visit
+  exact c.discovery_induction root edges valid.2.2.2.2.2.1 P base step ⟨index, hi⟩
+
+/-- Occurrence numbers distinguish repeated evidence, while roots have unique keys.
+Every boundary and retained caller must belong to the complete reached census. -/
 def ExecutionRoot.Valid (r : ExecutionRoot) : Prop :=
   named r.name ∧ named r.module ∧
   canonicalEdges r.compilerEdges = r.compilerEdges ∧
   (∀ b ∈ r.boundaries, b.Valid) ∧
   (r.boundaries.map (·.occurrence)).toList.Pairwise (· ≠ ·) ∧
-  (∀ e ∈ r.compilerEdges, named e.1 ∧ named e.2)
+  (∀ e ∈ r.compilerEdges, named e.1 ∧ named e.2) ∧
+  r.closure.Valid r.name r.compilerEdges r.unresolved ∧
+  (∀ b ∈ r.boundaries, b.name ∈ r.closure.nodes ∧
+    (∀ n ∈ b.replacement, n ∈ r.closure.nodes) ∧
+    canonicalNames b.compilerCallers = canonicalNames (r.compilerEdges.filterMap
+      (fun (caller, callee) => if callee == b.name then some caller else none)))
 instance instDecidableExecutionRootValid (r : ExecutionRoot) : Decidable r.Valid := by
   unfold ExecutionRoot.Valid
   infer_instance
@@ -134,4 +222,13 @@ def admitExecution (roots : Array ExecutionRoot) : Except String ExecutionInvent
 
 theorem admitExecution_exact (roots : Array ExecutionRoot) (h : ExecutionValid roots) :
     admitExecution roots = .ok ⟨roots, h⟩ := by simp [admitExecution, h]
+
+/-- Every successful admission retains all supplied roots and establishes their exact
+structural relation, including closure coverage. It does not authenticate extraction. -/
+theorem admitExecution_preserves (roots : Array ExecutionRoot) (i : ExecutionInventory)
+    (h : admitExecution roots = .ok i) : i.roots = roots ∧ ExecutionValid roots := by
+  unfold admitExecution at h
+  split at h
+  next valid => cases h; exact ⟨rfl, valid⟩
+  next => cases h
 end StrictLeanPolicy

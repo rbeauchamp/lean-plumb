@@ -433,6 +433,10 @@ private unsafe def fixtureVerdicts (repo scratch : FilePath) (jobs : Nat)
       try
         let inspectedGroup ← SourceAudit.inspectGroupCurrentSearchPath
           (items.map (·.compilation.spec.«module».toName))
+          (compiledSources := items.map fun item => {
+            moduleName := item.compilation.spec.module.toName
+            path := item.compilation.sourcePath.toString
+            content := item.compilation.spec.source })
         let report := inspectedGroup.report
         for item in items do
           let moduleName := item.compilation.spec.«module»
@@ -525,7 +529,12 @@ private def executionPolicyQualification : Array String := Id.run do
       replacement := none }
   let root (boundaries : Array StrictLean.Report.ExecutionBoundary)
       (unresolved : Array String := #[]) : StrictLean.Report.ExecutionRoot :=
-    { name := `Root.f, «module» := `Root, boundaries, unresolved }
+    { name := `Root.f, «module» := `Root, boundaries, unresolved
+      closure := {
+        nodes := StrictLeanPolicy.canonicalNames (#[`Root.f] ++ boundaries.map (·.name))
+        visits := #[{ name := `Root.f, moduleName := some `Root, parent := none }] ++
+          boundaries.map (fun b => { name := b.name, moduleName := some b.module, parent := some 0 })
+        logicalEdges := StrictLeanPolicy.canonicalEdges (boundaries.map (fun b => (`Root.f, b.name))) } }
   let cases : Array (String × StrictLean.Report.ExecutionRoot × ExecutionClaim × Option String) := #[
     ("report/trusted-replacement",
       root #[boundary `Root.g .runtimeReplacement .trusted], .report, none),

@@ -369,6 +369,10 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
         let inspected ← SourceAudit.inspectGroupCurrentSearchPath modules
           (group.items.map fun item => (item.compilation.spec.«module».toName, item.compilation.sourcePath))
           moduleSources ownedOutput (includeExecution := false) (includeModuleOrigins := false)
+          (compiledSources := group.items.map fun item => {
+            moduleName := item.compilation.spec.module.toName
+            path := item.compilation.sourcePath.toString
+            content := item.compilation.spec.source })
         return group.items.map fun item =>
           let declarations := inspected.report.declarations.filter
             (·.«module» == item.compilation.spec.«module».toName)

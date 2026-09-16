@@ -274,13 +274,20 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
     (candidates : NameMap (Array Lean.Compiler.CSimp.Entry))
     (proofCache : IO.Ref (Std.HashMap (Name × Name) (Correspondence × Option String)))
     (recursorHelpers : Array Name) (root : Name) : CommandElabM (Array StrictLean.Report.ExecutionBoundary ×
-      Array String × Array (Name × Name)) := do
+      Array String × Array (Name × Name) × StrictLeanPolicy.ExecutionClosure) := do
   let mut visited : Std.HashSet Name := {}
-  let mut queue : Array Name := #[root]
+  let mut queue : Array (Name × Option Nat) := #[(root, none)]
+  let mut visits : Array StrictLeanPolicy.ExecutionVisit := #[]
   let mut boundaries : Array StrictLean.Report.ExecutionBoundary := #[]
   let mut unresolved : Array String := #[]
   let mut replacementEdges : Array (Name × Name) := #[]
   let mut compilerEdges : Array (Name × Name) := #[]
+  let mut logicalEdges : Array (Name × Name) := #[]
+  let mut candidateEdges : Array (Name × Name) := #[]
+  let mut historyEdges : Array (Name × Name) := #[]
+  let mut currentReplacementEdges : Array (Name × Name) := #[]
+  let mut activeSimplificationEdges : Array (Name × Name) := #[]
+  let mut helperEdges : Array (Name × Name) := #[]
   let mut compiledNames : Std.HashSet Name := {}
   -- Logical recursor machinery may be installed without standalone IR;
   -- matcher/noConfusion/projection uses are handled directly by the compiler.
@@ -305,19 +312,26 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
     liftIO <| proofCache.modify (·.insert (reference, target) result)
     return result
   while !queue.isEmpty do
-    let name := queue.back!
+    let (name, parent) := queue.back!
     queue := queue.pop
     if visited.contains name then continue
     visited := visited.insert name
+    let visitIndex := visits.size
+    visits := visits.push { name, moduleName := moduleOf name, parent }
+    let enqueue (names : Array Name) := names.map (·, some visitIndex)
     -- Persisted compiler IR records replacements at the time each imported
     -- declaration was compiled, including scoped simplification and inlining.
     -- Keep source edges too: optimization may erase an unsafe/replacement step.
     if let some compiled := Lean.IR.findEnvDecl env name then
-      let dependencies := (Lean.IR.collectUsedDecls env [compiled]).filter (· != name)
+      -- Use the pinned collector's declaration step: collectUsedDecls also inserts the
+      -- declaration itself unconditionally. Filtering that synthetic entry loses real
+      -- recursive calls. collectDecl retains exactly calls/closures/initializers,
+      -- including actual self edges, without adding a synthetic self dependency.
+      let dependencies := ((Lean.IR.CollectUsedDecls.collectDecl compiled env).run {}).snd.order
       for dependency in dependencies do
         compilerEdges := compilerEdges.push (name, dependency)
         compiledNames := compiledNames.insert dependency
-      queue := queue ++ dependencies
+      queue := queue ++ enqueue dependencies
     let some info := env.find? name
     | if (Lean.IR.findEnvDecl env name).isNone then
         unresolved := unresolved.push s!"{name}: constant used by {root} is not in the environment"
@@ -342,19 +356,22 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
         replacement := replacement }
     if let some active := (Lean.Compiler.CSimp.ext.getState env).map.find? name then
       replacementEdges := replacementEdges.push (name, active.toDeclName)
+      activeSimplificationEdges := activeSimplificationEdges.push (name, active.toDeclName)
     for simplification in (candidates.find? name).getD #[] do
       let target := simplification.toDeclName
+      candidateEdges := candidateEdges.push (name, target)
       let (correspondence, evidence) ← correspondence name target
       boundaries := boundaries.push <|
         (← entry .compilerSimplification correspondence (some target)
           (some s!"conservative constant-equality candidate={simplification.thmName}; {evidence.getD ""}"))
-      queue := queue.push target
+      queue := queue ++ enqueue #[target]
     if Lean.isExtern env name then
       let native := nativeModules.contains moduleName
       boundaries := boundaries.push <|
         (← entry (if native then .nativeRuntime else .external) .trusted none none)
       continue
     if let some target := Lean.Compiler.getImplementedBy? env name then
+      currentReplacementEdges := currentReplacementEdges.push (name, target)
       let history ← liftIO <| loadReplacementHistory moduleName
       let targets ← match history with
         | .error error =>
@@ -363,6 +380,7 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
         | .ok edges =>
             let targets := edges.filterMap fun (reference, target) =>
               if reference == name then some target else none
+            historyEdges := historyEdges ++ targets.map (name, ·)
             if !targets.contains target then
               unresolved := unresolved.push s!"{name}: fresh replacement history omits current target {target}"
             pure <| if targets.contains target then targets else targets.push target
@@ -371,20 +389,29 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
         let (correspondence, evidence) ← correspondence name target
         boundaries := boundaries.push <|
           (← entry .runtimeReplacement correspondence (some target) evidence)
-        queue := queue.push target
+        queue := queue ++ enqueue #[target]
       continue
     if info.isPartial then
       boundaries := boundaries.push <| (← entry .partialComputation .trusted none none)
-      if let some value := info.value? then queue := queue ++ value.getUsedConstants
+      if let some value := info.value? then
+        let dependencies := value.getUsedConstants
+        logicalEdges := logicalEdges ++ dependencies.map (name, ·)
+        queue := queue ++ enqueue dependencies
       continue
     if info.isUnsafe then
       boundaries := boundaries.push <| (← entry .unsafeComputation .trusted none none)
-      if let some value := info.value? then queue := queue ++ value.getUsedConstants
+      if let some value := info.value? then
+        let dependencies := value.getUsedConstants
+        logicalEdges := logicalEdges ++ dependencies.map (name, ·)
+        queue := queue ++ enqueue dependencies
       continue
     match info with
     | .defnInfo _ =>
         if !(← liftTermElabM <| Meta.isProp info.type) then
-          if let some value := info.value? then queue := queue ++ value.getUsedConstants
+          if let some value := info.value? then
+            let dependencies := value.getUsedConstants
+            logicalEdges := logicalEdges ++ dependencies.map (name, ·)
+            queue := queue ++ enqueue dependencies
     | .opaqueInfo _ =>
         let recName := Lean.Compiler.mkUnsafeRecName name
         match env.find? recName with
@@ -392,7 +419,8 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
             if recInfo.isPartial then
               boundaries := boundaries.push <|
                 (← entry .partialComputation .trusted none (some recName.toString))
-              queue := queue.push recName
+              helperEdges := helperEdges.push (name, recName)
+              queue := queue ++ enqueue #[recName]
             else
               boundaries := boundaries.push <| (← entry .opaqueComputation .unresolved none
                 (some s!"compiled helper {recName} is not partial"))
@@ -401,7 +429,9 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
               (← entry .opaqueComputation .checked none (some "kernel-checked-body"))
             if !(← liftTermElabM <| Meta.isProp info.type) then
               if let some value := info.value? (allowOpaque := true) then
-                queue := queue ++ value.getUsedConstants
+                let dependencies := value.getUsedConstants
+                logicalEdges := logicalEdges ++ dependencies.map (name, ·)
+                queue := queue ++ enqueue dependencies
     | .axiomInfo _ =>
         if compilerTrustingAxiom name then
           boundaries := boundaries.push <| (← entry .compilerTrustedProof .trusted none none)
@@ -409,18 +439,33 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
   let cycles := cyclicReplacementPaths replacementEdges
   if !cycles.isEmpty then
     unresolved := unresolved.push s!"replacement-only cycle reachable from {cycles}"
+  let mut unavailableCode : Array Name := #[]
   for name in compiledNames do
     match Lean.IR.findEnvDecl env name with
     | some (.fdecl ..) => pure ()
     | some (.extern ..) =>
         if !Lean.isExtern env name then
+          unavailableCode := unavailableCode.push name
           unresolved := unresolved.push s!"{name}: compiler body is an opaque export placeholder"
     | none =>
+        unavailableCode := unavailableCode.push name
         unresolved := unresolved.push s!"{name}: compiled dependency body is unavailable"
   boundaries := boundaries.mapIdx fun occurrence boundary =>
     { boundary with occurrence, compilerCallers := compilerEdges.filterMap fun (caller, callee) =>
         if callee == boundary.name then some caller else none }
-  return (boundaries, unresolved, StrictLeanPolicy.canonicalEdges compilerEdges)
+  let closure : StrictLeanPolicy.ExecutionClosure := {
+    nodes := StrictLeanPolicy.canonicalNames visited.toArray
+    visits
+    logicalEdges := StrictLeanPolicy.canonicalEdges logicalEdges
+    candidateEdges := StrictLeanPolicy.canonicalEdges candidateEdges
+    historyEdges := StrictLeanPolicy.canonicalEdges historyEdges
+    currentReplacementEdges := StrictLeanPolicy.canonicalEdges currentReplacementEdges
+    activeSimplificationEdges := StrictLeanPolicy.canonicalEdges activeSimplificationEdges
+    helperEdges := StrictLeanPolicy.canonicalEdges helperEdges
+    requiredCode := StrictLeanPolicy.canonicalNames compiledNames.toArray
+    unavailableCode := StrictLeanPolicy.canonicalNames unavailableCode
+  }
+  return (boundaries, unresolved, StrictLeanPolicy.canonicalEdges compilerEdges, closure)
 
 /-- Owned executable roots: computable, non-proposition, safe, non-partial,
 non-internal definitions and opaque constants whose result is not a `Sort`
@@ -505,7 +550,7 @@ def environmentReport (modules : List Name)
     let candidates := simplificationCandidates env
     let proofCache ← liftIO <| IO.mkRef ({} : Std.HashMap (Name × Name) (Correspondence × Option String))
     roots.mapM fun (moduleName, root) => do
-      let (boundaries, unresolved, compilerEdges) ←
+      let (boundaries, unresolved, compilerEdges, closure) ←
         executionWalk env modules nativeModules (fun name => do
           historyRequests.modify fun requests =>
             if requests.contains (root, name) then requests else requests.push (root, name)
@@ -513,7 +558,7 @@ def environmentReport (modules : List Name)
       return ({
         name := root
         «module» := moduleName
-        boundaries, unresolved, compilerEdges } :
+        boundaries, unresolved, compilerEdges, closure } :
         StrictLean.Report.ExecutionRoot)
     else pure #[]
   return {
