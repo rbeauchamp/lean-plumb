@@ -220,6 +220,7 @@ structure Result where
   detail : String := ""
   policyProblems : Array (StrictLean.RuleId × StrictLean.Report.Declaration) := #[]
   incomplete : Bool := false
+  admissionFailure : Option ProducerReport.AdmissionFailure := none
   deriving Repr
 
 def kindOf (fence : Fence) : Kind :=
@@ -371,7 +372,7 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
       (← IO.getStdout).flush
       let modules := group.items.map (·.compilation.spec.«module».toName)
       try
-        let inspected ← SourceAudit.inspectGroupCurrentSearchPath modules
+        let outcome ← SourceAudit.inspectGroupCurrentSearchPath modules
           (group.items.map fun item => (item.compilation.spec.«module».toName, item.compilation.sourcePath))
           (sourceBindings.map fun source => (source.moduleName, FilePath.mk source.path))
           ownedOutput (includeExecution := false) (includeModuleOrigins := false)
@@ -379,6 +380,14 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
             moduleName := item.compilation.spec.module.toName
             path := item.compilation.sourcePath.toString
             content := item.compilation.spec.source })
+        if let .error failure := outcome then
+          return group.items.map fun item =>
+            let result : Result := {
+              task := item.task, status := .fail, detail := failure.detail
+              incomplete := true, admissionFailure := some failure }
+            (item.index, result)
+        let .ok inspected := outcome
+          | throw <| IO.userError "unreachable admission outcome"
         return group.items.map fun item =>
           let declarations := inspected.report.declarations.filter
             (·.«module» == item.compilation.spec.«module».toName)
@@ -488,6 +497,11 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
         result.detail .documentationExample (if result.incomplete then .incomplete else .violation)
       IO.println finding.2.text
       emit finding
+      if let some failure := result.admissionFailure then
+        let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .admission result.task.origin
+          failure.detail .documentationExample .incomplete
+        IO.println finding.2.text
+        emit finding
       for (rule, decl) in result.policyProblems do
         -- Ranges are relative to the exact verbatim snippet, explicitly a virtual source.
         let snapshot : StrictLean.SourceSnapshot := {

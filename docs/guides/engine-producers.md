@@ -237,13 +237,16 @@ unowned source is inspected only when required by an existing history obligation
 does not add full-Mathlib analysis to Core-only adopters. Producer revision still identifies
 its elaboration, not authenticated whole-binary provenance.
 
-Owned logical replay failures and source coverage/range admission failures cross the declaration worker as typed
+Owned logical replay failures and source coverage/range admission failures cross declaration and grouped-fence workers as typed
 `ProducerReport.Outcome.admissionFailed`, carrying `AdmissionFailure.detail`. The shared
 `Environment.validateSourceEvidence` guard supplies typed source-evidence refusal directly;
-the producer and decoder use the same predicate, without classifying exception text. Public project
-and file adapters emit SL2005/incomplete with that original reason and scope. Import/setup
-exceptions and crashed/missing workers cannot manufacture this outcome. Compatibility IO
-wrappers remain for callers whose surrounding stage already reports incomplete inspection.
+the producer and decoder use the same predicate, without classifying exception text. Public project,
+file and documentation adapters emit SL2005/incomplete with that original reason and scope.
+Documentation retains its SL4002/SL4004 finding alongside the typed refusal, using fence
+context without manufacturing a valid declaration range. Import/setup
+exceptions and crashed/missing workers cannot manufacture this outcome. The grouped coordinator returns the typed refusal only after validating the worker packet
+and rechecking frozen sources. The selftest consumer renders the same detail as a diagnostic
+fixture failure; compatibility IO wrappers have no public diagnostic consumer.
 The four accepted-example kinds are unchanged. Expected INCOMPLETE diagnostics are separate
 diagnostic demonstrations, never accepted conformance or accepted positive/rejection examples;
 the full corpus and its matching/export adapter are a separate #13 increment.

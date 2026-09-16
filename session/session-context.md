@@ -30,6 +30,13 @@ The plan owns subsequent steps and gates. Do not advance to #7 because a partial
 
 ## Accomplished and reusable evidence
 
+- R7 against `f8b383ff34b82aa678372b0be047c4a9696dbcaa` closes the grouped-fence
+  typed admission consumer: SL2005 retains original detail alongside SL4002.
+  Focused build and 18 fence-local public controls passed; independent semantic and
+  transport follow-ups are CLEAN. See [fence repair evidence](evidence/issue-13-fence-evidence-repair.md).
+  The R6 combined tests below failed on project source before fence inspection and
+  did not establish fence-local propagation. Ordinary420 and delivery remain pending.
+
 - R5/R6 repairs against `e58c783be00134d88ec192b575316cf7873b9887` retain reflexive
   candidates without weakening active-cycle refusal and carry malformed source-range
   refusal through the existing typed worker outcome. Focused build and 18 public controls

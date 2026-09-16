@@ -93,31 +93,24 @@ instance : FromJson GroupRequest := ⟨fun j => do
 structure GroupReport where
   report : StrictLean.Checker.ProducerReport.Environment
   transcripts : Array Frontend.Transcript
-  deriving ToJson
 
-instance : FromJson GroupReport := ⟨fun j => do
-  StrictLean.Checker.PolicyCodec.exactFields j ["report", "transcripts"]
-  return {
-    report := ← j.getObjValAs? _ "report"
-    transcripts := ← j.getObjValAs? _ "transcripts"
-  }⟩
-
-unsafe def inspectGroupWorker (request : GroupRequest) : IO GroupReport := do
+unsafe def inspectGroupWorker (request : GroupRequest) : IO ProducerReport.Outcome := do
   SourceBinding.unchanged request.sourceBindings
   let moduleSources := request.sourceBindings.map fun source =>
     (source.moduleName, FilePath.mk source.path)
-  let report ← Environment.loadReportCurrentSearchPath request.modules moduleSources
+  let outcome ← Environment.loadReportCurrentSearchPathOutcome request.modules moduleSources
     (request.ownedOutput.map FilePath.mk) request.includeExecution request.includeModuleOrigins
-  IO.ofExcept <| SourceBinding.validateAgainst request.sourceBindings report
+  if let .ok report := outcome then
+    IO.ofExcept <| SourceBinding.validateAgainst request.sourceBindings report
   SourceBinding.unchanged request.sourceBindings
-  return { report, transcripts := #[] }
+  return ProducerReport.Outcome.ofExcept outcome
 
 def inspectGroupCurrentSearchPath (modules : Array Name)
     (transcriptSources : Array (Name × FilePath) := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true)
     (compiledSources : Array ProducerReport.SourceBinding := #[]) :
-    IO GroupReport := do
+    IO (Except ProducerReport.AdmissionFailure GroupReport) := do
   let some selfLib ← checkerPackageLibDir
     | throw <| IO.userError "checker library directory unavailable"
   let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
@@ -147,21 +140,25 @@ def inspectGroupCurrentSearchPath (modules : Array Name)
     if !result.succeeded then throw <| IO.userError (result.stderr ++ result.stdout)
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
     let payload ← IO.ofExcept <| readWorkerPacket (toJson request) json
-    let inspected : GroupReport ← IO.ofExcept (fromJson? payload)
-    IO.ofExcept <| SourceBinding.validateAgainst sourceBindings inspected.report
-    unless inspected.report.census.modules == modules &&
-        inspected.report.census.executionRoots.isSome == includeExecution do
+    let outcome : ProducerReport.Outcome ← IO.ofExcept (fromJson? payload)
+    SourceBinding.unchanged sourceBindings
+    if let .admissionFailed failure := outcome then return .error failure
+    let .reported report := outcome
+      | throw <| IO.userError "unreachable admission outcome"
+    IO.ofExcept <| SourceBinding.validateAgainst sourceBindings report
+    unless report.census.modules == modules &&
+        report.census.executionRoots.isSome == includeExecution do
       throw <| IO.userError "producer-census: inspection response scope mismatch"
     -- The report worker has exited before any frontend imports are loaded.
     -- Each transcript likewise releases its imports before the next one.
     let mut transcripts := #[]
     for (name, path) in transcriptSources do
-      let declarations := inspected.report.declarations.filter (·.«module» == name)
+      let declarations := report.declarations.filter (·.«module» == name)
       if Policy.needsFrontendTranscript declarations then
         transcripts := transcripts.push (← Frontend.buildIsolated name path)
     IO.ofExcept <| SourceBinding.transcriptsMatch sourceBindings transcripts
     SourceBinding.unchanged sourceBindings
-    return { inspected with transcripts }
+    return .ok { report, transcripts }
 
 private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
     (insideLakeEnv : Bool) : IO Compilation := do

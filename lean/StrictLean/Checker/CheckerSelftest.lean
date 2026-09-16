@@ -431,12 +431,13 @@ private unsafe def fixtureVerdicts (repo scratch : FilePath) (jobs : Nat)
   try
     for (_, items) in groups do
       try
-        let inspectedGroup ← SourceAudit.inspectGroupCurrentSearchPath
+        let outcome ← SourceAudit.inspectGroupCurrentSearchPath
           (items.map (·.compilation.spec.«module».toName))
           (compiledSources := items.map fun item => {
             moduleName := item.compilation.spec.module.toName
             path := item.compilation.sourcePath.toString
             content := item.compilation.spec.source })
+        let inspectedGroup ← IO.ofExcept <| outcome.mapError (·.detail)
         let report := inspectedGroup.report
         for item in items do
           let moduleName := item.compilation.spec.«module»

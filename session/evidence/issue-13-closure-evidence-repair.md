@@ -89,3 +89,9 @@ These are focused follow-ups, not new full-branch reviews. Earlier full-branch c
 about reflexive candidate completeness and malformed-range propagation were invalidated
 by R5/R6 and are superseded here; unaffected review evidence keeps its original scope.
 Ordinary420, exact-head CI and the remaining ENGINE-01/#13 work remain outer-pipeline gates.
+
+R7 qualification correction: the combined-mode range control above mutates project
+`Example.lean`, so it fails before fence inspection. It does not establish typed
+propagation for a mutation inside a Markdown fence. That omitted consumer and the
+invalidated review claim are repaired and separately qualified in
+[the grouped-fence repair record](issue-13-fence-evidence-repair.md).
