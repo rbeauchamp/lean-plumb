@@ -49,7 +49,7 @@ use already-live snapshots and provisioned imports, not fresh project admission.
 
 Public source: [delivered change](https://github.com/rbeauchamp/acorn/pull/4), integrated
 at [6d3e95bf](https://github.com/rbeauchamp/acorn/commit/6d3e95bf2dc267436d4b34508d2afd48e1ab11c8).
-The [current-main run](https://github.com/rbeauchamp/acorn/actions/runs/35098724752/job/104802455043)
+The [run at 6d3e95bf](https://github.com/rbeauchamp/acorn/actions/runs/35098724752/job/104802455043)
 completed its required cold verification in approximately 239s on Ubuntu 24.04.
 Logged stage observations were build166.986s, compiled boundary15.057s,
 native admission26.100s and combined ownership/axiom/corpus12.403s, plus other overhead.
@@ -73,7 +73,7 @@ These are observations of the combined delivered change, not isolated causal est
   and acceptance remained uncached.
 
 The public delivery record says macOS missed both its former 300s budget and its explicitly
-authorized 360s budget. Those statements are delivery-record claims; the 239s current-main
+authorized 360s budget. Those statements are delivery-record claims; the 239s run at 6d3e95bf
 Ubuntu result was independently read from job metadata and logs. A deadline increase
 changes policy, not throughput. Neither Acorn's budget nor its runner choice overrides
 another repository's requirements. No private Acorn source is required for this guidance.
