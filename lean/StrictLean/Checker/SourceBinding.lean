@@ -23,7 +23,9 @@ def capture (sources : Array (Name × FilePath)) : IO (Array ProducerReport.Sour
 /-- Compare exact text at each IO boundary; never recapture changed text as the claim. -/
 def unchanged (sources : Array ProducerReport.SourceBinding) : IO Unit := do
   for source in sources do
-    unless (← IO.FS.readFile source.path) == source.content do
+    let current ← try IO.FS.readFile source.path catch error =>
+      throw <| IO.userError s!"producer-source: source snapshot unavailable: {source.moduleName} ({source.path}): {error}"
+    unless current == source.content do
       throw <| IO.userError s!"producer-source: source snapshot changed: {source.moduleName}"
 
 /-- Require the producer's owned-source account to be the caller's frozen account
@@ -54,7 +56,10 @@ def configuration (repo manifest : FilePath) : IO (Array (FilePath × Option Str
 /-- Refuse a change in any captured configuration file's presence or exact text. -/
 def configurationUnchanged (snapshot : Array (FilePath × Option String)) : IO Unit := do
   for (path, content) in snapshot do
-    let current ← if ← path.pathExists then pure (some (← IO.FS.readFile path)) else pure none
+    let current ← try
+        if ← path.pathExists then pure (some (← IO.FS.readFile path)) else pure none
+      catch error =>
+        throw <| IO.userError s!"producer-source: configuration snapshot unavailable: {path}: {error}"
     unless current == content do
       throw <| IO.userError s!"producer-source: configuration snapshot changed: {path}"
 

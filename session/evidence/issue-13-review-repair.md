@@ -20,7 +20,11 @@ Issue #13 remains partial and open; this is neither delivery nor global Accepted
 - R3 removes only the newly introduced `CLAUDE.md` alias. `AGENTS.md` is unchanged by
   this repair.
 
-## Focused evidence
+## Historical focused evidence
+
+The missing-source SL2001 assertion below was incorrect under the registry contract.
+R4 supersedes that classification; this historical run does not qualify the required
+missing-source SL2005 behavior. The other observed paths retain their recorded scope.
 
 Pinned Lean: `4.33.1` / `819816b2e0a3bf405af45ae5c7af2491d8f5bee6`.
 Mathlib lock: `0df444a360eaa60ab8c11dca51a86af692955474`.

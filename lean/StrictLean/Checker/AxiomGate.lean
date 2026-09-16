@@ -573,6 +573,9 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
         verbose
       } scratch
       else auditSurfaceAt copy (manifest.getD (Manifest.defaultPath copy)) true verbose repo jsonOut resultOut
+    if let some (_, sources, configuration) := docsInputs then
+      SourceBinding.unchanged sources
+      SourceBinding.configurationUnchanged configuration
     if result != 0 || !withDocs then return result
     if let some output := resultOut then
       let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
@@ -629,8 +632,8 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
       catch error => pure (.error s!"{error}\n{compilation.process.output}")
     SourceBinding.unchanged dependencySources
     SourceBinding.configurationUnchanged configuration
-    unless (← IO.FS.readFile path) == source do
-      throw <| IO.userError "producer-source: file snapshot changed"
+    SourceBinding.unchanged #[{
+      moduleName := moduleName.toName, path := path.toString, content := source }]
     match result with
     | .error output =>
         IO.println s!"FAIL: {path} does not elaborate:"

@@ -6,8 +6,9 @@
 The prior handoff [PR](https://github.com/rbeauchamp/strict-lean/pull/29) is merged.
 **Working checkout:** a disposable task worktree; use this file from your own checkout,
 not a historical absolute project path.
-**Current delivery state:** engine implementation checkpoint for no-mistakes. Independent
-review, full ordinary420, exact-head CI, publication and integration remain pending under
+**Current delivery state:** engine implementation checkpoint for no-mistakes. Full-branch
+static reviews and focused repair reviews are recorded below; full ordinary420, exact-head
+CI, publication and integration remain pending under
 no-mistakes and Firstmate. An implementation commit is not an integrated delivery.
 **Active focus:** issue #13 only; the separate corpus worker owns the twenty rule pairs and
 bound example/demonstration adapters. Do not cherry-pick an active worker branch or claim
@@ -29,6 +30,13 @@ The plan owns subsequent steps and gates. Do not advance to #7 because a partial
 
 ## Accomplished and reusable evidence
 
+- R4 and related frozen-evidence read paths are repaired against
+  `f7dfff2531fc0076d2558242dffcd46018c81455`: missing/unreadable captured source or
+  configuration is SL2005/incomplete with IO detail; initial setup remains SL2001.
+  Focused build and 28 public controls passed. Two distinct fresh full-branch reviews
+  and their focused repair follow-ups are recorded in the
+  [current repair evidence](evidence/issue-13-source-read-repair.md).
+  The earlier missing-source SL2001 assertion is withdrawn as contract qualification.
 - R1–R3 review-phase repairs against `d5a6c8ca92ebd44079d7c21a2550c675d84ad330`: frozen
   documentation project inputs, sole worker source maps and removal of the new Claude alias.
   Focused build and 18 public documentation controls passed; two fresh-context risk-specific

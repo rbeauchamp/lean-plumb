@@ -214,9 +214,16 @@ project source map and configuration frozen before dependency building through f
 compilation, grouped inspection and the final result. Worker requests use `sourceBindings`
 as their sole source map; loader module/path pairs are projections of those bindings.
 A detected source/configuration mismatch prevents success; the project adapter reports
-SL2005/incomplete. An unavailable source read remains SL2001/incomplete. `python3 scripts/documentation_source_checks.py` qualifies both public
+SL2005/incomplete, including missing or unreadable previously frozen source/configuration. The latter
+preserves the underlying IO reason. Initial environment/setup failures remain SL2001;
+only re-reading existing frozen evidence receives this normalization. The original file
+path uses the shared guard, and combined mode checks its parent snapshots on declaration
+worker failure as well as success.
+`python3 scripts/documentation_source_checks.py` qualifies both public
 documentation paths with changed and missing dependency/configuration inputs and fresh
-restored positives; its observations do not establish universal IO correctness.
+restored positives. Its `--source-read-only` selection additionally checks original-file
+and declaration-build read failures, initial setup classification and restored positives;
+these observations do not establish universal IO correctness.
 
 This is exact observation equality, not a filesystem lock or source-to-olean theorem.
 Lake build semantics, compiler/imported dependency authenticity, filesystem reads and the
