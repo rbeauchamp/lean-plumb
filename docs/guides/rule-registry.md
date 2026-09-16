@@ -126,7 +126,8 @@ execution claim and exact source even when there are no findings. File `scope.re
 and project `scope.surfaces[*].report` retain the complete observed declaration and
 execution inventories, including trusted boundaries and correspondence evidence.
 Project scope also retains its source snapshots, Lake library inventory and
-completed stage names. Combined
+completed stage names. See the [producer account](engine-producers.md#source-and-configuration-binding)
+for frozen configuration snapshots and source binding in file and project results. Combined
 project/documentation output remains incomplete while its documentation stage is
 pending. Configuration that has not been admitted has null scope/mode and an
 incomplete status. Recognizable output destinations are invalidated before

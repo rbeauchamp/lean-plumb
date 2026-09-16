@@ -1,4 +1,5 @@
 import StrictLean.Report
+import StrictLeanPolicy.Admission
 
 /-! Operational producer transport and key reconciliation. Kept outside the force-loaded
 report module so ordinary admission does not replay JSON-validator implementation. -/
@@ -6,6 +7,19 @@ namespace StrictLean.Checker.ProducerReport
 open Lean StrictLeanPolicy
 open StrictLean.Checker.PolicyCodec (exactFields)
 open scoped StrictLean.Report
+
+/-- Required owned-admission or frozen source/configuration evidence is unavailable
+or invalid. Trusted operational checks supply this outcome; raw data construction
+does not authenticate it. Generic worker/import failures retain their own path. -/
+structure AdmissionFailure where
+  detail : String
+  deriving Repr, ToJson
+
+instance : FromJson AdmissionFailure := ⟨fun j => do
+  exactFields j ["detail"]
+  let detail ← j.getObjValAs? String "detail"
+  if detail.isEmpty then throw "empty owned-admission failure"
+  return ⟨detail⟩⟩
 
 abbrev Census := StrictLean.Report.Census
 deriving instance ToJson for StrictLean.Report.Census
@@ -74,13 +88,28 @@ def HistoryOutcome.edges : HistoryOutcome → Except String (Array (Name × Name
   | .completed _ _ _ edges => .ok edges
   | .unavailable detail => .error detail
 
-/-- Operational producer account extends the unchanged pure policy observations.
+/-- Exact source observed for one owned module; the caller binds it to the build
+request. Paths identify files, while content equality binds their actual text. -/
+structure SourceBinding where
+  moduleName : Name
+  path : String
+  content : String
+  deriving Repr, DecidableEq, ToJson
+
+instance : FromJson SourceBinding := ⟨fun j => do
+  exactFields j ["moduleName", "path", "content"]
+  return { moduleName := ← j.getObjValAs? _ "moduleName"
+           path := ← j.getObjValAs? _ "path"
+           content := ← j.getObjValAs? _ "content" }⟩
+
+/-- Operational producer account extends the pure policy observations.
 The interactive probe alone has no admission/documentation receipt. Trusted loaders supply
 both; a consumer must validate the account before using its results. -/
 structure Environment extends StrictLean.Report.Collected where
   admission : Option AdmissionReceipt := none
   documentation : Option DocumentationObservation := none
   histories : Array (Name × HistoryOutcome) := #[]
+  sourceBindings : Array SourceBinding := #[]
   deriving Repr
 
 instance : ToJson Environment := ⟨fun r => Json.mkObj [
@@ -88,7 +117,15 @@ instance : ToJson Environment := ⟨fun r => Json.mkObj [
   ("moduleOrigins", toJson r.moduleOrigins), ("declarations", toJson r.declarations),
   ("execution", toJson r.execution), ("census", toJson r.census),
   ("admission", toJson r.admission), ("documentation", toJson r.documentation),
-  ("histories", toJson r.histories)]⟩
+  ("histories", toJson r.histories), ("sourceBindings", toJson r.sourceBindings)]⟩
+
+def Environment.validateSourceEvidence (r : Environment) : Except AdmissionFailure Unit := do
+  unless (canonicalNames (r.sourceBindings.map (·.moduleName))).size == r.sourceBindings.size &&
+      r.sourceBindings.all (fun s => !s.path.isEmpty && r.modules.contains s.moduleName) &&
+      r.census.modules.all (fun m => r.sourceBindings.any (·.moduleName == m)) &&
+      r.declarations.all (fun d => r.sourceBindings.any (fun s => s.moduleName == d.module &&
+        d.ranges.all (·.validFor s.content))) do
+    throw ⟨"producer-source: source coverage or coordinates mismatch"⟩
 
 /-- Exact key reconciliation at the producer and transport admission boundaries. This
 checks supplied observations; truthful Lean/Lake extraction remains the trusted boundary. -/
@@ -108,6 +145,10 @@ def Environment.validate (r : Environment) : Except String Unit := do
         roots == r.execution.map (fun root => (root.module, root.name)) &&
         roots.all (fun key => r.modules.contains key.1) do
       throw "producer-census: execution root coverage mismatch"
+  match admitExecution r.execution with
+  | .error _ => throw "producer-closure: invalid reached-node, edge, or boundary account"
+  | .ok _ => pure ()
+  r.validateSourceEvidence.mapError (·.detail)
   let some receipt := r.admission | throw "producer-admission: missing replay receipt"
   let requiredSet := receipt.required.foldl (fun s k => s.insert k)
     ({} : Std.HashSet (Name × Name))
@@ -137,6 +178,9 @@ def Environment.validate (r : Environment) : Except String Unit := do
       unless !path.isEmpty && before == after &&
           edges.all (fun (a, b) => !a.isAnonymous && !b.isAnonymous) do
         throw "producer-history: invalid completed source observation"
+      if let some source := r.sourceBindings.find? (·.moduleName == mod) then
+        unless path == source.path && before == source.content do
+          throw "producer-source: history differs from owned source snapshot"
     | .unavailable detail =>
       unless !detail.isEmpty && requests.all (fun (root, requested) => requested != mod ||
           r.execution.any (fun r => r.name == root && !r.unresolved.isEmpty)) do
@@ -153,10 +197,36 @@ def Environment.validate (r : Environment) : Except String Unit := do
             | throw "producer-history: runtime replacement target missing"
           unless edges.contains (boundary.name, replacement) do
             throw "producer-history: completed execution omits replacement history edge"
+    let visits := root.closure.visits
+    unless (visits.find? (·.name == root.name)).any (·.moduleName == some root.module) &&
+        visits.all (fun v => v.moduleName.all r.modules.contains) &&
+        root.boundaries.all (fun b =>
+          (visits.find? (·.name == b.name)).any (·.moduleName == some b.module)) do
+      throw "producer-closure: reached module attribution mismatch"
+    let boundaryEdges (kind : BoundaryKind) := canonicalEdges <| root.boundaries.filterMap fun b =>
+      if b.boundary == kind then b.replacement.map (b.name, ·) else none
+    unless boundaryEdges .compilerSimplification == root.closure.candidateEdges &&
+        boundaryEdges .runtimeReplacement == canonicalEdges
+          (root.closure.historyEdges ++ root.closure.currentReplacementEdges) do
+      throw "producer-closure: replacement boundary coverage mismatch"
+    let mut expectedHistory := #[]
+    for edge in root.closure.currentReplacementEdges do
+      let some visit := visits.find? (·.name == edge.1)
+        | throw "producer-closure: replacement reference is not reached"
+      let some mod := visit.moduleName
+        | throw "producer-closure: replacement module is unavailable"
+      unless requests.contains (root.name, mod) do
+        throw "producer-closure: replacement history request is missing"
+      let some (_, outcome) := r.histories.find? (·.1 == mod)
+        | throw "producer-closure: replacement history outcome is missing"
+      if let .completed _ _ _ edges := outcome then
+        expectedHistory := expectedHistory ++ edges.filter (·.1 == edge.1)
+    unless canonicalEdges expectedHistory == root.closure.historyEdges do
+      throw "producer-closure: historical edges differ from their source receipts"
 
 instance : FromJson Environment := ⟨fun j => do
   exactFields j ["toolchain", "modules", "moduleOrigins", "declarations", "execution",
-    "census", "admission", "documentation", "histories"]
+    "census", "admission", "documentation", "histories", "sourceBindings"]
   let r : Environment := {
     toolchain := ← j.getObjValAs? _ "toolchain"
     modules := ← j.getObjValAs? _ "modules"
@@ -167,8 +237,32 @@ instance : FromJson Environment := ⟨fun j => do
     admission := ← j.getObjValAs? _ "admission"
     documentation := ← j.getObjValAs? _ "documentation"
     histories := ← j.getObjValAs? _ "histories"
+    sourceBindings := ← j.getObjValAs? _ "sourceBindings"
   }
   r.validate
   return r⟩
+
+/-- Successful transport completion is distinct from successful logical admission. -/
+inductive Outcome where
+  | reported (report : Environment)
+  | admissionFailed (failure : AdmissionFailure)
+
+def Outcome.ofExcept : Except AdmissionFailure Environment → Outcome
+  | .ok report => .reported report
+  | .error failure => .admissionFailed failure
+
+instance : ToJson Outcome := ⟨fun
+  | .reported report => Json.mkObj [("kind", toJson "reported"), ("report", toJson report)]
+  | .admissionFailed failure => Json.mkObj [("kind", toJson "admissionFailed"), ("failure", toJson failure)]⟩
+
+instance : FromJson Outcome := ⟨fun j => do
+  match ← j.getObjValAs? String "kind" with
+  | "reported" =>
+    exactFields j ["kind", "report"]
+    return .reported (← j.getObjValAs? _ "report")
+  | "admissionFailed" =>
+    exactFields j ["kind", "failure"]
+    return .admissionFailed (← j.getObjValAs? _ "failure")
+  | _ => throw "unknown environment producer outcome"⟩
 
 end StrictLean.Checker.ProducerReport

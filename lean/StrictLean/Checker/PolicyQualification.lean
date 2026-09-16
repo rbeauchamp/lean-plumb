@@ -51,7 +51,10 @@ def transport : Array String := Id.run do
     (decode (Json.mkObj ((encoded.getObj?.toOption.map (·.toList)).getD [] |>.filter (·.1 != "boundary"))))
   failures := failures ++ expectOk "boundary-restored" (decode encoded)
   let root : StrictLean.Report.ExecutionRoot := {
-    name := `sample, «module» := `PublicApi, boundaries := #[boundary], unresolved := #[], compilerEdges := #[] }
+    name := `sample, «module» := `PublicApi, boundaries := #[boundary], unresolved := #[], compilerEdges := #[]
+    closure := {
+      nodes := #[`sample]
+      visits := #[{ name := `sample, moduleName := some `PublicApi, parent := none }] } }
   failures := failures ++ expectOk "execution-inventory-positive" (StrictLeanPolicy.admitExecution #[root])
   failures := failures ++ expectError "duplicate-root" "invalid execution inventory"
     (StrictLeanPolicy.admitExecution #[root, root])
