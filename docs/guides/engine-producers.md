@@ -193,6 +193,11 @@ The induction uses the strictly earlier parent index, not another graph search. 
 results establish connectedness and structural admission of supplied observations. They
 **do not prove completeness or authenticity of Lean environment/IR extraction**, that a
 candidate edge executes, machine-code correspondence, or intended-specification adequacy.
+Reflexive constant equalities remain in the candidate set. An active `csimp` self-edge
+therefore satisfies the active-edge subset invariant while its replacement-only cycle
+remains unresolved (SL3001); an inactive reflexive candidate does not create an active
+cycle. Ordinary recursive IR self-edges remain a separate channel.
+
 The existing pure execution/Plan/Observation interfaces consume this strengthened admitted
 inventory; global required jobs and construction of `Accepted` remain #7.
 
@@ -232,8 +237,10 @@ unowned source is inspected only when required by an existing history obligation
 does not add full-Mathlib analysis to Core-only adopters. Producer revision still identifies
 its elaboration, not authenticated whole-binary provenance.
 
-Owned logical replay failures now cross the declaration worker as typed
-`ProducerReport.Outcome.admissionFailed`, carrying `AdmissionFailure.detail`. Public project
+Owned logical replay failures and source coverage/range admission failures cross the declaration worker as typed
+`ProducerReport.Outcome.admissionFailed`, carrying `AdmissionFailure.detail`. The shared
+`Environment.validateSourceEvidence` guard supplies typed source-evidence refusal directly;
+the producer and decoder use the same predicate, without classifying exception text. Public project
 and file adapters emit SL2005/incomplete with that original reason and scope. Import/setup
 exceptions and crashed/missing workers cannot manufacture this outcome. Compatibility IO
 wrappers remain for callers whose surrounding stage already reports incomplete inspection.

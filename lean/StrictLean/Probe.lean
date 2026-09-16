@@ -213,7 +213,6 @@ private def simplificationCandidates (env : Environment) :
   env.constants.fold (init := {}) fun candidates theoremName info => Id.run do
     let some (_, .const reference us, .const target vs) := info.type.eq?
       | return candidates
-    if reference == target then return candidates
     let levels := Std.HashSet.ofList us
     if levels.size != us.length || !levels.all Level.isParam || us != vs then
       return candidates

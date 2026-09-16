@@ -182,6 +182,7 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       sourceBindings := sourceBindings.filter (fun s => report.modules.contains s.moduleName)
     }
     SourceBinding.unchanged report.sourceBindings
+    if let .error failure := report.validateSourceEvidence then return .error failure
     IO.ofExcept report.validate
     return .ok report
 

@@ -7,6 +7,11 @@ branch comparison against `b64747b7ce16d5850c11f9798d46dfa5fe5b9b17`, at HEAD
 `f7dfff2531fc0076d2558242dffcd46018c81455` plus the frozen R4 working-tree repair.
 Their assignments were full-branch reviews, distinct from the earlier R1–R3 repair contexts.
 
+Subsequent R5/R6 findings invalidated the reflexive-candidate and malformed-range
+propagation portions of this historical review. Their repairs and independent focused
+follow-ups are recorded in [current evidence](issue-13-closure-evidence-repair.md);
+unaffected claims retain their original scope.
+
 ## Semantic/specification review
 
 Reviewer: `/root/branch_semantic_review`.

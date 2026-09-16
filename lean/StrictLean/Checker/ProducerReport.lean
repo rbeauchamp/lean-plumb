@@ -119,6 +119,14 @@ instance : ToJson Environment := ⟨fun r => Json.mkObj [
   ("admission", toJson r.admission), ("documentation", toJson r.documentation),
   ("histories", toJson r.histories), ("sourceBindings", toJson r.sourceBindings)]⟩
 
+def Environment.validateSourceEvidence (r : Environment) : Except AdmissionFailure Unit := do
+  unless (canonicalNames (r.sourceBindings.map (·.moduleName))).size == r.sourceBindings.size &&
+      r.sourceBindings.all (fun s => !s.path.isEmpty && r.modules.contains s.moduleName) &&
+      r.census.modules.all (fun m => r.sourceBindings.any (·.moduleName == m)) &&
+      r.declarations.all (fun d => r.sourceBindings.any (fun s => s.moduleName == d.module &&
+        d.ranges.all (·.validFor s.content))) do
+    throw ⟨"producer-source: source coverage or coordinates mismatch"⟩
+
 /-- Exact key reconciliation at the producer and transport admission boundaries. This
 checks supplied observations; truthful Lean/Lake extraction remains the trusted boundary. -/
 def Environment.validate (r : Environment) : Except String Unit := do
@@ -140,12 +148,7 @@ def Environment.validate (r : Environment) : Except String Unit := do
   match admitExecution r.execution with
   | .error _ => throw "producer-closure: invalid reached-node, edge, or boundary account"
   | .ok _ => pure ()
-  unless (canonicalNames (r.sourceBindings.map (·.moduleName))).size == r.sourceBindings.size &&
-      r.sourceBindings.all (fun s => !s.path.isEmpty && r.modules.contains s.moduleName) &&
-      r.census.modules.all (fun m => r.sourceBindings.any (·.moduleName == m)) &&
-      r.declarations.all (fun d => r.sourceBindings.any (fun s => s.moduleName == d.module &&
-        d.ranges.all (·.validFor s.content))) do
-    throw "producer-source: source coverage or coordinates mismatch"
+  r.validateSourceEvidence.mapError (·.detail)
   let some receipt := r.admission | throw "producer-admission: missing replay receipt"
   let requiredSet := receipt.required.foldl (fun s k => s.insert k)
     ({} : Std.HashSet (Name × Name))

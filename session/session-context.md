@@ -30,6 +30,13 @@ The plan owns subsequent steps and gates. Do not advance to #7 because a partial
 
 ## Accomplished and reusable evidence
 
+- R5/R6 repairs against `e58c783be00134d88ec192b575316cf7873b9887` retain reflexive
+  candidates without weakening active-cycle refusal and carry malformed source-range
+  refusal through the existing typed worker outcome. Focused build and 18 public controls
+  passed; independent semantic and compiler/transport repair follow-ups are CLEAN.
+  See [current closure/evidence repair](evidence/issue-13-closure-evidence-repair.md).
+  No pure proofs changed; earlier review claims invalidated by these findings are
+  superseded, not silently reused. Ordinary420 and delivery remain pending.
 - R4 and related frozen-evidence read paths are repaired against
   `f7dfff2531fc0076d2558242dffcd46018c81455`: missing/unreadable captured source or
   configuration is SL2005/incomplete with IO detail; initial setup remains SL2001.
