@@ -119,18 +119,19 @@ closed registry and requires all three phases once. Unrun selected rules cannot 
 full-corpus PASS. Version fields alone do not authenticate whole binaries; the producer and
 filesystem remain the existing trusted operational boundary.
 
-After provisioning pinned dependencies, build both detector executables and the qualifier module:
+After provisioning pinned dependencies, build both detector executables and the qualifier executable.
+The campaign invokes the compiled qualifier instead of re-elaborating it for every receipt:
 
 ```sh
-lake build axiomGate ruleExamples +StrictLean.Checker.RuleExampleQualification:olean
+lake build axiomGate ruleExamples ruleExampleQualification
 python3 scripts/rule_example_checks.py --evidence tmp/rule-examples.json
 ```
 
 `./scripts/verify.sh diagnostics rule-examples` wraps this build and campaign under the
 repository's diagnostic deadline and includes its housekeeping checks.
 
-The `ruleExamples` executable is excluded in the root manifest solely as operational
-qualification tooling, alongside the existing checker executables. Its module belongs to the
+The `ruleExamples` and `ruleExampleQualification` executables are excluded in the root manifest solely as operational
+qualification tooling, alongside the existing checker executables. Their modules belong to the
 already-excluded `StrictLean` tooling library; no product module or detector is newly exempted
 from its applicable qualification.
 

@@ -212,8 +212,8 @@ def main() -> None:
             current = scratch / "current.json"
             current.write_text(json.dumps({"checkerBefore": checker_before,
                 "checkerAfter": snapshot(checker_paths), "records": [record]}))
-            checked = run(["lake", "env", "lean", "--run",
-                "lean/StrictLean/Checker/RuleExampleQualification.lean", "--record", str(current)])
+            checked = run([str(ROOT / ".lake/build/bin/ruleExampleQualification"),
+                           "--record", str(current)])
             if refusal is None:
                 if checked.returncode:
                     raise RuntimeError(f"{record['rule']}/{record['phase']}: {checked.stdout}{checked.stderr}")
@@ -290,8 +290,8 @@ def main() -> None:
         exported["admissionControls"] = controls
         exported["checkerAfter"] = snapshot(checker_paths)
         options.evidence.write_text(json.dumps(exported, indent=2) + "\n")
-    checked = run(["lake", "env", "lean", "--run",
-        "lean/StrictLean/Checker/RuleExampleQualification.lean", str(options.evidence.resolve())])
+    checked = run([str(ROOT / ".lake/build/bin/ruleExampleQualification"),
+                   str(options.evidence.resolve())])
     if checked.returncode:
         raise RuntimeError(checked.stdout + checked.stderr)
     print(f"rule example campaign: PASS ({len(selected)} selected rules; diagnostic evidence only)")

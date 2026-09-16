@@ -47,7 +47,7 @@ standard_verify_checks() {
       if (( $# > 1 )); then echo "diagnostics accepts at most one partition" >&2; exit 2; fi
       case "${1:-}" in
         rule-examples)
-          lake build axiomGate ruleExamples +StrictLean.Checker.RuleExampleQualification:olean
+          lake build axiomGate ruleExamples ruleExampleQualification
           python3 scripts/rule_example_checks.py --evidence tmp/rule-examples.json
           ;;
         producers)
