@@ -95,15 +95,16 @@ structure GroupReport where
   transcripts : Array Frontend.Transcript
 
 unsafe def inspectGroupWorker (request : GroupRequest) : IO ProducerReport.Outcome := do
-  SourceBinding.unchanged request.sourceBindings
-  let moduleSources := request.sourceBindings.map fun source =>
-    (source.moduleName, FilePath.mk source.path)
-  let outcome ← Environment.loadReportCurrentSearchPathOutcome request.modules moduleSources
-    (request.ownedOutput.map FilePath.mk) request.includeExecution request.includeModuleOrigins
-  if let .ok report := outcome then
-    IO.ofExcept <| SourceBinding.validateAgainst request.sourceBindings report
-  SourceBinding.unchanged request.sourceBindings
-  return ProducerReport.Outcome.ofExcept outcome
+  let outcome ← SourceBinding.withUnchanged request.sourceBindings #[] do
+    let moduleSources := request.sourceBindings.map fun source =>
+      (source.moduleName, FilePath.mk source.path)
+    let outcome ← Environment.loadReportCurrentSearchPathOutcome request.modules moduleSources
+      (request.ownedOutput.map FilePath.mk) request.includeExecution request.includeModuleOrigins
+    if let .ok report := outcome then
+      if let .error failure := SourceBinding.validateAgainst request.sourceBindings report then
+        return .error failure
+    return outcome
+  return ProducerReport.Outcome.ofExcept (outcome.bind id)
 
 def inspectGroupCurrentSearchPath (modules : Array Name)
     (transcriptSources : Array (Name × FilePath) := #[])
@@ -111,99 +112,107 @@ def inspectGroupCurrentSearchPath (modules : Array Name)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true)
     (compiledSources : Array ProducerReport.SourceBinding := #[]) :
     IO (Except ProducerReport.AdmissionFailure GroupReport) := do
-  let some selfLib ← checkerPackageLibDir
-    | throw <| IO.userError "checker library directory unavailable"
-  let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
-  let mut resolvedSources := moduleSources ++ transcriptSources
-  for name in modules do
-    if !resolvedSources.any (·.1 == name) then
-      resolvedSources := resolvedSources.push (name, (← Lean.findOLean name).withExtension "lean")
-  let sourceBindings ← SourceBinding.capture resolvedSources
-  unless compiledSources.all sourceBindings.contains do
-    throw <| IO.userError "producer-source: grouped inspection differs from compiled source"
-  withScratch (← IO.currentDir) "inspection-group" fun scratch => do
-    let input := scratch / "request.json"
-    let output := scratch / "report.json"
-    let request : GroupRequest := {
-      modules
-      sourceBindings
-      ownedOutput := ownedOutput.map (·.toString)
-      includeExecution
-      includeModuleOrigins
-    }
-    writeJson input (toJson request)
-    let result ← runProcess (← IO.currentDir) binary.toString
-      #["--inspection-group-worker", input.toString, output.toString]
-      #[("LEAN_PATH", some (SearchPath.toString (← Lean.searchPathRef.get)))]
-    -- Put the actual failure before timing stdout: documentation displays a
-    -- bounded diagnostic excerpt, so progress must not hide the rejection.
-    if !result.succeeded then throw <| IO.userError (result.stderr ++ result.stdout)
-    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-    let payload ← IO.ofExcept <| readWorkerPacket (toJson request) json
-    let outcome : ProducerReport.Outcome ← IO.ofExcept (fromJson? payload)
-    SourceBinding.unchanged sourceBindings
-    if let .admissionFailed failure := outcome then return .error failure
-    let .reported report := outcome
-      | throw <| IO.userError "unreachable admission outcome"
-    IO.ofExcept <| SourceBinding.validateAgainst sourceBindings report
-    unless report.census.modules == modules &&
-        report.census.executionRoots.isSome == includeExecution do
-      throw <| IO.userError "producer-census: inspection response scope mismatch"
-    -- The report worker has exited before any frontend imports are loaded.
-    -- Each transcript likewise releases its imports before the next one.
-    let mut transcripts := #[]
-    for (name, path) in transcriptSources do
-      let declarations := report.declarations.filter (·.«module» == name)
-      if Policy.needsFrontendTranscript declarations then
-        transcripts := transcripts.push (← Frontend.buildIsolated name path)
-    IO.ofExcept <| SourceBinding.transcriptsMatch sourceBindings transcripts
-    SourceBinding.unchanged sourceBindings
-    return .ok { report, transcripts }
+  return (← SourceBinding.withUnchanged compiledSources #[] do
+    let some selfLib ← checkerPackageLibDir
+      | throw <| IO.userError "checker library directory unavailable"
+    let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+    let mut resolvedSources := moduleSources ++ transcriptSources
+    for name in modules do
+      if !resolvedSources.any (·.1 == name) then
+        resolvedSources := resolvedSources.push (name, (← Lean.findOLean name).withExtension "lean")
+    let sourceBindings ← SourceBinding.capture resolvedSources
+    return (← SourceBinding.withUnchanged sourceBindings #[] do
+      unless compiledSources.all sourceBindings.contains do
+        return .error ⟨"producer-source: grouped inspection differs from compiled source"⟩
+      withScratch (← IO.currentDir) "inspection-group" fun scratch => do
+        let input := scratch / "request.json"
+        let output := scratch / "report.json"
+        let request : GroupRequest := {
+          modules
+          sourceBindings
+          ownedOutput := ownedOutput.map (·.toString)
+          includeExecution
+          includeModuleOrigins
+        }
+        writeJson input (toJson request)
+        let result ← runProcess (← IO.currentDir) binary.toString
+          #["--inspection-group-worker", input.toString, output.toString]
+          #[("LEAN_PATH", some (SearchPath.toString (← Lean.searchPathRef.get)))]
+        -- Put the actual failure before timing stdout: documentation displays a
+        -- bounded diagnostic excerpt, so progress must not hide the rejection.
+        if !result.succeeded then throw <| IO.userError (result.stderr ++ result.stdout)
+        let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+        let payload ← IO.ofExcept <| readWorkerPacket (toJson request) json
+        let outcome : ProducerReport.Outcome ← IO.ofExcept (fromJson? payload)
+        SourceBinding.unchanged sourceBindings
+        if let .admissionFailed failure := outcome then return .error failure
+        let .reported report := outcome
+          | throw <| IO.userError "unreachable admission outcome"
+        if let .error failure := SourceBinding.validateAgainst sourceBindings report then
+          return .error failure
+        unless report.census.modules == modules &&
+            report.census.executionRoots.isSome == includeExecution do
+          throw <| IO.userError "producer-census: inspection response scope mismatch"
+        -- The report worker has exited before any frontend imports are loaded.
+        -- Each transcript likewise releases its imports before the next one.
+        let mut transcripts := #[]
+        for (name, path) in transcriptSources do
+          let declarations := report.declarations.filter (·.«module» == name)
+          if Policy.needsFrontendTranscript declarations then
+            transcripts := transcripts.push (← Frontend.buildIsolated name path)
+        if let .error failure := SourceBinding.transcriptsMatch sourceBindings transcripts then
+          return .error failure
+        SourceBinding.unchanged sourceBindings
+        return .ok { report, transcripts }
+    ).bind id
+  ).bind id
 
 private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
-    (insideLakeEnv : Bool) : IO Compilation := do
+    (insideLakeEnv : Bool) : IO (Except ProducerReport.AdmissionFailure Compilation) := do
   let spawn := fun cmd args =>
     if insideLakeEnv then runProcess repo cmd args
     else runProcess repo "lake" (#["env", cmd] ++ args) scrubbedLeanPathEnv
   let sourcePath := scratch / s!"{spec.«module»}.lean"
   let oleanPath := scratch / s!"{spec.«module»}.olean"
   let ileanPath := scratch / s!"{spec.«module»}.ilean"
-  IO.FS.writeFile sourcePath spec.source
-  if spec.captureRejection then
-    let some selfLib ← checkerPackageLibDir
-      | throw <| IO.userError "checker library directory unavailable"
-    let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
-    let output := scratch / s!"{spec.«module»}.diagnostics.json"
-    let process ← spawn binary.toString
-      #["--diagnostic-worker", (StrictLean.RegistryCodec.nameJson spec.module.toName).compress, sourcePath.toString, output.toString]
-    let errors ← if process.succeeded then
-        try
-          let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-          let payload ← IO.ofExcept <| readWorkerPacket
-            (sourceWorkerRequest "diagnostic" spec.module.toName sourcePath spec.source) json
-          unless (← IO.FS.readFile sourcePath) == spec.source do throw <| IO.userError "diagnostic snapshot changed"
-          pure <| some (← IO.ofExcept <| fromJson? payload)
-        catch _ => pure none
-      else pure none
-    return { spec, sourcePath, oleanPath, ileanPath, process, errors }
-  let warningArgs := if spec.warningAsError then #["-DwarningAsError=true"] else #[]
-  let args := warningArgs ++
-    #["-o", oleanPath.toString, "-i", ileanPath.toString, sourcePath.toString]
-  -- The worker sees only the workspace's own search path: an import that the
-  -- fresh claimed-surface build did not produce fails here instead of
-  -- resolving from the invoking checkout's inherited `LEAN_PATH`.
-  let compiler ← if insideLakeEnv then do
-      let some path ← IO.getEnv "LEAN"
-        | throw <| IO.userError "Lake batch environment has no LEAN executable"
-      if path.isEmpty || !(FilePath.mk path).isAbsolute then
-        throw <| IO.userError "Lake batch LEAN executable must be absolute"
-      pure path
-    else pure "lean"
-  let process ← spawn compiler args
-  return { spec, sourcePath, oleanPath, ileanPath, process }
+  if !insideLakeEnv then IO.FS.writeFile sourcePath spec.source
+  SourceBinding.withUnchanged #[{
+    moduleName := spec.module.toName, path := sourcePath.toString, content := spec.source }] #[] do
+    if spec.captureRejection then
+      let some selfLib ← checkerPackageLibDir
+        | throw <| IO.userError "checker library directory unavailable"
+      let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+      let output := scratch / s!"{spec.«module»}.diagnostics.json"
+      let process ← spawn binary.toString
+        #["--diagnostic-worker", (StrictLean.RegistryCodec.nameJson spec.module.toName).compress, sourcePath.toString, output.toString]
+      let errors ← if process.succeeded then
+          try
+            let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+            let payload ← IO.ofExcept <| readWorkerPacket
+              (sourceWorkerRequest "diagnostic" spec.module.toName sourcePath spec.source) json
+            unless (← IO.FS.readFile sourcePath) == spec.source do throw <| IO.userError "diagnostic snapshot changed"
+            pure <| some (← IO.ofExcept <| fromJson? payload)
+          catch _ => pure none
+        else pure none
+      return { spec, sourcePath, oleanPath, ileanPath, process, errors }
+    let warningArgs := if spec.warningAsError then #["-DwarningAsError=true"] else #[]
+    let args := warningArgs ++
+      #["-o", oleanPath.toString, "-i", ileanPath.toString, sourcePath.toString]
+    -- The worker sees only the workspace's own search path: an import that the
+    -- fresh claimed-surface build did not produce fails here instead of
+    -- resolving from the invoking checkout's inherited `LEAN_PATH`.
+    let compiler ← if insideLakeEnv then do
+        let some path ← IO.getEnv "LEAN"
+          | throw <| IO.userError "Lake batch environment has no LEAN executable"
+        if path.isEmpty || !(FilePath.mk path).isAbsolute then
+          throw <| IO.userError "Lake batch LEAN executable must be absolute"
+        pure path
+      else pure "lean"
+    let process ← spawn compiler args
+    return { spec, sourcePath, oleanPath, ileanPath, process }
 
 /-- Standalone compilation still obtains its environment through Lake. -/
-def compile (repo scratch : FilePath) (spec : SourceSpec) : IO Compilation :=
+def compile (repo scratch : FilePath) (spec : SourceSpec) : IO (Except ProducerReport.AdmissionFailure Compilation) :=
   compileIn repo scratch spec false
 
 structure CompileBatch where
@@ -225,47 +234,52 @@ has its own compiler/diagnostic process; only Lake environment setup is shared. 
 def compileBatchWorker (request : CompileBatch) : IO (Array Compilation) := do
   if request.jobs == 0 then throw <| IO.userError "compile batch requires positive jobs"
   let repo ← IO.currentDir
-  mapWorkQueue request.jobs request.specs fun spec =>
-    compileIn repo request.scratch spec true
+  mapWorkQueue request.jobs request.specs fun spec => do
+    IO.ofExcept <| (← compileIn repo request.scratch spec true).mapError (·.detail)
 
 /-- Resolve the complete subprocess environment with Lake once, preserving
 PATH, Lean paths, dynamic-loader paths, and all other Lake environment entries. -/
 def compileBatch (repo scratch : FilePath) (jobs : Nat) (specs : Array SourceSpec) :
-    IO (Array Compilation) := do
-  let some selfLib ← checkerPackageLibDir
-    | throw <| IO.userError "checker library directory unavailable"
-  let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
-  withScratch repo "compile-batch" fun work => do
-    let input := work / "request.json"
-    let output := work / "result.json"
-    writeJson input (toJson ({ scratch, jobs, specs } : CompileBatch))
-    let result ← runProcess repo "lake"
-      #["env", binary.toString, "--compile-batch-worker", input.toString, output.toString]
-      scrubbedLeanPathEnv
-    if !result.succeeded then throw <| IO.userError result.output
-    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-    let payload ← IO.ofExcept <| readWorkerPacket (toJson ({ scratch, jobs, specs } : CompileBatch)) json
-    let binding (i : Nat) (actual : Compilation) : Bool :=
-      match specs[i]? with
-      | none => false
-      | some expected => toJson actual.spec == toJson expected &&
-          actual.sourcePath == scratch / s!"{expected.module}.lean" &&
-          actual.oleanPath == scratch / s!"{expected.module}.olean" &&
-          actual.ileanPath == scratch / s!"{expected.module}.ilean"
-    let compilations ← IO.ofExcept <| admitIndexedWorkerResults specs.size binding payload
-    if compilations.size != specs.size then
-      throw <| IO.userError "compile batch returned incomplete results"
-    for i in [:specs.size] do
-      let some expected := specs[i]? | throw <| IO.userError "missing compile request"
-      let some actual := compilations[i]? | throw <| IO.userError "missing compile result"
-      unless toJson actual.spec == toJson expected &&
-          actual.sourcePath == scratch / s!"{expected.module}.lean" &&
-          actual.oleanPath == scratch / s!"{expected.module}.olean" &&
-          actual.ileanPath == scratch / s!"{expected.module}.ilean" do
-        throw <| IO.userError "compile batch result binding mismatch"
-      unless (← IO.FS.readFile actual.sourcePath) == expected.source do
-        throw <| IO.userError "compile batch source snapshot changed"
-    return compilations
+    IO (Except ProducerReport.AdmissionFailure (Array Compilation)) := do
+  let sources ← specs.mapM fun spec => do
+    let path := scratch / s!"{spec.module}.lean"
+    IO.FS.writeFile path spec.source
+    pure ({ moduleName := spec.module.toName, path := path.toString, content := spec.source } : ProducerReport.SourceBinding)
+  SourceBinding.withUnchanged sources #[] do
+    let some selfLib ← checkerPackageLibDir
+      | throw <| IO.userError "checker library directory unavailable"
+    let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+    withScratch repo "compile-batch" fun work => do
+      let input := work / "request.json"
+      let output := work / "result.json"
+      writeJson input (toJson ({ scratch, jobs, specs } : CompileBatch))
+      let result ← runProcess repo "lake"
+        #["env", binary.toString, "--compile-batch-worker", input.toString, output.toString]
+        scrubbedLeanPathEnv
+      if !result.succeeded then throw <| IO.userError result.output
+      let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+      let payload ← IO.ofExcept <| readWorkerPacket (toJson ({ scratch, jobs, specs } : CompileBatch)) json
+      let binding (i : Nat) (actual : Compilation) : Bool :=
+        match specs[i]? with
+        | none => false
+        | some expected => toJson actual.spec == toJson expected &&
+            actual.sourcePath == scratch / s!"{expected.module}.lean" &&
+            actual.oleanPath == scratch / s!"{expected.module}.olean" &&
+            actual.ileanPath == scratch / s!"{expected.module}.ilean"
+      let compilations ← IO.ofExcept <| admitIndexedWorkerResults specs.size binding payload
+      if compilations.size != specs.size then
+        throw <| IO.userError "compile batch returned incomplete results"
+      for i in [:specs.size] do
+        let some expected := specs[i]? | throw <| IO.userError "missing compile request"
+        let some actual := compilations[i]? | throw <| IO.userError "missing compile result"
+        unless toJson actual.spec == toJson expected &&
+            actual.sourcePath == scratch / s!"{expected.module}.lean" &&
+            actual.oleanPath == scratch / s!"{expected.module}.olean" &&
+            actual.ileanPath == scratch / s!"{expected.module}.ilean" do
+          throw <| IO.userError "compile batch result binding mismatch"
+        unless (← IO.FS.readFile actual.sourcePath) == expected.source do
+          throw <| IO.userError "compile batch source snapshot changed"
+      return compilations
 
 def compilationPassed (value : Compilation) : Bool :=
   value.process.succeeded
@@ -288,23 +302,29 @@ unsafe def inspectOutcome (value : Compilation) (extraSearchRoots : Array FilePa
     | throw <| IO.userError "compiled source has no parent directory"
   let source : ProducerReport.SourceBinding := {
     moduleName := value.spec.module.toName, path := value.sourcePath.toString, content := value.spec.source }
-  SourceBinding.unchanged #[source]
-  let sources ← SourceBinding.capture (moduleSources.push (source.moduleName, value.sourcePath))
-  let reportResult ← Environment.loadReportOutcome #[value.spec.«module».toName] (#[scratch] ++ extraSearchRoots) sourceRoots
-    (sources.map fun s => (s.moduleName, FilePath.mk s.path)) ownedOutput
-  if let .error failure := reportResult then return .error failure
-  let .ok report := reportResult
-    | throw <| IO.userError "unreachable admission outcome"
-  IO.ofExcept <| SourceBinding.validateAgainst sources report
-  let declarations := report.declarations
-  let transcripts : Array Frontend.Transcript ←
-    if Policy.needsFrontendTranscript declarations then
-      pure #[← Frontend.build value.spec.«module».toName value.sourcePath extraSearchRoots]
-    else pure #[]
-  IO.ofExcept <| SourceBinding.transcriptsMatch sources transcripts
-  SourceBinding.unchanged sources
-  SourceBinding.unchanged #[source]
-  return .ok { compilation := value, report, transcripts }
+  return (← SourceBinding.withUnchanged #[source] #[] do
+    SourceBinding.unchanged #[source]
+    let sources ← SourceBinding.capture (moduleSources.push (source.moduleName, value.sourcePath))
+    return (← SourceBinding.withUnchanged sources #[] do
+      let reportResult ← Environment.loadReportOutcome #[value.spec.«module».toName] (#[scratch] ++ extraSearchRoots) sourceRoots
+        (sources.map fun s => (s.moduleName, FilePath.mk s.path)) ownedOutput
+      if let .error failure := reportResult then return .error failure
+      let .ok report := reportResult
+        | throw <| IO.userError "unreachable admission outcome"
+      if let .error failure := SourceBinding.validateAgainst sources report then
+        return .error failure
+      let declarations := report.declarations
+      let transcripts : Array Frontend.Transcript ←
+        if Policy.needsFrontendTranscript declarations then
+          pure #[← Frontend.build value.spec.«module».toName value.sourcePath extraSearchRoots]
+        else pure #[]
+      if let .error failure := SourceBinding.transcriptsMatch sources transcripts then
+        return .error failure
+      SourceBinding.unchanged sources
+      SourceBinding.unchanged #[source]
+      return .ok { compilation := value, report, transcripts }
+    ).bind id
+  ).bind id
 
 unsafe def inspect (value : Compilation) (extraSearchRoots : Array FilePath := #[])
     (sourceRoots : Array FilePath := #[])
@@ -319,26 +339,30 @@ unsafe def inspectCurrentSearchPath (value : Compilation)
     throw <| IO.userError s!"source did not elaborate: {value.spec.«module»}"
   let source : ProducerReport.SourceBinding := {
     moduleName := value.spec.module.toName, path := value.sourcePath.toString, content := value.spec.source }
-  SourceBinding.unchanged #[source]
-  let sources ← SourceBinding.capture (moduleSources.push (source.moduleName, value.sourcePath))
-  let report ← Environment.loadReportCurrentSearchPath #[value.spec.«module».toName]
-    (sources.map fun s => (s.moduleName, FilePath.mk s.path)) ownedOutput
-  IO.ofExcept <| SourceBinding.validateAgainst sources report
-  let declarations := report.declarations
-  let transcripts : Array Frontend.Transcript ←
-    if Policy.needsFrontendTranscript declarations then
-      pure #[← Frontend.buildCurrentSearchPath value.spec.«module».toName value.sourcePath]
-    else pure #[]
-  IO.ofExcept <| SourceBinding.transcriptsMatch sources transcripts
-  SourceBinding.unchanged sources
-  SourceBinding.unchanged #[source]
-  return { compilation := value, report, transcripts }
+  let outcome ← SourceBinding.withUnchanged #[source] #[] do
+    SourceBinding.unchanged #[source]
+    let sources ← SourceBinding.capture (moduleSources.push (source.moduleName, value.sourcePath))
+    let outcome ← SourceBinding.withUnchanged sources #[] do
+      let report ← Environment.loadReportCurrentSearchPath #[value.spec.«module».toName]
+        (sources.map fun s => (s.moduleName, FilePath.mk s.path)) ownedOutput
+      IO.ofExcept <| (SourceBinding.validateAgainst sources report).mapError (·.detail)
+      let declarations := report.declarations
+      let transcripts : Array Frontend.Transcript ←
+        if Policy.needsFrontendTranscript declarations then
+          pure #[← Frontend.buildCurrentSearchPath value.spec.«module».toName value.sourcePath]
+        else pure #[]
+      IO.ofExcept <| (SourceBinding.transcriptsMatch sources transcripts).mapError (·.detail)
+      SourceBinding.unchanged sources
+      SourceBinding.unchanged #[source]
+      return { compilation := value, report, transcripts }
+    IO.ofExcept <| outcome.mapError (·.detail)
+  IO.ofExcept <| outcome.mapError (·.detail)
 
 unsafe def compileAndInspect (repo scratch : FilePath) (spec : SourceSpec)
     (extraSearchRoots : Array FilePath := #[]) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none) :
     IO (Except String Inspected) := do
-  let compilation ← compile repo scratch spec
+  let compilation ← IO.ofExcept <| (← compile repo scratch spec).mapError (·.detail)
   if !compilationPassed compilation then
     return .error compilation.process.output
   try

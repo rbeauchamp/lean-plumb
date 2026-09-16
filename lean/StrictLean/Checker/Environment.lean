@@ -116,75 +116,77 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       let source := (← Lean.findOLean name).withExtension "lean"
       resolvedSources := resolvedSources.push (name, source)
   let sourceBindings ← SourceBinding.capture resolvedSources
-  unsafe Lean.enableInitializersExecution
-  let requested := modules
-  let importNames :=
-    if requested.contains probeModuleName.toName then requested
-    else requested.push probeModuleName.toName
-  let imports := importNames.map fun module =>
-    ({ module, importAll := true } : Import)
-  let env ← timedPhase "environment imports" <| importModules imports {} 0 (loadExts := true) (level := .private)
-  let ownedModules := requested ++ moduleSources.map (·.1) |>.filter
-    (fun name => !probeModuleNames.contains name.toString)
-  if let some root := ownedOutput then
-    for name in env.header.moduleNames do
-      if !ownedModules.contains name && !probeModuleNames.contains name.toString then
-        if ← pathWithin (← Lean.findOLean name) root then
-          throw <| IO.userError s!"unexpected-project-module: kernel-admission cannot classify {name}"
-  let admissionResult ← timedPhase "kernel admission" <| Admission.validate env ownedModules
-  if let .error failure := admissionResult then return .error failure
-  let .ok admission := admissionResult
-    | throw <| IO.userError "unreachable admission outcome"
-  -- Freeze the selector from the completed environment before reading docstrings.
-  -- Loading server/private data above is necessary for both Lean doc formats.
-  let own := StrictLean.Probe.ownedConstants env requested.toList
-  let mut selected := #[]
-  for (name, _) in own do
-    if StrictLean.Linter.Documentation.selected env name then
-      let some idx := env.getModuleIdxFor? name
-        | throw <| IO.userError s!"material declaration has no module: {name}"
-      selected := selected.push (env.header.modules[(idx : Nat)]!.module, name)
-  let documentation : StrictLean.Checker.ProducerReport.DocumentationObservation := {
-    modules := ← requested.mapM fun name => do
-      return (name, ← IO.ofExcept <| StrictLean.Linter.Documentation.modulePresent env name)
-    materialDeclarations := selected
-    declarations := ← selected.mapM fun key => do
-      return (key, ← Lean.findDocString? env key.2)
-  }
-  let histories ← IO.mkRef ({} : NameMap ProducerReport.HistoryOutcome)
-  let loadHistory (moduleName : Name) := do
-    if let some result := (← histories.get).find? moduleName then return result.edges
-    let result ← replacementHistory sourceRoots resolvedSources moduleName
-    histories.modify (·.insert moduleName result)
-    return result.edges
-  let ctx : Elab.Command.Context := {
-    fileName := "<trusted-environment-probe>"
-    fileMap := FileMap.ofString ""
-    snap? := none
-    cancelTk? := none
-  }
-  let state := Elab.Command.mkState env
-  match ← timedPhase "declaration report" <| EIO.toIO' <|
-      (StrictLean.Probe.environmentReport requested.toList loadHistory includeExecution includeModuleOrigins).run ctx |>.run state with
-  | .error ex => throw <| IO.userError (← ex.toMessageData.toString)
-  | .ok (report, _) =>
-    let historyTable ← histories.get
-    let historyKeys := StrictLeanPolicy.canonicalNames (historyTable.toArray.map (·.1))
-    let historyRecords ← historyKeys.mapM fun name => do
-      let some outcome := historyTable.find? name
-        | throw <| IO.userError "producer-history: missing recorded lookup"
-      pure (name, outcome)
-    let report : ProducerReport.Environment := {
-      toCollected := report
-      admission := some admission
-      documentation := some documentation
-      histories := historyRecords
-      sourceBindings := sourceBindings.filter (fun s => report.modules.contains s.moduleName)
+  return (← SourceBinding.withUnchanged sourceBindings #[] do
+    unsafe Lean.enableInitializersExecution
+    let requested := modules
+    let importNames :=
+      if requested.contains probeModuleName.toName then requested
+      else requested.push probeModuleName.toName
+    let imports := importNames.map fun module =>
+      ({ module, importAll := true } : Import)
+    let env ← timedPhase "environment imports" <| importModules imports {} 0 (loadExts := true) (level := .private)
+    let ownedModules := requested ++ moduleSources.map (·.1) |>.filter
+      (fun name => !probeModuleNames.contains name.toString)
+    if let some root := ownedOutput then
+      for name in env.header.moduleNames do
+        if !ownedModules.contains name && !probeModuleNames.contains name.toString then
+          if ← pathWithin (← Lean.findOLean name) root then
+            throw <| IO.userError s!"unexpected-project-module: kernel-admission cannot classify {name}"
+    let admissionResult ← timedPhase "kernel admission" <| Admission.validate env ownedModules
+    if let .error failure := admissionResult then return .error failure
+    let .ok admission := admissionResult
+      | throw <| IO.userError "unreachable admission outcome"
+    -- Freeze the selector from the completed environment before reading docstrings.
+    -- Loading server/private data above is necessary for both Lean doc formats.
+    let own := StrictLean.Probe.ownedConstants env requested.toList
+    let mut selected := #[]
+    for (name, _) in own do
+      if StrictLean.Linter.Documentation.selected env name then
+        let some idx := env.getModuleIdxFor? name
+          | throw <| IO.userError s!"material declaration has no module: {name}"
+        selected := selected.push (env.header.modules[(idx : Nat)]!.module, name)
+    let documentation : StrictLean.Checker.ProducerReport.DocumentationObservation := {
+      modules := ← requested.mapM fun name => do
+        return (name, ← IO.ofExcept <| StrictLean.Linter.Documentation.modulePresent env name)
+      materialDeclarations := selected
+      declarations := ← selected.mapM fun key => do
+        return (key, ← Lean.findDocString? env key.2)
     }
-    SourceBinding.unchanged report.sourceBindings
-    if let .error failure := report.validateSourceEvidence then return .error failure
-    IO.ofExcept report.validate
-    return .ok report
+    let histories ← IO.mkRef ({} : NameMap ProducerReport.HistoryOutcome)
+    let loadHistory (moduleName : Name) := do
+      if let some result := (← histories.get).find? moduleName then return result.edges
+      let result ← replacementHistory sourceRoots resolvedSources moduleName
+      histories.modify (·.insert moduleName result)
+      return result.edges
+    let ctx : Elab.Command.Context := {
+      fileName := "<trusted-environment-probe>"
+      fileMap := FileMap.ofString ""
+      snap? := none
+      cancelTk? := none
+    }
+    let state := Elab.Command.mkState env
+    match ← timedPhase "declaration report" <| EIO.toIO' <|
+        (StrictLean.Probe.environmentReport requested.toList loadHistory includeExecution includeModuleOrigins).run ctx |>.run state with
+    | .error ex => throw <| IO.userError (← ex.toMessageData.toString)
+    | .ok (report, _) =>
+      let historyTable ← histories.get
+      let historyKeys := StrictLeanPolicy.canonicalNames (historyTable.toArray.map (·.1))
+      let historyRecords ← historyKeys.mapM fun name => do
+        let some outcome := historyTable.find? name
+          | throw <| IO.userError "producer-history: missing recorded lookup"
+        pure (name, outcome)
+      let report : ProducerReport.Environment := {
+        toCollected := report
+        admission := some admission
+        documentation := some documentation
+        histories := historyRecords
+        sourceBindings := sourceBindings.filter (fun s => report.modules.contains s.moduleName)
+      }
+      SourceBinding.unchanged report.sourceBindings
+      if let .error failure := report.validateSourceEvidence then return .error failure
+      IO.ofExcept report.validate
+      return .ok report
+  ).bind id
 
 /-- Lean resolves a whole module prefix at the first matching directory.
 A fresh project that builds only `Contract` must not mask the trusted probe,

@@ -8,9 +8,9 @@ open Lean StrictLeanPolicy
 open StrictLean.Checker.PolicyCodec (exactFields)
 open scoped StrictLean.Report
 
-/-- A completed owned-admission attempt failed. The trusted operational path supplies
-this outcome from the admission stage; raw data construction does not authenticate it.
-Generic worker/import failures retain their own path. -/
+/-- Required owned-admission or frozen source/configuration evidence is unavailable
+or invalid. Trusted operational checks supply this outcome; raw data construction
+does not authenticate it. Generic worker/import failures retain their own path. -/
 structure AdmissionFailure where
   detail : String
   deriving Repr, ToJson

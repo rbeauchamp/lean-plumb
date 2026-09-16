@@ -243,9 +243,20 @@ Owned logical replay failures and source coverage/range admission failures cross
 the producer and decoder use the same predicate, without classifying exception text. Public project,
 file and documentation adapters emit SL2005/incomplete with that original reason and scope.
 Documentation retains its SL4002/SL4004 finding alongside the typed refusal, using fence
-context without manufacturing a valid declaration range. Import/setup
-exceptions and crashed/missing workers cannot manufacture this outcome. The grouped coordinator returns the typed refusal only after validating the worker packet
-and rechecking frozen sources. The selftest consumer renders the same detail as a diagnostic
+context without manufacturing a valid declaration range. `SourceBinding.withUnchanged`
+owns the before/after comparison around each frozen-input
+operation. It retains the operation's result or IO exception, rechecks exact sources and
+configuration, then returns a typed snapshot failure (rendered as SL2005/incomplete) or preserves the original
+outcome when snapshots are unchanged. Initial capture still has setup semantics.
+Environment imports, report workers, grouped decoding, file compilation/inspection,
+project/file dependency builds and documentation use that same owner. The original
+standalone file is frozen before dependency builds. Batch compilation creates snippet
+files in its parent before dispatch; workers consume those files without rewriting them.
+Failed builds, crashed workers and decoding failures cannot skip their owner's recheck.
+A transported refusal is consumed only after worker-packet validation. Independently,
+the parent's own snapshot check can return a typed refusal even when a worker crashes
+or a packet is malformed; this does not accept or authenticate that worker result.
+When snapshots are unchanged, the original worker or decoding failure is preserved. The selftest consumer renders the same detail as a diagnostic
 fixture failure; compatibility IO wrappers have no public diagnostic consumer.
 The four accepted-example kinds are unchanged. Expected INCOMPLETE diagnostics are separate
 diagnostic demonstrations, never accepted conformance or accepted positive/rejection examples;

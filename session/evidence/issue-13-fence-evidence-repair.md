@@ -94,3 +94,8 @@ controls mutated `Example.lean` before documentation inspection. They did not qu
 fence-local refusal; the earlier claim of complete malformed-range propagation is
 superseded for this path. The distinct full-branch reviews retain only their unaffected
 scope, as recorded in `issue-13-full-branch-review.md`.
+
+R8/R9 correction: the typed range/replay observations above remain valid, but the
+consumer audit did not establish coverage of frozen-snapshot errors or failed build
+exits. Those broader claims are superseded by the structural owner/exit inventory
+and qualification in [the frozen-exit repair](issue-13-frozen-exit-repair.md).

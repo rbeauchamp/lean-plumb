@@ -341,10 +341,11 @@ private unsafe def fixtureVerdicts (repo scratch : FilePath) (jobs : Nat)
     (fixtures : Array FixtureSpec) (leanPath : Array FilePath) : IO (Array (Option String)) := do
   let indexed := fixtures.mapIdx fun index fixture => (index, fixture)
   let compilations ← mapConcurrent jobs indexed fun (index, fixture) => do
-    let compilation ← SourceAudit.compile repo scratch {
+    let outcome ← SourceAudit.compile repo scratch {
       «module» := s!"SelftestFixture_{index + 1}"
       source := ← IO.FS.readFile fixture.source
     }
+    let compilation ← IO.ofExcept <| outcome.mapError (·.detail)
     return (index, fixture, compilation)
   let mut results : Array (Option String) := Array.replicate fixtures.size none
   let mut pending : Array CompiledFixture := #[]

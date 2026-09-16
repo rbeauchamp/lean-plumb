@@ -30,6 +30,15 @@ The plan owns subsequent steps and gates. Do not advance to #7 because a partial
 
 ## Accomplished and reusable evidence
 
+- R8/R9 against `94070754107360f414392f4744be38a119e4d584` make frozen-input
+  rechecks structural across normal, typed-error and IO-exception exits. Import-time
+  fence changes and failed dependency builds retain typed SL2005; unchanged failures
+  retain their original classification. Focused build, 44 new controls and 18 affected
+  fence controls passed. Both independent final branch/inventory re-reviews are CLEAN.
+  See [frozen-exit repair](evidence/issue-13-frozen-exit-repair.md). Earlier broad consumer
+  completeness claims are superseded by its explicit owner/exit inventory. Ordinary420,
+  signed pipeline commits and exact-head CI remain outer-executor gates.
+
 - R7 against `f8b383ff34b82aa678372b0be047c4a9696dbcaa` closes the grouped-fence
   typed admission consumer: SL2005 retains original detail alongside SL4002.
   Focused build and 18 fence-local public controls passed; independent semantic and
