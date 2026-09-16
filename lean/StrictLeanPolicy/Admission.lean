@@ -1,6 +1,7 @@
 module
 
 public import StrictLeanPolicy.Domain
+public import Std.Data.ExtHashSet.Lemmas
 
 @[expose] public section
 
@@ -118,6 +119,9 @@ def ExecutionClosure.DiscoveryOK (c : ExecutionClosure) (root : Lean.Name)
 instance (c : ExecutionClosure) (root : Lean.Name) (edges : Array (Lean.Name × Lean.Name)) :
     Decidable (c.DiscoveryOK root edges) := by
   unfold ExecutionClosure.DiscoveryOK
+  let edgeSet := Std.ExtHashSet.ofList (c.edges edges).toList
+  letI (edge : Lean.Name × Lean.Name) : Decidable (edge ∈ c.edges edges) :=
+    decidable_of_iff (edge ∈ edgeSet) (by simp [edgeSet, Std.ExtHashSet.mem_ofList])
   exact @Nat.decidableForallFin _ _ (fun k => by split <;> infer_instance)
 
 /-- The checked discovery witnesses support induction from the actual root along the
@@ -173,6 +177,17 @@ def ExecutionClosure.Valid (c : ExecutionClosure) (root : Lean.Name)
 instance (c : ExecutionClosure) (root : Lean.Name) (edges : Array (Lean.Name × Lean.Name))
     (unresolved : Array String) : Decidable (c.Valid root edges unresolved) := by
   unfold ExecutionClosure.Valid
+  -- Index each repeatedly queried array once; membership equivalence supplies
+  -- decisions for the unchanged predicate, without a second validity definition.
+  let nodes := Std.ExtHashSet.ofList c.nodes.toList
+  let candidates := Std.ExtHashSet.ofList c.candidateEdges.toList
+  let required := Std.ExtHashSet.ofList c.requiredCode.toList
+  letI (n : Lean.Name) : Decidable (n ∈ c.nodes) :=
+    decidable_of_iff (n ∈ nodes) (by simp [nodes, Std.ExtHashSet.mem_ofList])
+  letI (edge : Lean.Name × Lean.Name) : Decidable (edge ∈ c.candidateEdges) :=
+    decidable_of_iff (edge ∈ candidates) (by simp [candidates, Std.ExtHashSet.mem_ofList])
+  letI (n : Lean.Name) : Decidable (n ∈ c.requiredCode) :=
+    decidable_of_iff (n ∈ required) (by simp [required, Std.ExtHashSet.mem_ofList])
   infer_instance
 
 /-- Every admitted reached name follows from the root by the reported traversal
@@ -203,6 +218,9 @@ def ExecutionRoot.Valid (r : ExecutionRoot) : Prop :=
       (fun (caller, callee) => if callee == b.name then some caller else none)))
 instance instDecidableExecutionRootValid (r : ExecutionRoot) : Decidable r.Valid := by
   unfold ExecutionRoot.Valid
+  let nodes := Std.ExtHashSet.ofList r.closure.nodes.toList
+  letI (n : Lean.Name) : Decidable (n ∈ r.closure.nodes) :=
+    decidable_of_iff (n ∈ nodes) (by simp [nodes, Std.ExtHashSet.mem_ofList])
   infer_instance
 
 def ExecutionValid (roots : Array ExecutionRoot) : Prop :=
