@@ -25,11 +25,20 @@ Demonstrations are outside the four accepted-example kinds and do not supply pos
 negative accepted-program evidence. Each corrected counterpart runs its applicable completed
 positive checks. No rule can become conforming by expecting its unavailability.
 
-`Website.ExampleBinding` retains an admitted snapshot and mode. `validateBoundExample` checks
+`Website.ExampleBinding` retains an admitted snapshot, mode and typed `ExampleRequest`.
+The producer captures its own parsed invocation and configuration, including absent files and
+Lake package overrides. `admitExampleRequest` admits only exact expected/observed equality;
+its soundness theorem concerns that data equality, not process authentication. The qualifier
+also compares the actual effective configuration and file or per-surface claim/execution.
+Copied configuration paths are compared relative to their explicitly recorded roots, without
+rewriting source or diagnostic identities. A changed effective package override is refused;
+this example qualifier does not authorize configuration relocation transformations or combined
+`--with-docs` requests. Early terminal failures retain the producer request and any configuration
+captured before failure, separately from a successful source account. `validateBoundExample` checks
 binding/completion and the exact diagnostic list before applying the four-kind policy.
 `admitDemonstration` returns the unchanged observation with a proof of `DemonstrationOK`:
-completed production, nonempty expected findings, an incomplete finding, exact mode and
-canonical diagnostic equality. The observed list itself must contain an incomplete finding,
+completed production, nonempty expected findings, a selected-rule incomplete finding, exact mode and
+canonical diagnostic equality. The observed list itself must contain an incomplete finding for the selected rule,
 without assuming injectivity of JSON rendering. Its soundness/completeness theorems concern these data, not
 process authenticity. `StrictLeanPolicy.incomplete_example_refused` proves that an incomplete
 outcome satisfies none of the existing fence expectations. The executed validator additionally proves `demonstration_not_accepted`: every admitted
@@ -39,6 +48,12 @@ All six named new guarantees
 `demonstration_completed`, `demonstration_observed_incomplete`,
 `demonstration_not_accepted`) currently depend exactly on
 `propext`, `Classical.choice` and `Quot.sound`: Standard-Logical, not Kernel-only.
+`demonstration_selected_rule` exposes the selected-rule obligation directly. Documentation
+receipts retain each actual fence classification. The shared `PositiveClassifications` guard
+requires a nonempty list with every fence positive, passing and complete, both when the adapter
+emits `completed` and when the qualifier admits a positive correction. Successful compiler
+negatives and trusted teaching remain `classified`; failed and incomplete checks retain their
+own outcomes. `positiveClassifications_sound` states the exact admitted relation.
 Global policy acceptance remains
 issue #7; a corpus PASS is not full-standard conformance.
 
@@ -87,6 +102,11 @@ detector processes run concurrently; evidence consumption stays in registry/phas
 File fixtures are separate from the warning-free positive library used to prepare dependencies. Its export embeds exact
 sources, commands, original compiler output, canonical schema-1 results, expected locations,
 mode and checker build identity, plus exact checker source bytes before and after the campaign.
+The campaign additionally exercises authentic Standard-Logical output against a Kernel-only
+request and actual successful negative/trusted documentation against a positive correction
+expectation, then restores fresh positives. Relabelling a demonstration's selected rule is
+refused while retaining its complete findings. These controls qualify the adapters; the
+universal data predicates and their proofs remain distinct from observed process behavior.
 The Lean qualifier checks selected coverage against the
 closed registry and requires all three phases once. Unrun selected rules cannot be called
 full-corpus PASS. Version fields alone do not authenticate whole binaries; the producer and

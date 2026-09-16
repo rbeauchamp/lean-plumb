@@ -1,3 +1,4 @@
+import StrictLean.Checker.Documentation
 import StrictLean.Checker.ResultProtocol
 import StrictLean.Checker.PolicyCodec
 import StrictLean.Website
@@ -11,8 +12,11 @@ run_cmd do
   for name in #[``StrictLean.Website.admitDemonstration_complete,
       ``StrictLean.Website.admitDemonstration_sound, ``StrictLean.Website.demonstration_completed,
       ``StrictLean.Website.demonstration_observed_incomplete,
+      ``StrictLean.Website.demonstration_selected_rule,
       ``StrictLean.Website.demonstration_not_accepted,
-      ``StrictLeanPolicy.incomplete_example_refused] do
+      ``StrictLeanPolicy.incomplete_example_refused,
+      ``StrictLean.Website.admitExampleRequest_sound,
+      ``StrictLean.Checker.Documentation.positiveClassifications_sound] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "example theorem {name} exceeds Standard-Logical: {axioms}"
@@ -28,6 +32,13 @@ private def sources (j : Json) : Except String (Array StrictLeanPolicy.SourceSna
   (← j.getArr?).mapM fun source => do
     PolicyCodec.exactFields source ["uri", "source"]
     return ⟨← string source "uri", ← string source "source"⟩
+
+private def parseRequest (json : Json) : Except String ExampleRequest := do
+  let request : ExampleRequest ← fromJson? json
+  unless ["file", "project", "documentation", "policyNegative"].contains request.kind do
+    throw "unsupported example request kind"
+  unless toJson (request : ExampleRequest) == json do throw "invalid example request account"
+  return request
 
 private def binding (record : Json) (mode : EvidenceMode) : Except String ExampleBinding := do
   let input ← field record "before"
@@ -48,7 +59,11 @@ private def binding (record : Json) (mode : EvidenceMode) : Except String Exampl
       nominalRevision := some (← string result "sourceRevision")
       dirty := true
       files := ← sources (← field record "checkerSources") }] }
-  return ⟨snapshot, mode⟩
+  let request ← parseRequest (← field record "request")
+  unless request.project == configuration.uri &&
+      toJson request.configuration == (← PolicyCodec.parse configuration.source) do
+    throw "request configuration differs from frozen snapshot"
+  return ⟨snapshot, mode, request⟩
 
 /-- Successful program/example checks must retain their own source account. Caller
 readback alone cannot bind a stale successful result to a different requested source. -/
@@ -68,6 +83,59 @@ private def sourceAccount (result : Json) (bound : ExampleBinding) : Except Stri
     let entries ← sources raw
     unless !entries.isEmpty && entries.all admitted.contains do throw "wrong documentation source account"
   else throw "missing result source account"
+
+private def configurationAccount (root : String) (configuration : Array (String × Option String)) :
+    Except String (Array (String × Option String)) := do
+  unless !root.isEmpty do throw "missing configuration root"
+  configuration.mapM fun (path, source) => do
+    unless path.startsWith (root ++ "/") do throw "configuration outside captured project"
+    return ((path.drop (root.length + 1)).toString, source)
+
+private def requestAccount (result : Json) (bound : ExampleBinding) : Except String ExampleRequest := do
+  let observed ← parseRequest (← field result "request")
+  let admitted ← admitExampleRequest bound.request observed
+  let requested ← configurationAccount admitted.val.project admitted.val.configuration
+  let effectiveAccount ← field result "effective"
+  if effectiveAccount != Json.null then
+    let effective ← configurationAccount (← string effectiveAccount "root")
+      (← fromJson? (α := Array (String × Option String)) (← field effectiveAccount "configuration"))
+    unless effective == requested do throw "effective configuration differs from request"
+  let scope ← field result "scope"
+  if let .ok _ := scope.getObj? then
+    unless effectiveAccount != Json.null do throw "missing effective request account"
+    let configuration ← fromJson? (α := Array (String × Option String)) (← field scope "configuration")
+    let effective ← configurationAccount (← string scope "configurationRoot") configuration
+    unless effective == requested &&
+        (← field scope "configuration") == (← field effectiveAccount "configuration") &&
+        (← field scope "configurationRoot") == (← field effectiveAccount "root") do
+      throw "effective configuration differs from request"
+    match admitted.val.kind with
+    | "file" =>
+        unless (← field scope "claim") == toJson admitted.val.claim &&
+            (← field scope "execution") == toJson admitted.val.execution &&
+            (← string scope "file") == admitted.val.subject do
+          throw "effective file claim or execution differs from request"
+    | "policyNegative" =>
+        unless (← field scope "claim") == toJson (some "standard-logical" : Option String) &&
+            (← field scope "execution") == Json.null && (← string scope "file") == admitted.val.subject &&
+            (← field scope "diagnosticOnly") == toJson true do
+          throw "wrong diagnostic-only effective request"
+    | "documentation" => pure ()
+    | "project" =>
+        unless (← string scope "project") == admitted.val.subject do throw "wrong effective project"
+        let some (_, some text) := requested.find? (·.1 == "foundation_manifest.json")
+          | throw "missing requested manifest"
+        let manifest ← PolicyCodec.parse text
+        let surfaces ← (← field manifest "surfaces").getArr?
+        let actual ← (← field scope "surfaces").getArr?
+        unless actual.size == surfaces.size do throw "effective surface coverage differs from request"
+        for (expected, actual) in surfaces.zip actual do
+          unless (← field expected "library") == (← field actual "library") &&
+              (← field expected "claim") == (← field actual "claim") &&
+              ((field expected "execution").toOption.getD (.str "report")) == (← field actual "execution") do
+            throw "effective surface claim or execution differs from request"
+    | _ => throw "unknown example request kind"
+  return admitted.val
 
 /-- Every declared selector is required; no filtering of the actual findings occurs.
 Patterns use the same proved single-message language as compiler-negative fences. -/
@@ -107,6 +175,13 @@ def qualify (record : Json) : Except String Unit := do
   let mode ← RegistryCodec.parseMode (← string record "mode")
   unless (← string result "mode") == mode.spelling do throw "wrong example evidence mode"
   let bound ← binding record mode
+  let observedRequest ← requestAccount result bound
+  let matchingMode : Bool := match observedRequest.kind with
+    | "file" | "policyNegative" => mode == .freshFile
+    | "documentation" => mode == .documentationExample
+    | "project" => mode == .freshProject || mode == .incrementalProject
+    | _ => false
+  unless matchingMode do throw "request invocation differs from evidence mode"
   let code ← (← field record "exitCode").getNat?
   unless code ≤ 1 do throw "example process did not complete normally"
   let actual ← (← (← field result "diagnostics").getArr?).mapM DiagnosticCodec.parseDiagnostic
@@ -120,10 +195,16 @@ def qualify (record : Json) : Except String Unit := do
     throw "unexpected unresolved evidence"
   let status ← string result "status"
   let kind ← string record "kind"
-  let observation : BoundObservation := ⟨bound, .completed, .checked actual false⟩
+  let observation : BoundObservation := ⟨{ bound with request := observedRequest }, .completed, .checked actual false⟩
   match kind with
   | "positive" =>
+      unless bound.request.kind != "policyNegative" do throw "diagnostic-only adapter cannot qualify positive"
       sourceAccount result bound
+      if mode == .documentationExample then
+        let raw ← (← field (← field result "scope") "fences").getArr?
+        let classifications ← raw.mapM (fromJson? (α := Documentation.Classification))
+        let _ ← Documentation.admitPositiveClassifications classifications
+        pure ()
       unless code == 0 && status == "completed" && actual.isEmpty do throw "positive check incomplete"
       validateBoundExample bound .positive #[] observation
   | "policyRejection" =>
@@ -135,7 +216,8 @@ def qualify (record : Json) : Except String Unit := do
       validateBoundExample bound (.policyRejection rule (descriptor rule).applicability) actual observation
   | "diagnosticDemonstration" =>
       unless code == 1 && status == "incomplete" do throw "not the expected unavailable-analysis result"
-      let _ ← admitDemonstration ⟨bound, actual⟩ observation
+      let rule ← RegistryCodec.parseRule (← field record "rule")
+      let _ ← admitDemonstration ⟨bound, rule, actual⟩ observation
       pure ()
   | _ => throw "unknown example or demonstration kind"
 
@@ -144,12 +226,15 @@ single mutation. These exercise the operational JSON adapter, not a policy proof
 def qualifyMutations (record : Json) : Except String Unit := do
   qualify record
   let result ← field record "result"
+  let request ← field record "request"
   let mutations : Array (String × Json) := #[
     ("example process did not complete normally", record.setObjVal! "exitCode" (toJson (137 : Nat))),
     ("example source/configuration changed", record.setObjVal! "after" Json.null),
     ("wrong example evidence mode", record.setObjVal! "mode" (.str "editorSnapshot")),
     ("stale result identity", record.setObjVal! "result" (result.setObjVal! "sourceRevision" (.str "stale"))),
-    ("unknown example or demonstration kind", record.setObjVal! "kind" (.str "expectedUnavailable"))]
+    ("unknown example or demonstration kind", record.setObjVal! "kind" (.str "expectedUnavailable")),
+    ("producer request differs", record.setObjVal! "request" (request.setObjVal! "claim" (.str "different-profile"))),
+    ("producer request differs", record.setObjVal! "request" (request.setObjVal! "execution" (.str "different-execution")))]
   for (reason, mutation) in mutations do
     match qualify mutation with
     | .ok _ => throw "invalid example evidence admitted"
@@ -181,8 +266,7 @@ def qualifyCorpus (json : Json) : Except String Unit := do
       let some record := matching[0]? | throw "missing fixture record"
       unless ((← string record "kind") == "positive") == (phase != "Violation") do
         throw "fixture phase classification mismatch"
-      qualify record
-  if let some record := records[0]? then qualifyMutations record
+      qualifyMutations record
 
 end StrictLean.Checker.RuleExampleQualification
 

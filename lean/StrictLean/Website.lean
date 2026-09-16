@@ -40,11 +40,31 @@ def validateExample (expected : ExampleExpectation) (outcome : ExampleOutcome) :
   | _, _ => throw "example outcome does not match its classification"
 
 
+structure ExampleRequest where
+  kind : String
+  project : String
+  subject : String
+  claim : Option String
+  execution : Option String
+  configuration : Array (String × Option String)
+  deriving DecidableEq, ToJson, FromJson
+
+def admitExampleRequest (expected observed : ExampleRequest) :
+    Except String { request : ExampleRequest // request = observed ∧ request = expected } :=
+  if h : observed = expected then .ok ⟨observed, rfl, h⟩
+  else .error "producer request differs from frozen example request"
+
+theorem admitExampleRequest_sound (expected observed : ExampleRequest)
+    (request : { r : ExampleRequest // r = observed ∧ r = expected })
+    (_ : admitExampleRequest expected observed = .ok request) :
+    observed = expected := request.property.1.symm.trans request.property.2
+
 /-- Exact observation identity. Dependency state and source bytes are retained rather than
 replaced by a nominal revision or digest. Acquiring these values remains an IO obligation. -/
 structure ExampleBinding where
   snapshot : StrictLeanPolicy.AdmittedSnapshot
   mode : EvidenceMode
+  request : ExampleRequest
   deriving DecidableEq
 
 /-- Canonical diagnostic encoding retains the indexed payload, full/selection ranges,
@@ -99,6 +119,7 @@ def validateBoundExample (binding : ExampleBinding) (expected : ExampleExpectati
 example kind. Exact findings and binding are required even though the audit is incomplete. -/
 structure DemonstrationRequest where
   binding : ExampleBinding
+  rule : RuleId
   findings : Array Finding
 
 /-- Diagnostic production must complete; analysis unavailability is carried by the actual
@@ -106,10 +127,10 @@ findings. A crash or an empty/mismatched diagnostic list cannot satisfy this rel
 def DemonstrationOK (request : DemonstrationRequest) (observed : BoundObservation) : Prop :=
   BindingOK request.binding observed ∧ request.findings ≠ #[] ∧
   (∀ f ∈ request.findings, FindingBound request.binding f) ∧
-  (∃ f ∈ request.findings, f.2.impact = .incomplete) ∧
+  (∃ f ∈ request.findings, f.1 = request.rule ∧ f.2.impact = .incomplete) ∧
   match observed.outcome with
   | .checked actual false =>
-      (∃ f ∈ actual, f.2.impact = .incomplete) ∧
+      (∃ f ∈ actual, f.1 = request.rule ∧ f.2.impact = .incomplete) ∧
       (∀ f ∈ actual, FindingBound request.binding f) ∧
       diagnosticRecords actual = diagnosticRecords request.findings
   | _ => False
@@ -145,10 +166,10 @@ theorem demonstration_completed (request : DemonstrationRequest) (observed : Bou
 
 /-- The incomplete finding is required in the observed list itself, independently of
 any injectivity assumption about canonical JSON or its string renderer. -/
-theorem demonstration_observed_incomplete (request : DemonstrationRequest)
+theorem demonstration_selected_rule (request : DemonstrationRequest)
     (observed : BoundObservation) (h : DemonstrationOK request observed) :
     ∃ actual, observed.outcome = .checked actual false ∧
-      ∃ f ∈ actual, f.2.impact = .incomplete := by
+      ∃ f ∈ actual, f.1 = request.rule ∧ f.2.impact = .incomplete := by
   rcases h with ⟨_, _, _, _, h⟩
   cases he : observed.outcome with
   | incomplete _ => simp [he] at h
@@ -159,6 +180,13 @@ theorem demonstration_observed_incomplete (request : DemonstrationRequest)
       | false =>
           simp only [he] at h
           exact ⟨actual, rfl, h.1⟩
+
+theorem demonstration_observed_incomplete (request : DemonstrationRequest)
+    (observed : BoundObservation) (h : DemonstrationOK request observed) :
+    ∃ actual, observed.outcome = .checked actual false ∧
+      ∃ f ∈ actual, f.2.impact = .incomplete := by
+  obtain ⟨actual, outcome, f, member, _, impact⟩ := demonstration_selected_rule request observed h
+  exact ⟨actual, outcome, f, member, impact⟩
 
 /-- The executed accepted-example validator refuses every admitted demonstration,
 for every one of the four expectations and any supplied expected finding list. -/

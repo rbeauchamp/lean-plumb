@@ -199,7 +199,7 @@ inductive Kind where
   | positive
   | negative
   | trusted
-  deriving Repr, BEq
+  deriving Repr, BEq, DecidableEq, ToJson, FromJson
 
 structure Task where
   fence : Fence
@@ -212,7 +212,7 @@ inductive Status where
   | passNegative
   | passTrusted
   | fail
-  deriving Repr, BEq
+  deriving Repr, BEq, DecidableEq, ToJson, FromJson
 
 structure Result where
   task : Task
@@ -222,6 +222,33 @@ structure Result where
   incomplete : Bool := false
   admissionFailure : Option ProducerReport.AdmissionFailure := none
   deriving Repr
+
+structure Classification where
+  kind : Kind
+  status : Status
+  incomplete : Bool
+  deriving DecidableEq, ToJson, FromJson
+
+def classification (result : Result) : Classification :=
+  ⟨result.task.kind, result.status, result.incomplete⟩
+
+def PositiveClassifications (results : Array Classification) : Prop :=
+  results ≠ #[] ∧ ∀ result ∈ results,
+    result.kind = .positive ∧ result.status = .pass ∧ result.incomplete = false
+
+instance (results : Array Classification) : Decidable (PositiveClassifications results) := by
+  unfold PositiveClassifications
+  infer_instance
+
+def admitPositiveClassifications (results : Array Classification) :
+    Except String { checked : Array Classification // checked = results ∧ PositiveClassifications checked } :=
+  if h : PositiveClassifications results then .ok ⟨results, rfl, h⟩
+  else .error "documentation correction requires completed positive fences"
+
+theorem positiveClassifications_sound (results : Array Classification)
+    (checked : { cs : Array Classification // cs = results ∧ PositiveClassifications cs })
+    (_ : admitPositiveClassifications results = .ok checked) :
+    checked.val = results ∧ PositiveClassifications checked.val := checked.property
 
 private def withSourceEvidence (tasks : Array Task)
     (sources : Array ProducerReport.SourceBinding) (configuration : Array (FilePath × Option String))
@@ -464,7 +491,8 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
     (sourceBindings : Array ProducerReport.SourceBinding)
     (configuration : Array (FilePath × Option String))
     (jobs : Nat) (verbose : Bool)
-    (emit : StrictLean.Finding → IO Unit := fun _ => pure ()) : IO UInt32 := do
+    (emit : StrictLean.Finding → IO Unit := fun _ => pure ())
+    (observe : Array Result → IO Unit := fun _ => pure ()) : IO UInt32 := do
   let outcome : Except ProducerReport.AdmissionFailure UInt32 ←
     SourceBinding.withUnchanged sourceBindings configuration do
       if !(← docsRoot.isDir) then
@@ -545,6 +573,7 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
         s!"trusted-classified={trustedPass}/{trustedCount} fail={failures}"
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
+      observe results
       return if failures == 0 then 0 else 1
   match outcome with
   | .ok result => return result

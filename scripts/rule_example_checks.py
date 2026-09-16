@@ -6,6 +6,7 @@ expectation matching and demonstration admission are implemented by RuleExampleQ
 """
 from __future__ import annotations
 import argparse
+import copy
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 import json
@@ -61,6 +62,10 @@ def snapshot(paths: list[Path]) -> list[dict]:
     return [{"uri": str(path), "source": path.read_text()} for path in paths]
 
 
+def configuration_snapshot(paths: list[Path]) -> list:
+    return [[str(path), path.read_text() if path.is_file() else None] for path in paths]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--rules", nargs="+", help="Explicit scoped qualification, never full-corpus PASS")
@@ -79,9 +84,9 @@ def main() -> None:
     checker_before = snapshot(checker_paths)
     with tempfile.TemporaryDirectory(prefix="rule-examples-", dir=ROOT / "tmp") as raw:
         scratch = Path(raw)
-        def produce(rule: str, phase: str) -> dict:
+        def produce(rule: str, phase: str, source_text: str | None = None, producer_claim: str | None = None) -> dict:
             spec = specs[rule]
-            case = "Fixed" if phase == "Restored" else phase
+            case = "Violation" if phase == "Violation" else "Fixed"
             project = scratch / f"{rule}-{phase}"
             setup(project)  # Each phase has fresh, disjoint root artifacts.
             folder = CORPUS / rule
@@ -99,12 +104,12 @@ def main() -> None:
                 docs = project / "docs"
                 docs.mkdir()
                 source_path = docs / "Example.md"
-                source_path.write_bytes(source_file.read_bytes())
+                source_path.write_text(source_text) if source_text is not None else source_path.write_bytes(source_file.read_bytes())
                 paths.append(source_path)
                 command = [str(ROOT / ".lake/build/bin/ruleExamples"), "--documentation",
                            str(project), str(docs), str(output)]
             else:
-                source_path.write_bytes(source_file.read_bytes())
+                source_path.write_text(source_text) if source_text is not None else source_path.write_bytes(source_file.read_bytes())
                 if rule == "SL2001":
                     request_file = folder / f"{case}.json"
                     request = json.loads(request_file.read_text())
@@ -119,15 +124,15 @@ def main() -> None:
                     (vendor / "lean-toolchain").write_bytes((ROOT / "lean-toolchain").read_bytes())
                     (vendor / "lakefile.toml").write_text('name = "example_dependency"\n[[lean_lib]]\nname = "Dependency"\n')
                     config = project / "lakefile.lean"
-                    config.write_text(config.read_text() + '\nrequire example_dependency from "vendor"\n')
+                    config.write_text(config.read_text() + "\nrequire example_dependency from " + json.dumps(str(vendor)) + "\n")
                     lock = project / "lake-manifest.json"
                     m = json.loads(lock.read_text())
-                    m["packages"].append({"type": "path", "name": "example_dependency", "dir": "vendor",
+                    m["packages"].append({"type": "path", "name": "example_dependency", "dir": str(vendor),
                         "manifestFile": "lake-manifest.json", "inherited": False, "configFile": "lakefile.toml"})
                     lock.write_text(json.dumps(m))
-                    paths.append(vendor / "Dependency.lean")
+                    paths.extend(vendor / name for name in ("Dependency.lean", "lakefile.toml", "lean-toolchain"))
                 elif mode == "file":
-                    command += ["--file", str(source_path), "--claim", spec.get("claim", "kernel-only"),
+                    command += ["--file", str(source_path), "--claim", producer_claim or spec.get("claim", "kernel-only"),
                                 "--execution", "checked"]
                 if rule == "SL1002" and case == "Violation":
                     command = [str(ROOT / ".lake/build/bin/ruleExamples"), "--policy-negative",
@@ -135,11 +140,19 @@ def main() -> None:
                 else:
                     command += ["--json-out", str(output)]
             config_paths = [project / name for name in
-                            ("foundation_manifest.json", "lakefile.lean", "lake-manifest.json", "lean-toolchain")]
-            if rule == "SL1003":
-                config_paths += [project / "vendor/lakefile.toml", project / "vendor/lean-toolchain"]
-            configuration = {"uri": str(project), "source": json.dumps(snapshot(config_paths), sort_keys=True)}
+                            ("foundation_manifest.json", "lakefile.lean", "lakefile.toml", "lean-toolchain",
+                             "lake-manifest.json", ".lake/package-overrides.json")]
+            configuration = {"uri": str(project), "source": json.dumps(configuration_snapshot(config_paths), sort_keys=True)}
             before = {"sources": snapshot(paths), "configuration": configuration}
+            request_kind = "policyNegative" if rule == "SL1002" and case == "Violation" else (
+                "documentation" if mode == "documentation" else "file" if mode == "file" else "project")
+            request = {"kind": request_kind, "project": str(project),
+                "subject": str(project / "Missing.lean") if rule == "SL2001" and case == "Violation" else (
+                    str(source_path) if request_kind in ("file", "policyNegative") else
+                    str(project / "docs") if request_kind == "documentation" else str(project)),
+                "claim": spec.get("claim", "kernel-only") if request_kind == "file" else None,
+                "execution": "checked" if request_kind == "file" else None,
+                "configuration": configuration_snapshot(config_paths)}
             started = time.monotonic()
             execution = run(command, cwd=project)
             elapsed = time.monotonic() - started
@@ -147,7 +160,7 @@ def main() -> None:
                 raise RuntimeError(f"{rule}/{phase}: missing terminal result\n{execution.stdout}{execution.stderr}")
             observed = json.loads(output.read_text())
             after = {"sources": snapshot(paths), "configuration": {"uri": str(project),
-                     "source": json.dumps(snapshot(config_paths), sort_keys=True)}}
+                     "source": json.dumps(configuration_snapshot(config_paths), sort_keys=True)}}
             replacements = {"$PROJECT": str(project), "$SOURCE": str(source_path),
                 "$MISSING": str(project / "Missing.lean"), "$SOURCE_TEXT": source_path.read_text(),
                 "$DOCS": str(project / "docs")}
@@ -178,11 +191,23 @@ def main() -> None:
                     after["sources"].append(alias)
             expected = [] if case == "Fixed" else instantiate(spec["diagnostics"], replacements)
             return {"rule": rule, "phase": phase, "kind": kind,
-                "mode": spec["mode"], "sourcePath": str(source_file.relative_to(ROOT)), "source": source_file.read_text(),
+                "mode": spec["mode"], "sourcePath": str(source_file.relative_to(ROOT)), "source": source_text if source_text is not None else source_file.read_text(),
                 "command": command, "exitCode": execution.returncode,
-                "before": before, "after": after, "expected": expected, "result": observed,
+                "before": before, "after": after, "request": request, "expected": expected, "result": observed,
                 "unresolvedPatterns": [] if case == "Fixed" else spec.get("unresolvedPatterns", []),
                 "stdout": execution.stdout, "stderr": execution.stderr, "detectorSeconds": elapsed}
+
+        def admit_record(record: dict, refusal: str | None = None) -> None:
+            current = scratch / "current.json"
+            current.write_text(json.dumps({"checkerBefore": checker_before,
+                "checkerAfter": snapshot(checker_paths), "records": [record]}))
+            checked = run(["lake", "env", "lean", "--run",
+                "lean/StrictLean/Checker/RuleExampleQualification.lean", "--record", str(current)])
+            if refusal is None:
+                if checked.returncode:
+                    raise RuntimeError(f"{record['rule']}/{record['phase']}: {checked.stdout}{checked.stderr}")
+            elif checked.returncode == 0 or refusal not in checked.stdout + checked.stderr:
+                raise RuntimeError(f"wrong admission refusal: {checked.stdout}{checked.stderr}")
 
         # Two independent processes at most. Each phase has its own root artifacts;
         # consumption/export stays in registry/phase order, independent of completion.
@@ -198,16 +223,45 @@ def main() -> None:
                 options.evidence.parent.mkdir(parents=True, exist_ok=True)
                 options.evidence.write_text(json.dumps({"schemaVersion": 1, "completeCorpus": options.rules is None, "selected": selected,
                     "checkerBefore": checker_before, "checkerAfter": snapshot(checker_paths), "records": records}, indent=2) + "\n")
-                current = scratch / "current.json"
-                current.write_text(json.dumps({"checkerBefore": checker_before,
-                    "checkerAfter": snapshot(checker_paths), "records": [records[-1]]}))
-                checked = run(["lake", "env", "lean", "--run",
-                    "lean/StrictLean/Checker/RuleExampleQualification.lean", "--record", str(current)])
-                if checked.returncode:
-                    raise RuntimeError(f"{record['rule']}/{record['phase']}: {checked.stdout}{checked.stderr}")
+                admit_record(record)
                 print(f"{record['rule']}/{record['phase']}: qualified {record['kind']} ({record['detectorSeconds']:.2f}s detector)", flush=True)
                 if job := next(jobs, None):
                     pending.append(pool.submit(produce, *job))
+        controls = []
+        if "SL1005" in selected:
+            wrong_claim = produce("SL1005", "WrongClaim", (CORPUS / "SL1005/Violation.lean").read_text(),
+                                  "standard-logical")
+            if wrong_claim["exitCode"] != 0 or wrong_claim["result"]["status"] != "completed":
+                raise RuntimeError("Standard-Logical producer control did not complete")
+            admit_record(wrong_claim, "producer request differs from frozen example request")
+            controls.append(wrong_claim)
+            restored = produce("SL1005", "ClaimRestored")
+            admit_record(restored)
+            controls.append(restored)
+        if "SL4004" in selected:
+            teaching = "<!-- lean-trusted-compiler -->\n```lean\n" + (
+                CORPUS / "SL1004/Violation.lean").read_text() + "```\n"
+            negative = "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n"
+            for phase, source in (("TrustedControl", teaching), ("NegativeControl", negative)):
+                classified = produce("SL4004", phase, source)
+                if classified["exitCode"] != 0 or classified["result"]["status"] != "classified":
+                    raise RuntimeError("nonpositive documentation control did not classify")
+                admit_record(classified, "documentation correction requires completed positive fences")
+                controls.append(classified)
+            restored = produce("SL4004", "ClassificationRestored")
+            admit_record(restored)
+            controls.append(restored)
+        for record in records:
+            if record["kind"] == "diagnosticDemonstration":
+                relabelled = copy.deepcopy(record)
+                relabelled["rule"] = "SL1001"
+                admit_record(relabelled, "diagnostic demonstration mismatch")
+                admit_record(record)
+                controls.append(relabelled)
+        exported = json.loads(options.evidence.read_text())
+        exported["admissionControls"] = controls
+        exported["checkerAfter"] = snapshot(checker_paths)
+        options.evidence.write_text(json.dumps(exported, indent=2) + "\n")
     checked = run(["lake", "env", "lean", "--run",
         "lean/StrictLean/Checker/RuleExampleQualification.lean", str(options.evidence.resolve())])
     if checked.returncode:

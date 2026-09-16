@@ -55,7 +55,7 @@ def transcriptsMatch (sources : Array ProducerReport.SourceBinding)
 not a new configuration resolution rule or an authentication of dependencies. -/
 def configuration (repo manifest : FilePath) : IO (Array (FilePath × Option String)) :=
   #[manifest, repo / "lakefile.lean", repo / "lakefile.toml", repo / "lean-toolchain",
-    repo / "lake-manifest.json"].mapM fun path => do
+    repo / "lake-manifest.json", repo / ".lake" / "package-overrides.json"].mapM fun path => do
       let content ← if ← path.pathExists then some <$> IO.FS.readFile path else pure none
       return (path, content)
 

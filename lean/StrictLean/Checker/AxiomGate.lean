@@ -508,7 +508,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           (Json.mkObj [("project", toJson reportRoot.toString), ("manifest", manifestJson manifest),
             ("modules", toJson (surfaces.flatMap (·.modules))), ("declarations", toJson totalDeclarations),
             ("sources", toJson sources), ("surfaces", toJson surfaceReports),
-            ("configuration", toJson configuration),
+            ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
             ("libraries", toJson (libraries.map libraryInfoJson)),
             ("completedStages", toJson #["claimedSourceBuild", "ownedAdmission", "declarationPolicy", "executionInspection"])])
           (if fresh then .freshProject else .incrementalProject)
@@ -567,12 +567,18 @@ private def auditSurfaceWorker (request : SurfaceWorkerRequest) (scratch : FileP
   child.wait
 
 private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
-    (incremental verbose : Bool) (jsonOut : Option FilePath) (withDocs : Bool) (resultOut : Option FilePath := none) : IO UInt32 :=
-  if incremental then
-    auditSurfaceAt repo (manifest.getD (Manifest.defaultPath repo)) false verbose repo jsonOut resultOut
+    (incremental verbose : Bool) (jsonOut : Option FilePath) (withDocs : Bool) (resultOut : Option FilePath := none)
+    (observeConfiguration : FilePath → Array (FilePath × Option String) → IO Unit := fun _ _ => pure ()) : IO UInt32 :=
+  if incremental then do
+    let configuration ← SourceBinding.configuration repo (manifest.getD (Manifest.defaultPath repo))
+    observeConfiguration repo configuration
+    withSourceEvidence #[] configuration repo.toString .incrementalProject resultOut <|
+      auditSurfaceAt repo (manifest.getD (Manifest.defaultPath repo)) false verbose repo jsonOut resultOut
   else withScratch repo "axiom-gate" fun scratch => do
     let copy := scratch / "project"
     timedPhase "isolated source copy" <| copyProject repo copy scratch
+    let effectiveConfiguration ← SourceBinding.configuration copy (manifest.getD (Manifest.defaultPath copy))
+    observeConfiguration copy effectiveConfiguration
     if withDocs then Documentation.snapshotMarkdown (repo / "docs") (copy / "docs")
     let docsInputs ← if withDocs then do
         let configuration ← SourceBinding.configuration copy (manifest.getD (Manifest.defaultPath copy))
@@ -587,7 +593,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       return 1
     let docsInputs := docsInputs.bind fun value => value.toOption
     let sources := docsInputs.map (·.2.1) |>.getD #[]
-    let configuration := docsInputs.map (·.2.2) |>.getD #[]
+    let configuration := effectiveConfiguration
     withSourceEvidence sources configuration repo.toString .freshProject resultOut do
       let result ← timedPhase "complete declaration audit" <|
         if withDocs then auditSurfaceWorker {
@@ -628,13 +634,15 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       return docsResult
 
 private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
-    (execution : ExecutionClaim) (manifest : Option FilePath) (jsonOut : Option FilePath) (resultOut : Option FilePath := none) : IO UInt32 := do
+    (execution : ExecutionClaim) (manifest : Option FilePath) (jsonOut : Option FilePath) (resultOut : Option FilePath := none)
+    (observeConfiguration : FilePath → Array (FilePath × Option String) → IO Unit := fun _ _ => pure ()) : IO UInt32 := do
+  let manifestPath := manifest.getD (Manifest.defaultPath repo)
+  let configuration ← SourceBinding.configuration repo manifestPath
+  observeConfiguration repo configuration
   if !(← path.pathExists) then
     reportContextFailure .environment path.toString .freshFile .incomplete
       s!"missing source file {path}" resultOut
     return 1
-  let manifestPath := manifest.getD (Manifest.defaultPath repo)
-  let configuration ← SourceBinding.configuration repo manifestPath
   withSourceEvidence #[] configuration path.toString .freshFile resultOut do
     let inventory ← Lake.surfaceInventory repo
     let dependencySources ← SourceBinding.capture inventory.moduleSources
@@ -749,7 +757,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                   ("declarations", toJson declarations.size), ("report", toJson inspected.report),
                   ("authorizedNativeAxioms", toJson native), ("authorizedUnsafeRecHelpers", toJson unsafeHelpers),
                   ("frontendTranscripts", toJson inspected.transcripts),
-                  ("configuration", toJson configuration),
+                  ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
                   ("completedStages", toJson #["incrementalDependencies", "freshFileCompilation", "ownedAdmission", "declarationPolicy", "executionInspection"])])
                 .freshFile
                 (if findings.any (·.2.impact == .incomplete) then .incomplete
@@ -873,31 +881,48 @@ unsafe def run (args : List String) : IO UInt32 := do
     ResultProtocol.write output (Json.str repo.toString)
       (if options.file.isSome then .freshFile else if options.incremental then .incrementalProject else .freshProject)
       .incomplete #[] #["audit has not completed"]
-  try
-    match options.file with
-    | some path =>
-        return ← auditFile repo (resolve repo path) options.claim options.execution
-          (options.manifest.map (resolve repo)) jsonOut resultOut
-    | none =>
-        if options.buildLint then
-          IO.println "build policy linter: enforcing all manifested Lake modules (incremental elaboration; fresh policy inspection)"
-        let result ← auditSurface repo (options.manifest.map (resolve repo))
-          options.incremental options.verbose jsonOut options.withDocs resultOut
-        if options.buildLint && result == 0 then
-          IO.println "build policy linter: PASS (declared requirements only; not fresh-source conformance)"
-        return result
-  catch error =>
-    let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
-      else if options.incremental then .incrementalProject else .freshProject
-    let configError := error.toString.startsWith "manifest-"
-    let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding
-      (if configError then .configuration else .environment) repo.toString
-      error.toString mode (if configError then .violation else .incomplete)
-    IO.eprintln finding.2.text
-    if let some output := resultOut then
-      ResultProtocol.write output (Json.str repo.toString) mode
-        (if configError then .rejected else .incomplete) #[finding] #[error.toString]
-    return 1
+  let configuration ← SourceBinding.configuration repo
+    ((options.manifest.map (resolve repo)).getD (Manifest.defaultPath repo))
+  let request := ResultProtocol.requestJson (if options.file.isSome then "file" else if options.withDocs then "projectWithDocs" else "project")
+    repo.toString ((options.file.map (fun path => (resolve repo path).toString)).getD repo.toString)
+    (options.claim.map Profile.toString)
+    (if options.file.isSome then some options.execution.toString else none) configuration
+  let effective ← IO.mkRef (none : Option Json)
+  let observeConfiguration := fun (root : FilePath) (configuration : Array (FilePath × Option String)) =>
+    effective.set (some (Json.mkObj [("root", toJson root.toString), ("configuration", toJson configuration)]))
+  let action : IO UInt32 := do
+    try
+      match options.file with
+      | some path =>
+          return ← auditFile repo (resolve repo path) options.claim options.execution
+            (options.manifest.map (resolve repo)) jsonOut resultOut observeConfiguration
+      | none =>
+          if options.buildLint then
+            IO.println "build policy linter: enforcing all manifested Lake modules (incremental elaboration; fresh policy inspection)"
+          let result ← auditSurface repo (options.manifest.map (resolve repo))
+            options.incremental options.verbose jsonOut options.withDocs resultOut observeConfiguration
+          if options.buildLint && result == 0 then
+            IO.println "build policy linter: PASS (declared requirements only; not fresh-source conformance)"
+          return result
+    catch error =>
+      let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
+        else if options.incremental then .incrementalProject else .freshProject
+      let configError := error.toString.startsWith "manifest-"
+      let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding
+        (if configError then .configuration else .environment) repo.toString
+        error.toString mode (if configError then .violation else .incomplete)
+      IO.eprintln finding.2.text
+      if let some output := resultOut then
+        ResultProtocol.write output (Json.str repo.toString) mode
+          (if configError then .rejected else .incomplete) #[finding] #[error.toString]
+      return 1
+  let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
+    else if options.incremental then .incrementalProject else .freshProject
+  let code ← withSourceEvidence #[] configuration repo.toString mode resultOut action
+  if let some output := resultOut then
+    let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+    writeJson output ((value.setObjVal! "request" request).setObjVal! "effective" (toJson (← effective.get)))
+  return code
 
 end StrictLean.Checker.AxiomGate
 

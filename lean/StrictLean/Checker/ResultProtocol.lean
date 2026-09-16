@@ -1,3 +1,4 @@
+import StrictLean.Website
 import StrictLean.Checker.Producer
 import StrictLean.Checker.RuleDiagnostics
 
@@ -24,6 +25,11 @@ def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
     ("status", .str (statusText status)),
     ("diagnostics", toJson (findings.map RegistryCodec.diagnosticJson)),
     ("unresolved", toJson unresolved)])
+
+def requestJson (kind project subject : String) (claim execution : Option String)
+    (configuration : Array (System.FilePath × Option String)) : Json :=
+  toJson (⟨kind, project, subject, claim, execution,
+    configuration.map fun (path, source) => (path.toString, source)⟩ : Website.ExampleRequest)
 
 def write (path : System.FilePath) (scope : Json) (mode : EvidenceMode) (status : Status)
     (findings : Array Finding) (unresolved : Array String := #[]) : IO Unit := do

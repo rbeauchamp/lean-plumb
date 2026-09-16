@@ -45,21 +45,27 @@ unsafe def inspectNegative (repo path output : FilePath) : IO UInt32 := do
               (Policy.classify decl scope) location .freshFile (some "standard-logical"))
         return (Json.mkObj [
           ("file", toJson path.toString), ("source", toJson source),
-          ("configuration", toJson (configuration.map fun (path, text) => (path.toString, text))),
+          ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
+          ("claim", toJson (some "standard-logical" : Option String)), ("execution", Json.null),
           ("diagnosticOnly", toJson true), ("compilerOutput", toJson compilation.process.output),
           ("report", toJson inspected.report), ("frontendTranscripts", toJson inspected.transcripts)], findings)
   ResultProtocol.write output scopeJson .freshFile
     (if findings.isEmpty then .classified else .rejected) findings
+  let value ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile output)
+  let request := ResultProtocol.requestJson "policyNegative" repo.toString path.toString none none configuration
+  writeJson output ((value.setObjVal! "request" request).setObjVal! "effective"
+    (Json.mkObj [("root", toJson repo.toString), ("configuration", toJson configuration)]))
   return if findings.isEmpty then 0 else 1
 
 /-- Capture emitted findings from the actual documentation driver in the same canonical
 result envelope used by project/file consumers. The fresh copy owns build and fence artifacts. -/
 unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
+  let requestedConfiguration ← SourceBinding.configuration repo (Manifest.defaultPath repo)
   let paths := ((← docsRoot.walkDir).filter (·.extension == some "md")).qsort
     (fun a b => a.toString < b.toString)
   if paths.isEmpty then throw <| IO.userError "empty example documentation tree"
   let sources ← paths.mapM fun path => do return (path, ← IO.FS.readFile path)
-  let outcome ← (withScratch repo "rule-document-example" fun scratch => do
+  let outcome ← (stable #[] requestedConfiguration <| withScratch repo "rule-document-example" fun scratch => do
     let copy := scratch / "project"
     copyProject repo copy scratch
     let configuration ← SourceBinding.configuration copy (Manifest.defaultPath copy)
@@ -71,21 +77,31 @@ unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
         if let some lines ← Lake.buildChecked copy (Manifest.positiveTargets manifest) "fresh" then
           throw <| IO.userError ("example dependency build failed: " ++ "\n".intercalate lines.toList)
         let findings ← IO.mkRef (#[] : Array Finding)
+        let classifications ← IO.mkRef (#[] : Array Documentation.Classification)
         let code ← Documentation.auditBuiltProject copy docsRoot inventory projectSources configuration 1 true
           (fun finding => findings.modify (·.push finding))
+          (fun results => classifications.set (results.map Documentation.classification))
         let actual ← findings.get
         unless (code == 0) == actual.isEmpty do
           throw <| IO.userError "documentation completion/findings mismatch"
-        return (code, actual)).toBaseIO
+        return (code, actual, ← classifications.get, copy.toString, configuration)).toBaseIO
   -- Markdown is not a Lean module map. Preserve its own exact snapshots even on errors.
   for (path, source) in sources do
     unless (← IO.FS.readFile path) == source do throw <| IO.userError "documentation source changed"
-  let (code, actual) ← IO.ofExcept <| outcome.mapError (fun error => toString error)
+  let (code, actual, classifications, configurationRoot, configuration) ← IO.ofExcept <| outcome.mapError (fun error => toString error)
   ResultProtocol.write output (Json.mkObj [
+    ("configuration", toJson configuration), ("configurationRoot", toJson configurationRoot),
+    ("fences", toJson classifications),
     ("documents", toJson (sources.map fun (path, source) => Json.mkObj [
       ("uri", toJson path.toString), ("source", toJson source)]))])
     .documentationExample (if actual.any (·.2.impact == .incomplete) then .incomplete
-      else if code == 0 then .completed else .rejected) actual
+      else if code != 0 then .rejected
+      else if (Documentation.admitPositiveClassifications classifications).toOption.isSome then .completed
+      else .classified) actual
+  let value ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile output)
+  let request := ResultProtocol.requestJson "documentation" repo.toString docsRoot.toString none none requestedConfiguration
+  writeJson output ((value.setObjVal! "request" request).setObjVal! "effective"
+    (Json.mkObj [("root", toJson configurationRoot), ("configuration", toJson configuration)]))
   return code
 
 unsafe def run (args : List String) : IO UInt32 := do
