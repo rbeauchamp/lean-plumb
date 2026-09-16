@@ -51,6 +51,13 @@ lean_exe «checkerSelftest» where
   root := `StrictLean.Checker.CheckerSelftest
   supportInterpreter := true
 
+lean_exe «ruleExamples» where
+  root := `StrictLean.Checker.RuleExamples
+  supportInterpreter := true
+
+lean_exe «ruleExampleQualification» where
+  root := `StrictLean.Checker.RuleExampleQualification
+
 lean_exe «auditApp» where
   root := `Main
   supportInterpreter := true

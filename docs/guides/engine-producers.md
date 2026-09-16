@@ -62,12 +62,21 @@ unreleased report fields live inside the existing registry/result envelope; work
 and its version remain separate. `--legacy-json-out` omits the new fields and retains its
 prior record shape. Use canonical `--json-out` to consume producer evidence.
 
+`AxiomGate` also retains captured source bytes in the terminal `sourceAccount`, including
+partial captures on typed failures and IO exceptions. Capture callbacks retain the growing
+account in memory; serialization occurs at terminal success/error boundaries, rather than
+rewriting every captured prefix. When an outer handler has no captured sources, it preserves
+any account already serialized by the worker. An absent or partial account does not establish
+complete source coverage; [example admission](rule-examples.md) checks its required source
+against this producer evidence before constructing an observation.
+
 These guards reconcile supplied data. They do not prove truthful external extraction, source
 identity, a complete execution-edge/history census, or complete claim-indexed jobs. #7 must
 bind these raw keys to the exact claim/snapshot and construct the existing pure `Census` and
-`AdmissionObservation`; no serialized flag substitutes for that work. #13 still owes exact
-policy-example integration, the full twenty-rule source-owned corpus and integrated delivery
-evidence; the closure/source increment below does not close the issue. An empty diagnostic list is not `Accepted` or full semantic conformance.
+`AdmissionObservation`; no serialized flag substitutes for that work. The
+[source-owned corpus](rule-examples.md) supplies the example integration; #13 still requires
+integrated delivery evidence. These producer increments do not close the issue. An empty
+diagnostic list is not `Accepted` or full semantic conformance.
 
 ## Source-bound replacement histories
 
@@ -100,11 +109,12 @@ The existing structural campaign remains separately scoped; this does not report
 
 ## Source-owned examples and qualification
 
-The first two source pairs are [SL5001](../../examples/rules/SL5001/) and
+The module/documentation source pairs are [SL5001](../../examples/rules/SL5001/) and
 [SL5002](../../examples/rules/SL5002/). Each correction preserves exactly
 `∀ n : Nat, n = n`, with the same proof and no new assumptions. Only documentation is added.
 They are isolated from positive libraries and copied byte-for-byte into a disposable
-Core-only adopter as `Example.lean`.
+Core-only adopter as `Example.lean`. The complete twenty-rule corpus and its separate
+unavailable-analysis demonstrations are described in [rule examples](rule-examples.md).
 
 Run `./scripts/verify.sh diagnostics producers` for the bounded operational campaign.
 It invokes the actual fresh project, incremental and build-lint entrypoints for each fixed/violation/restored source,
@@ -262,7 +272,8 @@ When snapshots are unchanged, the original worker or decoding failure is preserv
 fixture failure; compatibility IO wrappers have no public diagnostic consumer.
 The four accepted-example kinds are unchanged. Expected INCOMPLETE diagnostics are separate
 diagnostic demonstrations, never accepted conformance or accepted positive/rejection examples;
-the full corpus and its matching/export adapter are a separate #13 increment.
+the full corpus and its matching/export adapter are documented in
+[rule examples](rule-examples.md). Their qualified diagnostic result is not global Accepted.
 
 The [closure verification record](../../session/evidence/issue-13-closure-verification.md)
 records the proved domain, exact axiom sets, focused qualification and pending delivery gates.
