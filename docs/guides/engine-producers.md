@@ -100,11 +100,12 @@ The existing structural campaign remains separately scoped; this does not report
 
 ## Source-owned examples and qualification
 
-The first two source pairs are [SL5001](../../examples/rules/SL5001/) and
+The module/documentation source pairs are [SL5001](../../examples/rules/SL5001/) and
 [SL5002](../../examples/rules/SL5002/). Each correction preserves exactly
 `∀ n : Nat, n = n`, with the same proof and no new assumptions. Only documentation is added.
 They are isolated from positive libraries and copied byte-for-byte into a disposable
-Core-only adopter as `Example.lean`.
+Core-only adopter as `Example.lean`. The complete twenty-rule corpus and its separate
+unavailable-analysis demonstrations are described in [rule examples](rule-examples.md).
 
 Run `./scripts/verify.sh diagnostics producers` for the bounded operational campaign.
 It invokes the actual fresh project, incremental and build-lint entrypoints for each fixed/violation/restored source,
@@ -262,7 +263,8 @@ When snapshots are unchanged, the original worker or decoding failure is preserv
 fixture failure; compatibility IO wrappers have no public diagnostic consumer.
 The four accepted-example kinds are unchanged. Expected INCOMPLETE diagnostics are separate
 diagnostic demonstrations, never accepted conformance or accepted positive/rejection examples;
-the full corpus and its matching/export adapter are a separate #13 increment.
+the full corpus and its matching/export adapter are documented in
+[rule examples](rule-examples.md). Their qualified diagnostic result is not global Accepted.
 
 The [closure verification record](../../session/evidence/issue-13-closure-verification.md)
 records the proved domain, exact axiom sets, focused qualification and pending delivery gates.

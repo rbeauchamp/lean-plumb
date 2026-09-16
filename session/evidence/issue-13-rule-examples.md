@@ -1,8 +1,12 @@
-# Issue 13 rule corpus — work in progress
+# Issue 13 rule corpus — merged-engine qualification
 
-This is the examples worker's scoped evidence, not issue-13 completion. Engine producer
-integration, final full-corpus qualification, ordinary420 acceptance, independent review,
-exact-head CI and merge remain pending. Base: `b64747b7ce16d5850c11f9798d46dfa5fe5b9b17`.
+This is the examples worker's scoped evidence, not issue-13 completion. The corpus is
+rebased on reviewed main `0df758a92856b6a268882eada641773af5684d80`, integrated by
+https://github.com/rbeauchamp/strict-lean/pull/30. The original signed checkpoint
+`8453a8ec591807ecf4157924571aad1132cd058d` was preserved and safely rebased to signed
+`4d1c08342e6ad4aa036b84ef05724baee2d9f7bd`. This report includes the subsequent adapter
+integration working tree. Full cold ordinary420, independent review, exact-head CI and
+corpus merge remain for Firstmate's no-mistakes invocation.
 
 ## Checked pure guarantees
 
@@ -29,30 +33,34 @@ check for the same named theorems. This proves relations over the actual pure de
 it does not authenticate IO, subprocesses, Lean metaprogramming observations or binaries.
 No JSON-renderer injectivity premise is needed for the incomplete/accepted separation.
 
-## Observed independent qualification
+## Complete corpus qualification on the merged engine
 
-The maintained runner passed all nineteen rules independent of the pending SL2005 repair:
-SL1001–SL1007, SL2001–SL2004, SL3001–SL3002, SL4001–SL4004 and SL5001–SL5002.
-Each had disjoint fixed, intended diagnostic and restored phases: 57 actual records.
-The Lean qualifier also refused five single mutations of a real record (abnormal exit,
-changed source/configuration, wrong mode, stale revision and a forbidden fifth accepted kind),
-checking the intended reason and restoring the original between mutations.
+`./scripts/verify.sh diagnostics rule-examples` passed, exit 0, in **227.61 seconds**
+under its unmodified 420-second process-group deadline. This is a separate diagnostic
+campaign, not ordinary acceptance. It built its executables/modules and qualified all
+twenty registry rules in disjoint fixed, intended diagnostic and restored phases:
+**60 actual records**. The exact transcript is
+[issue-13-rule-examples-qualification.txt](issue-13-rule-examples-qualification.txt).
 
-Command (one bounded run, not a partition of ordinary acceptance):
+The Lean qualifier also refused five single mutations of a real production record
+(abnormal exit, changed source/configuration, wrong mode, stale revision and a forbidden
+fifth accepted kind), checking the intended reason and restoring the original between
+mutations. These qualify the operational adapter; the six general pure guarantees above
+are not inferred from those observations.
 
-```sh
-gtimeout --signal=KILL 420s python3 scripts/rule_example_checks.py \
-  --rules SL1001 SL1002 SL1003 SL1004 SL1005 SL1006 SL1007 \
-  SL2001 SL2002 SL2003 SL2004 SL3001 SL3002 SL4001 SL4002 SL4003 SL4004 SL5001 SL5002 \
-  --evidence tmp/issue13-examples/independent-corpus-v2.json
-```
+The canonical local export is `tmp/rule-examples.json`, with `completeCorpus=true`, exact
+before/after source/configuration and checker bytes, every result, original compiler output
+and command. All sixty producer identities were
+`4d1c08342e6ad4aa036b84ef05724baee2d9f7bd:unreleased-worktree`; their checker snapshots were
+unchanged. This is exact-source working-tree evidence, not authenticated binary provenance
+or a clean reviewed-head claim. CI regenerates the artifact at its own head.
 
-Exit 0; full log: `tmp/issue13-examples/independent-corpus-v2.log`.
-The local export records `completeCorpus=false`, exact before/after source/configuration and
-checker bytes, all canonical results, actual commands and original compiler output. Producer
-identity was `b64747b7ce16d5850c11f9798d46dfa5fe5b9b17:unreleased-worktree` throughout. This
-is working-tree evidence, not a clean exact-head claim. Later comment/prose edits do not
-change checked semantics; final delivery must regenerate the complete exact-source export.
+Previously, nineteen independent rules passed 57 records before engine integration. That
+scoped evidence never claimed SL2005 or the complete corpus; the current complete run
+supersedes it for integrated behavior. A focused SL2005 fixed/violation/restored run also
+passed through the merged public project path before the complete run. Its malformed
+owned proof now produces exactly SL2005/admission/incomplete with kernel-admission detail
+and honest project attribution, rather than the old base's unrelated SL2001.
 
 The first maintained attempt exposed a missing dependency-build directory in the hole-only
 adapter. The adapter now builds its actual declared dependency targets. File fixtures live
@@ -66,18 +74,35 @@ as accepted rejection or positive program evidence. SL1004 retains both generate
 parent findings; SL4002 retains its wrapper and underlying SL1001 finding. No location or
 finding was discarded to make qualification pass.
 
-## Remaining engine dependency and delivery checks
+## Operational adapter integration and trust
 
-The source-owned SL2005 pair is present. On the old base, malformed owned admission is
-flattened to SL2001 instead of the required SL2005. The engine worker owns the typed public
-admission result repair. This corpus deliberately retains SL2005 and cannot qualify that
-rule until the authoritative repaired engine revision is integrated. No substitute diagnostic
-is accepted, and no final all-rule PASS is claimed.
+`Checker.RuleExamples` uses the merged `SourceAudit.compile` and `inspectOutcome` typed
+results. Its negative-hole route freezes original source, dependencies and configuration
+before building. It reuses `SourceBinding.withUnchanged` around discovery and the entire
+build/compile/inspect/result-construction operation. A typed refusal or IO exception emits
+no qualifying success record. Final serialization follows the successful guard.
 
-After integration, run `./scripts/verify.sh diagnostics rule-examples` for the entire closed
-twenty-rule corpus and `./scripts/verify.sh` for separate unpartitioned ordinary420 acceptance,
-under Firstmate's coordinated resource slot. Apply the repository review skill inside the
-selected no-mistakes path, with distinct fresh semantic/proof and operational/metaprogramming
-reviewers and focused verification after repair. No independent review or final CI is claimed
-by the compiler/corpus observations above. Existing producer/history campaigns remain owned
-by the engine worker and their prior evidence is not relabelled here.
+The documentation route freezes the copied project's source/configuration before its
+build and passes those same snapshots into `Documentation.auditBuiltProject`. It freezes
+Markdown separately (documents are not invented Lean module identities), checks the exact
+text on successful and exceptional returns, and serializes only after all guards complete.
+These are small adapters over the reviewed engine owner, not copied detector semantics.
+Before/after equality does not rule out transient change-and-restore; compiler, process,
+filesystem and extraction authenticity remain trusted as documented by the engine.
+
+## Live contracts and remaining delivery gates
+
+Issues 13, 7, 14, 15 and 10 now contain the approved example/demonstration distinction;
+exact body readback was verified. The amendment retains all four accepted kinds, exact
+completed production/source/configuration/mode/diagnostic binding, positive corrections,
+multiple findings and honest module/project attribution. Historical numerical summaries
+were compacted to their maintained evidence pointers to fit GitHub's issue-body limit;
+requirements and acceptance checkboxes were preserved. No issue state, native blocker or
+project status was changed. #13 remains open and blocks #7.
+
+The complete all-twenty diagnostic above does not discharge the unpartitioned cold-root
+`./scripts/verify.sh` gate. That run, fresh independent semantic/proof and operational/
+metaprogramming reviews, focused repair review, exact-head CI and merge remain mandatory
+inside the selected no-mistakes delivery path. Existing engine producer/history campaigns
+retain their own evidence; none is relabelled PASS by this corpus run. The older structural
+campaign remains unrun. Global Accepted is #7; actual editor/site integration is #14/#15.

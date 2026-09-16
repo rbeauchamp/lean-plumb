@@ -77,6 +77,10 @@ refer to invocation paths or exact source-owned bytes; they never rewrite actual
 Markdown snippet slices are explicit fixture byte anchors, not a second Markdown detector.
 The production Markdown scanner still owns classification and fence semantics.
 
+The adapters reuse `SourceBinding.withUnchanged`, typed `SourceAudit` outcomes and the
+documentation driver’s frozen project snapshots. They serialize only after snapshot
+checks complete; a typed refusal or process exception cannot become a qualifying example.
+
 The runner starts fixed, violation and restored phases with separate empty root build output,
 uses unique result paths and checks source/configuration readback. At most two independent
 detector processes run concurrently; evidence consumption stays in registry/phase order.
