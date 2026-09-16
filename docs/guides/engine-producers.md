@@ -62,12 +62,21 @@ unreleased report fields live inside the existing registry/result envelope; work
 and its version remain separate. `--legacy-json-out` omits the new fields and retains its
 prior record shape. Use canonical `--json-out` to consume producer evidence.
 
+`AxiomGate` also retains captured source bytes in the terminal `sourceAccount`, including
+partial captures on typed failures and IO exceptions. Capture callbacks retain the growing
+account in memory; serialization occurs at terminal success/error boundaries, rather than
+rewriting every captured prefix. When an outer handler has no captured sources, it preserves
+any account already serialized by the worker. An absent or partial account does not establish
+complete source coverage; [example admission](rule-examples.md) checks its required source
+against this producer evidence before constructing an observation.
+
 These guards reconcile supplied data. They do not prove truthful external extraction, source
 identity, a complete execution-edge/history census, or complete claim-indexed jobs. #7 must
 bind these raw keys to the exact claim/snapshot and construct the existing pure `Census` and
-`AdmissionObservation`; no serialized flag substitutes for that work. #13 still owes exact
-policy-example integration, the full twenty-rule source-owned corpus and integrated delivery
-evidence; the closure/source increment below does not close the issue. An empty diagnostic list is not `Accepted` or full semantic conformance.
+`AdmissionObservation`; no serialized flag substitutes for that work. The
+[source-owned corpus](rule-examples.md) supplies the example integration; #13 still requires
+integrated delivery evidence. These producer increments do not close the issue. An empty
+diagnostic list is not `Accepted` or full semantic conformance.
 
 ## Source-bound replacement histories
 

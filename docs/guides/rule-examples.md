@@ -34,8 +34,8 @@ Copied configuration paths are compared relative to their explicitly recorded ro
 rewriting source or diagnostic identities. A changed effective package override is refused;
 this example qualifier does not authorize configuration relocation transformations or combined
 `--with-docs` requests. Early terminal failures retain the producer request and any configuration
-captured before failure. Early-failure serialization also retains the exact producer source account,
-including partial captures; absent source evidence refuses qualification. The shared
+captured before failure. The [producer transport contract](engine-producers.md#transport-and-consumer-boundary)
+owns source retention on terminal exits; absent source evidence refuses qualification. The shared
 `admitExampleSources` guard requires every observed source to belong to the frozen snapshot
 and the displayed source text to occur in that account. File requests additionally require
 that text at the requested path. Its soundness/completeness proofs concern these exact data
@@ -119,11 +119,15 @@ closed registry and requires all three phases once. Unrun selected rules cannot 
 full-corpus PASS. Version fields alone do not authenticate whole binaries; the producer and
 filesystem remain the existing trusted operational boundary.
 
-After provisioning pinned dependencies, build `ruleExamples` and the qualifier module, then:
+After provisioning pinned dependencies, build both detector executables and the qualifier module:
 
 ```sh
+lake build axiomGate ruleExamples +StrictLean.Checker.RuleExampleQualification:olean
 python3 scripts/rule_example_checks.py --evidence tmp/rule-examples.json
 ```
+
+`./scripts/verify.sh diagnostics rule-examples` wraps this build and campaign under the
+repository's diagnostic deadline and includes its housekeeping checks.
 
 The `ruleExamples` executable is excluded in the root manifest solely as operational
 qualification tooling, alongside the existing checker executables. Its module belongs to the
