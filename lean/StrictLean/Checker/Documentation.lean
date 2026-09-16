@@ -551,7 +551,8 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
   | .error failure =>
       let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .admission docsRoot.toString
         failure.detail .documentationExample .incomplete
-      IO.println finding.2.text
+      -- Both public callers own the enclosing frozen-project guard and render
+      -- its refusal. Keep the finding callback without rendering it twice.
       emit finding
       return 1
 

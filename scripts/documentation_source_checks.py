@@ -77,6 +77,16 @@ def main():
                 if mutation:
                     assert run.returncode != 0 and reason in transcript, (binary, phase, transcript)
                     assert "fence compilation: " in transcript, (binary, phase, transcript)
+                    admission_lines = [line for line in transcript.splitlines()
+                                       if line.startswith("SL2005 [")]
+                    assert len(admission_lines) == 2, (binary, phase, transcript)
+                    assert len(set(admission_lines)) == 2, (binary, phase, transcript)
+                    assert sum("project/configuration control.md:1]" in line
+                               for line in admission_lines) == 1, (binary, phase, transcript)
+                    scope = project / "docs" if binary == "docFenceAudit" else project
+                    assert sum(f"project/configuration {scope}]" in line
+                               for line in admission_lines) == 1, (binary, phase, transcript)
+                    assert sum(line.startswith("SL4002 [") for line in transcript.splitlines()) == 1, (binary, phase, transcript)
                     if phase in ("source-missing", "source-unreadable", "configuration-unreadable"):
                         io_reason = ("no such file or directory" if phase == "source-missing"
                                      else "is a directory")
