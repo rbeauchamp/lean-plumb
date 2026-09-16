@@ -914,17 +914,25 @@ unsafe def run (args : List String) : IO UInt32 := do
     ResultProtocol.write output (Json.str repo.toString)
       (if options.file.isSome then .freshFile else if options.incremental then .incrementalProject else .freshProject)
       .incomplete #[] #["audit has not completed"]
-  let configuration ← SourceBinding.configuration repo
-    ((options.manifest.map (resolve repo)).getD (Manifest.defaultPath repo))
-  let request := ResultProtocol.requestJson (if options.file.isSome then "file" else if options.withDocs then "projectWithDocs" else "project")
-    repo.toString ((options.file.map (fun path => (resolve repo path).toString)).getD repo.toString)
-    (options.claim.map Profile.toString)
-    (if options.file.isSome then some options.execution.toString else none) configuration
   let capturedSources ← IO.mkRef (#[] : Array ProducerReport.SourceBinding)
   let observeSources := fun sources => capturedSources.set sources
   let effective ← IO.mkRef (none : Option Json)
   let observeConfiguration := fun (root : FilePath) (configuration : Array (FilePath × Option String)) =>
     effective.set (some (Json.mkObj [("root", toJson root.toString), ("configuration", toJson configuration)]))
+  let reportFailure : IO.Error → IO UInt32 := fun error => do
+    let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
+      else if options.incremental then .incrementalProject else .freshProject
+    let configError := error.toString.startsWith "manifest-"
+    let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding
+      (if configError then .configuration else .environment) repo.toString
+      error.toString mode (if configError then .violation else .incomplete)
+    IO.eprintln finding.2.text
+    if let some output := resultOut then
+      let captured ← capturedSourceAccount resultOut (← capturedSources.get)
+      writeJson output <| (ResultProtocol.resultJson (Json.str repo.toString) mode
+        (if configError then .rejected else .incomplete) #[finding] #[error.toString]).setObjVal!
+        "sourceAccount" captured
+    return 1
   let action : IO UInt32 := do
     try
       match options.file with
@@ -939,22 +947,18 @@ unsafe def run (args : List String) : IO UInt32 := do
           if options.buildLint && result == 0 then
             IO.println "build policy linter: PASS (declared requirements only; not fresh-source conformance)"
           return result
-    catch error =>
-      let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
-        else if options.incremental then .incrementalProject else .freshProject
-      let configError := error.toString.startsWith "manifest-"
-      let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding
-        (if configError then .configuration else .environment) repo.toString
-        error.toString mode (if configError then .violation else .incomplete)
-      IO.eprintln finding.2.text
-      if let some output := resultOut then
-        let captured ← capturedSourceAccount resultOut (← capturedSources.get)
-        writeJson output <| (ResultProtocol.resultJson (Json.str repo.toString) mode
-          (if configError then .rejected else .incomplete) #[finding] #[error.toString]).setObjVal!
-          "sourceAccount" captured
-      return 1
+    catch error => reportFailure error
   let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
     else if options.incremental then .incrementalProject else .freshProject
+  let configuration ← try
+      SourceBinding.configuration repo
+        ((options.manifest.map (resolve repo)).getD (Manifest.defaultPath repo))
+    catch error =>
+      return ← withRetainedSources resultOut capturedSources (reportFailure error)
+  let request := ResultProtocol.requestJson (if options.file.isSome then "file" else if options.withDocs then "projectWithDocs" else "project")
+    repo.toString ((options.file.map (fun path => (resolve repo path).toString)).getD repo.toString)
+    (options.claim.map Profile.toString)
+    (if options.file.isSome then some options.execution.toString else none) configuration
   let code ← withRetainedSources resultOut capturedSources <|
     withSourceEvidence #[] configuration repo.toString mode resultOut action
   if let some output := resultOut then
