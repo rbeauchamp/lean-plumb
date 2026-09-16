@@ -143,18 +143,16 @@ private structure ReportWorkerRequest where
   modules : Array Name
   searchRoots : Array String
   sourceRoots : Array String
-  moduleSources : Array (Name × String)
   sourceBindings : Array ProducerReport.SourceBinding
   ownedOutput : String
   deriving ToJson
 
 instance : FromJson ReportWorkerRequest := ⟨fun j => do
-  StrictLean.Checker.PolicyCodec.exactFields j ["modules", "searchRoots", "sourceRoots", "moduleSources", "sourceBindings", "ownedOutput"]
+  StrictLean.Checker.PolicyCodec.exactFields j ["modules", "searchRoots", "sourceRoots", "sourceBindings", "ownedOutput"]
   return {
     modules := ← j.getObjValAs? _ "modules"
     searchRoots := ← j.getObjValAs? _ "searchRoots"
     sourceRoots := ← j.getObjValAs? _ "sourceRoots"
-    moduleSources := ← j.getObjValAs? _ "moduleSources"
     sourceBindings := ← j.getObjValAs? _ "sourceBindings"
     ownedOutput := ← j.getObjValAs? _ "ownedOutput"
   }⟩
@@ -275,7 +273,6 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       modules := info.modules
       searchRoots := inventory.leanPath.map (·.toString)
       sourceRoots := inventory.leanSrcPath.map (·.toString)
-      moduleSources := inventory.moduleSources.map fun (name, path) => (name, path.toString)
       sourceBindings
       ownedOutput := inventory.leanLibDir.toString
     }
@@ -559,6 +556,13 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
     let copy := scratch / "project"
     timedPhase "isolated source copy" <| copyProject repo copy scratch
     if withDocs then Documentation.snapshotMarkdown (repo / "docs") (copy / "docs")
+    let docsInputs ← if withDocs then do
+        let configuration ← SourceBinding.configuration copy (manifest.getD (Manifest.defaultPath copy))
+        let inventory ← Lake.surfaceInventory copy
+        let sources ← SourceBinding.capture inventory.moduleSources
+        SourceBinding.configurationUnchanged configuration
+        pure <| some (inventory, sources, configuration)
+      else pure none
     let result ← timedPhase "complete declaration audit" <|
       if withDocs then auditSurfaceWorker {
         project := copy.toString
@@ -574,9 +578,10 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
       writeJson output <| (value.setObjVal! "status" (.str "incomplete")).setObjVal!
         "unresolved" (toJson #["documentation audit has not completed"])
-    let inventory ← Lake.surfaceInventory copy
+    let some (inventory, sources, configuration) := docsInputs
+      | throw <| IO.userError "producer-source: missing documentation build snapshots"
     let docFindings ← IO.mkRef (#[] : Array StrictLean.Finding)
-    let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory 4 verbose
+    let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory sources configuration 4 verbose
       (fun finding => docFindings.modify (·.push finding))
     if let some output := resultOut then
       let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
@@ -758,7 +763,7 @@ unsafe def run (args : List String) : IO UInt32 := do
     SourceBinding.unchanged request.sourceBindings
     let outcome ← Environment.loadReportOutcome request.modules
       (request.searchRoots.map FilePath.mk) (request.sourceRoots.map FilePath.mk)
-      (request.moduleSources.map fun (name, path) => (name, FilePath.mk path))
+      (request.sourceBindings.map fun source => (source.moduleName, FilePath.mk source.path))
       (some (FilePath.mk request.ownedOutput))
     if let .ok report := outcome then
       IO.ofExcept <| SourceBinding.validateAgainst request.sourceBindings report

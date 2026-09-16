@@ -53,14 +53,17 @@ unsafe def run (args : List String) : IO UInt32 := do
     let copy := scratch / "project"
     copyProject repo copy scratch
     let manifestPath := options.manifest.map (resolve repo) |>.getD (Manifest.defaultPath copy)
+    let configuration ← SourceBinding.configuration copy manifestPath
     let manifest ← Manifest.load manifestPath
     let inventory ← Lake.surfaceInventory copy
+    let sources ← SourceBinding.capture inventory.moduleSources
+    SourceBinding.configurationUnchanged configuration
     if let some lines ← Lake.buildChecked copy (Manifest.positiveTargets manifest) "fresh" then
       for line in lines do IO.println s!"    {line}"
       return 1
     IO.println "claimed surface built fresh; compiling fences"
     (← IO.getStdout).flush
-    Documentation.auditBuiltProject copy docsRoot inventory options.jobs options.verbose
+    Documentation.auditBuiltProject copy docsRoot inventory sources configuration options.jobs options.verbose
 
 end StrictLean.Checker.DocFenceAudit
 

@@ -29,6 +29,11 @@ The plan owns subsequent steps and gates. Do not advance to #7 because a partial
 
 ## Accomplished and reusable evidence
 
+- R1–R3 review-phase repairs against `d5a6c8ca92ebd44079d7c21a2550c675d84ad330`: frozen
+  documentation project inputs, sole worker source maps and removal of the new Claude alias.
+  Focused build and 18 public documentation controls passed; two fresh-context risk-specific
+  repair reviews are CLEAN. See [repair evidence](evidence/issue-13-review-repair.md).
+  These scoped repairs do not discharge ordinary420, full-branch review or delivery gates.
 - Current closure/source scoped qualification: **PASS, 291.27s** under a 420s timeout;
   17 actual fresh/incremental/file invocations and 17 decoder mutation/restoration controls.
   Pure/compiler checks and three exact theorem axiom sets passed. The unchanged producer

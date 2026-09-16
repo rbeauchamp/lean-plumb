@@ -74,7 +74,6 @@ Only JSON data crosses the process boundary; extension-held references die
 with the worker instead of accumulating across groups in the coordinator. -/
 structure GroupRequest where
   modules : Array Name
-  moduleSources : Array (Name × String) := #[]
   sourceBindings : Array ProducerReport.SourceBinding
   ownedOutput : Option String := none
   includeExecution : Bool := true
@@ -82,10 +81,9 @@ structure GroupRequest where
   deriving ToJson
 
 instance : FromJson GroupRequest := ⟨fun j => do
-  StrictLean.Checker.PolicyCodec.exactFields j ["modules", "moduleSources", "sourceBindings", "ownedOutput", "includeExecution", "includeModuleOrigins"]
+  StrictLean.Checker.PolicyCodec.exactFields j ["modules", "sourceBindings", "ownedOutput", "includeExecution", "includeModuleOrigins"]
   return {
     modules := ← j.getObjValAs? _ "modules"
-    moduleSources := ← j.getObjValAs? _ "moduleSources"
     sourceBindings := ← j.getObjValAs? _ "sourceBindings"
     ownedOutput := ← j.getObjValAs? _ "ownedOutput"
     includeExecution := ← j.getObjValAs? _ "includeExecution"
@@ -106,8 +104,8 @@ instance : FromJson GroupReport := ⟨fun j => do
 
 unsafe def inspectGroupWorker (request : GroupRequest) : IO GroupReport := do
   SourceBinding.unchanged request.sourceBindings
-  let moduleSources := request.moduleSources.map fun (name, path) =>
-    (name, FilePath.mk path)
+  let moduleSources := request.sourceBindings.map fun source =>
+    (source.moduleName, FilePath.mk source.path)
   let report ← Environment.loadReportCurrentSearchPath request.modules moduleSources
     (request.ownedOutput.map FilePath.mk) request.includeExecution request.includeModuleOrigins
   IO.ofExcept <| SourceBinding.validateAgainst request.sourceBindings report
@@ -135,7 +133,6 @@ def inspectGroupCurrentSearchPath (modules : Array Name)
     let output := scratch / "report.json"
     let request : GroupRequest := {
       modules
-      moduleSources := sourceBindings.map fun source => (source.moduleName, source.path)
       sourceBindings
       ownedOutput := ownedOutput.map (·.toString)
       includeExecution

@@ -647,7 +647,7 @@ private unsafe def diagnosticSetupQualification (repo scratch : FilePath) : IO (
     let scan := Documentation.scan text "setup.md"
     let tasks := scan.fences.map fun fence =>
       ({ fence, origin := "setup.md:2", kind := .negative } : Documentation.Task)
-    Documentation.auditTasks project compiled 1 tasks
+    Documentation.auditTasks project compiled 1 tasks #[] #[]
   let body := "import SetupSentinel\ndef invalid : Nat := \"value\"\n"
   let mut failures := #[]
   for phase in #["baseline", "corrupt", "restored"] do
@@ -698,7 +698,7 @@ private unsafe def fenceCorpusQualification (repo scratch : FilePath) (jobs : Na
         origin := s!"{name}.md:{fence.line}"
         kind := kindOf fence
       }
-  let results ← Documentation.auditTasks repo scratch jobs tasks
+  let results ← Documentation.auditTasks repo scratch jobs tasks #[] #[]
   let mut rendered : Array String := structural.map (s!"[X] {·}")
   for result in results do
     let mark := match result.status with

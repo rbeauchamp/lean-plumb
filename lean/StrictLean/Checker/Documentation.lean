@@ -319,8 +319,11 @@ Each group runs in a child process so extension-held imports are released on exi
 `extraSearchRoots` carries the freshly built claimed-surface libraries of the
 checked project, ahead of any inherited search path. -/
 unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
-    (tasks : Array Task) (extraSearchRoots : Array FilePath := #[])
-    (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none) : IO (Array Result) := do
+    (tasks : Array Task) (sourceBindings : Array ProducerReport.SourceBinding)
+    (configuration : Array (FilePath × Option String))
+    (extraSearchRoots : Array FilePath := #[]) (ownedOutput : Option FilePath := none) : IO (Array Result) := do
+  SourceBinding.unchanged sourceBindings
+  SourceBinding.configurationUnchanged configuration
   let indexed := tasks.mapIdx fun index task => (task, index)
   let specs := indexed.map fun (task, index) =>
     ({
@@ -331,6 +334,8 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
       captureRejection := task.kind == .negative
     } : SourceAudit.SourceSpec)
   let compilations ← timedPhase "fence compilation" <| SourceAudit.compileBatch repo scratch jobs specs
+  SourceBinding.unchanged sourceBindings
+  SourceBinding.configurationUnchanged configuration
   IO.println s!"fence compilations complete: {tasks.size}; inspecting declarations"
   (← IO.getStdout).flush
   let mut results : Array (Option Result) := Array.replicate tasks.size none
@@ -368,8 +373,9 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
       try
         let inspected ← SourceAudit.inspectGroupCurrentSearchPath modules
           (group.items.map fun item => (item.compilation.spec.«module».toName, item.compilation.sourcePath))
-          moduleSources ownedOutput (includeExecution := false) (includeModuleOrigins := false)
-          (compiledSources := group.items.map fun item => {
+          (sourceBindings.map fun source => (source.moduleName, FilePath.mk source.path))
+          ownedOutput (includeExecution := false) (includeModuleOrigins := false)
+          (compiledSources := sourceBindings ++ group.items.map fun item => {
             moduleName := item.compilation.spec.module.toName
             path := item.compilation.sourcePath.toString
             content := item.compilation.spec.source })
@@ -397,6 +403,8 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
     let some result := result
       | throw <| IO.userError "internal error: documentation task was not assessed"
     complete := complete.push result
+  SourceBinding.unchanged sourceBindings
+  SourceBinding.configurationUnchanged configuration
   return complete
 
 private def relativeDisplay (root path : FilePath) : String :=
@@ -423,6 +431,8 @@ def snapshotMarkdown (source target : FilePath) : IO Unit := do
 The standalone command creates that workspace itself; combined verification owns
 it from declaration admission through the last fence inspection. -/
 unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.SurfaceInventory)
+    (sourceBindings : Array ProducerReport.SourceBinding)
+    (configuration : Array (FilePath × Option String))
     (jobs : Nat) (verbose : Bool)
     (emit : StrictLean.Finding → IO Unit := fun _ => pure ()) : IO UInt32 := do
   if !(← docsRoot.isDir) then
@@ -455,7 +465,7 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
 
   let fenceScratch := repo / "tmp" / "fence-build"
   IO.FS.createDirAll fenceScratch
-  let results ← auditTasks repo fenceScratch jobs tasks inventory.leanPath inventory.moduleSources (some inventory.leanLibDir)
+  let results ← auditTasks repo fenceScratch jobs tasks sourceBindings configuration inventory.leanPath (some inventory.leanLibDir)
   let mut failures := structural.size
   for problem in structural do
     IO.println s!"[X] {problem}"
@@ -496,6 +506,8 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
     s!"conforming-positive-pass={positivePass}/{positiveCount} " ++
     s!"negative-pass={negativePass}/{negativeCount} " ++
     s!"trusted-classified={trustedPass}/{trustedCount} fail={failures}"
+  SourceBinding.unchanged sourceBindings
+  SourceBinding.configurationUnchanged configuration
   return if failures == 0 then 0 else 1
 
 end StrictLean.Checker.Documentation

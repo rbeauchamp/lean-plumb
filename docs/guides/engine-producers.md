@@ -208,7 +208,15 @@ declaration ranges are checked against it, including declarations without diagno
 Locations and result exports reuse the frozen text; they do not recapture newer text as
 if it had been checked. File inspection additionally binds the isolated source to the
 original compilation input; grouped documentation and fixture inspection receive the
-exact `Compilation.spec.source` values instead of recapturing them after compilation. A detected source/configuration mismatch is incomplete SL2005.
+exact `Compilation.spec.source` values instead of recapturing them after compilation.
+Both standalone documentation and combined project/documentation checking retain the
+project source map and configuration frozen before dependency building through fence
+compilation, grouped inspection and the final result. Worker requests use `sourceBindings`
+as their sole source map; loader module/path pairs are projections of those bindings.
+A detected source/configuration mismatch prevents success; the project adapter reports
+SL2005/incomplete. An unavailable source read remains SL2001/incomplete. `python3 scripts/documentation_source_checks.py` qualifies both public
+documentation paths with changed and missing dependency/configuration inputs and fresh
+restored positives; its observations do not establish universal IO correctness.
 
 This is exact observation equality, not a filesystem lock or source-to-olean theorem.
 Lake build semantics, compiler/imported dependency authenticity, filesystem reads and the
