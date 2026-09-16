@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -26,7 +27,60 @@ inductive Branch where
 '''
 
 
-def main() -> None:
+class LeanLauncher:
+    """Resolve Lake once per parent environment in this qualification invocation.
+
+    The workspace configuration/pins stay fixed while the controls run. Only the
+    imported-control search path changes; capture that actual Lake environment too.
+    Reuse no compiler process, elaboration result, or qualification verdict.
+    """
+
+    def __init__(self) -> None:
+        self.environments: dict[tuple[tuple[str, str], ...], tuple[dict[str, str], str]] = {}
+
+    def environment(self) -> tuple[dict[str, str], str]:
+        parent = dict(os.environ)
+        key = tuple(sorted(parent.items()))
+        if key not in self.environments:
+            # Both supported hosts (Ubuntu/macOS) provide NUL-delimited env output.
+            # Avoid parsing Lake's human-readable lines or changing the environment
+            # through another language runtime's initialization.
+            result = subprocess.run(
+                ["lake", "env", "/usr/bin/env", "-0"],
+                cwd=ROOT, env=parent, capture_output=True, check=True, timeout=30)
+            if result.stderr:
+                raise RuntimeError("Lake environment capture emitted stderr")
+            if not result.stdout.endswith(b"\0"):
+                raise RuntimeError("invalid Lake environment capture")
+            env: dict[str, str] = {}
+            for entry in result.stdout[:-1].split(b"\0"):
+                name, separator, value = entry.partition(b"=")
+                if not name or not separator or os.fsdecode(name) in env:
+                    raise RuntimeError("invalid Lake environment entry")
+                env[os.fsdecode(name)] = os.fsdecode(value)
+            if "LEAN_PATH" not in env or "PATH" not in env:
+                raise RuntimeError("Lake environment is missing required search paths")
+            # Resolve relative PATH entries at the child's cwd, even if this script
+            # was invoked elsewhere. The captured child environment stays untouched.
+            lookup_path = os.pathsep.join(str(ROOT / part) for part in os.get_exec_path(env))
+            executable = shutil.which("lean", path=lookup_path)
+            if executable is None:
+                raise RuntimeError("Lean executable absent from Lake environment")
+            self.environments[key] = (env, str(ROOT / executable))
+        return self.environments[key]
+
+    def run(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        env, executable = self.environment()
+        return subprocess.run(["lean", *args], executable=executable, env=env,
+                              cwd=ROOT, text=True, capture_output=True, timeout=30)
+
+    def lean_path(self) -> str:
+        # Preserve the original printenv(...).stdout.strip() consumption.
+        return self.environment()[0]["LEAN_PATH"].strip()
+
+
+def main(launcher: LeanLauncher | None = None) -> None:
+    launcher = launcher if launcher is not None else LeanLauncher()
     count = 0
     with tempfile.TemporaryDirectory(prefix="native-controls-", dir=ROOT / "tmp") as raw:
         scratch = Path(raw)
@@ -38,11 +92,10 @@ def main() -> None:
             nonlocal count
             path = scratch / f"{label}.lean"
             path.write_text(source)
-            args = ["lake", "env", "lean", "--json", "--root", str(scratch), *options]
+            args = ["--json", "--root", str(scratch), *options]
             if output:
                 args += ["-o", str(path.with_suffix(".olean"))]
-            result = subprocess.run([*args, str(path)], cwd=ROOT, text=True,
-                                    capture_output=True, timeout=30)
+            result = launcher.run([*args, str(path)])
             messages = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
             actual = [m for m in messages if m.get("kind", "").startswith("StrictLean.SL")]
             other = [m for m in messages if m not in actual]
@@ -187,8 +240,7 @@ run_cmd do
         # inspect separately rather than importing conflicting global names.
         observer = observer.replace("import Verso\n", "").replace("#[`Control, `Verso]", "#[`Control]")
         # Lake owns its normal search path; append only this isolated artifact dir.
-        env_path = subprocess.run(["lake", "env", "printenv", "LEAN_PATH"], cwd=ROOT,
-                                  text=True, capture_output=True, check=True, timeout=30).stdout.strip()
+        env_path = launcher.lean_path()
         old = os.environ.get("LEAN_PATH")
         os.environ["LEAN_PATH"] = env_path + os.pathsep + str(scratch)
         try:

@@ -35,6 +35,12 @@ faster sample.
   for every record. Preserve initialization, interpreter/dynamic-evaluation requirements,
   target classification, source identity and all positive/refusal controls. Compilation
   does not prove the compiler or binary correct.
+- Repeated `lake env` calls can reload an unchanged workspace. If reusing its actual
+  environment within one invocation, bind reuse to the parent environment and fixed
+  workspace/pins. Preserve executable resolution, arguments, cwd, separate compiler
+  children, timeouts and changed import paths; never reconstruct paths or reuse verdicts.
+  Compare all original controls under both launchers on the supported host. Keep inherited
+  environment values out of logs, and do not transfer measured speedups across platforms.
 - Compare configured concurrency with the actual queues and inner caps. Increase useful
   parallelism only where environment/scratch ownership, result association and lifetimes
   permit it; account for simultaneous memory demand. Sharing immutable imported regions
@@ -65,3 +71,7 @@ argument; rerun invalidated claims. Report local and hosted outcomes separately,
 failed attempts and unavailable stages. A faster isolated phase, larger timeout or a
 different runner is not evidence that the original whole-run requirement passed. Follow
 the repository's review and delivery rules; this skill adds no publication authority.
+For merged delivery, also reconcile the main push workflow for the actual merge SHA.
+A passing PR-head or synthetic-merge run does not establish that post-merge execution
+passed, even for identical trees. Report failed, skipped or unfinished main stages as
+unresolved; do not infer a physical slowdown cause from the deadline kill alone.

@@ -45,6 +45,21 @@ driver checks that fence before emitting its structural finding. Seconds for tha
 invocation do not measure the scanner alone. The separate native-editor observations
 use already-live snapshots and provisioned imports, not fresh project admission.
 
+## Strict Lean: invocation-local Lake environment capture
+
+The [launcher repair record](../../../../session/evidence/main-ci-launcher-repair.md)
+separates a post-merge 420s failure from an observed local overhead reduction. Repeated
+`lake env lean` calls loaded an unchanged workspace for each of 36 controls. Capturing
+the actual environment for each parent-environment state retained individual compiler
+children and exact control outcomes. The bounded paired diagnostic compares sources,
+arguments, effective environments/executables and outputs; it does not certify fresh
+root inputs or isolate all timing effects. The record marks platform-specific observations
+and remaining delivery gates explicitly. Use paired timing as focused repair evidence,
+not a recurring CI gate: scheduling noise can reverse the observed delta without changing
+functional results. Consult the repair record for platform qualification and remaining
+delivery gates. Follow the actual post-merge main workflow:
+identical trees and green synthetic-merge checks did not establish main CI success.
+
 ## Public Acorn: reusable work still needs exact ownership
 
 Public source: [delivered change](https://github.com/rbeauchamp/acorn/pull/4), integrated
