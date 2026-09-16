@@ -67,6 +67,35 @@ structure ExampleBinding where
   request : ExampleRequest
   deriving DecidableEq
 
+def ExampleSourcesOK (expected observed : Array StrictLeanPolicy.SourceSnapshot)
+    (displayed : String) : Prop :=
+  (∀ source ∈ observed, source ∈ expected) ∧
+  (∃ source ∈ observed, source.source = displayed)
+
+instance (expected observed : Array StrictLeanPolicy.SourceSnapshot) (displayed : String) :
+    Decidable (ExampleSourcesOK expected observed displayed) := by
+  unfold ExampleSourcesOK
+  infer_instance
+
+def admitExampleSources (expected observed : Array StrictLeanPolicy.SourceSnapshot)
+    (displayed : String) :
+    Except String { actual : Array StrictLeanPolicy.SourceSnapshot //
+      actual = observed ∧ ExampleSourcesOK expected actual displayed } :=
+  if h : ExampleSourcesOK expected observed displayed then .ok ⟨observed, rfl, h⟩
+  else .error "missing or mismatched producer source account"
+
+theorem admitExampleSources_sound (expected observed : Array StrictLeanPolicy.SourceSnapshot)
+    (displayed : String)
+    (admitted : { actual : Array StrictLeanPolicy.SourceSnapshot //
+      actual = observed ∧ ExampleSourcesOK expected actual displayed })
+    (_ : admitExampleSources expected observed displayed = .ok admitted) :
+    ExampleSourcesOK expected observed displayed := admitted.property.1 ▸ admitted.property.2
+
+theorem admitExampleSources_complete (expected observed : Array StrictLeanPolicy.SourceSnapshot)
+    (displayed : String) (h : ExampleSourcesOK expected observed displayed) :
+    admitExampleSources expected observed displayed = .ok ⟨observed, rfl, h⟩ := by
+  simp [admitExampleSources, h]
+
 /-- Canonical diagnostic encoding retains the indexed payload, full/selection ranges,
 related locations, mode, claim, impact and severity. The codec validates actual findings. -/
 def diagnosticRecords (findings : Array Finding) : List String :=

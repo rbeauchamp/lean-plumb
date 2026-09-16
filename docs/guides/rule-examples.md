@@ -34,7 +34,12 @@ Copied configuration paths are compared relative to their explicitly recorded ro
 rewriting source or diagnostic identities. A changed effective package override is refused;
 this example qualifier does not authorize configuration relocation transformations or combined
 `--with-docs` requests. Early terminal failures retain the producer request and any configuration
-captured before failure, separately from a successful source account. `validateBoundExample` checks
+captured before failure. Early-failure serialization also retains the exact producer source account,
+including partial captures; absent source evidence refuses qualification. The shared
+`admitExampleSources` guard requires every observed source to belong to the frozen snapshot
+and the displayed source text to occur in that account. File requests additionally require
+that text at the requested path. Its soundness/completeness proofs concern these exact data
+relations; capture, JSON decoding and process authenticity remain operational trust boundaries. `validateBoundExample` checks
 binding/completion and the exact diagnostic list before applying the four-kind policy.
 `admitDemonstration` returns the unchanged observation with a proof of `DemonstrationOK`:
 completed production, nonempty expected findings, a selected-rule incomplete finding, exact mode and
@@ -68,7 +73,7 @@ issue #7; a corpus PASS is not full-standard conformance.
 | SL1005 | `SL1005/{Violation,Fixed}.lean` | Proves the same universally quantified reflexivity without `propext`, under the unchanged Kernel-only maximum. |
 | SL1006 | `SL1006/{Violation,Fixed}.lean` | Keeps identity's domain and body; removes an unnecessary `unsafe` declaration. |
 | SL1007 | `SL1007/{Violation,Fixed}.lean` | Moves the complete natural-number domain inside the identity contract's predicate, retaining the same pointwise equality. |
-| SL2001 | `SL2001/Example.lean` and `{Violation,Fixed}.json` | Corrects the requested source path; the intended reflexivity source is unchanged. The missing-file result is a demonstration. |
+| SL2001 | `SL2001/Example.lean` and `{Violation,Fixed}.json` | Removes the unavailable Lake dependency; the requested reflexivity source is unchanged. The unavailable-workspace result is a demonstration. |
 | SL2002 | `SL2002/Example.lean` and `{Violation,Fixed}.json` | Removes an unknown manifest key without changing the selected source, profile or execution requirement. |
 | SL2003 | `SL2003/{Violation,Fixed}.lean` | Removes a dead lambda binding while preserving identity's complete natural-number behavior. No warning or linter is disabled. |
 | SL2004 | `SL2004/{Violation,Fixed}.lean` | Removes an unused forbidden reporter import; preserves reflexivity and its assumptions. |
@@ -105,7 +110,9 @@ mode and checker build identity, plus exact checker source bytes before and afte
 The campaign additionally exercises authentic Standard-Logical output against a Kernel-only
 request and actual successful negative/trusted documentation against a positive correction
 expectation, then restores fresh positives. Relabelling a demonstration's selected rule is
-refused while retaining its complete findings. These controls qualify the adapters; the
+refused while retaining its complete findings. Authentic early SL2003/SL2005 results are also
+refused against corrected caller snapshots or after removal of producer source evidence.
+These controls qualify the adapters; the
 universal data predicates and their proofs remain distinct from observed process behavior.
 The Lean qualifier checks selected coverage against the
 closed registry and requires all three phases once. Unrun selected rules cannot be called

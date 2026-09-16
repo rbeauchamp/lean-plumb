@@ -16,6 +16,8 @@ run_cmd do
       ``StrictLean.Website.demonstration_not_accepted,
       ``StrictLeanPolicy.incomplete_example_refused,
       ``StrictLean.Website.admitExampleRequest_sound,
+      ``StrictLean.Website.admitExampleSources_sound,
+      ``StrictLean.Website.admitExampleSources_complete,
       ``StrictLean.Checker.Documentation.positiveClassifications_sound] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
@@ -65,24 +67,20 @@ private def binding (record : Json) (mode : EvidenceMode) : Except String Exampl
     throw "request configuration differs from frozen snapshot"
   return ⟨snapshot, mode, request⟩
 
-/-- Successful program/example checks must retain their own source account. Caller
-readback alone cannot bind a stale successful result to a different requested source. -/
-private def sourceAccount (result : Json) (bound : ExampleBinding) : Except String Unit := do
+private def sourceAccount (result : Json) (bound : ExampleBinding) (displayed : String) :
+    Except String Unit := do
   let scope ← field result "scope"
-  let admitted := bound.snapshot.val.sources
-  if let .ok path := string scope "file" then
-    let text ← string scope "source"
-    unless admitted.contains ⟨path, text⟩ do throw "wrong file source account"
-  else if let .ok raw := field scope "sources" then
-    let entries ← raw.getArr?
-    unless !entries.isEmpty do throw "missing project source account"
-    for entry in entries do
-      unless admitted.contains ⟨← string entry "path", ← string entry "source"⟩ do
-        throw "wrong project source account"
-  else if let .ok raw := field scope "documents" then
-    let entries ← sources raw
-    unless !entries.isEmpty && entries.all admitted.contains do throw "wrong documentation source account"
-  else throw "missing result source account"
+  let observed ← if let .ok raw := field result "sourceAccount" then do
+      let entries ← fromJson? (α := Array ProducerReport.SourceBinding) raw
+      pure (entries.map fun entry => (⟨entry.path, entry.content⟩ : StrictLeanPolicy.SourceSnapshot))
+    else if bound.request.kind == "policyNegative" then do
+      pure #[⟨← string scope "file", ← string scope "source"⟩]
+    else if bound.request.kind == "documentation" then sources (← field scope "documents")
+    else throw "missing result source account"
+  let _ ← admitExampleSources bound.snapshot.val.sources observed displayed
+  if bound.request.kind == "file" || bound.request.kind == "policyNegative" then
+    unless observed.any (fun source => source.uri == bound.request.subject && source.source == displayed) do
+      throw "missing requested file source account"
 
 private def configurationAccount (root : String) (configuration : Array (String × Option String)) :
     Except String (Array (String × Option String)) := do
@@ -195,11 +193,11 @@ def qualify (record : Json) : Except String Unit := do
     throw "unexpected unresolved evidence"
   let status ← string result "status"
   let kind ← string record "kind"
+  sourceAccount result bound (← string record "source")
   let observation : BoundObservation := ⟨{ bound with request := observedRequest }, .completed, .checked actual false⟩
   match kind with
   | "positive" =>
       unless bound.request.kind != "policyNegative" do throw "diagnostic-only adapter cannot qualify positive"
-      sourceAccount result bound
       if mode == .documentationExample then
         let raw ← (← field (← field result "scope") "fences").getArr?
         let classifications ← raw.mapM (fromJson? (α := Documentation.Classification))
@@ -208,9 +206,6 @@ def qualify (record : Json) : Except String Unit := do
       unless code == 0 && status == "completed" && actual.isEmpty do throw "positive check incomplete"
       validateBoundExample bound .positive #[] observation
   | "policyRejection" =>
-      let rule ← RegistryCodec.parseRule (← field record "rule")
-      -- Configuration/build/coverage rejection can precede a completed source account.
-      unless [.configuration, .sourceBuild, .coverage].contains rule do sourceAccount result bound
       unless code == 1 && status == "rejected" && !actual.isEmpty do throw "policy rejection incomplete"
       let rule ← RegistryCodec.parseRule (← field record "rule")
       validateBoundExample bound (.policyRejection rule (descriptor rule).applicability) actual observation

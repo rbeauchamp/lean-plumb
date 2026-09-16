@@ -113,6 +113,14 @@ def main() -> None:
                 if rule == "SL2001":
                     request_file = folder / f"{case}.json"
                     request = json.loads(request_file.read_text())
+                    if request.get("unavailableWorkspace"):
+                        config = project / "lakefile.lean"
+                        config.write_text(config.read_text() + '\nrequire unavailable from "./missing"\n')
+                        lock = project / "lake-manifest.json"
+                        manifest = json.loads(lock.read_text())
+                        manifest["packages"].append({"type": "path", "name": "unavailable", "dir": "./missing",
+                            "manifestFile": "lake-manifest.json", "inherited": False, "configFile": "lakefile.lean"})
+                        lock.write_text(json.dumps(manifest))
                     command += ["--file", str(project / request["source"]), "--claim", "kernel-only",
                                 "--execution", "checked"]
                 elif rule == "SL2002":
@@ -147,7 +155,7 @@ def main() -> None:
             request_kind = "policyNegative" if rule == "SL1002" and case == "Violation" else (
                 "documentation" if mode == "documentation" else "file" if mode == "file" else "project")
             request = {"kind": request_kind, "project": str(project),
-                "subject": str(project / "Missing.lean") if rule == "SL2001" and case == "Violation" else (
+                "subject": (
                     str(source_path) if request_kind in ("file", "policyNegative") else
                     str(project / "docs") if request_kind == "documentation" else str(project)),
                 "claim": spec.get("claim", "kernel-only") if request_kind == "file" else None,
@@ -167,9 +175,12 @@ def main() -> None:
             # An isolated project producer returns its actual temporary source URI.
             # Obtain it from the independently recorded scope source map, never from a finding.
             scope = observed["scope"]
-            if isinstance(scope, dict) and "sources" in scope:
-                candidates = [s for s in scope["sources"] if s["module"] == [["str", "Example"]]]
-                if len(candidates) != 1 or candidates[0]["source"] != source_path.read_text():
+            captured = [{"module": s["moduleName"], "path": s["path"], "source": s["content"]}
+                        for s in observed.get("sourceAccount", [])]
+            if mode == "project":
+                account = captured or (scope.get("sources", []) if isinstance(scope, dict) else [])
+                candidates = [s for s in account if s["module"] == [["str", "Example"]]]
+                if len(candidates) != 1 or candidates[0]["source"] != before["sources"][0]["source"]:
                     raise RuntimeError("project example source account mismatch")
                 item = candidates[0]
                 actual_path = Path(item["path"])
@@ -258,6 +269,23 @@ def main() -> None:
                 admit_record(relabelled, "diagnostic demonstration mismatch")
                 admit_record(record)
                 controls.append(relabelled)
+        for record in records:
+            if record["phase"] == "Violation" and record["rule"] in ("SL2003", "SL2005"):
+                stale = copy.deepcopy(record)
+                fixed = (CORPUS / record["rule"] / "Fixed.lean").read_text()
+                for side in ("before", "after"):
+                    for source in stale[side]["sources"]:
+                        if source["source"] == record["source"]:
+                            source["source"] = fixed
+                stale["source"] = fixed
+                admit_record(stale, "missing or mismatched producer source account")
+                admit_record(record)
+                controls.append(stale)
+                missing = copy.deepcopy(record)
+                missing["result"].pop("sourceAccount", None)
+                admit_record(missing, "missing result source account")
+                admit_record(record)
+                controls.append(missing)
         exported = json.loads(options.evidence.read_text())
         exported["admissionControls"] = controls
         exported["checkerAfter"] = snapshot(checker_paths)

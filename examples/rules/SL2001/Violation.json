@@ -1,3 +1,4 @@
 {
-  "source": "Missing.lean"
+  "source": "Example.lean",
+  "unavailableWorkspace": true
 }

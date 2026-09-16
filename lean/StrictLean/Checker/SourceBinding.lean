@@ -9,7 +9,9 @@ open Lean System
 open ProducerReport
 
 /-- Freeze a Lake/Lean-resolved source map, refusing conflicting module identities. -/
-def capture (sources : Array (Name × FilePath)) : IO (Array ProducerReport.SourceBinding) := do
+def capture (sources : Array (Name × FilePath))
+    (observe : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ()) :
+    IO (Array ProducerReport.SourceBinding) := do
   let mut bindings := #[]
   for (moduleName, path) in sources do
     if let some previous := bindings.find? (fun (s : ProducerReport.SourceBinding) => s.moduleName == moduleName) then
@@ -18,6 +20,7 @@ def capture (sources : Array (Name × FilePath)) : IO (Array ProducerReport.Sour
       continue
     if moduleName.isAnonymous then throw <| IO.userError "producer-source: anonymous source module"
     bindings := bindings.push { moduleName, path := path.toString, content := ← IO.FS.readFile path }
+    observe bindings
   return bindings
 
 /-- Compare exact text at each IO boundary; never recapture changed text as the claim. -/

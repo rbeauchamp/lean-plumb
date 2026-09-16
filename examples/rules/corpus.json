@@ -454,19 +454,22 @@
       {
         "id": "SL2001",
         "subreason": "environment",
-        "detailPattern": "missing source file",
+        "detailPattern": "lake-workspace-load-failed",
         "location": {
           "kind": "project",
-          "identity": "$MISSING"
+          "identity": "$PROJECT"
         },
         "subject": {
-          "subject": "$MISSING"
+          "subject": "$PROJECT"
         },
         "impact": "incomplete",
         "claim": null
       }
     ],
-    "source": "Example.lean"
+    "source": "Example.lean",
+    "unresolvedPatterns": [
+      "lake-workspace-load-failed"
+    ]
   },
   "SL2002": {
     "invocation": "project",
