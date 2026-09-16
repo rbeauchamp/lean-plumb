@@ -3,12 +3,9 @@ Read `session/session-context.md` from your own verified worktree. Refresh curre
 https://github.com/users/rbeauchamp/projects/8 and the authoritative issue
 https://github.com/rbeauchamp/strict-lean/issues/13 with its live native blockers.
 
-The engine increment is merged at `0df758a92856b6a268882eada641773af5684d80`.
-The corpus candidate `117ec9fe0b77aea9bd1bb5ae011b3719217f1193` passed local cold
-ordinary420 and all hosted checks. Read `session/evidence/issue-13-corpus-ci-responsiveness.md`
-and the producer guide for exact evidence and limits. The requested Lean CI skill,
-coverage-guide synchronization and session reconciliation still require their signed
-follow-up, independent no-mistakes review and final-head checks. Inspect live pipeline
+The [session context](session-context.md#active-plan-and-resume-point) owns the current
+resume point and links the historical corpus checkpoint and subsequent repair evidence.
+Read it and the producer guide for exact evidence and limits. Inspect live pipeline
 custody and coordinate expensive verification with Firstmate before acting.
 
 Preserve the four accepted-example kinds: expected INCOMPLETE findings are separate

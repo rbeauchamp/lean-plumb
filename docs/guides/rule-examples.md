@@ -33,8 +33,11 @@ also compares the actual effective configuration and file or per-surface claim/e
 Copied configuration paths are compared relative to their explicitly recorded roots, without
 rewriting source or diagnostic identities. A changed effective package override is refused;
 this example qualifier does not authorize configuration relocation transformations or combined
-`--with-docs` requests. Early terminal failures retain the producer request and any configuration
-captured before failure. The [producer transport contract](engine-producers.md#transport-and-consumer-boundary)
+`--with-docs` requests. After initial configuration capture succeeds, early terminal failures
+retain the producer request and any effective configuration captured before failure. If the
+initial configuration read itself fails, the terminal result retains the original IO diagnostic
+as SL2001/incomplete with an empty source account and no request/effective account; it cannot
+qualify as an example or demonstration. The [producer transport contract](engine-producers.md#transport-and-consumer-boundary)
 owns source retention on terminal exits; absent source evidence refuses qualification. The shared
 `admitExampleSources` guard requires every observed source to belong to the frozen snapshot
 and the displayed source text to occur in that account. File requests additionally require

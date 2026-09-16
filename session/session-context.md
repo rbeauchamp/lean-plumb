@@ -7,9 +7,11 @@ The engine change [is merged](https://github.com/rbeauchamp/strict-lean/pull/30)
 `0df758a92856b6a268882eada641773af5684d80`; refresh live `origin/main` before resuming.
 **Working checkout:** a disposable task worktree; read these files from your own checkout.
 **Current delivery state:** the [corpus change](https://github.com/rbeauchamp/strict-lean/pull/31)
-passed local cold ordinary420 and all hosted checks at the checkpoint above. The requested
-Lean CI skill, coverage-guide synchronization and this session reconciliation are a pending
-documentation follow-up requiring signed delivery, independent review and final-head checks.
+passed local cold ordinary420 and all hosted checks at the checkpoint above. The branch now
+also contains the Lean CI skill, documentation follow-up and subsequent
+[R7 configuration-capture repair](evidence/issue-13-configuration-capture-repair.md).
+That record owns the repair's focused evidence and remaining gates; the checkpoint results
+do not validate the later operational change. Final-head delivery checks remain pending.
 Firstmate still owns protected integration, whole-issue reconciliation and successor updates.
 **Active focus:** issue #13 only. No merge, issue completion, global Accepted or successor
 unblocking follows from the green candidate. Preserve all pipeline repairs and unrelated work;
@@ -23,7 +25,7 @@ are authoritative. There is no separate local `plans/` system. The overview now 
 an **Immediate execution plan**; use it rather than resurrecting the old #5 handoff.
 
 #13 remains **In Progress**; prerequisites #5/#12/#25 were verified closed. The concrete
-resume point is completing the requested documentation/skill follow-up through no-mistakes,
+resume point is completing the follow-up and R7 repair through the active no-mistakes run,
 then Firstmate's integration and acceptance-criterion reconciliation. Read the
 [corpus CI and responsiveness record](evidence/issue-13-corpus-ci-responsiveness.md)
 for exact checked revisions, failed attempts, proof/runtime limits and bounded native-server
