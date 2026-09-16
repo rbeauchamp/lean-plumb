@@ -412,9 +412,8 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
       Lean.searchPathRef.set (scratch :: extraSearchRoots.toList ++ selfLib.toList ++ oldSearchPath)
       -- Each worker owns its imported environments and scratch files. Keep the
       -- search path fixed until all workers finish; merge immutable results only
-      -- afterward. Limit concurrent large imports to two even when compilation
-      -- uses more jobs.
-      let inspectGroups := mapWorkQueue (min jobs 2) (groups.mapIdx fun i group => (i, group))
+      -- afterward. Use the same bounded worker count as fence compilation.
+      let inspectGroups := mapWorkQueue jobs (groups.mapIdx fun i group => (i, group))
         fun (index, group) => do
           IO.println s!"inspection group {index + 1}/{groups.size}: {group.items.size} fence(s)"
           (← IO.getStdout).flush
