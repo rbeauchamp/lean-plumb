@@ -15,7 +15,7 @@ when several registrations share one root. No policy-success filter defines eith
 Execution omitted for logical-only fence inspection is `none`; an inspected empty root
 set is `some #[]`.
 
-`Admission.validate` returns `Except ProducerReport.AdmissionFailure ProducerReport.AdmissionReceipt`.
+`Admission.validate` returns `IO (Except ProducerReport.AdmissionFailure ProducerReport.AdmissionReceipt)`.
 A successful receipt's required keys come from
 safe, nonpartial original kernel entries in the replay scope. It calls the same pinned
 `Environment.replay`, checks that every required entry is present in the resulting kernel,
@@ -142,7 +142,8 @@ explicitly registered private/imported roots. Unregistered internal/private decl
 remain in the logical declaration census; they do not become ordinary execution roots.
 
 The following channels remain separate; their union is a conservative traversal relation,
-not a selected or minimal runtime call graph:
+not a selected or minimal runtime call graph. `compilerEdges` belongs to `ExecutionRoot`;
+the remaining fields belong to its `closure` account:
 
 | Field | Observation and use |
 | --- | --- |
@@ -211,16 +212,17 @@ before importing the environment and checks it after inspection. Completed owned
 must use the same path and text. Frontend transcripts must match that snapshot. All supplied
 declaration ranges are checked against it, including declarations without diagnostics.
 Locations and result exports reuse the frozen text; they do not recapture newer text as
-if it had been checked. File inspection additionally binds the isolated source to the
-original compilation input; grouped documentation and fixture inspection receive the
+if it had been checked. Canonical file and project results retain `scope.configuration`
+as path/optional-text pairs; an absent file is represented by `null`. File inspection
+additionally binds the isolated source to the original compilation input; grouped documentation and fixture inspection receive the
 exact `Compilation.spec.source` values instead of recapturing them after compilation.
 Both standalone documentation and combined project/documentation checking retain the
 project source map and configuration frozen before dependency building through fence
 compilation, grouped inspection and the final result. Worker requests use `sourceBindings`
 as their sole source map; loader module/path pairs are projections of those bindings.
 A detected source/configuration mismatch prevents success; the project adapter reports
-SL2005/incomplete, including missing or unreadable previously frozen source/configuration. The latter
-preserves the underlying IO reason. Initial environment/setup failures remain SL2001;
+SL2005/incomplete, including missing or unreadable previously frozen source/configuration.
+Read failures preserve the underlying IO reason. Initial environment/setup failures remain SL2001;
 only re-reading existing frozen evidence receives this normalization. The original file
 path uses the shared guard, and combined mode checks its parent snapshots on declaration
 worker failure as well as success.

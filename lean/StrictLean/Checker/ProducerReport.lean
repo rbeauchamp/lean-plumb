@@ -102,7 +102,7 @@ instance : FromJson SourceBinding := ⟨fun j => do
            path := ← j.getObjValAs? _ "path"
            content := ← j.getObjValAs? _ "content" }⟩
 
-/-- Operational producer account extends the unchanged pure policy observations.
+/-- Operational producer account extends the pure policy observations.
 The interactive probe alone has no admission/documentation receipt. Trusted loaders supply
 both; a consumer must validate the account before using its results. -/
 structure Environment extends StrictLean.Report.Collected where
