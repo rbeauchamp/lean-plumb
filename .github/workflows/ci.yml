@@ -87,6 +87,11 @@ jobs:
       - name: Verify (same command and seven-minute limit as local)
         run: ./scripts/verify.sh
 
+      # Diagnostic comparison uses the same built inputs and all original controls.
+      # It is separate from the complete cold-root acceptance above.
+      - name: Qualify native-control launcher on Linux
+        run: timeout --signal=KILL 180s python3 scripts/native_launcher_diagnostic.py
+
       - name: Qualify project producer receipts and documentation diagnostics
         run: ./scripts/verify.sh diagnostics producers
 
