@@ -213,6 +213,14 @@ variant. These outcomes construct accepted **example expectations**, never confo
 positive program evidence. Docs aggregation fixes the kind of each expected job before
 execution, and keeps negative/trusted counts separate from positives.
 
+Unavailable-analysis rules also have separately labelled **diagnostic demonstrations**:
+completed authentic production with exact source/configuration/mode, registry ID, reason and
+primary/related locations, while the audit result remains INCOMPLETE. These are outside the
+four accepted-example kinds and cannot discharge `ExampleExpectationOK`, positive conformance,
+or an accepted rejection. Crashes, stale sources, cancellation, missing responses and unrelated
+failures do not qualify. Each correction requires its applicable completed positive checks.
+The [source-owned corpus contract](rule-examples.md) records concrete page inputs and limits.
+
 Each predicate must be elaborated as a declarative relation over data, with named
 components corresponding to these requirements; its decision function is proved sound
 and complete against it. Data-level evidence can be constructed with proof fields by

@@ -1,4 +1,5 @@
 import StrictLean.DiagnosticCodec
+import StrictLeanPolicy.Observation
 
 /-! Shared website metadata and checked-example interfaces. Canonical metadata and
 validation credit con-leche (RuleId); presentation credits Verso and Microsoft CA1416,
@@ -26,17 +27,150 @@ def validateExample (expected : ExampleExpectation) (outcome : ExampleOutcome) :
   | .trustedTeaching, .checked findings true =>
       unless findings.isEmpty do throw "unexpected diagnostics in trusted teaching example"
   | .compilerRejection text, .compilerRejected messages =>
-      unless !text.isEmpty && messages.any (·.contains text) do throw "wrong compiler rejection"
+      unless messages.any (StrictLeanPolicy.matchesPattern text) do throw "wrong compiler rejection"
   | .policyRejection rule subreason, .checked findings false =>
       unless !subreason.isEmpty && subreason == (descriptor rule).applicability && findings.size == 1 do
         throw "wrong policy diagnostic expectation"
       let some finding := findings[0]? | throw "missing policy diagnostic"
       unless finding.1 == rule && finding.2.impact == .violation do throw "wrong policy rejection"
-      match finding.2.location with
-      | .source _ => pure ()
-      | _ => throw "policy example requires its real primary source range"
+      -- A source-free detector retains its authentic module/project attribution.
+      -- Exact location, detail and snapshot matching belongs to validateBoundExample.
+      pure ()
   | _, .incomplete detail => throw s!"example collection incomplete: {detail}"
   | _, _ => throw "example outcome does not match its classification"
+
+
+/-- Exact observation identity. Dependency state and source bytes are retained rather than
+replaced by a nominal revision or digest. Acquiring these values remains an IO obligation. -/
+structure ExampleBinding where
+  snapshot : StrictLeanPolicy.AdmittedSnapshot
+  mode : EvidenceMode
+  deriving DecidableEq
+
+/-- Canonical diagnostic encoding retains the indexed payload, full/selection ranges,
+related locations, mode, claim, impact and severity. The codec validates actual findings. -/
+def diagnosticRecords (findings : Array Finding) : List String :=
+  findings.toList.map (fun finding => (diagnosticJson finding).compress)
+
+/-- The collector's observation is separate from the requested binding. The operational
+adapter must report crash/cancellation honestly; admission requires completed production. -/
+structure BoundObservation where
+  binding : ExampleBinding
+  completion : StrictLeanPolicy.Completion
+  outcome : ExampleOutcome
+
+/-- Exact snapshot/mode identity and completed production. This is a data relation,
+not authentication of Lean or process observations. -/
+def BindingOK (expected : ExampleBinding) (observed : BoundObservation) : Prop :=
+  observed.binding = expected ∧ observed.completion = .completed
+instance (expected : ExampleBinding) (observed : BoundObservation) :
+    Decidable (BindingOK expected observed) := by unfold BindingOK; infer_instance
+
+/-- Ranged findings use an exact source in the bound snapshot. Source-free observations
+retain a nonempty module/project identity; their external attribution remains trusted. -/
+def FindingBound (binding : ExampleBinding) (finding : Finding) : Prop :=
+  finding.2.mode = binding.mode ∧ match finding.2.location with
+  | .source source => source.val.snapshot ∈ binding.snapshot.val.sources
+  | .module name => name ≠ .anonymous
+  | .project identity => identity ≠ ""
+instance (binding : ExampleBinding) (finding : Finding) : Decidable (FindingBound binding finding) := by
+  unfold FindingBound
+  cases finding.2.location <;> infer_instance
+
+/-- Bound accepted examples retain exactly the original four classifications. -/
+def validateBoundExample (binding : ExampleBinding) (expected : ExampleExpectation)
+    (expectedFindings : Array Finding) (observed : BoundObservation) : Except String Unit := do
+  unless decide (BindingOK binding observed) do throw "example binding or production incomplete"
+  let actual := match observed.outcome with | .checked fs _ => fs | _ => #[]
+  unless !actual.any (fun f => f.2.impact == .incomplete) do
+    throw "incomplete diagnostics cannot qualify an accepted example"
+  unless actual.all (fun f => decide (FindingBound binding f)) do
+    throw "example diagnostic source or mode mismatch"
+  unless diagnosticRecords actual == diagnosticRecords expectedFindings do
+    throw "example diagnostic evidence mismatch"
+  match expected, observed.outcome with
+  | .policyRejection rule subreason, .checked findings false =>
+      unless !subreason.isEmpty && subreason == (descriptor rule).applicability &&
+          findings.any (fun f => f.1 == rule) && findings.all (fun f => f.2.impact == .violation) do
+        throw "wrong policy rejection"
+  | _, _ => validateExample expected observed.outcome
+
+/-- Expected unavailable analysis is a diagnostic demonstration, never a fifth accepted
+example kind. Exact findings and binding are required even though the audit is incomplete. -/
+structure DemonstrationRequest where
+  binding : ExampleBinding
+  findings : Array Finding
+
+/-- Diagnostic production must complete; analysis unavailability is carried by the actual
+findings. A crash or an empty/mismatched diagnostic list cannot satisfy this relation. -/
+def DemonstrationOK (request : DemonstrationRequest) (observed : BoundObservation) : Prop :=
+  BindingOK request.binding observed ∧ request.findings ≠ #[] ∧
+  (∀ f ∈ request.findings, FindingBound request.binding f) ∧
+  (∃ f ∈ request.findings, f.2.impact = .incomplete) ∧
+  match observed.outcome with
+  | .checked actual false =>
+      (∃ f ∈ actual, f.2.impact = .incomplete) ∧
+      (∀ f ∈ actual, FindingBound request.binding f) ∧
+      diagnosticRecords actual = diagnosticRecords request.findings
+  | _ => False
+instance (request : DemonstrationRequest) (observed : BoundObservation) :
+    Decidable (DemonstrationOK request observed) := by
+  unfold DemonstrationOK
+  cases observed.outcome with
+  | incomplete _ => infer_instance
+  | compilerRejected _ => infer_instance
+  | checked _ teaching => cases teaching <;> infer_instance
+
+/-- Admission returns the supplied observation unchanged with its exact relation. No
+conversion to Accepted or accepted example expectations is provided. -/
+def admitDemonstration (request : DemonstrationRequest) (observed : BoundObservation) :
+    Except String { o : BoundObservation // o = observed ∧ DemonstrationOK request o } :=
+  if h : DemonstrationOK request observed then .ok ⟨observed, rfl, h⟩
+  else .error "diagnostic demonstration mismatch or incomplete production"
+
+theorem admitDemonstration_complete (request : DemonstrationRequest) (observed : BoundObservation)
+    (h : DemonstrationOK request observed) :
+    admitDemonstration request observed = .ok ⟨observed, rfl, h⟩ := by
+  simp [admitDemonstration, h]
+
+theorem admitDemonstration_sound (request : DemonstrationRequest) (observed : BoundObservation)
+    (accepted : { o : BoundObservation // o = observed ∧ DemonstrationOK request o })
+    (_ : admitDemonstration request observed = .ok accepted) :
+    accepted.val = observed ∧ DemonstrationOK request accepted.val := accepted.property
+
+/-- Every admitted demonstration comes from completed diagnostic production, independently
+of whether analysis was available. -/
+theorem demonstration_completed (request : DemonstrationRequest) (observed : BoundObservation)
+    (h : DemonstrationOK request observed) : observed.completion = .completed := h.1.2
+
+/-- The incomplete finding is required in the observed list itself, independently of
+any injectivity assumption about canonical JSON or its string renderer. -/
+theorem demonstration_observed_incomplete (request : DemonstrationRequest)
+    (observed : BoundObservation) (h : DemonstrationOK request observed) :
+    ∃ actual, observed.outcome = .checked actual false ∧
+      ∃ f ∈ actual, f.2.impact = .incomplete := by
+  rcases h with ⟨_, _, _, _, h⟩
+  cases he : observed.outcome with
+  | incomplete _ => simp [he] at h
+  | compilerRejected _ => simp [he] at h
+  | checked actual teaching =>
+      cases teaching with
+      | true => simp [he] at h
+      | false =>
+          simp only [he] at h
+          exact ⟨actual, rfl, h.1⟩
+
+/-- The executed accepted-example validator refuses every admitted demonstration,
+for every one of the four expectations and any supplied expected finding list. -/
+theorem demonstration_not_accepted (request : DemonstrationRequest)
+    (observed : BoundObservation) (h : DemonstrationOK request observed)
+    (expected : ExampleExpectation) (findings : Array Finding) :
+    validateBoundExample request.binding expected findings observed ≠ .ok () := by
+  obtain ⟨actual, outcome, f, member, impact⟩ := demonstration_observed_incomplete request observed h
+  have incomplete : actual.any (fun f => f.2.impact == .incomplete) = true := by
+    rw [Array.any_eq_true']
+    exact ⟨f, member, by rw [impact]; rfl⟩
+  simp [validateBoundExample, outcome, incomplete, h.1, bind, Except.bind, throw]
 
 /-- This artifact list is supplied by the builder after inspecting its actual output tree. -/
 def parsePage (j : Json) : Except String Page := do

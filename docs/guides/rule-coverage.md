@@ -49,6 +49,16 @@ rule switch as success. Stable IDs do not erase legacy subreason distinctions ne
 qualification. #12/#13 must update positive controls and intended-reason mutations for the actual
 modified implementation and invocation, retaining unchanged controls and evidence.
 
+## Source-owned examples
+
+The [rule-example corpus](rule-examples.md) supplies actual source/configuration pairs and
+registry-backed diagnostic expectations. SL2001, SL2005 and SL3001 intentionally demonstrate
+INCOMPLETE analysis using separately labelled diagnostic records. Their diagnostic production
+must complete; these records do not satisfy an accepted positive or rejection expectation.
+Corrections retain the intended claim and require their applicable completed positive checks.
+The four accepted-example kinds remain unchanged. Qualification is scoped operational evidence,
+not proof of universal detector correctness or completed Project 8 acceptance.
+
 ## Clause-to-obligation reconciliation
 
 This accounts for normative requirements and recommendations beyond a superficial keyword scan:
