@@ -67,11 +67,15 @@ does not replace qualification of this production implementation.
 
 ## Remaining delivery gates
 
-CI now runs the same pair under a separate180s process-group cap **after** complete
-ordinary acceptance. It uses that runner's identical built inputs, retains every
-original control, refuses any mismatch or no observed net saving, and does not retry.
-The diagnostic reports timing separately from ordinary acceptance. Linux benefit is
-**UNRUN** at this checkpoint; inspect the actual result before claiming it.
+Ordinary PR/main CI retains all36 original functional controls inside complete
+cold-root acceptance and all pre-existing required qualification. The paired diagnostic
+is retained for focused repair qualification under the separate180s process-group cap;
+it is not a recurring CI step. It refuses control or environment mismatches and reports
+timing separately, without requiring a positive delta for functional PASS. Scheduling
+and platform effects limit timing observations; a nonpositive delta is not a correctness
+failure. Linux paired speedup remains **UNRUN**. Actual Linux functional controls and
+the full required gate must qualify the repair; no cross-platform speedup or historical
+physical attribution is established by the local pair.
 
 Full no-mistakes independent review, a complete cold-root `./scripts/verify.sh`
 within its unchanged420s deadline, exact-head hosted checks and integrated-main push

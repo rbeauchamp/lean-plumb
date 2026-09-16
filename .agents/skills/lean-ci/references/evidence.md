@@ -54,7 +54,11 @@ the actual environment for each parent-environment state retained individual com
 children and exact control outcomes. The bounded paired diagnostic compares sources,
 arguments, effective environments/executables and outputs; it does not certify fresh
 root inputs or isolate all timing effects. The record marks platform-specific observations
-and remaining delivery gates explicitly. Follow the actual post-merge main workflow:
+and remaining delivery gates explicitly. Use paired timing as focused repair evidence,
+not a recurring CI gate: scheduling noise can reverse the observed delta without changing
+functional results. Ordinary CI retains the original controls in complete cold-root
+acceptance and all pre-existing qualification. Linux paired speedup remains UNRUN.
+Follow the actual post-merge main workflow:
 identical trees and green synthetic-merge checks did not establish main CI success.
 
 ## Public Acorn: reusable work still needs exact ownership
