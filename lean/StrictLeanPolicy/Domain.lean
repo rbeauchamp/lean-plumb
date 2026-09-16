@@ -355,6 +355,12 @@ theorem RecursionOrigin.canonical (s : String) (x : RecursionOrigin) (h : parse?
 def canonicalNames (names : Array Lean.Name) : Array Lean.Name :=
   (CanonicalSet.normalize names.toList).toList.toArray
 
+/-- Admission checks canonical order directly instead of rebuilding an ordered set. -/
+instance (names : Array Lean.Name) : Decidable (canonicalNames names = names) := by
+  letI := CanonicalSet.normalizedDecision names.toList
+  exact decidable_of_iff ((CanonicalSet.normalize names.toList).toList = names.toList)
+    (by simp only [canonicalNames, ← Array.toList_inj])
+
 @[simp] theorem mem_canonicalNames (names : Array Lean.Name) (n : Lean.Name) :
     n ∈ canonicalNames names ↔ n ∈ names := by
   simp [canonicalNames, Std.ExtTreeSet.mem_toList]
@@ -367,6 +373,13 @@ theorem canonicalNames_idempotent (names : Array Lean.Name) :
 def canonicalEdges (edges : Array (Lean.Name × Lean.Name)) : Array (Lean.Name × Lean.Name) :=
   letI : Ord (Lean.Name × Lean.Name) := lexOrd
   (CanonicalSet.normalize edges.toList).toList.toArray
+
+/-- Preserve exact edge normalization equality using the same lawful lexicographic order. -/
+instance (edges : Array (Lean.Name × Lean.Name)) : Decidable (canonicalEdges edges = edges) := by
+  letI : Ord (Lean.Name × Lean.Name) := lexOrd
+  letI := CanonicalSet.normalizedDecision edges.toList
+  exact decidable_of_iff ((CanonicalSet.normalize edges.toList).toList = edges.toList)
+    (by simp only [canonicalEdges, ← Array.toList_inj])
 
 @[simp] theorem mem_canonicalEdges (edges : Array (Lean.Name × Lean.Name)) (e : Lean.Name × Lean.Name) :
     e ∈ canonicalEdges edges ↔ e ∈ edges := by
