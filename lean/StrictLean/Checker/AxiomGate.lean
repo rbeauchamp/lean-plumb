@@ -180,6 +180,11 @@ private def retainSourceAccount (resultOut : Option FilePath)
       let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
       writeJson output (value.setObjVal! "sourceAccount" captured)
 
+private def withRetainedSources (resultOut : Option FilePath)
+    (captured : IO.Ref (Array ProducerReport.SourceBinding)) (action : IO α) : IO α := do
+  try action
+  finally retainSourceAccount resultOut (← captured.get)
+
 private def reportContextFailure (id : StrictLean.RuleId) (scope : String)
     (mode : StrictLean.EvidenceMode) (impact : StrictLean.Impact) (detail : String)
     (resultOut : Option FilePath) (sources : Array ProducerReport.SourceBinding := #[]) : IO Unit := do
@@ -208,9 +213,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
   withSourceEvidence #[] configuration reportRoot.toString
       (if fresh then .freshProject else .incrementalProject) resultOut do
     let inventory ← Lake.surfaceInventory repo
-    let sourceBindings ← SourceBinding.capture inventory.moduleSources fun sources => do
-      observeSources sources
-      retainSourceAccount resultOut sources
+    let sourceBindings ← SourceBinding.capture inventory.moduleSources observeSources
     let manifest ← Manifest.load manifestPath
     let rootInventory : Lake.RootInventory := {
       libraries := inventory.libraries.map (·.library)
@@ -536,7 +539,6 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           (if fresh then .freshProject else .incrementalProject)
           (if !unresolved.isEmpty || findings.any (·.2.impact == .incomplete) then .incomplete else if failures.isEmpty then .completed else .rejected)
           findings unresolved
-        retainSourceAccount resultOut sourceBindings
       for finding in findings do IO.println finding.2.text
       if !failures.isEmpty then
         IO.println s!"\nFAIL: {failures.size} violation(s)"
@@ -608,9 +610,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
         let configuration ← SourceBinding.configuration copy (manifest.getD (Manifest.defaultPath copy))
         let captured ← SourceBinding.withUnchanged #[] configuration do
           let inventory ← Lake.surfaceInventory copy
-          let sources ← SourceBinding.capture inventory.moduleSources fun sources => do
-            observeSources sources
-            retainSourceAccount resultOut sources
+          let sources ← SourceBinding.capture inventory.moduleSources observeSources
           pure (inventory, sources, configuration)
         pure (some captured)
       else pure none
@@ -676,11 +676,9 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
     let fileSource : ProducerReport.SourceBinding := {
       moduleName := moduleName.toName, path := path.toString, content := source }
     observeSources #[fileSource]
-    retainSourceAccount resultOut #[fileSource]
     let inventory ← Lake.surfaceInventory repo
-    let dependencySources ← SourceBinding.capture inventory.moduleSources fun captured => do
+    let dependencySources ← SourceBinding.capture inventory.moduleSources fun captured =>
       observeSources (captured.push fileSource)
-      retainSourceAccount resultOut (captured.push fileSource)
     let sources := dependencySources.push fileSource
     withSourceEvidence sources configuration path.toString .freshFile resultOut do
       if manifest.isSome || (← manifestPath.pathExists) then
@@ -796,7 +794,6 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                   else if !reasons.isEmpty then .rejected else if claim.isNone || claim == some .compilerTrusting
                   then .classified else .completed)
                 findings #[]
-              retainSourceAccount resultOut sources
             if !reasons.isEmpty then
               IO.println <| s!"\nfile audit: FAIL ({reasons.size} violation(s))" ++
                 (claim.map (fun profile => s!" against claim '{profile}'")).getD ""
@@ -863,8 +860,11 @@ unsafe def run (args : List String) : IO UInt32 := do
   if let ["--surface-worker", input] := args then
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request : SurfaceWorkerRequest ← IO.ofExcept (fromJson? json)
-    return ← auditSurfaceAt request.project request.manifest true request.verbose
-      request.reportRoot (request.jsonOut.map FilePath.mk) (request.resultOut.map FilePath.mk)
+    let captured ← IO.mkRef (#[] : Array ProducerReport.SourceBinding)
+    return ← withRetainedSources (request.resultOut.map FilePath.mk) captured <|
+      auditSurfaceAt request.project request.manifest true request.verbose
+        request.reportRoot (request.jsonOut.map FilePath.mk) (request.resultOut.map FilePath.mk)
+        captured.set
   if let ["--compile-batch-worker", input, out] := args then
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request ← IO.ofExcept (fromJson? json)
@@ -955,7 +955,8 @@ unsafe def run (args : List String) : IO UInt32 := do
       return 1
   let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
     else if options.incremental then .incrementalProject else .freshProject
-  let code ← withSourceEvidence #[] configuration repo.toString mode resultOut action
+  let code ← withRetainedSources resultOut capturedSources <|
+    withSourceEvidence #[] configuration repo.toString mode resultOut action
   if let some output := resultOut then
     let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
     let captured ← capturedSources.get
