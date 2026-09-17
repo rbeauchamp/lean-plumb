@@ -65,21 +65,19 @@ private def lake (args : Array String) : Command := ⟨"lake", args⟩
 Qualification's private flag retains the already timed process group. -/
 def commands : Mode → List Command
   | .ordinary => [
-      lake #["build", "StrictLeanPolicy", "StrictLeanQualification", "axiomGate", "docFenceAudit", "qualify",
+      lake #["build", "--jobs", "4", "StrictLeanPolicy", "StrictLeanQualification", "axiomGate", "docFenceAudit", "qualify",
         "+StrictLean.Checker.CheckerSelftest:olean", "+StrictLean.Checker.FreshChecker:olean",
         "+StrictLean.RegistryChecks:olean", "+StrictLean.Linter:olean",
         "+StrictLean.Checker.ProducerQualification:olean", "+StrictLean.Checker.HistoryQualification:olean",
         "+StrictLean.Checker.RuleExamples:olean", "+StrictLean.Checker.RuleExampleQualification:olean"],
       lake #["env", "lean", "--run", "lean/StrictLean/RegistryChecks.lean"],
-      lake #["exe", "qualify", "--under-deadline", "registry"],
-      lake #["exe", "qualify", "--under-deadline", "native"],
+      lake #["exe", "qualify", "--under-deadline", "combined"],
       lake #["exe", "axiomGate", "--with-docs", "--legacy-json-out", "tmp/axiom-report.json"]]
   | .graph => [lake #["exe", "freshChecker", "--verbose"]]
   | .diagnostics => [lake #["exe", "checkerSelftest", "--build-bound", "--jobs", "4"]]
   | .producers => [
-      lake #["build", "axiomGate", "qualify", "+StrictLean.Checker.ProducerQualification:olean", "+StrictLean.Checker.HistoryQualification:olean"],
-      lake #["exe", "qualify", "--under-deadline", "producers"],
-      lake #["exe", "qualify", "--under-deadline", "history"]]
+      lake #["build", "--jobs", "4", "axiomGate", "qualify", "+StrictLean.Checker.ProducerQualification:olean", "+StrictLean.Checker.HistoryQualification:olean"],
+      lake #["exe", "qualify", "--under-deadline", "producers-combined"]]
   | .ruleExamples => [
       lake #["build", "axiomGate", "ruleExamples", "ruleExampleQualification", "qualify"],
       lake #["exe", "qualify", "--under-deadline", "rule-examples", "--evidence", "tmp/rule-examples.json"]]
