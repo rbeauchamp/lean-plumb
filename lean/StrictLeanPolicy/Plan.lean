@@ -200,5 +200,5 @@ def admitPlan (c : Claim) (i : Census) (jobs : Array JobKey) : Except String (Pl
 theorem admitPlan_exact (c : Claim) (i : Census) (p : Plan c i) :
     admitPlan c i p.jobs = .ok p := by
   unfold admitPlan
-  rw [dif_pos p.valid, dif_pos p.exactJobs, dif_pos p.exactClaim]
+  rw [dite_eq_left p.valid, dite_eq_left p.exactJobs, dite_eq_left p.exactClaim]
 end StrictLeanPolicy
