@@ -33,7 +33,7 @@ theorem checkedBlock : StrictLean.ExecutableContract block
 /-- Non-vacuity: a trailing newline does not add a blank source line. -/
 theorem positive_control : block "x\n" = .ok "```\nx\n```\n" := by
   have h : hasFence "x\n" = false := by decide +kernel
-  simp only [block, h, Bool.false_eq_true, if_false]
+  simp only [block, h, Bool.false_eq_true, ite_false]
   rfl
 
 /-- An embedded fence is refused instead of interpreted as generated documentation. -/
