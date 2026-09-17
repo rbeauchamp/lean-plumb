@@ -118,10 +118,11 @@ marked. This is build metadata, not a proof of compiler executable identity or
 an authenticated source tree.
 
 Result status is `completed`, `rejected`, `incomplete` or `classified`.
-`completed` records completion of the existing scoped mechanical checks; it is
-not the future proof-bearing `Accepted` value and is not whole-standard semantic
-conformance. `classified` distinguishes no-profile and compiler-teaching file
-runs from positive conformance. File scope retains its nullable foundation claim,
+`completed` records completion of scoped mechanical checks; it is not a serialized
+Lean proof or whole-standard semantic conformance. The
+[acceptance guide](policy-acceptance.md#1-observed-call-flow-and-every-success-boundary)
+owns the accepted-result boundary and its JSON metadata semantics. `classified`
+distinguishes no-profile and compiler-teaching file runs from positive conformance. File scope retains its nullable foundation claim,
 execution claim and exact source even when there are no findings. File `scope.report`
 and project `scope.surfaces[*].report` retain the complete observed declaration and
 execution inventories, including trusted boundaries and correspondence evidence.

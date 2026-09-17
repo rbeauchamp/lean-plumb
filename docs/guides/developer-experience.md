@@ -105,8 +105,9 @@ pending. A clean buffer means no current local findings, not a green project cer
 
 Import failures, missing configuration, cancellation and unsupported evidence are actionable
 incomplete states. A completed policy violation is rejected. Current schema-1 `completed`
-remains a scoped mechanical observation; future `Accepted` proves the specified data-level
-predicate under its observation assumptions. Neither settles residual semantic review.
+remains a scoped mechanical observation. The [acceptance contract](policy-acceptance.md)
+owns the proof-bearing result boundary and its observation assumptions. Neither settles
+residual semantic review.
 
 ## Three diagnostic-to-correction journeys
 

@@ -290,4 +290,4 @@ is [issue #3](https://github.com/rbeauchamp/strict-lean/issues/3); its con-ron d
 
 The CATALOG-01 implementation and schema migration are documented in
 [Rule registry and diagnostics](rule-registry.md). Its scoped `completed` observations
-are distinct from the future policy acceptance evidence in POLICY-02–04.
+are distinct from the [proof-bearing policy acceptance evidence](policy-acceptance.md).

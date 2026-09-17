@@ -425,19 +425,18 @@ not freely variable candidate data. Con-leche's [parameterized pin/check pattern
 is a reference for separating these roles, not a reason to make our trust pins optional.
 No speculative scheduling or fast/reference implementation is proposed.
 
-This delivery is a source-grounded design. It changes no Lean implementation or checked Lean
-example, and claims no new compiler result, axiom coverage, performance or full compliance.
-The inspected root pins remain Lean 4.33.1 (`819816b2e0a3bf405af45ae5c7af2491d8f5bee6`),
-Mathlib `0df444a360eaa60ab8c11dca51a86af692955474`. Earlier PRODUCT-01 runtime results are
-historical, scoped evidence; they do not prove these new contracts. Full implementation
-acceptance remains one **unpartitioned `./scripts/verify.sh` with a hard 420-second deadline**
-including cold root builds after pinned dependency/coreutils/ShellCheck setup.
+The [issue7 evidence](../../session/evidence/issue-7-verification.md) owns the
+implementation's compiler results, axiom coverage, qualification and pending delivery
+gates. Earlier PRODUCT-01 runtime results remain historical, scoped evidence; they do
+not validate later implementation changes. Use the [contributor guide](contributing.md)
+for the complete acceptance command and setup requirements.
 
-Applicable design review rows: SCOPE-01–05, TYPE-01–03/06, THEOREM-01/03/06/07,
-FOUND-01–05, DECL-01–04, COMP-01–04, BUILD-01–04, DOC-01–05 and DOGFOOD-03/05,
-for the proposed contracts and their linkage only. This is not a PASS claim for those
-rows over all repository surfaces. TYPE-04/05 and remaining theorem/doc/dogfood rows
-are unchanged; all residual accounts still apply to eventual full conformance.
+The original POLICY-01 design review covered SCOPE-01–05, TYPE-01–03/06,
+THEOREM-01/03/06/07, FOUND-01–05, DECL-01–04, COMP-01–04, BUILD-01–04,
+DOC-01–05 and DOGFOOD-03/05 for the proposed contracts and linkage only. That historical
+scope is not a PASS claim for the implementation or all repository surfaces. Current
+review must account for changed inputs and dependencies under the chapter 9 checklist;
+all residual accounts still apply to full conformance.
 
 #5–#7 must retain §8.8 positive/intended-reason/restored controls for profiles,
 holes/axioms, generated-role forgeries, owned-module attribution, replay bypass,
@@ -449,17 +448,17 @@ coverage requires a fresh imported-client control and exact Lake inventory check
 Use `./scripts/verify.sh diagnostics` with an applicable existing partition
 (`fixtures`, `structural`, `cli`, `environments`, `build-policy`) and add focused
 controls where absent; do not report an unrun campaign PASS. `serialized-graph`
-remains separate. No timing experiment is necessary for this design; if implementation
-cost becomes decision-bearing, define its measurement and resource budget then.
+remains separate. If implementation cost becomes decision-bearing, define the
+measurement and resource budget before evaluating it.
 
 Implemented proof coverage is recorded in the [domain](policy-domain.md) and
 [proof](policy-proofs.md) guides, with exact axiom evidence in their delivery records.
-Remaining **implementation obligations** are assigned rather than silently assumed:
-#7/#13 establish collector/worker linkage and acceptance at all call sites;
-#12/#14/#15 qualify schema/editor/site consumers.
-Unsupported compiler versions, incomplete census/admission, ambiguous role origin and
-unresolved execution are decided refusals. No unresolved design choice blocks starting #5;
-any failed proof or pin capability blocks its specific guarantee and must be reported.
+The success map in §1 owns implemented collector/worker linkage and acceptance routes;
+[issue7 evidence](../../session/evidence/issue-7-verification.md#pending-delivery-gates)
+owns remaining delivery obligations. Editor/adopter and website integration remain their
+separate product deliverables. Unsupported compiler versions, incomplete census/admission,
+ambiguous role origin and unresolved execution are refusals. Any failed proof or pin
+capability blocks its specific guarantee and must be reported.
 
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean

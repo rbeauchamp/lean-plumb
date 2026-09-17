@@ -7,13 +7,9 @@
 **Current delivery state:** issue13 and its [corpus delivery](https://github.com/rbeauchamp/strict-lean/pull/31)
 are integrated. The [priority CI repair](https://github.com/rbeauchamp/strict-lean/pull/32)
 is integrated at the base above. Issue7 remains open with blockers6/13 closed.
-Its implementation, transport/route controls and full build-lint/policy-domain diagnostic
-passes are recorded in [issue7 evidence](evidence/issue-7-verification.md);
-the first cold-root420 attempt at signed722aa7e failed on a complete-versus-prefix source
-comparison. That defect and two independent review findings about stale graph/diagnostic
-outputs now have bounded repairs and focused positive/refusal/restoration evidence.
-Independent delta review, successful ordinary420, exact-head hosted checks and merge
-remain pending. No previous code's tests are current-change evidence.
+The [issue7 evidence](evidence/issue-7-verification.md) owns implementation checkpoints,
+repair and qualification results, failed attempts and pending delivery gates. Consult
+that record before reusing evidence; no previous code's tests are current-change evidence.
 
 ## Active plan and resume point
 

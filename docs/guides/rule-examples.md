@@ -57,13 +57,14 @@ All six named new guarantees
 `demonstration_not_accepted`) currently depend exactly on
 `propext`, `Classical.choice` and `Quot.sound`: Standard-Logical, not Kernel-only.
 `demonstration_selected_rule` exposes the selected-rule obligation directly. Documentation
-receipts retain each actual fence classification. The shared `PositiveClassifications` guard
-requires a nonempty list with every fence positive, passing and complete, both when the adapter
-emits `completed` and when the qualifier admits a positive correction. Successful compiler
-negatives and trusted teaching remain `classified`; failed and incomplete checks retain their
+receipts retain each actual fence classification. The documentation adapter derives
+`completed` from its accepted report with a nonempty, all-positive fence inventory.
+The qualifier separately applies `PositiveClassifications` to require a nonempty list
+with every fence positive, passing and complete before admitting a positive correction.
+Successful compiler negatives and trusted teaching remain `classified`; failed and incomplete checks retain their
 own outcomes. `positiveClassifications_sound` states the exact admitted relation.
-Global policy acceptance remains
-issue #7; a corpus PASS is not full-standard conformance.
+The [acceptance guide](policy-acceptance.md) owns global policy assembly; a corpus PASS
+is not full-standard conformance.
 
 ## Exact source and remediation map
 

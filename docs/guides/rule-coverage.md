@@ -9,7 +9,8 @@ this map and affected typed descriptors together, with semantic review.
 
 See [native-linter.md](native-linter.md) for the delivered partial command feedback and complete module metadata observers.
 The [project producer integration](engine-producers.md) also enforces SL5001/SL5002 on completed
-project scopes; #7 still owns claim-indexed mandatory jobs and `Accepted` composition.
+project scopes; the [acceptance guide](policy-acceptance.md) owns claim-indexed mandatory
+jobs and result composition.
 
 ## Exact selected diagnostic vocabulary
 
