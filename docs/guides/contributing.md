@@ -115,5 +115,5 @@ terminal output ownership changes. Their positive/refusal/restoration observatio
 qualify those IO boundaries; `collect_success_iff` and `finalize_iff` already quantify
 universally over supplied finite observations. Do not add the multi-minute groups to
 every ordinary acceptance run. Existing CI builds transitively check all proof and
-adapter modules; complete ordinary, producer, corpus and site checks remain required.
+adapter modules; the required CI diagnostics and budgets are described above.
 After fixes, reuse a diagnostic only with an explicit unchanged-relevant-input argument.

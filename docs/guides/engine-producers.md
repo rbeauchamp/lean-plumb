@@ -38,7 +38,8 @@ docstring on a selected declaration, in both fresh and incremental project modes
 not depend on whether native feedback was imported or enabled. SL5001 uses module attribution;
 SL5002 uses authenticated declaration ranges when available, otherwise module attribution.
 Neither detector imposes headings, lengths, or a universal all-public-declarations rule.
-File/fence results retain their existing scoped enforcement; global mode/job composition is #7.
+File/fence results retain their scoped enforcement; the [acceptance guide](policy-acceptance.md)
+owns global mode/job composition.
 
 ## Transport and consumer boundary
 
@@ -72,12 +73,11 @@ complete source coverage; [example admission](rule-examples.md) checks its requi
 against this producer evidence before constructing an observation.
 
 These guards reconcile supplied data. They do not prove truthful external extraction, source
-identity, a complete execution-edge/history census, or complete claim-indexed jobs. #7 must
-bind these raw keys to the exact claim/snapshot and construct the existing pure `Census` and
-`AdmissionObservation`; no serialized flag substitutes for that work. The
-[source-owned corpus](rule-examples.md) supplies the example integration; #13 still requires
-integrated delivery evidence. These producer increments do not close the issue. An empty
-diagnostic list is not `Accepted` or full semantic conformance.
+identity, a complete execution-edge/history census, or complete claim-indexed jobs. The
+[acceptance guide](policy-acceptance.md) owns the implemented claim/snapshot binding and
+success boundary; no serialized flag substitutes for that work. The
+[source-owned corpus](rule-examples.md) owns example integration. An empty diagnostic
+list is not `Accepted` or full semantic conformance.
 
 ## Source-bound replacement histories
 
@@ -100,17 +100,15 @@ trust boundary. They do not authenticate arbitrary serialized source claims or e
 complete extraction of reached nodes/edges, source authenticity, or global `Accepted`.
 The closure/source account below extends the supplied observations and their binding. A
 temporarily changed source restored between observations remains outside what before/after
-byte equality establishes. #7 retains global claim/job composition.
+byte equality establishes. Global claim/job composition is described in the
+[acceptance guide](policy-acceptance.md).
 
 The separate `history` diagnostic runs `scripts/history_checks.py`: real fresh/incremental
 project and file invocations check overwritten history, an unsupported source evaluator, and
 fresh restoration. Actual returned records are mutated through the Lean decoder to qualify
 missing requests/receipts/edges, changed bytes, missing paths and concealed unavailability.
-Run `./scripts/verify.sh diagnostics history` after `./scripts/verify.sh diagnostics producers`.
-CI requires both sequential gates, each under hard420, retaining all 21 producer and
-17 history public invocations plus their 8 and 17 transport controls in the existing order.
-The explicit combined diagnostic allowance is now up to840 seconds, not evidence that
-the former combined420 passed. Ordinary cold420 is unchanged.
+See the [contributor guide](contributing.md#develop-and-verify) for diagnostic commands,
+required CI ordering and budgets.
 The existing structural campaign remains separately scoped; this does not report it PASS.
 
 ## Source-owned examples and qualification

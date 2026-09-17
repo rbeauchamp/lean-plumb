@@ -125,7 +125,7 @@ the run ends with `axiom gate: PASS` (exit 0) or `FAIL: N violation(s)` (exit 1)
 Two narrower commands are useful before a full run:
 
 ```sh
-lake exe axiomGate --file F.lean --claim standard-logical   # classify one file's declarations
+lake exe axiomGate --file F.lean --claim standard-logical   # audit one file under this profile
 lake exe docFenceAudit --jobs 4                            # elaborate every docs/ Lean fence
 ```
 

@@ -375,8 +375,8 @@ The `lean_lib StrictLeanPolicy` has `.andSubmodules` discovery, a positive
 Standard-Logical manifest entry as an initial upper bound, and explicit ordinary
 acceptance build coverage. Report every declaration's **actual** least label and exact
 axioms; reduce the upper bound only after checking the complete import/proof closure.
-This root avoids both the excluded `StrictLean` glob and `Environment.loadReportCore`'s
-whole-`StrictLean` trusted overlay, which would otherwise mask fresh proof modules.
+This root is separate from the excluded `StrictLean` glob. The narrow operational
+infrastructure partition and its authentication obligations are described in §1.
 Audit, AuditApp/Main and the operational StrictLean exclusion remain. Teach tooling and
 guides the new library via Lake discovery, not hardcoded declaration/file lists.
 
