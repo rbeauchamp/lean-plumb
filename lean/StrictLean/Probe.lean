@@ -1,3 +1,4 @@
+import Std.Data.DHashMap.Lemmas
 import StrictLean.Collect
 import StrictLean.StructuralName
 import Lean.Elab.Command
@@ -262,6 +263,71 @@ private def brecOnHelpers (env : Environment) (own : Array (Name × ConstantInfo
       helpers := helpers.push helper
   return helpers
 
+/-- The exact pinned compiler derivation, including initializer references and real
+self edges. Absence of IR is distinct from an existing body with no dependencies.
+The partial collector's existing trust boundary is unchanged. -/
+private def compilerDependencies (env : Environment) (name : Name) : Option (Array Name) :=
+  (Lean.IR.findEnvDecl env name).map fun compiled =>
+    ((Lean.IR.CollectUsedDecls.collectDecl compiled env).run {}).snd.order
+
+/-- Each payload is tied to both the captured environment and its exact key.
+This cache is invocation-local operational state, never worker evidence. -/
+private abbrev CompilerDependenciesCache (env : Environment) :=
+  Std.DHashMap Name (fun name => { dependencies : Option (Array Name) //
+    dependencies = compilerDependencies env name })
+
+/-- A hit returns the stored witness without evaluating the collector. A miss
+computes the same pure expression once, retains its reflexive witness, and inserts
+it. The returned map is threaded through the invocation's reference. -/
+private def compilerDependenciesLookup (env : Environment)
+    (name : Name) (cache : CompilerDependenciesCache env) :
+    { dependencies : Option (Array Name) // dependencies = compilerDependencies env name } ×
+      CompilerDependenciesCache env :=
+  match cache.get? name with
+  | some dependencies => (dependencies, cache)
+  | none =>
+      let dependencies := compilerDependencies env name
+      let checked := (⟨dependencies, rfl⟩ :
+        { dependencies : Option (Array Name) // dependencies = compilerDependencies env name })
+      (checked, cache.insert name checked)
+
+/-- Output identity for every cache, covering both hit and miss. Substitution of
+this equality preserves the existing consumer's ordered-array transition. -/
+private theorem compilerDependenciesLookup_exact (env : Environment) (name : Name)
+    (cache : CompilerDependenciesCache env) :
+    (compilerDependenciesLookup env name cache).1.val = compilerDependencies env name :=
+  (compilerDependenciesLookup env name cache).1.property
+
+/-- Hits preserve the stored value and entire map. -/
+private theorem compilerDependenciesLookup_hit (env : Environment) (name : Name)
+    (cache : CompilerDependenciesCache env) (value)
+    (hit : cache.get? name = some value) :
+    compilerDependenciesLookup env name cache = (value, cache) := by
+  simp [compilerDependenciesLookup, hit]
+
+/-- Misses insert precisely the original derivation and its reflexive witness. -/
+private theorem compilerDependenciesLookup_miss (env : Environment) (name : Name)
+    (cache : CompilerDependenciesCache env) (miss : cache.get? name = none) :
+    compilerDependenciesLookup env name cache =
+      (⟨compilerDependencies env name, rfl⟩,
+        cache.insert name ⟨compilerDependencies env name, rfl⟩) := by
+  simp [compilerDependenciesLookup, miss]
+
+/-- The queried key is present after either branch, with exactly the returned witness. -/
+private theorem compilerDependenciesLookup_stored (env : Environment) (name : Name)
+    (cache : CompilerDependenciesCache env) :
+    (compilerDependenciesLookup env name cache).2.get? name =
+      some (compilerDependenciesLookup env name cache).1 := by
+  cases h : cache.get? name <;> simp [compilerDependenciesLookup, h]
+
+/-- Lookup cannot alter another key's payload; DHashMap's lawful dependent
+lookup supplies the key transport and collision handling. -/
+private theorem compilerDependenciesLookup_frame (env : Environment) (name other : Name)
+    (cache : CompilerDependenciesCache env) (different : name ≠ other) :
+    (compilerDependenciesLookup env name cache).2.get? other = cache.get? other := by
+  cases h : cache.get? name <;>
+    simp [compilerDependenciesLookup, h, Std.DHashMap.get?_insert, different]
+
 /-- Finite conservative execution closure: source values, retained compiler IR,
 all supported equality candidates, and observed implementation choices.
 Compiler metadata supplements source dependencies; neither alone retains all
@@ -272,6 +338,7 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
     (loadReplacementHistory : Name → IO (Except String (Array (Name × Name))))
     (candidates : NameMap (Array Lean.Compiler.CSimp.Entry))
     (proofCache : IO.Ref (Std.HashMap (Name × Name) (Correspondence × Option String)))
+    (dependencyCache : IO.Ref (CompilerDependenciesCache env))
     (recursorHelpers : Array Name) (root : Name) : CommandElabM (Array StrictLean.Report.ExecutionBoundary ×
       Array String × Array (Name × Name) × StrictLeanPolicy.ExecutionClosure) := do
   let mut visited : Std.HashSet Name := {}
@@ -321,12 +388,8 @@ private def executionWalk (env : Environment) (ownedModules : List Name)
     -- Persisted compiler IR records replacements at the time each imported
     -- declaration was compiled, including scoped simplification and inlining.
     -- Keep source edges too: optimization may erase an unsafe/replacement step.
-    if let some compiled := Lean.IR.findEnvDecl env name then
-      -- Use the pinned collector's declaration step: collectUsedDecls also inserts the
-      -- declaration itself unconditionally. Filtering that synthetic entry loses real
-      -- recursive calls. collectDecl retains exactly calls/closures/initializers,
-      -- including actual self edges, without adding a synthetic self dependency.
-      let dependencies := ((Lean.IR.CollectUsedDecls.collectDecl compiled env).run {}).snd.order
+    let dependencies ← liftIO <| dependencyCache.modifyGet (compilerDependenciesLookup env name)
+    if let some dependencies := dependencies.val then
       for dependency in dependencies do
         compilerEdges := compilerEdges.push (name, dependency)
         compiledNames := compiledNames.insert dependency
@@ -548,12 +611,13 @@ def environmentReport (modules : List Name)
     let recursorHelpers := brecOnHelpers env own
     let candidates := simplificationCandidates env
     let proofCache ← liftIO <| IO.mkRef ({} : Std.HashMap (Name × Name) (Correspondence × Option String))
+    let dependencyCache ← liftIO <| IO.mkRef ({} : CompilerDependenciesCache env)
     roots.mapM fun (moduleName, root) => do
       let (boundaries, unresolved, compilerEdges, closure) ←
         executionWalk env modules nativeModules (fun name => do
           historyRequests.modify fun requests =>
             if requests.contains (root, name) then requests else requests.push (root, name)
-          loadReplacementHistory name) candidates proofCache recursorHelpers root
+          loadReplacementHistory name) candidates proofCache dependencyCache recursorHelpers root
       return ({
         name := root
         «module» := moduleName

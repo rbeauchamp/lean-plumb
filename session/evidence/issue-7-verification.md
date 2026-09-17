@@ -1,5 +1,10 @@
 # Issue7 accepted-result integration evidence
 
+Latest bounded CI repair: [candidate1 compiler dependency memoization](ci-candidate1-memoization.md).
+Targeted proofs/equivalence and focused review passed; history qualification timed out,
+and renewed compiler contention prevented the authorized cold420 from starting.
+This follow-up does not establish current CI acceptance or supersede failed receipts.
+
 Status: implementation checkpoint on `codex/strict-lean-7-integration`, based on
 `f9b54f7b7b2094f3b9063e2bf0d156eaefe4d9be` (tree
 `9310eef85ce8fbe9ee3ce961b62a7e9e45790d07`). This is not a completed delivery receipt.
