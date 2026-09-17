@@ -1,6 +1,5 @@
 module
 
-
 @[expose] public section
 /-!
 Proof requirements for a named executable definition. `ExecutableContract f R`
