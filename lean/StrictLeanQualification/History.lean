@@ -40,7 +40,7 @@ def closureRequirements (account ownModule : Json) (source : String) (unsupporte
     ⟨"unregistered private root not executed", execution.all (fun entry => (entry.getObjVal? "name").toOption != some hidden)⟩,
     ⟨"registered imported root executed", execution.any fun entry =>
       (entry.getObjVal? "name").toOption == some (toJson #[#["str", "add"], #["str", "Nat"]]) &&
-      (entry.getObjVal? "module").toOption != some ownModule⟩]
+      (entry.getObjVal? "module").toOption.any (fun moduleName => moduleName != ownModule)⟩]
   let mut recursive := false
   for root in execution do
     let closure ← field root "closure"

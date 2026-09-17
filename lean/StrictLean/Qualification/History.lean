@@ -46,6 +46,25 @@ def check : IO Unit := do
           continue
         IO.ofExcept (StrictLeanQualification.History.checkedValidation.run report result.exitCode.toNat
           mode source (invocation == "file") (phase == "unsupported"))
+        if invocation == "file" && phase == "positive" then
+          let scope ← IO.ofExcept (report.getObjVal? "scope")
+          let account ← IO.ofExcept (scope.getObjVal? "report")
+          let execution ← IO.ofExcept (account.getObjValAs? (Array Json) "execution")
+          let importedName := toJson #[#["str", "add"], #["str", "Nat"]]
+          let imported := execution.filter (fun entry => (entry.getObjVal? "name").toOption == some importedName)
+          requireChecks [⟨"one imported control with existing ownership", imported.size == 1 && imported.all
+            (fun entry => (entry.getObjVal? "module").toOption.isSome)⟩]
+          let changed ← execution.mapM fun entry => do
+            if (entry.getObjVal? "name").toOption != some importedName then return entry
+            let fields ← IO.ofExcept entry.getObj?
+            return Json.mkObj (fields.toList.filter (·.1 != "module"))
+          let mutated := report.setObjVal! "scope" (scope.setObjVal! "report"
+            (account.setObjVal! "execution" (toJson changed)))
+          match StrictLeanQualification.History.checkedValidation.run mutated result.exitCode.toNat mode source true false with
+          | .ok () => throw <| IO.userError "missing imported ownership accepted"
+          | .error reason => requireChecks [⟨"intended imported-ownership refusal", reason == "registered imported root executed"⟩]
+          IO.ofExcept (StrictLeanQualification.History.checkedValidation.run report result.exitCode.toNat mode source true false)
+          IO.println "history oracle file/missing-imported-module: intended refusal + restored control PASS"
         if phase == "unsupported" then
           let scope ← IO.ofExcept (report.getObjVal? "scope")
           let account ← IO.ofExcept (if invocation == "file" then scope.getObjVal? "report" else do
