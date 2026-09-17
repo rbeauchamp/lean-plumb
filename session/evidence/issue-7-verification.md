@@ -163,6 +163,79 @@ PASS; no matching owned diagnostic compiler children were observed afterward. Th
 window was released. These are separate diagnostic results, not ordinary acceptance,
 performance guarantees, or evidence that cold-root420 has passed.
 
+### Cold-root failure and independent repair findings
+
+The first cold-root `./scripts/verify.sh` at signed checkpoint
+`722aa7e7a526fe6761e6efd1d2fd6c930298a253` (tree
+`b2736b522b2923cd5f15a4833468e16d70951831`) **failed**, exit1 after53.688830s.
+Root outputs were absent at invocation;119 build jobs, registry/CLI and36 native controls
+passed. Combined project auditing then refused `surface worker source inventory mismatch`
+before completing declarations or reaching fences. This was not a deadline kill.
+`tmp/issue-7/cold420-722aa7e/` retains inputs, log and result; the copied legacy report was
+pre-existing and is explicitly not current-run evidence. Its prior root build remains
+preserved separately. No full declaration/axiom or ordinary acceptance PASS is inferred.
+
+Independent source/proof review of immutable722aa7e required three bounded repairs:
+
+- R1: `SourceBinding.capture` observes each growing prefix. Its observer now only retains
+  progress; exact complete module/path/byte equality is checked once capture returns,
+  before build/inspection. All parent, partial-failure and terminal guards remain.
+- R2: `FreshChecker` invalidates recognizable absolute output destinations before parsing
+  or root discovery, and relative ones once the project root is resolved. Failed arguments
+  or root discovery cannot leave an older accepted graph result at a resolvable destination.
+- R3: the maintained acceptance diagnostic writes a new incomplete attempt before binary
+  or setup reads, atomically retains obtained inputs/records, records handled failures,
+  and promotes only after every selected case and restoration. SIGKILL relies on the
+  existing incomplete receipt, not a signal handler. Process-group kill/join is retained.
+
+Targeted incremental builds passed: axiomGate102 jobs/17.589s and freshChecker96 jobs/11.497s.
+The actual binary SHA256 values were respectively
+`42f1f9479c683999964d5e8f54553ff3dff9f0206583c3c31479faca32fc5074` and
+`583ddb7b84de33f6db113fb4aeeded1ff24e7adbc270ea994a44640fbc6974cd`.
+Inputs and build logs are in `qualification-04/` and `qualification-05/` under
+`tmp/issue-7/`; these builds used modified sources atop722aa7e, not a later exact-head run.
+
+The pre-repair native witness retained only `Example` from Lake's exact `[Example, Extra]`
+request, reproducing R1 in10.586s. After repair, a first restoration correctly refused a
+concurrent guide edit as `dependency snapshot changed: strict_lean`; that failed attempt
+is retained. With repository inputs fixed, the five-case source group passed. Following
+R3, the final seven-case group passed: two-source combined acceptance, shortened,
+reordered and extra-binding refusals, full captured accounts, and fresh restoration after
+each mutation. Its receipt stayed incomplete with obtained records during execution and
+became completed only at the end. The five graph controls passed: actual positive,
+absolute malformed arguments, absolute root-discovery failure, relative malformed
+arguments, and actual restored graph acceptance. Missing-binary setup, SIGTERM during
+setup and SIGKILL during setup each replaced the seeded old success receipt.
+
+Exact commands, sources, native hashes, raw observations and logs are in
+`qualification-05/{sources,graph,lifecycle}.{json,log}` and its two small control scripts;
+`sources-mid-attempt.json` retains the observed incomplete state. Each compiler/group
+stayed within its authorized180s bound (lifecycle30s); summed child observations were
+102.786s for sources and85.675s for graph. These shared-host durations are not isolated
+performance evidence. No broad packet, forced-collector, full graph, repeated cold-root
+or no-mistakes run was performed in this repair checkpoint.
+
+Relevant-input assessment: no pure collection/finalizer/composition proof changed. R1
+changes the combined route's capture boundary; old single-source transport observations
+do not establish multi-source behavior or execution on the repaired binary. The new
+source group qualifies that boundary; unchanged packet schemas, joins, pure finalization
+and producer extraction retain their prior scoped evidence. Direct fresh/incremental,
+file and build-lint calls still use no expected worker inventory. R2 invalidates previous
+claims about graph early-exit output ownership, now covered by the focused graph group;
+graph planning/finalization is unchanged. R3 invalidates any inference from an unchanged
+old receipt alone that a new attempt completed. Historical logs/identities remain historical.
+Final exact-head ordinary, producer/corpus/site and hosted evidence remains required.
+
+The excluded-root/conditional-collector distinction still needs its current integration
+control. Proposed bounded sequence after independent delta review and coordination:
+one complete cold-root420 gate; if successful, refresh `checkerSelftest` within180s, then
+run the existing `gtimeout --signal=KILL 420s .lake/build/bin/checkerSelftest --forced-collector-only`
+separately. It preserves the full manifest, actual fresh positive, source import of excluded
+`StrictLean.Collect` with both intended refusal tokens, and restoration. Do not replace it
+with a smaller manifest or claim that imported-reporter controls establish this distinction.
+Its duration is unknown; timeout remains INCOMPLETE and triggers diagnosis, not retries
+or a larger deadline. This proposed sequence has not run.
+
 ### Recurring verification placement
 
 Ordinary `./scripts/verify.sh` remains one complete cold-root420 invocation. Its existing
@@ -171,7 +244,7 @@ proofs/adapters, and its actual `--with-docs` path consumes the same-snapshot ac
 The workflow documents that coverage without adding duplicate builds or transport groups.
 Full ordinary, producer, corpus, site and all required hosted checks remain mandatory.
 
-The four maintained transport groups run when their worker dispatch, packet codecs,
+The original four transport groups and focused source group run when their worker dispatch, packet codecs,
 join behavior, request reconstruction or output ownership changes. They qualify actual
 IO linkage that the finite-observation theorems do not authenticate. Universal
 `collect_success_iff`/`finalize_iff` and the report/composition theorems already enforce

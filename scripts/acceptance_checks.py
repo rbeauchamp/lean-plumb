@@ -18,6 +18,7 @@ import signal
 import subprocess
 import tempfile
 import time
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 WRAPPER = r'''#!/usr/bin/env python3
@@ -26,11 +27,23 @@ args = sys.argv[1:]
 mode = os.environ.get("STRICT_LEAN_PACKET_FAULT", "")
 surface = args and args[0] == "--surface-worker"
 compile_batch = args and args[0] == "--compile-batch-worker"
+trace = os.environ.get("STRICT_LEAN_SOURCE_TRACE")
+if surface and trace:
+    request = json.loads(pathlib.Path(args[1]).read_text())
+    original = json.loads(json.dumps(request))
+    if mode == "source-shortened": request["sourceBindings"].pop()
+    if mode == "source-reordered": request["sourceBindings"].reverse()
+    if mode == "source-extra": request["sourceBindings"].append(request["sourceBindings"][-1])
+    pathlib.Path(args[1]).write_text(json.dumps(request))
 if surface and mode == "process": sys.exit(17)
 if surface and mode == "timeout":
     print("qualification: surface worker waiting", flush=True)
     time.sleep(60)
 code = subprocess.run([str(pathlib.Path(__file__).with_name("axiomGate-real")), *args]).returncode
+if surface and trace:
+    result = pathlib.Path(request["resultOut"])
+    pathlib.Path(trace).write_text(json.dumps({"original": original, "sent": request,
+        "childResult": json.loads(result.read_text()) if result.exists() else None}))
 if code != 0: sys.exit(code)
 if surface and mode in {"missing", "duplicate", "misindexed", "stale", "unknown", "conflict", "build"}:
     request = json.loads(pathlib.Path(args[1]).read_text())
@@ -61,6 +74,9 @@ GROUPS = {
     "fences": [("fence-missing", "missing required key"), ("fence-duplicate", "duplicateResult"),
                ("fence-misindexed", "unknownKey")],
     "process": [("process", None), ("timeout", "qualification: surface worker waiting")],
+    "sources": [("source-shortened", "surface worker source inventory mismatch"),
+                ("source-reordered", "surface worker source inventory mismatch"),
+                ("source-extra", "surface worker source inventory mismatch")],
 }
 
 
@@ -92,7 +108,39 @@ def main() -> None:
     parser.add_argument("--group", choices=GROUPS, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     args = parser.parse_args()
-    records = []
+    # Own the destination before any binary/configuration/setup read can fail.
+    # SIGKILL cannot run a handler: the current incomplete receipt must already exist.
+    receipt = {"attemptId": str(uuid.uuid4()), "status": "incomplete", "group": args.group,
+               "inputs": {}, "records": []}
+    args.evidence.parent.mkdir(parents=True, exist_ok=True)
+
+    def save() -> None:
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", dir=args.evidence.parent,
+                                             prefix=args.evidence.name + ".", delete=False) as stream:
+                temporary = Path(stream.name)
+                json.dump(receipt, stream, indent=2)
+                stream.write("\n")
+            os.replace(temporary, args.evidence)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    save()
+    try:
+        qualify(args, receipt, save)
+    except BaseException as error:
+        receipt.update(status="failed", error={"type": type(error).__name__, "detail": str(error)})
+        save()
+        raise
+    receipt["status"] = "completed"
+    save()
+    print("acceptance transport qualification: PASS (selected diagnostic group only)")
+
+
+def qualify(args, receipt, save) -> None:
+    records = receipt["records"]
     active: subprocess.Popen | None = None
 
     def terminate_group(signum: int, _frame: object) -> None:
@@ -108,24 +156,39 @@ def main() -> None:
     signal.signal(signal.SIGTERM, terminate_group)
     signal.signal(signal.SIGINT, terminate_group)
     executable = ROOT / ".lake/build/bin/axiomGate"
-    inputs = {"head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-              "binarySha256": hashlib.sha256(executable.read_bytes()).hexdigest()}
-    args.evidence.parent.mkdir(parents=True, exist_ok=True)
+    inputs = receipt["inputs"]
+    inputs["head"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    save()
+    inputs["binarySha256"] = hashlib.sha256(executable.read_bytes()).hexdigest()
+    save()
     with tempfile.TemporaryDirectory(prefix="acceptance-controls-", dir=ROOT / "tmp") as raw:
         scratch = Path(raw); project = scratch / "project"; setup(project)
+        if args.group == "sources":
+            lakefile = project / "lakefile.lean"
+            lakefile.write_text(lakefile.read_text().replace("lean_lib Example\n",
+                "lean_lib Example where\n  globs := #[.one `Example, .one `Extra]\n"))
+            (project / "Extra.lean").write_text(
+                "import StrictLean.Contract\n/-! Second independently discovered source. -/\n"
+                "def extraValue : Nat := 11\n")
         tools = scratch / "tool"; (tools / "bin").mkdir(parents=True); (tools / "lib").mkdir()
         (tools / "lib/lean").symlink_to(ROOT / ".lake/build/lib/lean")
         shutil.copy2(executable, tools / "bin/axiomGate-real")
         wrapper = tools / "bin/axiomGate"; wrapper.write_text(WRAPPER); wrapper.chmod(0o755)
         source_inputs = {str(p.relative_to(project)): p.read_text() for p in project.rglob("*")
                          if p.is_file() and ".lake" not in p.relative_to(project).parts}
+        receipt["sources"] = source_inputs
+        save()
 
         def invoke(fault: str, phase: str, reason: str | None = None) -> None:
             nonlocal active
             output = scratch / f"result-{len(records)}.json"
             command = [str(wrapper), "--project", str(project), "--with-docs", "--json-out", str(output)]
+            receipt["activeCase"] = {"phase": phase, "fault": fault, "command": command}
+            save()
             env = {k: v for k, v in os.environ.items() if k not in ("LEAN_PATH", "LEAN_SRC_PATH")}
             env["STRICT_LEAN_PACKET_FAULT"] = fault
+            trace = scratch / f"source-trace-{len(records)}.json"
+            if args.group == "sources": env["STRICT_LEAN_SOURCE_TRACE"] = str(trace)
             started = time.monotonic()
             process = subprocess.Popen(command, cwd=project, env=env, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT, text=True, start_new_session=True)
@@ -139,20 +202,28 @@ def main() -> None:
                 log, _ = process.communicate()
             active = None
             value = json.loads(output.read_text()) if output.exists() else None
+            source_trace = json.loads(trace.read_text()) if trace.exists() else None
             passed = (not timed_out and process.returncode == 0 and value is not None and
                       value.get("status") == "completed" and "acceptance" in value and
                       "documentationAcceptance" in value) if not fault else (
                       process.returncode != 0 and value is not None and value.get("status") == "incomplete" and
                       "acceptance" not in value and "documentationAcceptance" not in value and
                       (fault != "timeout" or timed_out) and (reason is None or reason.lower() in log.lower()))
+            if args.group == "sources":
+                # Compare the child's retained full capture to the independent parent
+                # request, even when the child received a shortened/reordered request.
+                passed = passed and source_trace is not None and len(
+                    source_trace["original"]["sourceBindings"]) == 2 and (
+                    source_trace["childResult"]["sourceAccount"] ==
+                    source_trace["original"]["sourceBindings"])
             record = {"phase": phase, "fault": fault, "command": command, "seconds": time.monotonic()-started,
                       "exitCode": process.returncode, "timeout": timed_out, "expectedReason": reason,
                       "expected": "incomplete, no acceptance" if fault else "same-snapshot combined acceptance",
                       "status": None if value is None else value.get("status"), "pass": bool(passed),
-                      "log": log, "result": value}
+                      "log": log, "result": value, "sourceTrace": source_trace}
             records.append(record)
-            args.evidence.write_text(json.dumps({"inputs": inputs, "sources": source_inputs,
-                                                "group": args.group, "records": records}, indent=2)+"\n")
+            receipt["activeCase"] = None
+            save()
             print(f"{phase}/{fault or 'positive'}: {'PASS' if passed else 'FAIL'} ({record['seconds']:.3f}s)", flush=True)
             if not passed:
                 raise AssertionError((phase, fault, process.returncode, record["status"], log))
@@ -160,7 +231,6 @@ def main() -> None:
         for fault, reason in GROUPS[args.group]:
             invoke(fault, "mutation", reason)
             invoke("", "restored")
-    print("acceptance transport qualification: PASS (selected diagnostic group only)")
 
 
 if __name__ == "__main__":

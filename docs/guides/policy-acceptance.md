@@ -39,6 +39,19 @@ operational bridge, re-exporting the pure API without duplicating policy decisio
 | Native editor hooks, registry export/validation, site validation, selftests and qualifiers | Existing local observations or scoped diagnostics; no fresh/incremental whole-project certificate. Editor snapshot results are not promoted to global acceptance. |
 | `scripts/verify.sh` | Fixed public `axiomGate --with-docs` invocation follows builds and other required checks. The shell's zero exit records completed execution of those commands, not a separate Lean proof. Full cold-root acceptance retains the hard420 deadline. |
 
+The surface worker retains each source-capture prefix for failure reporting. After capture
+returns, it compares the complete module/path/byte array with the coordinator's frozen
+request before build or inspection. A prefix is not a completed inventory. Parent and
+terminal source/configuration guards remain separate. The focused
+`python3 scripts/acceptance_checks.py --group sources --evidence tmp/acceptance-sources.json`
+diagnostic checks two Lake-discovered sources, shortened/reordered/extra request refusals,
+retained source accounts and positive restoration; it does not prove IO extraction.
+Its evidence destination is initialized as a new incomplete attempt before binary/setup
+reads, retains obtained records on failure, and becomes completed only after every case
+and restoration. A killed process cannot promote the current incomplete receipt. Graph
+invocations likewise invalidate recognizable absolute result destinations before argument
+parsing or root discovery, and relative destinations once their project root is resolved.
+
 `Common.mapWorkQueue`, `admitIndexedWorkerResults` and documentation's task collector
 execute `ResultState.collect`; no result slot is overwritten. Group reconciliation
 may share identical overlapping imported observations, but never deduplicates job

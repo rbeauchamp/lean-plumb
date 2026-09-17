@@ -9,8 +9,11 @@ are integrated. The [priority CI repair](https://github.com/rbeauchamp/strict-le
 is integrated at the base above. Issue7 remains open with blockers6/13 closed.
 Its implementation, transport/route controls and full build-lint/policy-domain diagnostic
 passes are recorded in [issue7 evidence](evidence/issue-7-verification.md);
-full ordinary420, delivery review, exact-head hosted checks and merge remain pending
-for the acceptance integration. No previous code's tests are current-change evidence.
+the first cold-root420 attempt at signed722aa7e failed on a complete-versus-prefix source
+comparison. That defect and two independent review findings about stale graph/diagnostic
+outputs now have bounded repairs and focused positive/refusal/restoration evidence.
+Independent delta review, successful ordinary420, exact-head hosted checks and merge
+remain pending. No previous code's tests are current-change evidence.
 
 ## Active plan and resume point
 

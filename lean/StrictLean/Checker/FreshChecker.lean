@@ -203,16 +203,33 @@ private def finishGraph (frozen : FrozenGraph) (build : ProcessResult) (checks :
     (fun failure => s!"graph acceptance refused: {repr failure}")
   return ⟨frozen.census, frozen.plan, frozen.roles, inputs.toList, result⟩
 
+private def optionValues (flag : String) : List String → List String
+  | option :: value :: rest =>
+      if option == flag then value :: optionValues flag rest
+      else optionValues flag (value :: rest)
+  | _ => []
+
 unsafe def run (args : List String) : IO UInt32 := do
+  let destinations := (optionValues "--json-out" args).eraseDups.map FilePath.mk
+  let invalidate (path : FilePath) :=
+    writeJson path (Json.mkObj [("mode", .str "serializedGraph"),
+      ("status", .str "incomplete"), ("unresolved", toJson #["graph audit has not completed"])])
+  -- Invalidate recognizable outputs before parsing; absolute paths do not need
+  -- valid project discovery. Relative paths retain the public repo-root meaning.
+  for path in destinations.filter (·.isAbsolute) do invalidate path
+  let relative := destinations.filter (!·.isAbsolute)
+  if !relative.isEmpty then
+    let root ← match optionValues "--project" args with
+      | [dir] => findRepoRoot dir
+      | [] => repoRoot
+      | _ => throw <| IO.userError "duplicate --project option"
+    for path in relative do invalidate (resolve root path)
   let options ← parseArgs args {}
   if options.help then IO.println usage; return 0
   let repo ← match options.project with
     | some dir => findRepoRoot dir
     | none => repoRoot
   let manifestPath := options.manifest.map (resolve repo) |>.getD (Manifest.defaultPath repo)
-  if let some path := options.jsonOut then
-    writeJson (resolve repo path) (Json.mkObj [("mode", .str "serializedGraph"),
-      ("status", .str "incomplete"), ("unresolved", toJson #["graph audit has not completed"])])
   let configuration ← SourceBinding.configuration repo manifestPath
   let inventory ← Lake.surfaceInventory repo
   let sources ← SourceBinding.capture inventory.moduleSources

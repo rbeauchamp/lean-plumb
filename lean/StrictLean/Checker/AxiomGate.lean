@@ -212,12 +212,18 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
     (observeSources : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ())
     (documents : Array StrictLeanPolicy.SourceSnapshot := #[])
     (observeProduction : Acceptance.SurfaceProduction → IO Unit := fun _ => pure ())
-    (internalWorker : Bool := false) (buildLint : Bool := false) : IO UInt32 := do
+    (internalWorker : Bool := false) (buildLint : Bool := false)
+    (expectedSources : Option (Array ProducerReport.SourceBinding) := none) : IO UInt32 := do
   let configuration ← SourceBinding.configuration repo manifestPath
   withSourceEvidence #[] configuration reportRoot.toString
       (if fresh then .freshProject else .incrementalProject) resultOut do
     let inventory ← Lake.surfaceInventory repo
     let sourceBindings ← SourceBinding.capture inventory.moduleSources observeSources
+    -- The observer retains partial captures on failure; only the returned capture
+    -- is complete and can be compared with the coordinator's frozen inventory.
+    if let some expected := expectedSources then
+      unless toJson sourceBindings == toJson expected do
+        throw <| IO.userError "surface worker source inventory mismatch"
     let manifest ← Manifest.load manifestPath
     let assignments ← IO.ofExcept <| Acceptance.surfaceAssignments manifest inventory
     let dependencies ← Snapshot.dependencies inventory
@@ -1021,12 +1027,10 @@ unsafe def run (args : List String) : IO UInt32 := do
           (request.resultOut.map FilePath.mk) <|
         auditSurfaceAt request.project request.manifest true request.verbose
           request.reportRoot (request.jsonOut.map FilePath.mk) (request.resultOut.map FilePath.mk)
-          (fun sources => do
-            captured.set sources
-            unless toJson sources == toJson request.sourceBindings do
-              throw <| IO.userError "surface worker source inventory mismatch")
+          captured.set
           (request.documents.map fun (uri, source) => ⟨uri, source⟩)
           (fun production => writeJson request.output (workerPacket json (toJson production))) true
+          (expectedSources := some request.sourceBindings)
   if let ["--compile-batch-worker", input, out] := args then
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request ← IO.ofExcept (fromJson? json)
