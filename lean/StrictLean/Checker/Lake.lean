@@ -126,6 +126,10 @@ def surfaceInventory (repo : FilePath) : IO SurfaceInventory :=
         sources := sources.push { «module» := name, source }
       for exe in package.leanExes do
         if sources.any (·.module == exe.root.name) then continue
+        -- Dependencies may declare unused executables without shipping their
+        -- sources. Capture existing roots; terminal rediscovery still detects
+        -- their addition/removal. Claimed root-package targets remain required.
+        if !(← exe.root.leanFile.pathExists) then continue
         let source ← checkSource package.dir s!"dependency executable {exe.name}"
           exe.root.name.toString exe.root.leanFile.toString
         sources := sources.push { «module» := exe.root.name, source }

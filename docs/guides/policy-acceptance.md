@@ -52,9 +52,11 @@ and restoration. A killed process cannot promote the current incomplete receipt.
 invocations likewise invalidate recognizable absolute result destinations before argument
 parsing or root discovery, and relative destinations once their project root is resolved.
 
-Dependency snapshots use Lake's buildable library domains and executable roots to retain
+Dependency snapshots use Lake's buildable library domains and existing executable roots to retain
 module identities, canonical source paths and exact bytes independently of Git ignore
-rules. Library roots whose globs admit their submodules include those submodules even
+rules. Unused dependency executables need not ship source files; root-package targets
+remain required, and terminal rediscovery detects executable source additions/removals.
+Library roots whose globs admit their submodules include those submodules even
 when the configured target array selects only the root. Nominal Git revision and dirty
 status are observed only for the declared inputs. Configuration paths come from Lake's
 actual package configuration/manifest plus toolchain and default-config presence checks.
