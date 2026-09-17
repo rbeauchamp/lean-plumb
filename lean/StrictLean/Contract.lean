@@ -1,4 +1,4 @@
-import StrictLean.MaterialClaim
+module
 
 @[expose] public section
 /-!
