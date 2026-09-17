@@ -66,11 +66,67 @@ def configuration_snapshot(paths: list[Path]) -> list:
     return [[str(path), path.read_text() if path.is_file() else None] for path in paths]
 
 
+class CorpusEvidenceWriter:
+    """Single-owner checkpoints for the existing corpus JSON value contract."""
+
+    def __init__(self, path: Path, complete: bool, selected: list[str], before: list):
+        # Invalidate an earlier run even if encoding the initial value fails.
+        self.stream = path.open("w+b")
+        self.offset = 0
+        self.count = 0
+        try:
+            header = json.dumps({"schemaVersion": 1, "completeCorpus": complete,
+                "selected": selected, "checkerBefore": before}).encode("utf-8")
+            footer = self.footer(before)
+            self.stream.write(header[:-1] + b', "records": [')
+            self.offset = self.stream.tell()
+            self.stream.write(footer)
+            self.stream.flush()
+        except BaseException:
+            self.stream.close()
+            raise
+
+    @staticmethod
+    def footer(after: list, controls: list | None = None) -> bytes:
+        fields = {"checkerAfter": after}
+        if controls is not None:
+            fields["admissionControls"] = controls
+        return b'], ' + json.dumps(fields).encode("utf-8")[1:] + b'\n'
+
+    def append(self, record: dict, after: list) -> None:
+        # Encode both values before touching the last complete checkpoint.
+        value = (b', ' if self.count else b'') + json.dumps(record).encode("utf-8")
+        footer = self.footer(after)
+        self.stream.seek(self.offset)
+        self.stream.write(value)
+        offset = self.stream.tell()
+        self.stream.write(footer)
+        self.stream.truncate()
+        self.stream.flush()
+        self.offset = offset
+        self.count += 1
+
+    def finalize(self, controls: list, after: list) -> None:
+        footer = self.footer(after, controls)
+        self.stream.seek(self.offset)
+        self.stream.write(footer)
+        self.stream.truncate()
+        self.stream.flush()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.stream.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--rules", nargs="+", help="Explicit scoped qualification, never full-corpus PASS")
     parser.add_argument("--evidence", type=Path, required=True)
     options = parser.parse_args()
+    options.evidence.parent.mkdir(parents=True, exist_ok=True)
+    options.evidence.unlink(missing_ok=True)
     specs = json.loads((CORPUS / "corpus.json").read_text())
     selected = options.rules or list(specs)
     if len(set(selected)) != len(selected) or any(rule not in specs for rule in selected):
@@ -82,7 +138,8 @@ def main() -> None:
         ROOT / "lake-manifest.json", ROOT / "scripts/rule_example_checks.py"] + sorted(
         path for path in CORPUS.rglob("*") if path.is_file())
     checker_before = snapshot(checker_paths)
-    with tempfile.TemporaryDirectory(prefix="rule-examples-", dir=ROOT / "tmp") as raw:
+    with CorpusEvidenceWriter(options.evidence, options.rules is None, selected, checker_before) as evidence, \
+            tempfile.TemporaryDirectory(prefix="rule-examples-", dir=ROOT / "tmp") as raw:
         scratch = Path(raw)
         def produce(rule: str, phase: str, source_text: str | None = None, producer_claim: str | None = None) -> dict:
             spec = specs[rule]
@@ -231,9 +288,7 @@ def main() -> None:
             while pending:
                 record = pending.popleft().result()
                 records.append(record)
-                options.evidence.parent.mkdir(parents=True, exist_ok=True)
-                options.evidence.write_text(json.dumps({"schemaVersion": 1, "completeCorpus": options.rules is None, "selected": selected,
-                    "checkerBefore": checker_before, "checkerAfter": snapshot(checker_paths), "records": records}, indent=2) + "\n")
+                evidence.append(record, snapshot(checker_paths))
                 admit_record(record)
                 print(f"{record['rule']}/{record['phase']}: qualified {record['kind']} ({record['detectorSeconds']:.2f}s detector)", flush=True)
                 if job := next(jobs, None):
@@ -286,10 +341,7 @@ def main() -> None:
                 admit_record(missing, "missing result source account")
                 admit_record(record)
                 controls.append(missing)
-        exported = json.loads(options.evidence.read_text())
-        exported["admissionControls"] = controls
-        exported["checkerAfter"] = snapshot(checker_paths)
-        options.evidence.write_text(json.dumps(exported, indent=2) + "\n")
+        evidence.finalize(controls, snapshot(checker_paths))
     checked = run([str(ROOT / ".lake/build/bin/ruleExampleQualification"),
                    str(options.evidence.resolve())])
     if checked.returncode:
