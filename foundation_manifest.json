@@ -2,6 +2,12 @@
   "schema-version": 2,
   "surfaces": [
     {
+      "library": "StrictLeanPolicy",
+      "claim": "standard-logical",
+      "execution": "report",
+      "rationale": "Pure policy categories, structural identities, admitted observations, and invariant-preserving collections used by the checker. Every declaration is checked under its exact transitive axiom set. The library proves finite-observation classification, declaration/execution decisions and concrete acceptance. These guarantees do not authenticate compiler or filesystem observations or establish global operational integration."
+    },
+    {
       "library": "StrictLeanVerification",
       "claim": "standard-logical",
       "execution": "report",
@@ -26,12 +32,6 @@
       "claim": "standard-logical",
       "execution": "report",
       "rationale": "The complete-application dogfooding surface: admission, update, and strict state/error composition contracts are proved about the definitions auditApp runs, alongside the retained total fold. The limiter state/error operations and their proofs are choice-free; the input parser and dependent required-contract interface transitively use Classical.choice through core String internals, as does the IO root. The surface claim is standard-logical and each declaration retains its exact axiom report. The IO shell is trusted execution substrate, so the execution mode stays report."
-    },
-    {
-      "library": "StrictLeanPolicy",
-      "claim": "standard-logical",
-      "execution": "report",
-      "rationale": "Pure policy categories, structural identities, admitted observations, and invariant-preserving collections used by the checker. Every declaration is checked under its exact transitive axiom set. The library proves finite-observation classification, declaration/execution decisions and concrete acceptance. These guarantees do not authenticate compiler or filesystem observations or establish global operational integration."
     }
   ],
   "excluded-libraries": [
