@@ -5,11 +5,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      root_build_diagnostic:
-        description: Temporary allocation083 A/B/A evidence collection (publisher dispatches once)
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -131,45 +126,3 @@ jobs:
       - name: Verify one-rule linter and Verso integration
         timeout-minutes: 10
         run: python3 examples/rule-reference-prototype/run.py
-
-  # Temporary allocation083; remove with its harness after the single collection.
-  # This never substitutes for verify, which also runs on explicit dispatch.
-  root-build-diagnostic:
-    if: >-
-      ${{ github.event_name == 'workflow_dispatch' &&
-          inputs.root_build_diagnostic == true &&
-          github.repository == 'rbeauchamp/strict-lean' &&
-          github.ref == 'refs/heads/codex/strict-lean-7-integration' &&
-          github.run_attempt == 1 }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          path: diagnostic-source
-
-      # Loading the harness is not dependency provisioning. The local Node action
-      # receives the runner cache-service context and starts one GNU total300
-      # owner before downloading/restoring the same pinned cache action's bundle.
-      - name: Provision pinned artifacts and isolated roots under total300
-        uses: ./diagnostic-source/.github/actions/root-build-diagnostic
-        with:
-          toolchain-key: lean-toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('diagnostic-source/lean-toolchain') }}
-          dependencies-key: lean-dependencies-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('diagnostic-source/lean-toolchain', 'diagnostic-source/lake-manifest.json', 'diagnostic-source/lakefile.lean') }}
-
-      - name: Collect sequential root-only A B A under outer420
-        run: timeout --signal=KILL 420s python3 diagnostic-source/scripts/root_build_diagnostic.py measure
-
-      - name: Retain compact diagnostic receipts in job log
-        if: always()
-        shell: bash
-        run: |
-          for receipt in tmp/root-build-diagnostic/receipts/*; do
-            test -f "$receipt" || continue
-            printf '\n--- %s ---\n' "$receipt"
-            cat "$receipt"
-          done
