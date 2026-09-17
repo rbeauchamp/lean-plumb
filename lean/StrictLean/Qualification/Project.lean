@@ -1,0 +1,54 @@
+import StrictLean.Qualification.Support
+import StrictLeanQualification.Json
+
+/-! Shared disposable-adopter setup for producer and history controls. Lake's pinned
+manifest is reused, not resolved against moving branches. All subprocesses scrub the
+calling checkout's Lean paths. This adapter performs trusted IO, not policy inference. -/
+namespace StrictLean.Qualification
+open Lean System StrictLeanQualification
+
+/-- Remove inherited paths for commands running in isolated adopters. -/
+def cleanEnv : Array (String × Option String) := #[("LEAN_PATH", none), ("LEAN_SRC_PATH", none)]
+
+/-- A structural Lean name represented with the public tagged-name transport. -/
+def nameJson (name : String) : Json := toJson (name.splitOn "." |>.map fun part => #["str", part])
+
+/-- Fresh source-bound adopter sharing only pinned dependency artifacts. -/
+def prepareProject (root project : FilePath) (packageName claim rationale : String) : IO Unit := do
+  IO.FS.writeBinFile (project / "lean-toolchain") (← IO.FS.readBinFile (root / "lean-toolchain"))
+  IO.FS.writeFile (project / "lakefile.lean")
+    s!"import Lake\nopen Lake DSL\npackage {packageName}\nrequire strict_lean from {toJson root.toString |>.compress}\n@[default_target] lean_lib Example\n"
+  writeJson (project / "foundation_manifest.json") (Json.mkObj [
+    ("schema-version", toJson (2 : Nat)), ("surfaces", toJson #[Json.mkObj [
+      ("library", .str "Example"), ("claim", .str claim), ("execution", .str "checked"),
+      ("rationale", .str rationale)]]),
+    ("excluded-libraries", toJson (#[] : Array Json)), ("excluded-executables", toJson (#[] : Array Json))])
+  let manifest ← readJson (root / "lake-manifest.json")
+  let packages ← IO.ofExcept (manifest.getObjValAs? (Array Json) "packages")
+  let packages := packages.map (·.setObjVal! "inherited" (.bool true)) |>.push (Json.mkObj [
+    ("name", .str "strict_lean"), ("scope", .str ""), ("type", .str "path"),
+    ("dir", .str root.toString), ("configFile", .str "lakefile.lean"),
+    ("manifestFile", .str "lake-manifest.json"), ("inherited", .bool false)])
+  writeJson (project / "lake-manifest.json") (manifest.setObjVal! "packages" (toJson packages))
+  IO.FS.createDirAll (project / ".lake")
+  let result ← run root "ln" #["-s", (root / ".lake/packages").toString, (project / ".lake/packages").toString]
+  requireChecks [⟨"pinned dependency link", result.exitCode == 0⟩]
+
+/-- Delete only this owned scratch project's build output before a restored control. -/
+def clearBuild (project : FilePath) : IO Unit := do
+  if ← (project / ".lake/build").pathExists then IO.FS.removeDirAll (project / ".lake/build")
+
+/-- Require a new result path and run the actual public checker. -/
+def observeProject (root project output : FilePath) (flags : Array String) : IO (IO.Process.Output × Json) := do
+  requireChecks [⟨"result path must be fresh", !(← output.pathExists)⟩]
+  let result ← run project (root / ".lake/build/bin/axiomGate").toString
+    (#["--project", project.toString] ++ flags ++ #["--json-out", output.toString]) cleanEnv
+  return (result, ← readJson output)
+
+/-- Preserve the existing Lean-native transport-admission mutation campaigns. -/
+def transportControl (root : FilePath) (modulePath : String) (output : FilePath) : IO Unit := do
+  let result ← run root "lake" #["env", "lean", "--run", modulePath, output.toString] cleanEnv
+  requireChecks [⟨s!"transport qualification {modulePath}: {result.stdout}{result.stderr}", result.exitCode == 0⟩]
+  IO.print result.stdout
+
+end StrictLean.Qualification

@@ -5,6 +5,6 @@ outside every positive Lake library. `Violation.lean` may compile successfully: 
 registered detector must establish its advertised result.
 
 Currently SL5001 and SL5002 have fresh-project fixed/violation/fresh-restored controls through
-`scripts/producer_checks.py`. Both retain the same universally quantified reflexivity claim;
+`lean/StrictLean/Qualification/Producer.lean`. Both retain the same universally quantified reflexivity claim;
 the fix adds only documentation. See [producer evidence](../../docs/guides/engine-producers.md)
 for exact commands, exported evidence, scope and remaining twenty-rule corpus work.

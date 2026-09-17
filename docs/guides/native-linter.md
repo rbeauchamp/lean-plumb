@@ -105,7 +105,7 @@ ranges fail. Do not rerun a complete imported environment scan per command,
 create a second policy implementation, or use parser regexes for ownership.
 Add modes only for actual producer interfaces and document their partial scope.
 
-`python3 scripts/native_linter_checks.py` qualifies the actual native bridge,
+`lake exe qualify native` qualifies the actual native bridge,
 including warning promotion, codes, current/imported ownership, private/generated
 coverage and both documentation formats. The existing public adopter controls
 in `checkerSelftest --policy-domain-only` qualify root coverage and forbidden

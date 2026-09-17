@@ -2,6 +2,18 @@
   "schema-version": 2,
   "surfaces": [
     {
+      "library": "StrictLeanVerification",
+      "claim": "standard-logical",
+      "execution": "report",
+      "rationale": "Cold-start verification driver with exact proof-bearing argument selection. Recipes are interpreted through a trusted process IO boundary under verify.sh's single external deadline; the proof does not authenticate subprocess execution."
+    },
+    {
+      "library": "StrictLeanQualification",
+      "claim": "standard-logical",
+      "execution": "report",
+      "rationale": "Pure observation-validation contracts used by Lean qualification drivers. Soundness, completeness, first-refusal and composition concern the supplied Lean data, not authenticity of process/filesystem/compiler observations. Runtime and library boundaries are reported separately."
+    },
+    {
       "library": "Audit",
       "claim": "standard-logical",
       "rationale": "The Audit library contains Real-based examples. Every declaration is still labeled from its own exact axiom set under docs/standard/4 \u00a74.5."
@@ -33,6 +45,10 @@
     }
   ],
   "excluded-executables": [
+    {
+      "executable": "qualify",
+      "rationale": "Operational qualification dispatcher and IO adapters in the excluded StrictLean library. It invokes proved observation oracles from the positive StrictLeanQualification library; filesystem, process and compiler observations are not authenticated by those proofs."
+    },
     {
       "executable": "axiomGate",
       "rationale": "Checker tooling executable; its root module belongs to the excluded StrictLean library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."

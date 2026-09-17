@@ -88,7 +88,7 @@ complete reached-node/edge census, source identity across every stage, or global
 A temporarily changed source restored between observations is outside what before/after byte
 equality establishes. #13/#7 retain the broader snapshot and producer composition obligations.
 
-The `producers` diagnostic now also runs `scripts/history_checks.py`: real fresh/incremental
+The `producers` diagnostic also runs `StrictLean.Qualification.History`: real fresh/incremental
 project and file invocations check overwritten history, an unsupported source evaluator, and
 fresh restoration. Actual returned records are mutated through the Lean decoder to qualify
 missing requests/receipts/edges, changed bytes, missing paths and concealed unavailability.
@@ -112,7 +112,7 @@ positive/owned-axiom/restored controls; each carries module documentation so the
 axiom violation is isolated. Restored controls start with empty root build output. Optional raw export:
 
 ```sh
-python3 scripts/producer_checks.py --evidence tmp/producer-examples.json
+lake exe qualify producers --evidence tmp/producer-examples.json
 ```
 
 The export embeds exact source bytes and canonical diagnostic/result data, including the
