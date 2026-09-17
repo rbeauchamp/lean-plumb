@@ -430,3 +430,75 @@ for `CheckedRecord`, `collectChecks`, `FullyChecked` and the proof-bearing `chec
 architecture. No con-leche code/proofs are imported. All residual semantic-review accounts
 and the explicit external-runtime limits remain; mechanical acceptance is not whole-standard
 semantic conformance or a proof that an external checker process is correct.
+
+### CI timeout repair: share transcript source lines
+
+Assigned CI phase at `504e626f68ddb441a3d6e16202a132ae22a79554` only; no pipeline,
+publication or hosted workflow was started by this repair. Check105067810791 in
+run35179303502 expired at the unchanged420-second deadline during fence inspection.
+Its complete declaration phase took223.385s. A bounded local diagnostic on the
+unchanged source completed that phase in133.359s; this was not cold-root acceptance.
+Native stack samples identified repeated `String.splitOn` inside
+`Frontend.Transcript.validCoordinates`, reached through `InventoryValid` and
+`admitInventory` during `Acceptance.freeze`.
+
+Line-taking coordinate helpers factor the existing predicates. The executed transcript
+checker derives a line list from its own exact source before traversing commands,
+evaluators and bindings. Its declaration-coordinate decision separately shares one
+source split across declarations. Public source-taking wrappers preserve their meanings.
+`Frontend.Transcript.validCoordinates_eq` and `Ranges.validForLines_eq` are universal,
+with no added hypotheses, proving exact equalities by reduction. Reported transitive
+axioms of both are `propext`, `Classical.choice`, `Quot.sound` (Standard-Logical).
+Temporary kernel-checked reduction proofs additionally reconciled the original
+position, UTF16, range and entire `InventoryValid` formulas. `InventoryValid` itself
+is unchanged; its new decision instance has that same proposition as its type.
+Source/FileMap checks, refusal reasons, snapshot acquisition, worker transport and
+accepted-result boundaries are unchanged.
+
+Focused executable `admitInventory` controls passed: Unicode/CRLF/trailing empty line;
+zero/nonexistent line, oversized column, reversed range, invalid evaluator/binding
+range and mismatched declaration identities refused with the existing inventory error;
+each mutation restored to a passing control. UTF16 start/end-column mismatches and
+selection outside its full range were also refused and restored. Missing optional
+ranges remain permitted.
+These controls supplement the universal equality theorem; no source-text test was added.
+An exploratory interpreted Lake snapshot probe hit Lean's interpreter unreachable
+assertion and supplied no timing evidence; native profiling supplied the diagnosis.
+
+Fresh-context independent repair review: CLEAN for the final scoped proof and execution
+linkage. Review of an intermediate attempt caught that a let inside a proposition
+was lost in Decidable synthesis. The final explicit executable decision fixes that:
+generated C performs two shared splits per fully checked transcript, one for syntax
+ranges and one for declaration ranges. Intermediate local decision-helper attempts
+failed compilation and were replaced; final build105jobs and focused controls passed.
+Reviewed `Admission.lean` SHA256:
+`7a8a5a0d0747bcff8f7b757e06299724503630c22a47495999fcad644e096bef`.
+This is source/compiler inspection, not a proof of compiled machine-code correctness.
+The reusable hoisting/equality lesson was added to `lean-ci`; system skill validation passed.
+
+The first, transcript-only repair passed cold420 in293.294s with declaration phase
+124.802s, but did not remove the equivalent declaration-range cost. That result is
+superseded by final-source verification below; it is not evidence for the later code.
+Logs and bounded profiling observations are under `tmp/ci-timeout/` in the gate worktree.
+The attempted snapshot microprobe and temporary proof/control sources were removed.
+
+Final modified-source cold-root `./scripts/verify.sh`: **PASS**, exit0 in289.456s,
+root `.lake/build` absent at start, unchanged hard420 deadline. Lean4.33.1,
+compiler819816b2e0a3bf405af45ae5c7af2491d8f5bee6,
+Mathlib0df444a360eaa60ab8c11dca51a86af692955474. All119 build jobs,
+registry/CLI controls and36 native bridge controls passed. The actual project audit
+covered29owned modules and4432declarations, all three surfaces Standard-Logical with
+execution report mode; finalization accepted6174project jobs and97documentation jobs.
+All94fences passed:70conforming positives,23intended rejections,1trusted teaching.
+Declaration phase120.377s; fence compilation20.951s; inspection44.158s.
+These local observations do not establish hosted performance or a universal time bound.
+
+Exact claimed module arrays (the executable `Main` belongs to the AuditApp assignment):
+
+- Audit: `Audit`, `Audit.Research`, `Audit.Basic`, `Audit.Economy`, `Audit.Server`, `Audit.DocPrelude`, `Audit.DocClaims`.
+- AuditApp: `AuditApp`, `AuditApp.Limiter`, `AuditApp.Refinement`, `AuditApp.Demo`, `Main`.
+- StrictLeanPolicy: `StrictLeanPolicy`, `StrictLeanPolicy.Specification`, `StrictLeanPolicy.Identity`, `StrictLeanPolicy.Claim`, `StrictLeanPolicy.Decision`, `StrictLeanPolicy.Pattern`, `StrictLeanPolicy.Foundation`, `StrictLeanPolicy.Execution`, `StrictLeanPolicy.Admission`, `StrictLeanPolicy.Domain`, `StrictLeanPolicy.RoleSpecification`, `StrictLeanPolicy.Plan`, `StrictLeanPolicy.Collections`, `StrictLeanPolicy.Codec`, `StrictLeanPolicy.Observation`, `StrictLeanPolicy.ResultState`, `StrictLeanPolicy.Acceptance`.
+
+Normative meaning and modes are unchanged, so no normative prose or fence changes were
+needed. Broader diagnostic campaigns were not rerun or relabelled PASS. Final hosted CI,
+new commit identity and all outer delivery phases remain with the active executor.

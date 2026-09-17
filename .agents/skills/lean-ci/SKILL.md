@@ -45,6 +45,11 @@ faster sample.
   parallelism only where environment/scratch ownership, result association and lifetimes
   permit it; account for simultaneous memory demand. Sharing immutable imported regions
   is different from sharing mutable environments or an executable's ownership closure.
+- Hoist immutable source-derived work out of per-record loops: coordinate checks can
+  share one source-line split per transcript. Prove equality to the original executed
+  predicate, and inspect generated code to confirm the compiler retains the sharing.
+  A `let` inside a proposition may disappear during `Decidable` synthesis; put shared
+  computation in the executable decision and transfer it by definitional equality or proof.
 - Trace growing-prefix serialization and repeated hashing/import setup. Reuse data only
   within its valid identity and lifetime. Moving output to a terminal boundary must retain
   required evidence on normal, typed-refusal and exceptional exits; an interrupted or

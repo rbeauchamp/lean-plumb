@@ -36,34 +36,69 @@ instance instDecidableDeclarationValid (d : Declaration) : Decidable d.Valid := 
 
 /-- Codepoint coordinates select an existing line and a boundary on that line.
 The operational bridge separately checks correspondence with Lean's FileMap. -/
+def Position.validForLines (p : Position) (lines : List String) : Bool :=
+  p.line > 0 && (lines[p.line - 1]?).any (fun line => p.column ≤ line.length)
+
 def Position.validFor (p : Position) (source : String) : Bool :=
-  p.line > 0 && ((source.splitOn "\n")[p.line - 1]?).any (fun line => p.column ≤ line.length)
+  p.validForLines (source.splitOn "\n")
 
 def positionLE (a b : Position) : Bool :=
   a.line < b.line || (a.line == b.line && a.column ≤ b.column)
 
-def utf16Column (p : Position) (source : String) : Nat :=
-  ((((source.splitOn "\n")[p.line - 1]?).getD "").toList.take p.column).foldl
+def utf16ColumnLines (p : Position) (lines : List String) : Nat :=
+  (((lines[p.line - 1]?).getD "").toList.take p.column).foldl
     (fun n c => n + if c.toNat > 65535 then 2 else 1) 0
 
-def Range.validFor (r : Range) (source : String) : Bool :=
-  r.start.validFor source && r.end.validFor source && positionLE r.start r.end &&
-  r.startUtf16 == utf16Column r.start source && r.endUtf16 == utf16Column r.end source
+def utf16Column (p : Position) (source : String) : Nat :=
+  utf16ColumnLines p (source.splitOn "\n")
 
-def Ranges.validFor (r : Ranges) (source : String) : Bool :=
-  r.range.validFor source && r.selectionRange.validFor source &&
+def Range.validForLines (r : Range) (lines : List String) : Bool :=
+  r.start.validForLines lines && r.end.validForLines lines && positionLE r.start r.end &&
+  r.startUtf16 == utf16ColumnLines r.start lines && r.endUtf16 == utf16ColumnLines r.end lines
+
+def Range.validFor (r : Range) (source : String) : Bool :=
+  r.validForLines (source.splitOn "\n")
+
+def Ranges.validForLines (r : Ranges) (lines : List String) : Bool :=
+  r.range.validForLines lines && r.selectionRange.validForLines lines &&
   positionLE r.range.start r.selectionRange.start && positionLE r.selectionRange.end r.range.end
 
-def Frontend.SyntaxRange.validFor (r : Frontend.SyntaxRange) (source : String) : Bool :=
-  r.start.validFor source && r.end.validFor source && positionLE r.start r.end
+def Ranges.validFor (r : Ranges) (source : String) : Bool :=
+  r.validForLines (source.splitOn "\n")
 
+/-- The source-derived line list preserves codepoint/UTF16 bounds and containment. -/
+theorem Ranges.validForLines_eq (r : Ranges) (source : String) :
+    r.validForLines (source.splitOn "\n") =
+      (r.range.validFor source && r.selectionRange.validFor source &&
+        positionLE r.range.start r.selectionRange.start &&
+        positionLE r.selectionRange.end r.range.end) := rfl
+
+def Frontend.SyntaxRange.validForLines (r : Frontend.SyntaxRange) (lines : List String) : Bool :=
+  r.start.validForLines lines && r.end.validForLines lines && positionLE r.start r.end
+
+def Frontend.SyntaxRange.validFor (r : Frontend.SyntaxRange) (source : String) : Bool :=
+  r.validForLines (source.splitOn "\n")
+
+/-- Split this immutable source once, shared by every command, evaluator and binding.
+The line list is derived here; a caller cannot supply an unrelated coordinate index. -/
 def Frontend.Transcript.validCoordinates (t : Frontend.Transcript) : Bool :=
+  let lines := t.sourceContent.splitOn "\n"
   t.commands.all fun command =>
-    command.commandRange.all (·.validFor t.sourceContent) &&
-    command.evaluators.all (fun e => e.range.all (·.validFor t.sourceContent)) &&
-    command.bindings.all (fun b => b.range.all (·.validFor t.sourceContent)) &&
+    command.commandRange.all (·.validForLines lines) &&
+    command.evaluators.all (fun e => e.range.all (·.validForLines lines)) &&
+    command.bindings.all (fun b => b.range.all (·.validForLines lines)) &&
     command.added == command.addedDeclarations.map (·.name) &&
     command.added.all (· != .anonymous)
+
+/-- Sharing the source split preserves the original per-range check for every transcript,
+including missing ranges, invalid positions, reversed spans and declaration identities. -/
+theorem Frontend.Transcript.validCoordinates_eq (t : Frontend.Transcript) :
+    t.validCoordinates = (t.commands.all fun command =>
+      command.commandRange.all (·.validFor t.sourceContent) &&
+      command.evaluators.all (fun e => e.range.all (·.validFor t.sourceContent)) &&
+      command.bindings.all (fun b => b.range.all (·.validFor t.sourceContent)) &&
+      command.added == command.addedDeclarations.map (·.name) &&
+      command.added.all (· != .anonymous)) := rfl
 
 /-- Admitted inventories have one declaration per name and one transcript per module.
 Ordered evaluator and mutual-group sequences are intentionally not normalized. -/
@@ -76,9 +111,20 @@ def InventoryValid (decls : Array Declaration) (transcripts : Array Frontend.Tra
     t.leanVersion = "4.33.1" ∧ t.leanGitHash = "819816b2e0a3bf405af45ae5c7af2491d8f5bee6" ∧
     t.validCoordinates = true ∧
     ∀ d ∈ decls, d.module = t.module → d.ranges.all (·.validFor t.sourceContent) = true)
+/-- Decide the unchanged declaration-coordinate relation using one supplied line list. -/
+def declarationCoordinatesDecidable (decls : Array Declaration)
+    (moduleName : Lean.Name) (lines : List String) : Decidable
+    (∀ d ∈ decls, d.module = moduleName → d.ranges.all (·.validForLines lines) = true) :=
+  inferInstance
+
 instance instDecidableInventoryValid (decls : Array Declaration) (transcripts : Array Frontend.Transcript) :
     Decidable (InventoryValid decls transcripts) := by
   unfold InventoryValid
+  -- A let in the proposition is reduced during instance synthesis. Bind the
+  -- derived lines in the executable decision so all declarations share them.
+  letI (t : Frontend.Transcript) : Decidable
+      (∀ d ∈ decls, d.module = t.module → d.ranges.all (·.validFor t.sourceContent) = true) :=
+    declarationCoordinatesDecidable decls t.module (t.sourceContent.splitOn "\n")
   infer_instance
 
 /-- No raw constructor or decoder can omit the inventory-validity proof. -/
