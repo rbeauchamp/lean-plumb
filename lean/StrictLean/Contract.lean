@@ -1,4 +1,4 @@
-module
+import StrictLean
 
 @[expose] public section
 /-!
