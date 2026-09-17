@@ -1,4 +1,4 @@
-import StrictLean
+import StrictLean.MaterialClaim
 
 @[expose] public section
 /-!
