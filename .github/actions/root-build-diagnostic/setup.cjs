@@ -17,7 +17,7 @@ try {
     fs.writeFileSync(path.join(base, 'setup-start'), String(Date.now() / 1000));
     run('timeout', ['--signal=KILL', '300s', process.execPath, __filename, 'bounded']);
   } else {
-    const engine = path.join(base, 'cache-restore.cjs');
+    const engine = path.join(base, 'cache-restore.mjs');
     // Same immutable cache action as ordinary CI; its bundled restore entrypoint.
     run('curl', ['--fail', '--location', '--silent', '--show-error',
       'https://raw.githubusercontent.com/actions/cache/55cc8345863c7cc4c66a329aec7e433d2d1c52a9/dist/restore-only/index.js',

@@ -7,6 +7,23 @@ explicit dispatch, interpretation, subsequent repair, and removal of this job,
 local setup action, harness, and handoff before delivery. No dispatch or Lean
 compilation was performed during preparation.
 
+## First dispatched attempt and loader repair
+
+[Run 35243312991](https://github.com/rbeauchamp/strict-lean/actions/runs/35243312991)
+at `00c6d069cdfb813901890abe9eca2d55ccc12180` failed during setup: the
+pinned cache restore bundle uses ES modules, but the adapter saved it as `.cjs`.
+Node 24.19.0 rejected its first `import`; no A/B/A measurements were collected.
+The adapter now saves that same bundle as `.mjs`. Locally, Node 24.19.0 reproduced
+the original syntax failure; the identical `.mjs` bundle passed syntax checking
+and executed with an empty environment to the cache-backend-unavailable path
+(`cache-hit=false`). This verifies module loading, not hosted cache restoration.
+
+The single authorized dispatch has been consumed. This repair does not authorize
+another experiment. The outer executor must resolve further diagnostic allocation
+and temporary-surface removal. Both ordinary verification runs (35243312991 and
+35243219772) still failed at the unchanged 420-second deadline. No checker repair,
+Lean compilation, dispatch, or pipeline control was performed in this fix round.
+
 ## Admission and budgets
 
 `root_build_diagnostic` defaults to Boolean false. The distinct job requires
