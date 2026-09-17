@@ -29,12 +29,22 @@ private def fileBytes (path : FilePath) : IO Json := do
 private def inputsDirty (root : FilePath) (paths : Array FilePath) : IO Bool := do
   let mut offset := 0
   while offset < paths.size do
+    -- Consecutive, nonempty slices preserve the input order and multiplicity.
+    -- Bound both argv entries and UTF-8 bytes (including each terminating NUL).
+    -- An oversized individual path stays a singleton, leaving its failure to Git/OS.
+    let mut stop := offset + 1
+    let mut bytes := paths[offset]!.toString.utf8ByteSize + 1
+    while stop < paths.size && stop - offset < 512 do
+      let nextBytes := paths[stop]!.toString.utf8ByteSize + 1
+      if bytes + nextBytes > 96 * 1024 then break
+      bytes := bytes + nextBytes
+      stop := stop + 1
     let status ← runProcess root "git" (#["--literal-pathspecs", "status", "--porcelain=v1",
       "-z", "--untracked-files=all", "--ignored=matching", "--"] ++
-      (paths.extract offset (offset + 64)).map (·.toString))
+      (paths.extract offset stop).map (·.toString))
     unless status.succeeded do throw <| IO.userError "dependency input status unavailable"
     if !status.stdout.isEmpty then return true
-    offset := offset + 64
+    offset := stop
   return false
 
 def dependency (project : FilePath) (package : String) (root : FilePath)
@@ -67,14 +77,14 @@ def dependency (project : FilePath) (package : String) (root : FilePath)
 
 /-- Resolve dependency names/locations through the frozen Lake discovery. -/
 def dependencies (inventory : Lake.SurfaceInventory) : IO (Array DependencyObservation) :=
-  inventory.dependencies.mapM fun entry =>
+  timedPhase "dependency snapshot capture" <| inventory.dependencies.mapM fun entry =>
     dependency inventory.root entry.package entry.root (entry.sources.map fun source => (source.module, source.source))
       entry.configurationPaths
 
 /-- Reconcile the frozen Lake root and dependency inputs at the terminal boundary. -/
 def inputsUnchanged (inventory : Lake.SurfaceInventory)
     (before : Array DependencyObservation) : IO Unit := do
-  let current ← Lake.surfaceInventory inventory.root
+  let current ← timedPhase "terminal Lake inventory" <| Lake.surfaceInventory inventory.root
   unless current.root == inventory.root && current.leanLibDir == inventory.leanLibDir &&
       current.leanPath == inventory.leanPath && current.leanSrcPath == inventory.leanSrcPath &&
       current.libraries == inventory.libraries && current.executables == inventory.executables do

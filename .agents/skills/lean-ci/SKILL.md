@@ -17,6 +17,9 @@ admission, policy evaluation, serialization and downstream qualification. Trace 
 start and stop in its owner: a line labelled “detector” may include a fresh Lake build and
 several child processes while excluding a subsequent receipt qualifier. Native editor
 snapshot latency and a pure predicate's cost are different measurements.
+When timing pure work lifted into IO, suspend it with `IO.lazyPure`: an eager
+`IO.ofExcept expensiveResult` can compute the result before the timer starts.
+Inspect generated calls to confirm the measured work remains inside the timed action.
 
 A deadline kill identifies unfinished work, not its physical cause. Preflight free memory
 and CPU count do not establish utilization or peak memory during the run. Use existing
@@ -53,6 +56,14 @@ faster sample.
   predicate, and inspect generated code to confirm the compiler retains the sharing.
   A `let` inside a proposition may disappear during `Decidable` synthesis; put shared
   computation in the executable decision and transfer it by definitional equality or proof.
+- Before instantiating large natural powers, inspect the elaborated `Pow`/`NPow`
+  instances in the helper bound, auxiliary proof **and final implementation goal**.
+  Different instance paths can force expensive ground reduction during matching.
+  Prove their correspondence at a symbolic exponent first; keep positivity, regrouping
+  and quotient bounds parameterized until that bridge exists. In a checked Acorn
+  arithmetic development the symbolic bridge was reflexive; this does not establish
+  equality of arbitrary instances, execution reachability, liveness or runtime benefit.
+  Raising reduction limits or changing domains is not a substitute for the bridge.
 - Trace growing-prefix serialization and repeated hashing/import setup. Reuse data only
   within its valid identity and lifetime. Moving output to a terminal boundary must retain
   required evidence on normal, typed-refusal and exceptional exits; an interrupted or

@@ -618,3 +618,161 @@ Verified source SHA256:
 
 The active executor owns the repair commit, exact-head hosted CI and all remaining
 pipeline/delivery phases. No new hosted pass, merge or full campaign pass is claimed.
+
+## CI repair: bounded Git-status batches and phase attribution
+
+Assigned only the active CI repair at HEAD `f4b8fca809ca30e0ab329d79edab8a0d562def3a`,
+base tree `9730dda4a562c24797b71edf95fb7f1c877ce2c3`, following failed hosted
+check105084494069/run35184816180. The hosted420 deadline failure remains FAIL.
+No pipeline control, commit, publication, hosted rerun or other delivery phase was performed.
+
+### Change and preservation argument
+
+`Checker/Snapshot.lean` partitions the identical ordered Lake-selected source/configuration
+path array into consecutive nonempty slices of at most512 entries and96KiB of UTF-8
+pathname arguments including NUL terminators. One oversized path remains a singleton;
+Git/OS failures still refuse. The byte bound excludes fixed arguments, argv pointers and
+environment overhead; it is not a universal OS resource-admission theorem. The whole-run
+maximum was75130 pathname bytes/512paths with3813 environment bytes.
+
+For array length n, initially offset=0. Each iteration has offset<stop<=n and advances
+exactly to stop. Thus consecutive half-open slices cover each input occurrence once,
+in its original order, until the existing dirty/error short circuit; exhaustion covers
+all inputs. Empty input returns false without executing status. Assuming successful Git
+status over stable inputs, nonempty output for a union of literal pathspecs means some
+selected input is dirty: OR of batch results is invariant under this partition. Rename
+record formatting need not be identical for this Boolean property. External Git semantics,
+filesystem/process observations and change-and-restore limits remain trusted.
+
+The literal-pathspec/status options are unchanged. Every executed nonzero status refuses
+before checking stdout; process-launch errors propagate. No failure is converted to clean
+or dirty success. Regrouping changes command sizes, observation times and which paths share
+a command, so no universal equivalence of external resource/concurrency/error traces is
+claimed. All canonical-path binding, exact byte/configuration/inventory comparisons,
+pre-build captures and terminal recaptures remain; none is cached or removed.
+The existing con-leche-inspired accepted-result construction, policies, worker acceptance,
+parent recomputation, identities and supported modes are unchanged.
+
+Bounded attribution uses the existing `timedPhase` in Snapshot, AxiomGate and Documentation.
+It brackets dependency capture, terminal Lake inventory, raw surface-packet read/parse/decode,
+worker/parent freeze and finalization, parent snapshot assembly, documentation freeze,
+legacy/surface-packet output and the unchanged human boundary loop. Pure computations use
+`IO.lazyPure` so they execute inside the measured IO action. Timers add progress lines and
+logging overhead, not omitted diagnostics or altered report values. They measure named
+combined work, not isolated CPU, memory pressure, pipe backpressure or scheduler causes.
+
+### Focused qualification and review
+
+`lake build axiomGate docFenceAudit`: PASS105jobs, including final lazy-timing repair.
+The real `Snapshot.dependency` interface passed32 controls before and32 after the batching
+change: empty/1/63/64/65/511/512/513/1025 inputs; dirty paths on old/new boundaries;
+tracked/ignored additions, removals and renames; unrelated artifacts; injected Git command
+failure; restored positives; literal metacharacters/Unicode and long-path byte boundaries.
+The harness observed real Git argv and asserted exact ordered prefix/full partition and
+unchanged options, Boolean/error outcomes and the new count/byte bounds. For1025clean
+paths,17calls became3; the long-path case split190+10paths under the byte bound.
+These controls isolate Git batching through the configuration-path channel; they do not
+pretend that samples prove external Git or process semantics.
+
+The existing `python3 scripts/acceptance_snapshot_checks.py --group dependencies` passed
+both Git and non-Git dependency cases: actual Lake-selected ignored/imported/unimported
+sources, changed source/configuration, newly discovered source and restored positives,
+unrelated synthetic files, custom build outputs and the public fresh checker success route.
+No recurring diagnostic campaign or source-string behavior test was added. Unchanged
+policy, packet, history-refusal and mode contracts retain their earlier scoped evidence.
+
+Fresh-context independent review was CLEAN after one attribution repair. Generated C
+initially showed eager pure computations before their timers; `IO.lazyPure` repaired this,
+and focused generated-call review confirmed suspension for finalization/snapshot/freezing
+and output conversion. Final skill review was CLEAN; system `skill-creator` validator PASS.
+The skill captures the observed eager-timing lesson and the explicitly supplied checked
+Acorn arithmetic lesson about symbolic Pow/NPow correspondence in bound, auxiliary proof
+and final implementation goal. No new Acorn execution, reachability, liveness or benefit
+claim is made. An interpreted root-inventory probe hit the known IR-interpreter unreachable
+assertion; its failure log is retained. A native helper using the unchanged Lake inventory
+implementation produced the pre/post receipts. This failed probe was not acceptance.
+
+### Whole-run receipt and attribution
+
+Actual unmodified complete cold-root `./scripts/verify.sh`: **PASS**, exit0 in
+258.015080125s under the unchanged hard420 limit. Pinned dependency artifacts were already
+present; no tool/system installation was performed. Root `.lake/build` was absent at entry;
+prior root output/report were preserved under `tmp/ci-round5/` and not reused by the gate.
+The command ran once, with `GIT_TRACE2_EVENT` recording subprocess timing during that same
+required run. No separate benchmark campaign or stitched acceptance was used.
+
+Lean4.33.1/compiler819816b2e0a3bf405af45ae5c7af2491d8f5bee6,
+Mathlib0df444a360eaa60ab8c11dca51a86af692955474. All119buildjobs, registry/CLI and36native
+controls passed. The same29owned modules listed earlier yielded4441declarations:
+Audit313, AuditApp197, StrictLeanPolicy3931;1649theorems,2359definitions,109recursors,
+214constructors,109inductives and1opaque. Exact transitive axiom inventory is retained;
+the union is onlyClassical.choice/Quot.sound/propext. All three surfaces remain
+Standard-Logical with report execution. Accepted6184project and97documentation jobs;
+all94fences passed:70positive,23negative and1teaching.
+
+Observed seconds (nested/concurrent intervals must not be summed as disjoint work):
+
+| Scoped operation | Seconds |
+| --- | ---: |
+| Seven dependency captures, including bytes and Git | 23.000 |
+| Five terminal Lake inventory reloads | 8.706 |
+| Git status child time within those captures | 11.055 |
+| Complete declaration audit | 98.918 |
+| Worker request freeze, including nested rechecks | 15.565 |
+| Worker acceptance finalization | 5.760 |
+| Parent raw packet read/parse/decode | 5.866 |
+| Parent snapshot assembly | 0.423 |
+| Parent request freeze | 9.038 |
+| Parent acceptance finalization | 5.097 |
+| Legacy remap/compress/write | 0.662 |
+| Surface packet construction/serialization/write | 2.481 |
+| Human execution-boundary rendering/writes | 0.035 |
+| Documentation request freeze | 0.001 |
+| Fence compilation / inspection | 22.376 / 45.833 |
+
+All182 observed Git status commands succeeded, covering66787 path occurrences across
+seven complete captures (9541 per capture). The old64path loop would require154calls per
+capture,1078total; the new loop used26per capture,182total. This removes896process starts
+by arithmetic on the actual frozen inventory. The remaining Git status child time was
+11.055s, so this work is measurable rather than absent; the capture time also includes
+source reads and other work. The full local gate passed. No matched whole-run speedup
+estimate follows from comparison to historical247.331s or256.157s runs with different
+conditions. The retained8311path batch64/512 observation is separate. Hosted margin and
+the previous47second parent gap remain UNKNOWN until the outer executor runs exact-head
+hosted checks; local timing does not transfer to Linux or prove a universal bound.
+All18177human boundary lines exactly match the retained preceding repair's cold log.
+
+The9852-file pre/post hash inventories and actual Lake root/dependency inventories were
+identical; HEAD and dirty patch were unchanged throughout. Root bindings include all144
+configured library/executable source occurrences, while the positive claim remains29modules.
+The tested dirty patch SHA256 was
+`3561bc911a3e1c01afbbed030cb68dcb5d7767967999ea60f3231fa93b010048`.
+Raw receipts in `tmp/ci-round5/` include inputs-before/after.json, lake-before/after.json,
+cold420-result.json, cold420.log, git-trace.jsonl, attribution.json, declaration-axiom-inventory.json,
+before/after-controls.json, source-controls.log, output-comparison.json and review.md.
+
+Receipt SHA256:
+- `inputs-before.json`: `56343ab7595a960b5d5b35a398b9aef9667113711c22462375cc14e7b9310c0b`.
+- `inputs-after.json`: `dfaad97b4e0895e4b5f1bf08be2f103abaa5ade9895cb3cb16ed6663c95367ef`.
+- `cold420.log`: `0906f6b8444a2bd8116bed744ad82bfd900a02092f24e31b0bac59469f955388`.
+- `tmp/axiom-report.json`: `47081ac777a83a91272aa05049da3e8091d8e74de7bc3ab25ca873f2bafae53b`.
+
+Tested source SHA256:
+- `lean/StrictLean/Checker/Snapshot.lean`: `1aa6492c439179e61d5a2199b740072f8260bcf4f2142263e15049a39e76ed4b`.
+- `lean/StrictLean/Checker/AxiomGate.lean`: `14013365bdd4245c49a0127a29c2369170a4c11f898b6578ca43426b16ded430`.
+- `lean/StrictLean/Checker/Documentation.lean`: `97ee067f6bf61a9b791008825af0c02c8b6cf12da436f58bb01a5124663514c1`.
+- `.agents/skills/lean-ci/SKILL.md`: `b309b152d696dc21862e16e1e4785cc7ba090d9f515264ef52afe8d65fd8405c`.
+
+This evidence section was appended after the successful frozen-input run; it is an
+evidence-only change, not a changed Lean/configuration/test input. Executable sources and
+skill text still match the tested hashes. Normative meaning, public adapters and policies
+are unchanged; no normative prose, fixture, manifest or CI command update was needed.
+
+Preserved limits: the original60s adopter timeout stays INCOMPLETE; separate120s/71.233s
+diagnostic remains distinct. The packet aggregate420 timeout after eight passes remains
+INCOMPLETE; separate61.222s restoration does not convert it to aggregate PASS. Historical
+exact-f4b8 local247.331214458s and forced-collector273.587434292s results remain scoped to
+their original inputs. P3 historical-status prose remains explicitly deferred to issue14.
+The outer executor owns signed publication, exact-head hosted verification including the
+Linux producer/rule-example pair and all other checks, merge and cleanup. This is not
+CI-ready, issue7closure, full repository compliance or verified compiled-runtime semantics.

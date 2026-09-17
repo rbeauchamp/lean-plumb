@@ -78,8 +78,9 @@ private def resolve (repo path : FilePath) : FilePath :=
 /-- Write the audit report JSON, translating paths of an isolated disposable
 copy back to the checked project's own root. -/
 private def writeRemappedJson (path : FilePath) (value : Json)
-    (sourceRoot targetRoot : FilePath) : IO Unit := do
-  let text := Json.compress (ResultProtocol.legacyJson value sourceRoot.toString targetRoot.toString)
+    (sourceRoot targetRoot : FilePath) : IO Unit := timedPhase "legacy report output" do
+  let text ← IO.lazyPure fun _ =>
+    Json.compress (ResultProtocol.legacyJson value sourceRoot.toString targetRoot.toString)
   if let some parent := path.parent then IO.FS.createDirAll parent
   IO.FS.writeFile path (text ++ "\n")
 
@@ -384,7 +385,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           (Acceptance.configuredTargets manifest) (Acceptance.discoveredTargets inventory)
           sourceBindings inventory.leanLibDir rawInspections
         pure ⟨request, frozen⟩
-      let frozenResult ← freezeRequest.toBaseIO
+      let frozenResult ← (timedPhase "worker request freeze" freezeRequest).toBaseIO
 
       let mut failures : Array String := #[]
       let mut findings : Array StrictLean.Finding := #[]
@@ -513,13 +514,14 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         IO.println <| s!"execution coverage for {surface.library} [claim: {surface.execution}]: " ++
           s!"{rootCount} root(s), {boundaryCount} boundary(ies) " ++
           s!"({checkedCount} checked, {trustedCount} trusted), {unresolvedCount} unresolved"
-        for root in report.execution do
-          if !root.boundaries.isEmpty || !root.unresolved.isEmpty then
-            IO.println s!"  execution root {root.name}"
-            for boundary in root.boundaries do
-              IO.println s!"    {Policy.describeBoundary boundary}"
-            for item in root.unresolved do
-              IO.println s!"    unresolved {item}"
+        timedPhase "execution boundary output" do
+          for root in report.execution do
+            if !root.boundaries.isEmpty || !root.unresolved.isEmpty then
+              IO.println s!"  execution root {root.name}"
+              for boundary in root.boundaries do
+                IO.println s!"    {Policy.describeBoundary boundary}"
+              for item in root.unresolved do
+                IO.println s!"    unresolved {item}"
         surfaceReports := surfaceReports.push <| Json.mkObj [
           ("library", Json.str surface.library),
           ("claim", Json.str surface.claim.toString),
@@ -558,7 +560,8 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       let accepted : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c) ←
         if failures.isEmpty then do
           let ⟨request, frozen⟩ ← IO.ofExcept frozenResult
-          let accepted ← IO.ofExcept <| Acceptance.finish frozen (Acceptance.buildObservation buildProcess)
+          let accepted ← timedPhase "worker acceptance finalization" do
+            IO.ofExcept (← IO.lazyPure fun _ => Acceptance.finish frozen (Acceptance.buildObservation buildProcess))
           pure (some (⟨request, accepted⟩ : (c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
         else pure none
       if let some output := jsonOut then
@@ -717,9 +720,10 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
           "unresolved" (toJson #["documentation audit has not completed"])
       let some (inventory, sources, configuration) := docsInputs
         | throw <| IO.userError "producer-source: missing documentation build snapshots"
-      let packet ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile surfaceRequest.output)
-      let payload ← IO.ofExcept <| readWorkerPacket (toJson surfaceRequest) packet
-      let production : Acceptance.SurfaceProduction ← IO.ofExcept (fromJson? payload)
+      let production : Acceptance.SurfaceProduction ← timedPhase "surface packet parse/decode" do
+        let packet ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile surfaceRequest.output)
+        let payload ← IO.ofExcept <| readWorkerPacket (toJson surfaceRequest) packet
+        IO.ofExcept (fromJson? payload)
       let manifestValue ← Manifest.load surfaceRequest.manifest
       let assignments ← IO.ofExcept <| Acceptance.surfaceAssignments manifestValue inventory
       unless production.inspections.size == assignments.size do
@@ -734,14 +738,16 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       let histories ← IO.ofExcept <| Acceptance.historyObservations inspections
       let snapshotSources ← Acceptance.sourceSnapshots sources histories documents
       Snapshot.inputsUnchanged inventory dependencies
-      let snapshot ← IO.ofExcept <| Snapshot.make copy configuration snapshotSources dependencies
+      let snapshot ← timedPhase "parent snapshot assembly" do
+        IO.ofExcept (← IO.lazyPure fun _ => Snapshot.make copy configuration snapshotSources dependencies)
       let claim ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
         scope := .project, mode := .freshProject, snapshot := snapshot.val, surfaces := assignments }
-      let frozen ← Acceptance.freeze claim (assignments.flatMap fun assignment => assignment.modules.map (·.name))
+      let frozen ← timedPhase "parent request freeze" <| Acceptance.freeze claim (assignments.flatMap fun assignment => assignment.modules.map (·.name))
         (Acceptance.configuredTargets manifestValue) (Acceptance.discoveredTargets inventory)
         sources inventory.leanLibDir inspections
       let build := Acceptance.buildObservation production.build
-      let projectAccepted ← IO.ofExcept <| Acceptance.finish frozen build
+      let projectAccepted ← timedPhase "parent acceptance finalization" do
+        IO.ofExcept (← IO.lazyPure fun _ => Acceptance.finish frozen build)
       let docFindings ← IO.mkRef (#[] : Array StrictLean.Finding)
       let documentAccepted ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
       let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory sources configuration dependencies documents build 4 verbose
@@ -1029,7 +1035,9 @@ unsafe def run (args : List String) : IO UInt32 := do
           request.reportRoot (request.jsonOut.map FilePath.mk) (request.resultOut.map FilePath.mk)
           captured.set
           (request.documents.map fun (uri, source) => ⟨uri, source⟩)
-          (fun production => writeJson request.output (workerPacket json (toJson production))) true
+          (fun production => timedPhase "surface packet output" do
+            let packet ← IO.lazyPure fun _ => workerPacket json (toJson production)
+            writeJson request.output packet) true
           (expectedSources := some request.sourceBindings)
   if let ["--compile-batch-worker", input, out] := args then
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)

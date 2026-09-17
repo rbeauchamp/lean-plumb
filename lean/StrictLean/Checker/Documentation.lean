@@ -664,7 +664,8 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
         s!"(conforming-positive {positiveCount}, negative {negativeCount}, trusted {trustedCount})"
       (← IO.getStdout).flush
 
-      let frozen ← IO.ofExcept <| freezeDocuments claim tasks
+      let frozen ← timedPhase "documentation request freeze" do
+        IO.ofExcept (← IO.lazyPure fun _ => freezeDocuments claim tasks)
       let fenceScratch := repo / "tmp" / "fence-build"
       IO.FS.createDirAll fenceScratch
       let results ← auditTasks repo fenceScratch jobs tasks sourceBindings configuration inventory.leanPath (some inventory.leanLibDir)
