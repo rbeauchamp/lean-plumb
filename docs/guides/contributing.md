@@ -64,6 +64,14 @@ claim. See the [verification sequence](../standard/9-compliance-audit.md#reposit
 for evidence requirements. Diagnostics do not replace a failed acceptance run.
 
 
+## Implementation and qualification layout
+
+Project-owned implementation is Lean 4; `scripts/verify.sh` is the minimal acceptance
+shell boundary. Additional shell scripts require explicit approval under `AGENTS.md`.
+See [Lean qualification](lean-qualification.md) for the proof/IO split and why these
+integration controls are still necessary. Configuration and external toolchains are
+not claimed as formally verified Lean implementations.
+
 ## Change prose and code together
 
 Keep a teaching example beside the prose when it helps readers. Every Lean fence
@@ -82,4 +90,4 @@ from evidence for the current revision.
 
 Follow the [architecture](linter-architecture.md), [comparative design decisions](ecosystem-design.md), [developer experience](developer-experience.md) and [coverage map](rule-coverage.md). A rule change updates its descriptor, actual detector, source fixtures, expected typed diagnostics and explanatory page together. Follow the [attribution scope](design-influences.md): preserve actual code/license notices and cite relevant component-level design influences; examples such as CA1416, Ruff and Pyrefly are not exclusive design mandates. Never replace semantic review with docstring presence or generated-page counts.
 
-The [prototype README](../../examples/rule-reference-prototype/README.md) specifies separate pinned website setup and `python3 examples/rule-reference-prototype/run.py`. This bounded integration check complements the unchanged 420-second acceptance command. Review workflow must inspect rule IDs, exact scopes/modes, source ranges, versioned help routes and generated-source agreement where affected; no extra mandatory benchmark campaign is introduced.
+The [prototype README](../../examples/rule-reference-prototype/README.md) specifies separate pinned website setup and `lake env lean --run examples/rule-reference-prototype/Run.lean`. This bounded integration check complements the unchanged 420-second acceptance command. Review workflow must inspect rule IDs, exact scopes/modes, source ranges, versioned help routes and generated-source agreement where affected; no extra mandatory benchmark campaign is introduced.

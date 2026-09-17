@@ -75,15 +75,6 @@ jobs:
           path: .lake/packages
           key: ${{ steps.dependencies.outputs.cache-primary-key }}
 
-      - name: Report runner resources
-        run: |
-          uname -m
-          nproc
-          free -h
-          vmstat
-          df -h .
-          uptime
-
       - name: Verify (same command and seven-minute limit as local)
         run: ./scripts/verify.sh
 
@@ -116,4 +107,4 @@ jobs:
 
       - name: Verify one-rule linter and Verso integration
         timeout-minutes: 10
-        run: python3 examples/rule-reference-prototype/run.py
+        run: lake env lean --run examples/rule-reference-prototype/Run.lean

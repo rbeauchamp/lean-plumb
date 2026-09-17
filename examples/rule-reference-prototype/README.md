@@ -9,14 +9,14 @@ and [complete map](../../docs/guides/rule-coverage.md) for successor contracts.
 From the repository root, provision its pinned dependencies per the contributor guide, then:
 
 ```sh
-lake build axiomGate
+lake build axiomGate StrictLeanQualification +StrictLean.Qualification.Project:olean
 cd examples/rule-reference-prototype/site
 lake build verso/VersoManual
 cd ../../..
-python3 examples/rule-reference-prototype/run.py
+lake env lean --run examples/rule-reference-prototype/Run.lean
 ```
 
-The script has a 600-second total subprocess budget after setup and writes ignored
+The Lean driver has a single 600-second process-group deadline after setup and writes ignored
 `generated/evidence.json`, `rule.json`, and `public/`. It is not a substitute for
 `./scripts/verify.sh` (hard 420 seconds). The experiment's prior plan allowed 15 minutes for
 setup and 10 minutes for execution: one rule, one violation/fix pair, native registration,
@@ -24,20 +24,16 @@ Lake dependency dispatch, one page and same-input static reproducibility. The de
 actual API/toolchain integration, which a pure policy theorem cannot establish. All those
 outcomes were required for go; a fallback required a concrete blocker. Verso met the criterion.
 
-For browser inspection, run from the repository root:
-
-```sh
-python3 -m http.server 8765 --bind 127.0.0.1 --directory examples/rule-reference-prototype/generated/public
-```
-
-Open `http://127.0.0.1:8765/`, focus **Explain SL1001**, and activate it. The destination is
-`/strict-lean/dev/rules/SL1001/`. The production HTTPS destination is planned, not yet live.
-Stop the server afterward. This is not a production deployment.
+The generated files are under `generated/public/`; the landing page links to
+`/strict-lean/dev/rules/SL1001/`. No Python HTTP server is part of the recipe.
+Browser navigation requires an independently provided static-file host at that base;
+no new server implementation or deployment is supplied here. The production HTTPS
+destination is planned, not yet live.
 
 ## What is checked
 
 1. Lean 4.33.1 compiles `Rule.lean` and `Probe.lean`; `Export.lean` exports the total one-rule
-   descriptor. The probe registers a real command linter and package-owned widget. Its separate,
+   descriptor. The probe registers a real command linter and emits a textual help URL. Its separate,
    explicitly named empty environment linter checks registration compatibility only, not detection.
 2. Actual fixture files compile independently. The violation contains an unused axiom; the fix
    proves only `False → False`, not `False`. A generated client imports each completed fixture
@@ -51,19 +47,22 @@ Stop the server afterward. This is not a production deployment.
    logical admission on the same pair. Positive–negative–restored-positive controls each start
    with empty adopter output. Intended `project-axiom` rejection is required; generic failure
    cannot satisfy the assertion. No Mathlib module is compiled for this adopter.
-4. Python includes exact checked source and Lean-exported metadata in generated Verso source.
-   It performs presentation/transport, not semantic detection. Blocks render as text, without
+4. The Lean driver includes exact checked source and Lean-exported metadata in generated Verso source.
+   Its pure page constructor returns proof-bearing exact template output; the site-artifact
+   contract preserves required/emitted IDs, route and observed checked-example conditions.
+   These are presentation/transport contracts, not semantic detection or proofs of IO.
+   Blocks render as text, without
    silent re-elaboration on documentation Lean 4.33.0. The full dependency lock is retained.
    Generated source is never manually edited or committed. Every page includes appropriate credit.
 5. The output is assembled below the project base. Two renders at identical inputs must have
-   identical per-file content hashes. This is observed repeatability for these inputs, not a
+   identical relative file names and per-file bytes (no hash assumption). This is observed repeatability for these inputs, not a
    universal reproducible-build theorem or evidence of Lean correctness.
 
 ## Evidence and limits
 
 The initial macOS run took **39.66 seconds** after provisioning, with **98 identical static
 files** across two renders. This is one observation, not a performance promise. After changed
-inputs the script must pass again; generated evidence records the current outcomes/time.
+inputs the driver must pass again; generated evidence records the current outcomes/time.
 The public checker accepted one module/one declaration for the restored fixed control.
 The in-app browser rendered the rule page, actual sources and credits at the project base;
 keyboard activation of **Explain SL1001** reached it from the diagnostic control. The Chrome
@@ -76,7 +75,9 @@ an imported module and supplied source filename; production must derive/validate
 `Probe.ownedConstants` inventories imported module indices, so using it unchanged does not cover
 current unserialized declarations. Editor snapshots cannot claim complete project conformance.
 
-The widget is compiled/registered; textual URL and named kind are verified. Direct `logMessage`
+The former project-owned JavaScript widget has been removed under the Lean-only policy;
+its earlier compilation/registration evidence is historical, not a current capability.
+The textual URL and named kind remain verified. Direct `logMessage`
 avoids `logAt` adding Lean's hard-coded manual link. No unsupported `codeDescription` field,
 Lean fork or new language server is assumed. This operational metaprogram's compilation does
 not prove its collector or policy universally correct; proof-bearing acceptance remains #4–#7.
@@ -92,7 +93,7 @@ not prove its collector or policy universally correct; proof-bearing acceptance 
   this does not claim that con-leche proves Strict Lean correct.
 - Lean authors supply [linter registration](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Elab/Command.lean)
   and the [message/widget pattern](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Log.lean).
-  The short widget is original API-use code informed by that pattern.
+  The diagnostic adapter is original API-use code informed by that pattern.
 - Verso authors and David Thrane Christiansen's [package-docs template](https://github.com/leanprover/verso-templates/tree/76c9edf5a70f14d272af0f0f354ec833ac22c350/package-docs)
   inform separate documentation/example toolchains; template prose/code is not copied.
 - [Microsoft CA1416](https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1416)

@@ -101,7 +101,7 @@ The closure/source account below extends the supplied observations and their bin
 temporarily changed source restored between observations remains outside what before/after
 byte equality establishes. #7 retains global claim/job composition.
 
-The `producers` diagnostic now also runs `scripts/history_checks.py`: real fresh/incremental
+The `producers` diagnostic also runs `StrictLean.Qualification.History`: real fresh/incremental
 project and file invocations check overwritten history, an unsupported source evaluator, and
 fresh restoration. Actual returned records are mutated through the Lean decoder to qualify
 missing requests/receipts/edges, changed bytes, missing paths and concealed unavailability.
@@ -126,7 +126,7 @@ positive/owned-axiom/restored controls; each carries module documentation so the
 axiom violation is isolated. Restored controls start with empty root build output. Optional raw export:
 
 ```sh
-python3 scripts/producer_checks.py --evidence tmp/producer-examples.json
+lake exe qualify producers --evidence tmp/producer-examples.json
 ```
 
 The export embeds exact source bytes and canonical diagnostic/result data, including the
@@ -236,7 +236,7 @@ Read failures preserve the underlying IO reason. Initial environment/setup failu
 only re-reading existing frozen evidence receives this normalization. The original file
 path uses the shared guard, and combined mode checks its parent snapshots on declaration
 worker failure as well as success.
-`python3 scripts/documentation_source_checks.py` qualifies both public
+`lake exe qualify documentation-source` qualifies both public
 documentation paths with changed and missing dependency/configuration inputs and fresh
 restored positives. Its `--source-read-only` selection additionally checks original-file
 and declaration-build read failures, initial setup classification and restored positives;

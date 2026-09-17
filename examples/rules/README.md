@@ -10,4 +10,4 @@ remediation, accepted-example and diagnostic-demonstration distinctions, qualifi
 commands, and export and trust contracts for the future website.
 
 The existing SL5001/SL5002 [producer campaign](../../docs/guides/engine-producers.md#source-owned-examples-and-qualification)
-remains available unchanged.
+remains available through `lake exe qualify producers`.

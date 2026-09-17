@@ -8,8 +8,6 @@ proof-boundary motivation credit con-leche. See README.md for pinned citations. 
 open Lean Elab Command
 open RulePrototype
 namespace RulePrototype
-@[widget_module] def ruleLink : Widget.Module where
-  javascript := "import {createElement} from 'react'; export default function(p) { return createElement('a', {href:p.url, target:'_blank', rel:'noopener noreferrer'}, 'Explain ' + p.id); }"
 /-- Preserve named diagnostic code, bypass the core logger's hard-coded manual URL. -/
 def emitRule (source : String) (d : StrictLean.Report.Declaration) : CommandElabM Unit := do
   let location ← IO.ofExcept <| StrictLean.Checker.RuleDiagnostics.declarationLocation d
@@ -17,10 +15,9 @@ def emitRule (source : String) (d : StrictLean.Report.Declaration) : CommandElab
   let finding ← IO.ofExcept <| StrictLean.Checker.RuleDiagnostics.declarationFinding
     .projectAxiom (← IO.ofExcept (StrictLean.Checker.RuleDiagnostics.declarationName d)) rule.title location .editorSnapshot (some "standard-logical")
   let native ← IO.ofExcept finding.2.nativeMessage
-  let w : Widget.WidgetInstance := {
-    id := ``ruleLink, javascriptHash := ruleLink.javascriptHash
-    props := pure <| Json.mkObj [("url", toJson helpUrl), ("id", toJson finding.1.spelling)] }
-  let msg := (native.data ++ .ofWidget w .nil).tagWithErrorName
+  -- The named diagnostic already carries the canonical help URL. No project-owned
+  -- JavaScript widget is needed for the textual diagnostic/page integration probe.
+  let msg := native.data.tagWithErrorName
     (Name.str `StrictLean finding.1.spelling)
   logMessage { native with data := ← addMessageContext msg }
 syntax (name := strictProbe) "#strict_probe" ident str : command

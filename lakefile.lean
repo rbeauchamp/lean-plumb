@@ -30,6 +30,14 @@ lean_lib «Fixtures» where
 lean_lib «StrictLeanPolicy» where
   globs := #[.andSubmodules `StrictLeanPolicy]
 
+@[default_target]
+lean_lib «StrictLeanVerification»
+
+@[default_target]
+lean_lib «StrictLeanQualification» where
+  -- Pure, proof-backed observation contracts; no process or filesystem drivers.
+  globs := #[.submodules `StrictLeanQualification]
+
 lean_lib «StrictLean» where
   -- Lean-only checker implementation. Operational checker modules are
   -- separately qualified; they are not part of the conforming proof surface.
@@ -49,6 +57,10 @@ lean_exe «freshChecker» where
 
 lean_exe «checkerSelftest» where
   root := `StrictLean.Checker.CheckerSelftest
+  supportInterpreter := true
+
+lean_exe «qualify» where
+  root := `StrictLean.Qualification.Main
   supportInterpreter := true
 
 lean_exe «ruleExamples» where
