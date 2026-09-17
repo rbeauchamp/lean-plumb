@@ -51,6 +51,13 @@ faster sample.
   parallelism only where environment/scratch ownership, result association and lifetimes
   permit it; account for simultaneous memory demand. Sharing immutable imported regions
   is different from sharing mutable environments or an executable's ownership closure.
+- A prebuild does not make later Lake invocations read-only. Before parallelizing
+  fixture roots, inspect shared module outputs, trace/hash sidecars, artifact caches and
+  Git metadata as well as workspace configuration. Separate scratch directories with
+  shared dependency symlinks do not prove disjoint writes; distinguish a possible write
+  from an observed race. Killing a direct child does not establish descendant compiler
+  quiescence before scratch deletion. Keep deadline ownership and process containment
+  explicit; after outer SIGKILL, user-space cleanup cannot run.
 - Hoist immutable source-derived work out of per-record loops: coordinate checks can
   share one source-line split per transcript. Prove equality to the original executed
   predicate, and inspect generated code to confirm the compiler retains the sharing.
@@ -105,7 +112,10 @@ coverage are accounted for.
 After a repair, run the affected checks and the repository's complete required gate on the
 reviewed head. Reuse unchanged evidence with its original identity and a stated relevant-input
 argument; rerun invalidated claims. Report local and hosted outcomes separately, including
-failed attempts and unavailable stages. A faster isolated phase, larger timeout or a
+failed attempts and unavailable stages. A sub-suite PASS inside an unfinished aggregate
+is only scoped evidence. An explicitly approved split into separate diagnostic budgets changes the resource contract while
+retaining coverage; it does not establish the old aggregate passed.
+A faster isolated phase, larger timeout or a
 different runner is not evidence that the original whole-run requirement passed. Follow
 the repository's review and delivery rules; this skill adds no publication authority.
 For merged delivery, also reconcile the main push workflow for the actual merge SHA.

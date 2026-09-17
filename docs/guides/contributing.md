@@ -53,15 +53,22 @@ checker behavior:
 | `cli` | Command-line behavior and diagnostics. |
 | `environments` | Isolated environments, documentation scanning, and external adopters. |
 | `build-policy` | Enforcement through the example's ordinary Lake build. |
-| `producers` | [Project producer and history qualification](engine-producers.md). |
+| `producers` | [Project producer and documentation qualification](engine-producers.md). |
+| `history` | [Source-bound replacement history qualification](engine-producers.md). |
 | `rule-examples` | [Source-owned corpus and diagnostic demonstrations](rule-examples.md). |
 
-Omitting `PARTITION` requests the `checkerSelftest` campaign; the `producers` and
+Omitting `PARTITION` requests the `checkerSelftest` campaign; the `producers`, `history` and
 `rule-examples` campaigns remain separate explicit selections. Each invocation uses the
 same deadline; choose affected checks rather than treating every campaign as a routine
 prerequisite. Run `./scripts/verify.sh serialized-graph` only for the separate serialized-graph
 claim. See the [verification sequence](../standard/9-compliance-audit.md#repository-verification-sequence)
 for evidence requirements. Diagnostics do not replace a failed acceptance run.
+
+CI requires `producers` followed by `history` as separate sequential invocations, each
+with its own hard420-second limit. This explicitly permits up to840 seconds for their
+combined diagnostics; it is not a pass under the former combined420 contract. Both
+suites retain their full controls and order. Ordinary cold420, corpus and site checks
+remain separate requirements.
 
 
 ## Change prose and code together

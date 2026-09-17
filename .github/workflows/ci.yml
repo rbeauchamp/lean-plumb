@@ -94,6 +94,11 @@ jobs:
       - name: Qualify project producer receipts and documentation diagnostics
         run: ./scripts/verify.sh diagnostics producers
 
+      # Required sequential diagnostics: each verify.sh invocation owns hard420.
+      # Together these two gates allow up to840; ordinary cold420 is unchanged.
+      - name: Qualify source-bound replacement histories
+        run: ./scripts/verify.sh diagnostics history
+
       - name: Qualify source-owned rules and diagnostic demonstrations
         run: ./scripts/verify.sh diagnostics rule-examples
 

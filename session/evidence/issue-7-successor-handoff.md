@@ -63,7 +63,12 @@ without grace/override or composing separate inner runs. Setup may provision pin
 dependency artifacts first. Selected packet diagnostics use
 `python3 scripts/acceptance_checks.py --group surface|evidence|fences|process --evidence PATH`;
 these are execution-linkage fault controls supplementing universal proofs, not acceptance.
-Existing producer/rule-example diagnostics and optional serialized graph remain separate.
+Required CI diagnostics now run `./scripts/verify.sh diagnostics producers`, then
+`./scripts/verify.sh diagnostics history`, sequentially with independent hard420 limits.
+Their combined allowance is up to840; full 21+17 public invocations and 8+17 transport
+controls/order are retained. The former combined420 failure remains a failure. Ordinary
+cold420, rule-example corpus, site and optional serialized-graph meanings are unchanged.
+See issue-7-diagnostic-budget.md for the resource-contract change and pending evidence.
 Local focused results, failures and exact input identities are in issue-7-verification.md;
 The first build-lint diagnostic exceeded its180s pilot window; subsequent unchanged
 full build-lint and policy-domain campaigns passed under separate420s diagnostic bounds

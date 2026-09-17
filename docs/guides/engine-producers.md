@@ -102,10 +102,15 @@ The closure/source account below extends the supplied observations and their bin
 temporarily changed source restored between observations remains outside what before/after
 byte equality establishes. #7 retains global claim/job composition.
 
-The `producers` diagnostic now also runs `scripts/history_checks.py`: real fresh/incremental
+The separate `history` diagnostic runs `scripts/history_checks.py`: real fresh/incremental
 project and file invocations check overwritten history, an unsupported source evaluator, and
 fresh restoration. Actual returned records are mutated through the Lean decoder to qualify
 missing requests/receipts/edges, changed bytes, missing paths and concealed unavailability.
+Run `./scripts/verify.sh diagnostics history` after `./scripts/verify.sh diagnostics producers`.
+CI requires both sequential gates, each under hard420, retaining all 21 producer and
+17 history public invocations plus their 8 and 17 transport controls in the existing order.
+The explicit combined diagnostic allowance is now up to840 seconds, not evidence that
+the former combined420 passed. Ordinary cold420 is unchanged.
 The existing structural campaign remains separately scoped; this does not report it PASS.
 
 ## Source-owned examples and qualification

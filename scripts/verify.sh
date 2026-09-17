@@ -51,8 +51,11 @@ standard_verify_checks() {
           python3 scripts/rule_example_checks.py --evidence tmp/rule-examples.json
           ;;
         producers)
-          lake build axiomGate +StrictLean.Checker.ProducerQualification:olean +StrictLean.Checker.HistoryQualification:olean
+          lake build axiomGate +StrictLean.Checker.ProducerQualification:olean
           python3 scripts/producer_checks.py
+          ;;
+        history)
+          lake build axiomGate +StrictLean.Checker.HistoryQualification:olean
           python3 scripts/history_checks.py
           ;;
         "") lake exe checkerSelftest --build-bound --jobs 4 ;;
@@ -62,7 +65,7 @@ standard_verify_checks() {
       esac
       echo "diagnostic qualification: PASS (selected scope only; not ordinary verification)"
       ;;
-    *) echo "usage: scripts/verify.sh [serialized-graph | diagnostics [fixtures|structural|cli|environments|build-policy|producers|rule-examples]]" >&2; exit 2 ;;
+    *) echo "usage: scripts/verify.sh [serialized-graph | diagnostics [fixtures|structural|cli|environments|build-policy|producers|history|rule-examples]]" >&2; exit 2 ;;
   esac
 }
 export -f standard_verify_checks

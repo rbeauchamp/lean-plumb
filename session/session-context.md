@@ -1,6 +1,6 @@
 # Session context: Strict Lean Project 8
 
-**Date:** 2026-09-16
+**Date:** 2026-09-17
 **Active branch:** `codex/strict-lean-7-integration` in a disposable verified worktree.
 **Integration base:** `f9b54f7b7b2094f3b9063e2bf0d156eaefe4d9be`, tree
 `9310eef85ce8fbe9ee3ce961b62a7e9e45790d07`; refresh live state before resuming.
@@ -12,6 +12,17 @@ repair and qualification results, failed attempts and pending delivery gates. Co
 that record before reusing evidence; no previous code's tests are current-change evidence.
 
 ## Active plan and resume point
+
+The preserved issue7 head `0d2d6142192967f4873305cbf1ec5d8227607a36` is the base of the
+approved sequential producer420/history420 follow-up. The previous no-mistakes run
+terminated during restart with `daemon shutting down`; live reconciliation found a clean
+caller equal to the pipeline's pushed head and live remote, requiring no synchronization.
+The old gate is terminal, not resumable. Preserve all prior commits and scoped evidence;
+validate the signed follow-up through a fresh full pipeline. See the
+[diagnostic budget record](evidence/issue-7-diagnostic-budget.md). Ordinary cold420 remains
+unchanged. Local final-head acceptance, independent delta review and required hosted
+checks remain pending; issue7 and its [delivery](https://github.com/rbeauchamp/strict-lean/pull/33)
+are not ready for integration.
 
 [Project8](https://github.com/users/rbeauchamp/projects/8), the complete
 [live issue7](https://github.com/rbeauchamp/strict-lean/issues/7) and its native

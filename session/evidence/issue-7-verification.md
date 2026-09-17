@@ -949,3 +949,15 @@ automatic microfix chain. Remaining trust includes truthful IO/Lake/environment 
 source/serialization/provenance acquisition, compiler/native runtime, external processes
 and OS scheduling. The con-leche-inspired fixed-request collection proofs do not verify
 those external systems or prove a universal 420-second runtime bound.
+
+
+## Approved diagnostic-budget follow-up (2026-09-17)
+
+The [diagnostic budget record](issue-7-diagnostic-budget.md) supersedes the pending
+combined producer/history gate with two required sequential hard420 invocations.
+The explicit combined allowance is up to840; ordinary cold420 and full diagnostic
+coverage/order are unchanged. Baseline `0d2d6142192967f4873305cbf1ec5d8227607a36`
+passed ordinary hosted acceptance but failed combined420 with history incomplete.
+The historical failure remains a failure. The restarted terminal pipeline cannot be
+resumed; a signed preserved-branch follow-up and fresh full validation own final-head
+local/hosted evidence and independent delta review. This entry claims no new Lean run.
