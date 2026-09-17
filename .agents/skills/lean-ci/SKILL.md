@@ -57,6 +57,10 @@ faster sample.
   within its valid identity and lifetime. Moving output to a terminal boundary must retain
   required evidence on normal, typed-refusal and exceptional exits; an interrupted or
   partial run must not leave a current successful receipt.
+  For large machine-consumed JSON, profile pretty-print layout separately from collection
+  and parsing. If only parsed JSON values are contractual, the pinned compact serializer
+  avoids that layout work. Qualify parsed-value and protocol equivalence, including exact
+  source strings; smaller output alone does not establish correctness.
 
 For concrete precedents and their limits, read [the evidence notes](references/evidence.md)
 only when one of these changes is relevant. They are examples, not a prescribed itinerary.

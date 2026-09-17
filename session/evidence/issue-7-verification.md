@@ -551,3 +551,70 @@ The complete declaration phase took 120.930s. Logs, stack samples and the timed
 result are in `tmp/ci-round3/`; temporary Lean probes were removed.
 This local observation is not a hosted timing guarantee or an exact-head CI result.
 The outer executor owns the repair commit and hosted verification.
+
+## CI repair: JSON layout in worker transport
+
+Assigned CI phase at `ca5595e9d115640c26f75e6d49eaa5bc520214b8`, following
+failed verify check105078914633/run35182964695. That hosted run completed the
+declaration phase in261.904s, then hit the unchanged420s overall deadline. It
+remains FAIL. This phase does not run, push, or control any other pipeline phase.
+
+A bounded local reproduction of `axiomGate --with-docs --legacy-json-out` passed
+in241.42s (not ordinary acceptance); its declaration phase took124.402s. Native
+stack samples during declaration-worker output and terminal surface-packet output
+located work in `Json.pretty`/`Json.render` and `Std.Format.pretty` layout. These
+samples identify actual executed work, not its share of all hosted elapsed time.
+The two-line repair selects pinned Lean's `Json.compress` in the shared JSON writer
+and legacy report writer. No fields, policies, source checks, admissions, worker
+joins, deadlines or required commands are removed. Whitespace and object display
+order can change; parsed values, array order and embedded source strings are the
+contract. Legacy structural path remapping still precedes serialization.
+
+The105-job development build passed. Focused execution of the actual writer,
+strict parser, `readWorkerPacket` and `admitIndexedWorkerResults` passed: nested
+objects/arrays, empty values, numbers, Unicode, CRLF, control characters, quotes
+and backslashes round-tripped; wrong request/schema/producer/extra fields and
+missing/duplicate/unknown result slots refused; restored packets passed. Both
+serializers' complete55MiB legacy report outputs parsed equal to the original.
+One paired write observation was841ms pretty and158ms compact; this is scoped
+local evidence, not a hosted speedup or universal serialization theorem. An initial
+temporary probe used an unavailable `Except.isError` convenience API; after using
+`toOption.isNone`, the probe compiled and all controls passed.
+
+Fresh-context independent review was CLEAN for the two writer changes and the
+lean-ci guidance, covering protocol/source-string preservation, legacy remapping,
+§8.8 qualification scope and DOGFOOD-03 claim accuracy. Pure Lean policy definitions,
+theorems, invocation modes and their existing proof evidence are unchanged. The
+system skill validator passed. Native/JSON parser/compiler correctness remain
+trusted; no new whole-checker proof or full semantic-compliance claim is made.
+
+The public `scripts/acceptance_checks.py --group surface` diagnostic, wrapped in
+420s, recorded eight PASS cases (initial positive; missing/duplicate/misindexed/stale
+packet refusals; three intervening restored positives), but timed out before recording
+its final restoration. That aggregate attempt is **INCOMPLETE**, not PASS. No surviving
+child processes remained. A separate focused final restoration uses the same unchanged
+fixture and public combined command; it does not convert the timed-out aggregate into
+a passing campaign or partition ordinary acceptance. The raw diagnostic and stack
+samples are retained in `tmp/ci-round4/`.
+
+The separate final restored public combined invocation returned exit0 and completed
+both accepted results (61.222s including reading/checking its JSON). Thus each selected
+packet refusal has a subsequent observed passing control, while the original aggregate
+remains INCOMPLETE. Its disposable fixture and temporary serializer probe were removed.
+
+Complete modified-source cold-root `./scripts/verify.sh`: **PASS**, exit0 in256.157s,
+with `.lake/build` absent at entry and the unchanged420s deadline. Lean4.33.1,
+compiler819816b2e0a3bf405af45ae5c7af2491d8f5bee6,
+Mathlib0df444a360eaa60ab8c11dca51a86af692955474. All119 build jobs, registry/CLI
+qualification and36 native bridge controls passed. The same29 claimed modules listed
+above yielded4441 owned declarations,6184 accepted project jobs and97 documentation
+jobs. All94 fences passed (70positive,23negative,1teaching). Declaration phase97.867s;
+the complete local result is not a hosted timing guarantee. No pure policy/proof source
+changed; exact foundation profiles and report execution modes remain unchanged.
+
+Verified source SHA256:
+- `lean/StrictLean/Checker/Common.lean`: `3dd4515e1060e3ecc13aaadebad5b53a492c03a66835cc0935398ba88872405c`.
+- `lean/StrictLean/Checker/AxiomGate.lean`: `e736292119d945c71c5dd9a3e1817a40872f84039337dba1e60226f2af0ea326`.
+
+The active executor owns the repair commit, exact-head hosted CI and all remaining
+pipeline/delivery phases. No new hosted pass, merge or full campaign pass is claimed.

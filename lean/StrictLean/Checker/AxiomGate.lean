@@ -79,7 +79,7 @@ private def resolve (repo path : FilePath) : FilePath :=
 copy back to the checked project's own root. -/
 private def writeRemappedJson (path : FilePath) (value : Json)
     (sourceRoot targetRoot : FilePath) : IO Unit := do
-  let text := Json.pretty (ResultProtocol.legacyJson value sourceRoot.toString targetRoot.toString)
+  let text := Json.compress (ResultProtocol.legacyJson value sourceRoot.toString targetRoot.toString)
   if let some parent := path.parent then IO.FS.createDirAll parent
   IO.FS.writeFile path (text ++ "\n")
 

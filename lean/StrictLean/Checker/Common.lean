@@ -234,7 +234,7 @@ def readJson (path : FilePath) : IO Json := do
 
 def writeJson (path : FilePath) (value : Json) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
-  IO.FS.writeFile path (Json.pretty value ++ "\n")
+  IO.FS.writeFile path (Json.compress value ++ "\n")
 
 def parseJsonOutput (what : String) (result : ProcessResult) : IO Json := do
   if !result.succeeded then
