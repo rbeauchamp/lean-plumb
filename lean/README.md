@@ -15,6 +15,8 @@ imports retain their Lean module names, such as `Audit.Research` and
 | Use typed policy data and admission | [StrictLeanPolicy](StrictLeanPolicy.lean), [domain guide](../docs/guides/policy-domain.md) | Separate claimed pure library; representation proofs do not authenticate compiler observations or establish complete acceptance. |
 | Understand declaration and execution auditing | [AxiomGate](StrictLean/Checker/AxiomGate.lean) | Operational checker implementation, qualified separately from the claimed proof surfaces. |
 | Understand documentation auditing | [DocFenceAudit](StrictLean/Checker/DocFenceAudit.lean) | Checks recursively discovered Markdown fences as printed. |
+| Inspect cold-start verification | [StrictLeanVerification](StrictLeanVerification.lean) | Claimed argument-selection/recipe driver; process IO remains a reported boundary under the shell deadline. |
+| Inspect proved qualification oracles | [StrictLeanQualification](StrictLeanQualification/Checks.lean), [guide](../docs/guides/lean-qualification.md) | Claimed pure observation predicates; separate Lean IO drivers do not authenticate the compiler or OS by proof. |
 | Inspect checker qualification | [CheckerSelftest](StrictLean/Checker/CheckerSelftest.lean), [fixture manifest](Fixtures/fixtures.json) | Isolated positive controls and intended-failure mutations; never import mutations into a claimed surface. |
 | Inspect optional serialized-graph checking | [FreshChecker](StrictLean/Checker/FreshChecker.lean) | Separate fresh replay and exact Lake coverage; no claim of native execution correctness. |
 

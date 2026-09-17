@@ -49,7 +49,7 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | `lean/StrictLean/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
 | `website/` | Separate pinned Verso Lake package and original explanatory prose. |
 | `examples/rules/<ID>/` | Actual violation/fix source plus typed expected outcome specification; isolated negatives. |
-| `scripts/site/` | Build, validate, assemble, and publish-artifact preparation; no semantic Lean detector in scripts. |
+| Lean modules in the website package | Planned build, validation, assembly, and publish-artifact preparation via Lake; no Python or additional unapproved shell scripts. |
 
 `RuleId` is the closed initial vocabulary in the coverage map, not a natural number or free
 string accepted without validation. `descriptor : (id : RuleId) → RuleDescriptor id` is total by exhaustive
@@ -171,12 +171,16 @@ Pinned [LSP diagnostics][lsp] have `code?` but no `codeDescription`. The native 
 widget in [Lean.Log][log] hard-codes `Lean.manualRoot` and the manual error domain. Registering
 an external error name does not redirect that widget to a project website.
 
-Select a small **package-owned message widget** and textual HTTPS URL fallback. Render tagged
+The original design selected a package-owned JavaScript message widget with a textual
+HTTPS fallback. The repository's Lean-only policy supersedes that implementation choice:
+the prototype now retains the textual URL only. A future interactive link must reuse an
+appropriate upstream Lean interface without introducing project-owned JavaScript; that
+interaction remains unimplemented and requires its own qualification. Render tagged
 `MessageData` with name `StrictLean.<ID>` through `logMessage`, supplying the actual file/range
 and message context, rather than the `logAt` path that appends the wrong built-in widget.
 The [interactive diagnostic adapter][interactive] derives `code?` from the named message kind.
 The prototype verifies serialized named kind, source location, policy rejection and fallback URL;
-its registered widget uses a normal anchor with `noopener noreferrer`. #14 must verify the
+the former package-owned widget has been removed. #14 must verify the
 actual supported Lean VS Code infoview interaction, including opening the URL, fallback without
 widgets, code serialization, Unicode ranges, stale/cancelled diagnostics, and no duplicate
 Lean-manual link. An ordinary browser link check is not editor acceptance. No Lean fork or new
@@ -221,10 +225,11 @@ Never redirect an old ID to changed semantics. The root rule index may link to d
 version/commit links do not silently fall back to latest. Missing versions get an explicit
 unavailable-version page with source reference, never a misleading current-rule explanation.
 
-#15 supplies `scripts/site/build` (export metadata, execute fixture assertions, generate and
-build Verso, assemble versioned routes), `scripts/site/check` (ID/page/example coverage, source
-and diagnostic equality, internal routes and project base, schema/version identity), and
-`scripts/site/assemble` (retained versions plus this exact validated output). Cache pinned
+#15 supplies Lean/Lake build, check, and assembly entrypoints: export metadata, execute
+fixture assertions, generate/build Verso and assemble versioned routes; validate ID/page/example
+coverage, source/diagnostic equality, internal routes, project base and schema/version identity;
+and retain versions alongside the exact validated output. The former `scripts/site/*` layout
+is superseded by the Lean-only implementation policy. Cache pinned
 dependencies by toolchain and lock digest; never cache an accepted policy verdict. Use relative
 assets within each versioned site. The prototype serves its single-page output directly at the
 canonical rule directory; the full site uses one generated manual with stable rule sections and

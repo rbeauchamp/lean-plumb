@@ -3,7 +3,8 @@
 The corpus in [`examples/rules/`](../../examples/rules/) supplies page inputs for all twenty
 registry IDs. `corpus.json` fixes invocation, evidence mode, expected IDs, legacy subreasons,
 message patterns, subjects and full primary locations before execution. Sources are copied
-verbatim into disjoint Core-only adopters. Python orchestrates processes and files; the
+verbatim into disjoint Core-only adopters. `StrictLean.Qualification.RuleExamples`
+orchestrates processes and files in Lean; the
 existing Lean detectors produce the findings and `Checker.RuleExampleQualification` admits
 the canonical evidence. This is scoped qualification, not a universal detector proof or
 whole-project `Accepted` construction.
@@ -127,8 +128,8 @@ After provisioning pinned dependencies, build both detector executables and the 
 The campaign invokes the compiled qualifier instead of re-elaborating it for every receipt:
 
 ```sh
-lake build axiomGate ruleExamples ruleExampleQualification
-python3 scripts/rule_example_checks.py --evidence tmp/rule-examples.json
+lake build axiomGate ruleExamples ruleExampleQualification qualify
+lake exe qualify rule-examples --evidence tmp/rule-examples.json
 ```
 
 `./scripts/verify.sh diagnostics rule-examples` wraps this build and campaign under the
@@ -139,7 +140,9 @@ qualification tooling, alongside the existing checker executables. Their modules
 already-excluded `StrictLean` tooling library; no product module or detector is newly exempted
 from its applicable qualification.
 
-For development, `--rules SL1001 SL1002` produces explicitly scoped evidence. Ordinary
+For development, append `--rules SL1001 SL1002` after `--evidence PATH` to produce
+explicitly scoped evidence. [Lean qualification](lean-qualification.md) specifies the
+proved template transformation, Lake-discovered source snapshot and trusted IO boundary. Ordinary
 `./scripts/verify.sh` remains the separate unpartitioned 420-second acceptance command.
 Do not substitute the corpus campaign for that command. No website, editor-interaction,
 serialized-graph or full-project completion claim follows from the corpus alone.
