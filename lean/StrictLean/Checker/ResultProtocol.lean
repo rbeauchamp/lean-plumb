@@ -35,7 +35,7 @@ def requestJson (kind project subject : String) (claim execution : Option String
 def write (path : System.FilePath) (scope : Json) (mode : EvidenceMode) (status : Status)
     (findings : Array Finding) (unresolved : Array String := #[]) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
-  IO.FS.writeFile path ((resultJson scope mode status findings unresolved).pretty ++ "\n")
+  IO.FS.writeFile path (Json.compress (resultJson scope mode status findings unresolved) ++ "\n")
 
 private def sourceJson (source : StrictLeanPolicy.SourceSnapshot) : Json :=
   Json.mkObj [("uri", toJson source.uri), ("source", toJson source.source)]
@@ -96,7 +96,7 @@ def writeAccepted {claim : StrictLeanPolicy.Claim} (path : System.FilePath)
   let value := (resultJson scope report.claim.val.mode .completed #[] #[]).setObjVal!
     "acceptance" (acceptedJson accepted)
   if let some parent := path.parent then IO.FS.createDirAll parent
-  IO.FS.writeFile path (value.pretty ++ "\n")
+  IO.FS.writeFile path (Json.compress value ++ "\n")
 
 /-- Structural names are rendered only at this legacy display boundary. -/
 private def legacyName (value : Json) : Json :=
