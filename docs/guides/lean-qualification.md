@@ -1,7 +1,7 @@
 # Lean qualification tooling
 
 Project-owned implementation is Lean 4. The language policy lives in `AGENTS.md`, not
-in the universal standard. All five former Python entrypoints have Lean replacements;
+in the universal standard. All twelve former Python entrypoints have Lean replacements;
 no Python interpreter is needed by repository acceptance, diagnostics, or the prototype.
 The prototype's project-owned JavaScript widget was also removed. External Lean, Lake,
 Verso, runtime libraries and generated browser assets remain external dependencies, not
@@ -20,7 +20,14 @@ Conversely, passing these controls never proves arbitrary compiler or OS behavio
 | `registry_cli_checks.py` | `lake exe qualify registry` | Seven malformed CLI invocations must invalidate seeded stale output. |
 | `native_linter_checks.py` | `lake exe qualify native` | 36 real compiler controls: identity, multiplicity, severity, source ranges, documentation and metadata ownership. |
 | `producer_checks.py` | `lake exe qualify producers` | 18 source-owned documentation controls, eight existing transport mutations, three standalone-executable controls. |
-| `history_checks.py` | `lake exe qualify history` | Nine actual project/file history invocations and eight existing transport mutations. |
+| `history_checks.py` | `lake exe qualify history` | Seventeen project/file invocations, private/imported roots, reached-closure/source accounts, and transport mutations. |
+| `closure_evidence_checks.py` | `lake exe qualify closure-evidence` | Reflexive candidate versus active cycle, retained recursive IR edges, and range refusals through four invocation paths. |
+| `configuration_capture_checks.py` | `lake exe qualify configuration-capture` | Initial configuration IO failure through project/file result protocols. |
+| `documentation_source_checks.py` | `lake exe qualify documentation-source` | Frozen dependency/configuration changes through both documentation commands; `--source-read-only` adds file/build read-failure controls. |
+| `fence_evidence_checks.py` | `lake exe qualify fence-evidence` | Independent range, admission, policy and compiler failures inside positive fences, plus restoration. |
+| `frozen_exit_checks.py` | `lake exe qualify frozen-exits` | Frozen-input rechecks after imports and failed build/compilation operations. |
+| `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 36 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
+| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Sixty source-owned phases for twenty rules, plus admission mutations and authentic wrong-claim/classification controls. |
 | prototype `run.py` | `lake env lean --run examples/rule-reference-prototype/Run.lean` | Separately pinned Verso integration, native messages, Lake dependency dispatch and identical-output comparison. |
 
 The producer command retains `--evidence PATH`. `scripts/verify.sh` runs registry and native
@@ -29,7 +36,13 @@ Both invocations retain their separate hard 420-second deadlines. Direct `lake e
 campaigns have a single 420-second process-group deadline; the prototype has a single
 600-second process-group deadline. These replace the old per-child timers, which cannot
 safely enforce descendant termination while sharing acceptance's outer process group.
-The prototype never substitutes for acceptance.
+The prototype never substitutes for acceptance. `diagnostics rule-examples` retains the
+upstream corpus selection; optional `--rules RULE ...` follows `--evidence PATH` on the
+standalone command and never claims full-corpus coverage. The corpus runner retains at
+most two disjoint detector processes, consumes records in fixed order, and drains launched
+tasks before ordinary/exceptional scratch cleanup. Partial exports remain `INCOMPLETE`.
+The former launcher's separate 180-second diagnostic timer is replaced by the same
+single 420-second public qualification boundary; no timing result is a future bound.
 
 ## Organization
 
@@ -78,6 +91,23 @@ by their source-level linkage. The proof is erased at execution.
   Their registered contracts apply this equivalence to the actual decoders; they do
   **not** prove that the observations were extracted truthfully or that Lean's JSON
   parser implements a separately formalized JSON specification.
+- `Evidence.checkedValidation` and `checkedDocumentation`: exact conjunctions of decoded
+  status/diagnostic/exit and transcript requirements, including distinct fence/project
+  admission messages and the underlying IO reason. IO-only controls also consume the
+  shared assertion contract for their observed source, closure and configuration fields.
+- `Launcher.admit` returns a proof-bearing mapping with nonempty unique names and both
+  required search paths; its completeness theorem admits every valid decoded mapping.
+  `checkedEquivalence` requires exactly 36 observations and full ordered equality,
+  including source, arguments, stdout/stderr, exit, environment and resolved executable.
+  Lake's actual environment is cached only within one fixed parent/workspace invocation,
+  separately for the imported-control search-path override. Neither observations nor
+  compiled artifacts are reused. Environment values are not exported. Durations are
+  observations, not a speed guarantee or compiler-equivalence theorem.
+- `Template.instantiate` returns a required `Maps` proof for the actual recursive JSON
+  transformation: ordered array entries, object keys and scalar kinds are preserved;
+  only entire matching string values change. Unmatched strings stay unchanged. Depth
+  exhaustion explicitly refuses; the corpus uses a 64-level budget. Semantic module
+  discovery for checker snapshots uses Lake's elaborated inventory, not a source glob.
 - `Website.hasFence_exact`: the fence guard detects exactly a contiguous triple backtick
   in the input character list. `checkedBlock` specifies refusal or exact LF-normalized
   text wrapping. `checkedPage` admits exactly fence-free SL1001 inputs and returns a

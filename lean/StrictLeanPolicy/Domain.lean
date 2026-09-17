@@ -355,6 +355,12 @@ theorem RecursionOrigin.canonical (s : String) (x : RecursionOrigin) (h : parse?
 def canonicalNames (names : Array Lean.Name) : Array Lean.Name :=
   (CanonicalSet.normalize names.toList).toList.toArray
 
+/-- Admission checks canonical order directly instead of rebuilding an ordered set. -/
+instance (names : Array Lean.Name) : Decidable (canonicalNames names = names) := by
+  letI := CanonicalSet.normalizedDecision names.toList
+  exact decidable_of_iff ((CanonicalSet.normalize names.toList).toList = names.toList)
+    (by simp only [canonicalNames, ← Array.toList_inj])
+
 @[simp] theorem mem_canonicalNames (names : Array Lean.Name) (n : Lean.Name) :
     n ∈ canonicalNames names ↔ n ∈ names := by
   simp [canonicalNames, Std.ExtTreeSet.mem_toList]
@@ -367,6 +373,13 @@ theorem canonicalNames_idempotent (names : Array Lean.Name) :
 def canonicalEdges (edges : Array (Lean.Name × Lean.Name)) : Array (Lean.Name × Lean.Name) :=
   letI : Ord (Lean.Name × Lean.Name) := lexOrd
   (CanonicalSet.normalize edges.toList).toList.toArray
+
+/-- Preserve exact edge normalization equality using the same lawful lexicographic order. -/
+instance (edges : Array (Lean.Name × Lean.Name)) : Decidable (canonicalEdges edges = edges) := by
+  letI : Ord (Lean.Name × Lean.Name) := lexOrd
+  letI := CanonicalSet.normalizedDecision edges.toList
+  exact decidable_of_iff ((CanonicalSet.normalize edges.toList).toList = edges.toList)
+    (by simp only [canonicalEdges, ← Array.toList_inj])
 
 @[simp] theorem mem_canonicalEdges (edges : Array (Lean.Name × Lean.Name)) (e : Lean.Name × Lean.Name) :
     e ∈ canonicalEdges edges ↔ e ∈ edges := by
@@ -584,6 +597,39 @@ def ExecutionBoundary.correspondence (b : ExecutionBoundary) : Correspondence :=
 
 def ExecutionBoundary.evidence (b : ExecutionBoundary) : Option String := b.account.detail
 
+/-- One first visit, recorded before inspecting its policy outcomes. A non-root visit
+retains the earlier visit that queued it; IR-only names may lack module attribution. -/
+structure ExecutionVisit where
+  name : Lean.Name
+  moduleName : Option Lean.Name
+  parent : Option Nat
+  deriving Repr, DecidableEq
+
+/-- The walk's complete reached-name census and separately attributed edge sets.
+These are observations of the pinned collector, not a minimal runtime call graph.
+Current replacements remain distinct from successfully observed historical choices;
+active simplifications are used for cycle detection, not claimed compiler calls. -/
+structure ExecutionClosure where
+  nodes : Array Lean.Name
+  visits : Array ExecutionVisit
+  logicalEdges : Array (Lean.Name × Lean.Name) := #[]
+  candidateEdges : Array (Lean.Name × Lean.Name) := #[]
+  historyEdges : Array (Lean.Name × Lean.Name) := #[]
+  currentReplacementEdges : Array (Lean.Name × Lean.Name) := #[]
+  activeSimplificationEdges : Array (Lean.Name × Lean.Name) := #[]
+  helperEdges : Array (Lean.Name × Lean.Name) := #[]
+  /-- Names for which retained code is required, including the root when applicable. -/
+  requiredCode : Array Lean.Name := #[]
+  /-- Required names whose body is absent or an unauthenticated extern placeholder. -/
+  unavailableCode : Array Lean.Name := #[]
+  deriving Repr, DecidableEq
+
+/-- Traversal edges, retaining the distinct acquisition channels in the stored fields. -/
+def ExecutionClosure.edges (c : ExecutionClosure) (compilerEdges : Array (Lean.Name × Lean.Name)) :
+    Array (Lean.Name × Lean.Name) :=
+  compilerEdges ++ c.logicalEdges ++ c.candidateEdges ++ c.historyEdges ++
+    c.currentReplacementEdges ++ c.helperEdges
+
 structure ExecutionRoot where
   name : Lean.Name
   «module» : Lean.Name
@@ -592,6 +638,7 @@ structure ExecutionRoot where
   /-- Direct calls/closures/initializers retained in the pinned compiler IR;
   unlike the boundary candidate closure, these record compiled edges. -/
   compilerEdges : Array (Lean.Name × Lean.Name) := #[]
+  closure : ExecutionClosure
   deriving Repr, DecidableEq
 
 /-- Lean-resolved origin of one imported module, with its direct imports as

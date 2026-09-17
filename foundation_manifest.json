@@ -64,6 +64,14 @@
     {
       "executable": "checkerSelftest",
       "rationale": "Checker tooling executable; its root module belongs to the excluded StrictLean library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
+    },
+    {
+      "executable": "ruleExamples",
+      "rationale": "Source-owned rule fixture diagnostic qualification adapter; not a conforming program surface."
+    },
+    {
+      "executable": "ruleExampleQualification",
+      "rationale": "Source-owned rule receipt admission tooling; not a conforming program surface."
     }
   ]
 }

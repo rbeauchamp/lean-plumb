@@ -23,8 +23,10 @@ is conditional on observations; it is not con-leche's kernel/model theorem.
 Paths in this table are relative to `lean/StrictLean/`; names identify actual
 baseline functions, including private functions. This inventory is source inspection,
 not a reproduced end-to-end bypass or a universal proof of the running checker.
+The [producer guide](engine-producers.md) owns the current census, closure and
+source-binding account; the baseline observations below are not a current implementation inventory.
 
-| Stage / producer | Current facts and consumer | Migration enforcement site |
+| Stage / producer | Baseline facts and consumer | Migration enforcement site |
 | --- | --- | --- |
 | `Checker/Workspace`, `Checker/Lake.surfaceInventory` | Lake loader, `getModuleArray`, exact sources, root executables, output/search paths. Nonempty libraries, unique modules per library and unique executable roots required. | Freeze configuration and module inventory before dispatch; retain semantic discovery and source/path checks. |
 | `Checker/Manifest.load`, `AxiomGate.auditSurfaceAt` | Schema 2, exactly classified library/executable targets, positive profiles, standalone-root conflicts; build explicit positive targets. `sameStringSet` is not declaration completeness. | Admit manifest and disjoint surface ownership; derive required scope from Lake, never returned reports. |
@@ -210,6 +212,14 @@ source, missing locations, malformed output or incomplete checks satisfy neither
 variant. These outcomes construct accepted **example expectations**, never conforming
 positive program evidence. Docs aggregation fixes the kind of each expected job before
 execution, and keeps negative/trusted counts separate from positives.
+
+Unavailable-analysis rules also have separately labelled **diagnostic demonstrations**:
+completed authentic production with exact source/configuration/mode, registry ID, reason and
+primary/related locations, while the audit result remains INCOMPLETE. These are outside the
+four accepted-example kinds and cannot discharge `ExampleExpectationOK`, positive conformance,
+or an accepted rejection. Crashes, stale sources, cancellation, missing responses and unrelated
+failures do not qualify. Each correction requires its applicable completed positive checks.
+The [source-owned corpus contract](rule-examples.md) records concrete page inputs and limits.
 
 Each predicate must be elaborated as a declarative relation over data, with named
 components corresponding to these requirements; its decision function is proved sound

@@ -2,6 +2,7 @@ module
 
 public import Std.Data.ExtTreeSet
 public import Std.Data.ExtTreeMap
+public import Init.Data.List.Perm
 
 @[expose] public section
 
@@ -61,6 +62,58 @@ omit [BEq α] [LawfulBEq α] in
 /-- Lookup returns the exact queried member, not another display-equivalent value. -/
 theorem lookup (s : CanonicalSet α) (x : α) (h : x ∈ s) :
     s.get? x = some x := ExtTreeSet.get?_eq_some h
+/-- Compare adjacent elements using the existing list traversals. -/
+def adjacentOrdered (xs : List α) : Bool :=
+  (xs.zip xs.tail).all (fun (a, b) => compare a b == .lt)
+
+omit [LawfulEqOrd α] [BEq α] [LawfulBEq α] in
+/-- Transitivity makes adjacent strict comparisons equivalent to all ordered pairs. -/
+theorem adjacentOrdered_iff (xs : List α) :
+    adjacentOrdered xs = true ↔ xs.Pairwise (fun a b => compare a b = .lt) := by
+  induction xs with
+  | nil => simp [adjacentOrdered]
+  | cons a tail ih =>
+    cases tail with
+    | nil => simp [adjacentOrdered]
+    | cons b tail =>
+      change ((compare a b == .lt) && adjacentOrdered (b :: tail)) = true ↔ _
+      rw [Bool.and_eq_true, beq_iff_eq, ih]
+      constructor
+      · rintro ⟨hab, ht⟩
+        refine List.Pairwise.cons ?_ ht
+        intro c hc
+        rcases List.mem_cons.mp hc with rfl | hc
+        · exact hab
+        · exact TransCmp.lt_trans hab ((List.pairwise_cons.mp ht).1 c hc)
+      · intro h
+        exact ⟨(List.pairwise_cons.mp h).1 b (by simp), h.tail⟩
+
+/-- Decide the original Pairwise relation through the proved adjacent check. -/
+def orderedDecision (xs : List α) : Decidable (xs.Pairwise (fun a b => compare a b = .lt)) :=
+  decidable_of_iff (adjacentOrdered xs = true) (adjacentOrdered_iff xs)
+
+/-- A sequence is unchanged by canonical serialization exactly when it is
+strictly ordered; duplicate and out-of-order observations still fail. -/
+theorem normalized_iff_ordered (xs : List α) :
+    (normalize xs).toList = xs ↔ xs.Pairwise (fun a b => compare a b = .lt) := by
+  constructor
+  · intro h
+    exact h ▸ sorted (normalize xs)
+  · intro h
+    have nodup {ys : List α} (hs : ys.Pairwise (fun a b => compare a b = .lt)) : ys.Nodup :=
+      hs.imp (fun {a b} hab heq => by subst b; simp at hab)
+    apply List.Perm.eq_of_pairwise (le := fun a b => compare a b = .lt)
+      (fun a b _ _ hab hba => False.elim (OrientedCmp.not_lt_of_lt hab hba))
+      (sorted (normalize xs)) h
+    apply (List.perm_ext_iff_of_nodup (nodup (sorted (normalize xs))) (nodup h)).mpr
+    intro a
+    simp [normalize, ExtTreeSet.mem_toList, ExtTreeSet.mem_ofList]
+
+/-- Decide the existing normalization equality without rebuilding the set. -/
+def normalizedDecision (xs : List α) : Decidable ((normalize xs).toList = xs) := by
+  letI := orderedDecision xs
+  exact decidable_of_iff _ (normalized_iff_ordered xs).symm
+
 end CanonicalSet
 
 /-- Exactly one occurrence exists, and that occurrence satisfies the required relation.

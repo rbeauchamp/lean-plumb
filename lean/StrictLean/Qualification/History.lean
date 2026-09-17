@@ -1,4 +1,4 @@
-import StrictLean.Qualification.Project
+import StrictLean.Qualification.SourceEvidence
 import StrictLeanQualification.History
 
 /-! Actual project/file history qualification. Sources and output paths are isolated;
@@ -6,9 +6,9 @@ positive/unsupported/restored controls all discard generated build artifacts. -/
 namespace StrictLean.Qualification.History
 open Lean
 
-private def source := "import Lean\n/-! Two callers preserve an earlier implementation overwritten after compilation. -/\ndef earlier (n : Nat) : Nat := n + 0\ndef target (n : Nat) : Nat := n\n@[implemented_by earlier] def reference (n : Nat) : Nat := n\ndef first (n : Nat) : Nat := reference n\nattribute [implemented_by target] reference\ndef second (n : Nat) : Nat := reference n\n-- evaluator control\n"
+private def source := "import Lean\nimport StrictLean.Contract\n/-! Two callers preserve an earlier implementation overwritten after compilation. -/\ndef earlier (n : Nat) : Nat := n + 0\ndef target (n : Nat) : Nat := n\n@[implemented_by earlier] def reference (n : Nat) : Nat := n\ndef first (n : Nat) : Nat := reference n\nattribute [implemented_by target] reference\ndef second (n : Nat) : Nat := reference n\ndef recursiveSum : List Nat → Nat\n  | [] => 0\n  | x :: xs => x + recursiveSum xs\nprivate def unused (xs : List Nat) : Nat := recursiveSum xs\nprivate def unregistered (xs : List Nat) : Nat := recursiveSum xs\ntheorem privateContract : StrictLean.ExecutableContract unused\n    (fun f => ∀ xs, f xs = recursiveSum xs) := ⟨by intro xs; rfl⟩\ntheorem importedContract : StrictLean.ExecutableContract Nat.add\n    (fun f => ∀ n m, f n m = n + m) := ⟨by intros; rfl⟩\n-- evaluator control\n"
 
-/-- Nine real public invocations retain exact requests, source binding, outcomes and
+/-- Seventeen real public invocations retain exact requests, source binding, outcomes and
 both replacement targets. The transport mutation campaign consumes a real restored report. -/
 def check : IO Unit := do
   let root ← rootDirectory
@@ -18,12 +18,32 @@ def check : IO Unit := do
     for (invocation, flags, mode) in #[
         ("project", #[], "freshProject"), ("incremental", #["--incremental"], "incrementalProject"),
         ("file", #["--file", "Example.lean", "--claim", "standard-logical", "--execution", "checked"], "freshFile")] do
-      for phase in #["positive", "unsupported", "restored"] do
-        let source := if phase == "unsupported" then source.replace "-- evaluator control" "run_cmd pure ()" else source
+      let phases := #["positive", "unsupported", "restored"] ++
+        (if invocation == "incremental" then #[] else #["admission", "restored", "source-change", "restored"])
+      for index in [:phases.size] do
+        let phase := phases[index]!
+        let mutation := if phase == "unsupported" then "run_cmd pure ()"
+          else if phase == "admission" then SourceEvidence.unchecked
+          else if phase == "source-change" then "run_cmd do\n  let path ← Lean.getFileName\n  let content ← IO.FS.readFile path\n  IO.FS.writeFile path (content ++ \"\\n\")\n"
+          else "-- evaluator control"
+        let source := source.replace "-- evaluator control" mutation
         IO.FS.writeFile (project / "Example.lean") source
         clearBuild project
-        let output := project / s!"{invocation}-{phase}.json"
+        let output := project / s!"{invocation}-{index}-{phase}.json"
         let (result, report) ← observeProject root project output flags
+        if phase == "admission" || phase == "source-change" then
+          let reason := if phase == "admission" then "kernel-admission" else "producer-source: source snapshot changed"
+          IO.ofExcept (StrictLeanQualification.Evidence.checkedValidation.run {
+            failure := true, mode := some mode, status := "incomplete", ids := ["SL2005"], reason,
+            impact := some "incomplete", diagnosticMode := some mode }
+            result.exitCode.toNat (result.stdout ++ result.stderr) (some report))
+          requireChecks [⟨"exact history evidence exit", result.exitCode == 1⟩]
+          if phase == "admission" then
+            let ds ← IO.ofExcept (report.getObjValAs? (Array Json) "diagnostics")
+            for d in ds do
+              requireChecks [⟨"intended unchecked theorem", (← IO.ofExcept (StrictLeanQualification.Evidence.detail d)).contains "admissionFalse"⟩]
+          IO.println s!"source {invocation}/{phase}: exact SL2005 incomplete PASS"
+          continue
         IO.ofExcept (StrictLeanQualification.History.checkedValidation.run report result.exitCode.toNat
           mode source (invocation == "file") (phase == "unsupported"))
         if phase == "unsupported" then
@@ -52,7 +72,7 @@ def check : IO Unit := do
               mode source (invocation == "file") true)
             IO.println s!"history oracle {invocation}/{label}: intended refusal + restored control PASS"
         requireChecks [⟨"history source unchanged", (← IO.FS.readFile (project / "Example.lean")) == source⟩]
-        if invocation == "project" && phase == "restored" then
+        if invocation == "project" && index == 2 then
           transportControl root "lean/StrictLean/Checker/HistoryQualification.lean" output
         IO.println s!"history {invocation}/{phase}: exact requests/source/outcome PASS"
 

@@ -199,7 +199,7 @@ inductive Kind where
   | positive
   | negative
   | trusted
-  deriving Repr, BEq
+  deriving Repr, BEq, DecidableEq, ToJson, FromJson
 
 structure Task where
   fence : Fence
@@ -212,7 +212,7 @@ inductive Status where
   | passNegative
   | passTrusted
   | fail
-  deriving Repr, BEq
+  deriving Repr, BEq, DecidableEq, ToJson, FromJson
 
 structure Result where
   task : Task
@@ -220,7 +220,44 @@ structure Result where
   detail : String := ""
   policyProblems : Array (StrictLean.RuleId × StrictLean.Report.Declaration) := #[]
   incomplete : Bool := false
+  admissionFailure : Option ProducerReport.AdmissionFailure := none
   deriving Repr
+
+structure Classification where
+  kind : Kind
+  status : Status
+  incomplete : Bool
+  deriving DecidableEq, ToJson, FromJson
+
+def classification (result : Result) : Classification :=
+  ⟨result.task.kind, result.status, result.incomplete⟩
+
+def PositiveClassifications (results : Array Classification) : Prop :=
+  results ≠ #[] ∧ ∀ result ∈ results,
+    result.kind = .positive ∧ result.status = .pass ∧ result.incomplete = false
+
+instance (results : Array Classification) : Decidable (PositiveClassifications results) := by
+  unfold PositiveClassifications
+  infer_instance
+
+def admitPositiveClassifications (results : Array Classification) :
+    Except String { checked : Array Classification // checked = results ∧ PositiveClassifications checked } :=
+  if h : PositiveClassifications results then .ok ⟨results, rfl, h⟩
+  else .error "documentation correction requires completed positive fences"
+
+theorem positiveClassifications_sound (results : Array Classification)
+    (checked : { cs : Array Classification // cs = results ∧ PositiveClassifications cs })
+    (_ : admitPositiveClassifications results = .ok checked) :
+    checked.val = results ∧ PositiveClassifications checked.val := checked.property
+
+private def withSourceEvidence (tasks : Array Task)
+    (sources : Array ProducerReport.SourceBinding) (configuration : Array (FilePath × Option String))
+    (action : IO (Array Result)) : IO (Array Result) := do
+  match ← SourceBinding.withUnchanged sources configuration action with
+  | .ok results => return results
+  | .error failure => return tasks.map fun task => {
+      task, status := .fail, detail := failure.detail
+      incomplete := true, admissionFailure := some failure }
 
 def kindOf (fence : Fence) : Kind :=
   if fence.failPattern.isSome then .negative else if fence.trusted then .trusted else .positive
@@ -319,81 +356,112 @@ Each group runs in a child process so extension-held imports are released on exi
 `extraSearchRoots` carries the freshly built claimed-surface libraries of the
 checked project, ahead of any inherited search path. -/
 unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
-    (tasks : Array Task) (extraSearchRoots : Array FilePath := #[])
-    (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none) : IO (Array Result) := do
-  let indexed := tasks.mapIdx fun index task => (task, index)
-  let specs := indexed.map fun (task, index) =>
-    ({
-      «module» := s!"DocFence_{index + 1}"
-      source := task.fence.body
-      warningAsError := task.kind != .negative
-      rejectWarnings := task.kind != .negative
-      captureRejection := task.kind == .negative
-    } : SourceAudit.SourceSpec)
-  let compilations ← timedPhase "fence compilation" <| SourceAudit.compileBatch repo scratch jobs specs
-  IO.println s!"fence compilations complete: {tasks.size}; inspecting declarations"
-  (← IO.getStdout).flush
-  let mut results : Array (Option Result) := Array.replicate tasks.size none
-  let mut groups : Array InspectionGroup := #[]
-  for index in [:tasks.size] do
-    let some task := tasks[index]?
-      | throw <| IO.userError "internal error: missing documentation task"
-    let some compilation := compilations[index]?
-      | throw <| IO.userError "internal error: missing documentation compilation"
-    if task.kind == .negative then
-      results := results.set! index (some (auditNegative compilation task))
-    else if !SourceAudit.compilationPassed compilation then
-      results := results.set! index (some (compilationFailure compilation task))
-    else
-      let (moduleData, _) ← Lean.readModuleData compilation.oleanPath
-      let item : PendingPositive := {
-        index, task, compilation
-        constantNames := moduleData.constNames.map (·.toString)
-        importNames := moduleData.imports.map (·.module)
-      }
-      groups := addToGroups groups item
-
-  let selfLib ← checkerPackageLibDir
-  let oldSearchPath ← Lean.searchPathRef.get
-  Lean.searchPathRef.set (scratch :: extraSearchRoots.toList ++ selfLib.toList ++ oldSearchPath)
-  -- Each worker owns its imported environments and scratch files. Keep the
-  -- search path fixed until all workers finish; merge immutable results only
-  -- afterward. Limit concurrent large imports to two even when compilation
-  -- uses more jobs.
-  let inspectGroups := mapWorkQueue (min jobs 2) (groups.mapIdx fun i group => (i, group))
-    fun (index, group) => do
-      IO.println s!"inspection group {index + 1}/{groups.size}: {group.items.size} fence(s)"
+    (tasks : Array Task) (sourceBindings : Array ProducerReport.SourceBinding)
+    (configuration : Array (FilePath × Option String))
+    (extraSearchRoots : Array FilePath := #[]) (ownedOutput : Option FilePath := none) : IO (Array Result) := do
+  withSourceEvidence tasks sourceBindings configuration do
+    SourceBinding.unchanged sourceBindings
+    SourceBinding.configurationUnchanged configuration
+    let indexed := tasks.mapIdx fun index task => (task, index)
+    let specs := indexed.map fun (task, index) =>
+      ({
+        «module» := s!"DocFence_{index + 1}"
+        source := task.fence.body
+        warningAsError := task.kind != .negative
+        rejectWarnings := task.kind != .negative
+        captureRejection := task.kind == .negative
+      } : SourceAudit.SourceSpec)
+    let compilationOutcome ← timedPhase "fence compilation" <| SourceAudit.compileBatch repo scratch jobs specs
+    SourceBinding.unchanged sourceBindings
+    SourceBinding.configurationUnchanged configuration
+    if let .error failure := compilationOutcome then
+      return tasks.map fun task => {
+        task, status := .fail, detail := failure.detail
+        incomplete := true, admissionFailure := some failure }
+    let .ok compilations := compilationOutcome
+      | throw <| IO.userError "unreachable compilation outcome"
+    let snippets := compilations.map fun compilation => ({
+      moduleName := compilation.spec.module.toName
+      path := compilation.sourcePath.toString
+      content := compilation.spec.source } : ProducerReport.SourceBinding)
+    withSourceEvidence tasks snippets #[] do
+      IO.println s!"fence compilations complete: {tasks.size}; inspecting declarations"
       (← IO.getStdout).flush
-      let modules := group.items.map (·.compilation.spec.«module».toName)
-      try
-        let inspected ← SourceAudit.inspectGroupCurrentSearchPath modules
-          (group.items.map fun item => (item.compilation.spec.«module».toName, item.compilation.sourcePath))
-          moduleSources ownedOutput (includeExecution := false) (includeModuleOrigins := false)
-        return group.items.map fun item =>
-          let declarations := inspected.report.declarations.filter
-            (·.«module» == item.compilation.spec.«module».toName)
-          let transcripts := inspected.transcripts.filter
-            (·.«module» == item.compilation.spec.«module».toName)
-          (item.index, assessPositive item.task declarations transcripts)
-      catch error =>
-        return group.items.map fun item =>
-          let failure : Result := { task := item.task, status := .fail, detail := s!"checker inspection failed: {error}", incomplete := true }
-          (item.index, failure)
-  let updates ← try timedPhase "fence inspection" inspectGroups
-    finally Lean.searchPathRef.set oldSearchPath
-  let mut finalResults := results
-  for group in updates do
-    for (index, result) in group do
-      finalResults := finalResults.set! index (some result)
+      let mut results : Array (Option Result) := Array.replicate tasks.size none
+      let mut groups : Array InspectionGroup := #[]
+      for index in [:tasks.size] do
+        let some task := tasks[index]?
+          | throw <| IO.userError "internal error: missing documentation task"
+        let some compilation := compilations[index]?
+          | throw <| IO.userError "internal error: missing documentation compilation"
+        if task.kind == .negative then
+          results := results.set! index (some (auditNegative compilation task))
+        else if !SourceAudit.compilationPassed compilation then
+          results := results.set! index (some (compilationFailure compilation task))
+        else
+          let (moduleData, _) ← Lean.readModuleData compilation.oleanPath
+          let item : PendingPositive := {
+            index, task, compilation
+            constantNames := moduleData.constNames.map (·.toString)
+            importNames := moduleData.imports.map (·.module)
+          }
+          groups := addToGroups groups item
 
-  let mut complete : Array Result := #[]
-  for index in [:finalResults.size] do
-    let some result := finalResults[index]?
-      | throw <| IO.userError "internal error: missing documentation result slot"
-    let some result := result
-      | throw <| IO.userError "internal error: documentation task was not assessed"
-    complete := complete.push result
-  return complete
+      let selfLib ← checkerPackageLibDir
+      let oldSearchPath ← Lean.searchPathRef.get
+      Lean.searchPathRef.set (scratch :: extraSearchRoots.toList ++ selfLib.toList ++ oldSearchPath)
+      -- Each worker owns its imported environments and scratch files. Keep the
+      -- search path fixed until all workers finish; merge immutable results only
+      -- afterward. Use the same bounded worker count as fence compilation.
+      let inspectGroups := mapWorkQueue jobs (groups.mapIdx fun i group => (i, group))
+        fun (index, group) => do
+          IO.println s!"inspection group {index + 1}/{groups.size}: {group.items.size} fence(s)"
+          (← IO.getStdout).flush
+          let modules := group.items.map (·.compilation.spec.«module».toName)
+          try
+            let outcome ← SourceAudit.inspectGroupCurrentSearchPath modules
+              (group.items.map fun item => (item.compilation.spec.«module».toName, item.compilation.sourcePath))
+              (sourceBindings.map fun source => (source.moduleName, FilePath.mk source.path))
+              ownedOutput (includeExecution := false) (includeModuleOrigins := false)
+              (compiledSources := sourceBindings ++ group.items.map fun item => {
+                moduleName := item.compilation.spec.module.toName
+                path := item.compilation.sourcePath.toString
+                content := item.compilation.spec.source })
+            if let .error failure := outcome then
+              return group.items.map fun item =>
+                let result : Result := {
+                  task := item.task, status := .fail, detail := failure.detail
+                  incomplete := true, admissionFailure := some failure }
+                (item.index, result)
+            let .ok inspected := outcome
+              | throw <| IO.userError "unreachable admission outcome"
+            return group.items.map fun item =>
+              let declarations := inspected.report.declarations.filter
+                (·.«module» == item.compilation.spec.«module».toName)
+              let transcripts := inspected.transcripts.filter
+                (·.«module» == item.compilation.spec.«module».toName)
+              (item.index, assessPositive item.task declarations transcripts)
+          catch error =>
+            return group.items.map fun item =>
+              let failure : Result := { task := item.task, status := .fail, detail := s!"checker inspection failed: {error}", incomplete := true }
+              (item.index, failure)
+      let updates ← try timedPhase "fence inspection" inspectGroups
+        finally Lean.searchPathRef.set oldSearchPath
+      let mut finalResults := results
+      for group in updates do
+        for (index, result) in group do
+          finalResults := finalResults.set! index (some result)
+
+      let mut complete : Array Result := #[]
+      for index in [:finalResults.size] do
+        let some result := finalResults[index]?
+          | throw <| IO.userError "internal error: missing documentation result slot"
+        let some result := result
+          | throw <| IO.userError "internal error: documentation task was not assessed"
+        complete := complete.push result
+      SourceBinding.unchanged sourceBindings
+      SourceBinding.configurationUnchanged configuration
+      return complete
 
 private def relativeDisplay (root path : FilePath) : String :=
   let rootComponents := root.normalize.components
@@ -419,79 +487,101 @@ def snapshotMarkdown (source target : FilePath) : IO Unit := do
 The standalone command creates that workspace itself; combined verification owns
 it from declaration admission through the last fence inspection. -/
 unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.SurfaceInventory)
+    (sourceBindings : Array ProducerReport.SourceBinding)
+    (configuration : Array (FilePath × Option String))
     (jobs : Nat) (verbose : Bool)
-    (emit : StrictLean.Finding → IO Unit := fun _ => pure ()) : IO UInt32 := do
-  if !(← docsRoot.isDir) then
-    IO.println s!"FAIL: documentation root is not a directory: {docsRoot}"
-    return 1
-  let markdown := ((← docsRoot.walkDir).filter fun path => path.extension == some "md")
-    |>.qsort fun left right => left.toString < right.toString
-  if markdown.isEmpty then
-    IO.println s!"FAIL: no Markdown files found recursively below {docsRoot}"
-    return 1
+    (emit : StrictLean.Finding → IO Unit := fun _ => pure ())
+    (observe : Array Result → IO Unit := fun _ => pure ()) : IO UInt32 := do
+  let outcome : Except ProducerReport.AdmissionFailure UInt32 ←
+    SourceBinding.withUnchanged sourceBindings configuration do
+      if !(← docsRoot.isDir) then
+        IO.println s!"FAIL: documentation root is not a directory: {docsRoot}"
+        return 1
+      let markdown := ((← docsRoot.walkDir).filter fun path => path.extension == some "md")
+        |>.qsort fun left right => left.toString < right.toString
+      if markdown.isEmpty then
+        IO.println s!"FAIL: no Markdown files found recursively below {docsRoot}"
+        return 1
 
-  let mut tasks : Array Task := #[]
-  let mut structural : Array String := #[]
-  for path in markdown do
-    let relative := relativeDisplay docsRoot path
-    let scan := Documentation.scan (← IO.FS.readFile path) relative
-    structural := structural ++ scan.problems
-    for fence in scan.fences do
-      tasks := tasks.push {
-        fence
-        origin := s!"{relative}:{fence.line}"
-        kind := kindOf fence
-      }
-  let positiveCount := (tasks.filter (·.kind == .positive)).size
-  let negativeCount := (tasks.filter (·.kind == .negative)).size
-  let trustedCount := (tasks.filter (·.kind == .trusted)).size
-  IO.println <| s!"```lean fences: {tasks.size} " ++
-    s!"(conforming-positive {positiveCount}, negative {negativeCount}, trusted {trustedCount})"
-  (← IO.getStdout).flush
+      let mut tasks : Array Task := #[]
+      let mut structural : Array String := #[]
+      for path in markdown do
+        let relative := relativeDisplay docsRoot path
+        let scan := Documentation.scan (← IO.FS.readFile path) relative
+        structural := structural ++ scan.problems
+        for fence in scan.fences do
+          tasks := tasks.push {
+            fence
+            origin := s!"{relative}:{fence.line}"
+            kind := kindOf fence
+          }
+      let positiveCount := (tasks.filter (·.kind == .positive)).size
+      let negativeCount := (tasks.filter (·.kind == .negative)).size
+      let trustedCount := (tasks.filter (·.kind == .trusted)).size
+      IO.println <| s!"```lean fences: {tasks.size} " ++
+        s!"(conforming-positive {positiveCount}, negative {negativeCount}, trusted {trustedCount})"
+      (← IO.getStdout).flush
 
-  let fenceScratch := repo / "tmp" / "fence-build"
-  IO.FS.createDirAll fenceScratch
-  let results ← auditTasks repo fenceScratch jobs tasks inventory.leanPath inventory.moduleSources (some inventory.leanLibDir)
-  let mut failures := structural.size
-  for problem in structural do
-    IO.println s!"[X] {problem}"
-    let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .fenceStructure docsRoot.toString
-      problem .documentationExample .violation
-    IO.println finding.2.text
-    emit finding
-  for result in results.qsort fun left right => left.task.origin < right.task.origin do
-    let mark := match result.status with
-      | .pass => "." | .passNegative => "n" | .passTrusted => "t" | .fail => "X"
-    IO.println s!"[{mark}] {result.task.origin} {statusName result.status}"
-    if result.status == .fail then
-      failures := failures + 1
-      let detail := if verbose then result.detail
-        else (result.detail.splitOn " | ").head?.getD result.detail |>.take 180 |>.toString
-      IO.println s!"      {detail}"
-      let id : StrictLean.RuleId := match result.task.kind with
-        | .positive => .positiveExample | .negative => .negativeExample | .trusted => .trustedExample
-      let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding id result.task.origin
-        result.detail .documentationExample (if result.incomplete then .incomplete else .violation)
-      IO.println finding.2.text
-      emit finding
-      for (rule, decl) in result.policyProblems do
-        -- Ranges are relative to the exact verbatim snippet, explicitly a virtual source.
-        let snapshot : StrictLean.SourceSnapshot := {
-          uri := s!"{docsRoot}/{result.task.origin}#lean-snippet"
-          source := result.task.fence.body }
-        let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl (some snapshot)
-        let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding rule
-          (← IO.ofExcept <| RuleDiagnostics.declarationName decl) result.detail location
-          .documentationExample (some (if result.task.kind == .trusted then "compiler-trusting" else "standard-logical"))
+      let fenceScratch := repo / "tmp" / "fence-build"
+      IO.FS.createDirAll fenceScratch
+      let results ← auditTasks repo fenceScratch jobs tasks sourceBindings configuration inventory.leanPath (some inventory.leanLibDir)
+      let mut failures := structural.size
+      for problem in structural do
+        IO.println s!"[X] {problem}"
+        let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .fenceStructure docsRoot.toString
+          problem .documentationExample .violation
         IO.println finding.2.text
         emit finding
-  let positivePass := (results.filter (·.status == .pass)).size
-  let negativePass := (results.filter (·.status == .passNegative)).size
-  let trustedPass := (results.filter (·.status == .passTrusted)).size
-  IO.println <| "\nsummary: " ++
-    s!"conforming-positive-pass={positivePass}/{positiveCount} " ++
-    s!"negative-pass={negativePass}/{negativeCount} " ++
-    s!"trusted-classified={trustedPass}/{trustedCount} fail={failures}"
-  return if failures == 0 then 0 else 1
+      for result in results.qsort fun left right => left.task.origin < right.task.origin do
+        let mark := match result.status with
+          | .pass => "." | .passNegative => "n" | .passTrusted => "t" | .fail => "X"
+        IO.println s!"[{mark}] {result.task.origin} {statusName result.status}"
+        if result.status == .fail then
+          failures := failures + 1
+          let detail := if verbose then result.detail
+            else (result.detail.splitOn " | ").head?.getD result.detail |>.take 180 |>.toString
+          IO.println s!"      {detail}"
+          let id : StrictLean.RuleId := match result.task.kind with
+            | .positive => .positiveExample | .negative => .negativeExample | .trusted => .trustedExample
+          let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding id result.task.origin
+            result.detail .documentationExample (if result.incomplete then .incomplete else .violation)
+          IO.println finding.2.text
+          emit finding
+          if let some failure := result.admissionFailure then
+            let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .admission result.task.origin
+              failure.detail .documentationExample .incomplete
+            IO.println finding.2.text
+            emit finding
+          for (rule, decl) in result.policyProblems do
+            -- Ranges are relative to the exact verbatim snippet, explicitly a virtual source.
+            let snapshot : StrictLean.SourceSnapshot := {
+              uri := s!"{docsRoot}/{result.task.origin}#lean-snippet"
+              source := result.task.fence.body }
+            let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl (some snapshot)
+            let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding rule
+              (← IO.ofExcept <| RuleDiagnostics.declarationName decl) result.detail location
+              .documentationExample (some (if result.task.kind == .trusted then "compiler-trusting" else "standard-logical"))
+            IO.println finding.2.text
+            emit finding
+      let positivePass := (results.filter (·.status == .pass)).size
+      let negativePass := (results.filter (·.status == .passNegative)).size
+      let trustedPass := (results.filter (·.status == .passTrusted)).size
+      IO.println <| "\nsummary: " ++
+        s!"conforming-positive-pass={positivePass}/{positiveCount} " ++
+        s!"negative-pass={negativePass}/{negativeCount} " ++
+        s!"trusted-classified={trustedPass}/{trustedCount} fail={failures}"
+      SourceBinding.unchanged sourceBindings
+      SourceBinding.configurationUnchanged configuration
+      observe results
+      return if failures == 0 then 0 else 1
+  match outcome with
+  | .ok result => return result
+  | .error failure =>
+      let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .admission docsRoot.toString
+        failure.detail .documentationExample .incomplete
+      -- Both public callers own the enclosing frozen-project guard and render
+      -- its refusal. Keep the finding callback without rendering it twice.
+      emit finding
+      return 1
 
 end StrictLean.Checker.Documentation

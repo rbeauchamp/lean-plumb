@@ -188,6 +188,13 @@ def ExampleExpectationOK (c : Claim) (fences : Array FenceKey) (f : FenceKey) (o
       ∃ d ∈ i.declarations, d.module = o.unitName ∧ ∃ n ∈ d.axioms, CompilerAxiom roles.native n
   | _, _ => False
 
+/-- No incomplete terminal outcome satisfies any of the four accepted expectations.
+A separately qualified unavailable-analysis demonstration cannot change this predicate. -/
+theorem incomplete_example_refused (c : Claim) (fences : Array FenceKey) (f : FenceKey)
+    (o : ExampleObservation) (detail : String) (h : o.outcome = .incomplete detail) :
+    ¬ ExampleExpectationOK c fences f o := by
+  cases f.expectation <;> simp [ExampleExpectationOK, h]
+
 /-- Completed scan and exact frozen fence inventory, including structural failures. -/
 def DocumentOK (c : Claim) (i : Census) (o : DocumentObservation) : Prop :=
   (match c.val.scope with | .documentation docs => o.documents = docs | _ => False) ∧

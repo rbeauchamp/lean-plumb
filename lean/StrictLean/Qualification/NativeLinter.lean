@@ -1,4 +1,4 @@
-import StrictLean.Qualification.Support
+import StrictLean.Qualification.Launcher
 import StrictLeanQualification.Native
 
 /-! Operational controls for native collector/logger/metadata linkage. Intentionally
@@ -32,13 +32,13 @@ def decode (value : Json) : Except String StrictLeanQualification.Native.Message
     kind, severity := (← value.getObjValAs? String "severity"),
     data := (← value.getObjValAs? String "data"), fileName := (← value.getObjValAs? String "fileName") }
 
-private def check (root scratch : FilePath) (control : Control)
+private def check (root scratch : FilePath) (launcher : Launcher.State) (control : Control)
     (env : Array (String × Option String) := #[]) : IO (List Json) := do
   let path := scratch / s!"{control.label}.lean"
   IO.FS.writeFile path control.source
-  let args := #["env", "lean", "--json", "--root", scratch.toString] ++ control.options ++
+  let args := #["--json", "--root", scratch.toString] ++ control.options ++
     (if control.output then #["-o", (path.withExtension "olean").toString] else #[]) ++ #[path.toString]
-  let result ← run root "lake" args env
+  let result ← Launcher.runLean root launcher args env
   let messages ← (result.stdout.splitOn "\n").filterMapM fun line => do
     if line.trimAscii.isEmpty then return none
     return some (← IO.ofExcept (Json.parse line))
@@ -61,10 +61,8 @@ private def position (messages : List Json) (id : String) : IO Json := do
 
 /-- Preserve all native source controls, including imported-artifact and restored
 controls. Search-path augmentation is child-local rather than a global mutation. -/
-def checkAll : IO Unit := do
-  let root ← rootDirectory
-  withScratch root "native-controls" fun scratch => do
-    let check := check root scratch
+def checkAt (root scratch : FilePath) (launcher : Launcher.State) : IO Unit := do
+    let check := check root scratch launcher
     let _ ← check { label := "Control", source := base, output := true }
     let axiomSource := base ++ "\naxiom forbidden : False\n"
     let messages ← check { label := "Axiom", source := axiomSource, ids := ["SL1001"] }
@@ -139,16 +137,60 @@ def checkAll : IO Unit := do
     let inspect := base ++ "run_cmd Lean.Elab.Command.liftCoreM <| Lean.addDecl (.axiomDecl {\n  name := `hiddenAxiom, levelParams := [], type := Lean.mkSort .zero, isUnsafe := false })\nrun_cmd do\n  let env ← Lean.getEnv\n  let ds ← StrictLean.Collect.currentModule\n  unless ds.any (fun d => d.name == `hiddenAxiom && d.kind == .«axiom») do\n    throwError \"binder-less declaration missing\"\n  unless ds.any (fun d => d.private) do throwError \"private declaration missing\"\n  unless ds.any (fun d => d.name == `Branch.rec) do throwError \"generated declaration missing\"\n  unless ds.all (fun d => d.module == env.mainModule) do throwError \"wrong local ownership\"\n  let a ← StrictLean.Collect.declaration `documented .snapshot\n  let b ← StrictLean.Collect.declaration `documented .replayCandidate\n  unless a == b do throwError \"stage changed ordinary canonical record\"\n  unless (StrictLean.Collect.moduleOf env `unknownDeclaration).toOption.isNone do\n    throwError \"invented unknown ownership\"\n  if env.header.modules.any (fun m => m.module.getRoot == `Mathlib) then\n    throwError \"public import required Mathlib\"\n"
     let _ ← check { label := "Collect", source := inspect }
     let observer := "import Control\n/-! Imported observation control. -/\nrun_cmd do\n  let env ← Lean.getEnv\n  for moduleName in #[`Control] do\n    unless (StrictLean.Linter.Documentation.modulePresent env moduleName).toOption == some true do\n      throwError \"imported module documentation absent\"\n  unless StrictLean.Linter.Documentation.selected env `documented do\n    throwError \"imported registration missing\"\n  unless (← StrictLean.Linter.Documentation.declarationPresent env `documented) == true do\n    throwError \"imported declaration documentation mismatch\"\n  let d ← StrictLean.Collect.declaration `documented .snapshot\n  unless d.module == `Control do throwError \"wrong imported ownership\"\n  unless (StrictLean.Linter.Documentation.modulePresent env `Unknown).toOption.isNone do\n    throwError \"unknown module treated as absent\"\n"
-    let envPath ← run root "lake" #["env", "printenv", "LEAN_PATH"]
-    requireChecks [⟨"Lake search-path query succeeded", envPath.exitCode == 0⟩]
-    let search := SearchPath.parse envPath.stdout.trimAscii.toString
+    let search := SearchPath.parse (← Launcher.leanPath root launcher)
     let env := #[("LEAN_PATH", some (SearchPath.toString (search ++ [scratch])))]
-    let _ ← NativeLinter.check root scratch { label := "Imported", source := observer } env
-    let _ ← NativeLinter.check root scratch { label := "ImportedVerso", source := observer.replace "Control" "Verso" } env
-    let _ ← NativeLinter.check root scratch {
+    let _ ← NativeLinter.check root scratch launcher { label := "Imported", source := observer } env
+    let _ ← NativeLinter.check root scratch launcher { label := "ImportedVerso", source := observer.replace "Control" "Verso" } env
+    let _ ← NativeLinter.check root scratch launcher {
       label := "ImportedMissing", source := ((observer.replace "Control" "Missing").replace
         "== true" "== false").replace "some true" "some false" } env
     let _ ← check { label := "Restored", source := base }
     IO.println s!"native bridge qualification: PASS ({controls.length + 18} actual Lean source controls)"
+
+/-- Normal acceptance uses the cached actual Lake environment, never a cached verdict. -/
+def checkAll : IO Unit := do
+  let root ← rootDirectory
+  withScratch root "native-controls" fun scratch => do checkAt root scratch (← Launcher.create)
+
+/-- Paired baseline-first diagnostic with the same scratch path, source, argv, observed
+outputs, environment and executable. Measurements describe only these actual runs. -/
+def paired : IO Unit := do
+  let root ← rootDirectory
+  let output := root / "tmp/native-launcher-diagnostic.json"
+  IO.FS.createDirAll (root / "tmp")
+  if ← output.pathExists then IO.FS.removeFile output
+  let started ← IO.monoMsNow
+  let report ← IO.mkRef (Json.mkObj [("outcome", .str "INCOMPLETE"), ("equivalent", .bool false)])
+  try
+    withScratch root "launcher-pair" fun scratch => do
+      let controls := scratch / "controls"
+      let mut observations := #[]
+      let mut runs := #[]
+      for legacy in #[true, false] do
+        IO.FS.createDir controls
+        let launcher ← Launcher.create legacy
+        let start ← IO.monoMsNow
+        try checkAt root controls launcher finally IO.FS.removeDirAll controls
+        let elapsed := (← IO.monoMsNow) - start
+        let records ← launcher.records.get
+        observations := observations.push records
+        -- Environment values intentionally never leave memory.
+        let encoded := records.map fun r => Json.mkObj [
+          ("label", toJson r.label), ("args", toJson r.args), ("source", toJson r.source),
+          ("returncode", toJson r.exitCode), ("stdout", toJson r.stdout), ("stderr", toJson r.stderr)]
+        runs := runs.push (Json.mkObj [("legacy", .bool legacy), ("millis", toJson elapsed),
+          ("captureMillis", toJson (← launcher.captureMillis.get)), ("controlMillis", toJson (← launcher.timings.get)),
+          ("controls", toJson encoded)])
+        report.modify (·.setObjVal! "runs" (toJson runs))
+      let some before := observations[0]? | throw <| IO.userError "missing baseline"
+      let some after := observations[1]? | throw <| IO.userError "missing candidate"
+      requireChecks [⟨"36 exact paired controls", StrictLeanQualification.Launcher.checkedEquivalence.run before after⟩]
+      report.modify fun value => (value.setObjVal! "equivalent" (.bool true)).setObjVal! "outcome" (.str "PASS")
+      IO.println "launcher diagnostic: PASS (36 exact paired controls; timing is an observation only)"
+  catch e =>
+    report.modify (·.setObjVal! "outcome" (.str "FAIL"))
+    throw e
+  finally
+    writeJson output ((← report.get).setObjVal! "totalMillis" (toJson ((← IO.monoMsNow) - started)))
 
 end StrictLean.Qualification.NativeLinter

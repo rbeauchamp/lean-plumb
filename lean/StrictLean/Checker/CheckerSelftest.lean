@@ -341,10 +341,11 @@ private unsafe def fixtureVerdicts (repo scratch : FilePath) (jobs : Nat)
     (fixtures : Array FixtureSpec) (leanPath : Array FilePath) : IO (Array (Option String)) := do
   let indexed := fixtures.mapIdx fun index fixture => (index, fixture)
   let compilations ← mapConcurrent jobs indexed fun (index, fixture) => do
-    let compilation ← SourceAudit.compile repo scratch {
+    let outcome ← SourceAudit.compile repo scratch {
       «module» := s!"SelftestFixture_{index + 1}"
       source := ← IO.FS.readFile fixture.source
     }
+    let compilation ← IO.ofExcept <| outcome.mapError (·.detail)
     return (index, fixture, compilation)
   let mut results : Array (Option String) := Array.replicate fixtures.size none
   let mut pending : Array CompiledFixture := #[]
@@ -431,8 +432,13 @@ private unsafe def fixtureVerdicts (repo scratch : FilePath) (jobs : Nat)
   try
     for (_, items) in groups do
       try
-        let inspectedGroup ← SourceAudit.inspectGroupCurrentSearchPath
+        let outcome ← SourceAudit.inspectGroupCurrentSearchPath
           (items.map (·.compilation.spec.«module».toName))
+          (compiledSources := items.map fun item => {
+            moduleName := item.compilation.spec.module.toName
+            path := item.compilation.sourcePath.toString
+            content := item.compilation.spec.source })
+        let inspectedGroup ← IO.ofExcept <| outcome.mapError (·.detail)
         let report := inspectedGroup.report
         for item in items do
           let moduleName := item.compilation.spec.«module»
@@ -525,7 +531,12 @@ private def executionPolicyQualification : Array String := Id.run do
       replacement := none }
   let root (boundaries : Array StrictLean.Report.ExecutionBoundary)
       (unresolved : Array String := #[]) : StrictLean.Report.ExecutionRoot :=
-    { name := `Root.f, «module» := `Root, boundaries, unresolved }
+    { name := `Root.f, «module» := `Root, boundaries, unresolved
+      closure := {
+        nodes := StrictLeanPolicy.canonicalNames (#[`Root.f] ++ boundaries.map (·.name))
+        visits := #[{ name := `Root.f, moduleName := some `Root, parent := none }] ++
+          boundaries.map (fun b => { name := b.name, moduleName := some b.module, parent := some 0 })
+        logicalEdges := StrictLeanPolicy.canonicalEdges (boundaries.map (fun b => (`Root.f, b.name))) } }
   let cases : Array (String × StrictLean.Report.ExecutionRoot × ExecutionClaim × Option String) := #[
     ("report/trusted-replacement",
       root #[boundary `Root.g .runtimeReplacement .trusted], .report, none),
@@ -638,7 +649,7 @@ private unsafe def diagnosticSetupQualification (repo scratch : FilePath) : IO (
     let scan := Documentation.scan text "setup.md"
     let tasks := scan.fences.map fun fence =>
       ({ fence, origin := "setup.md:2", kind := .negative } : Documentation.Task)
-    Documentation.auditTasks project compiled 1 tasks
+    Documentation.auditTasks project compiled 1 tasks #[] #[]
   let body := "import SetupSentinel\ndef invalid : Nat := \"value\"\n"
   let mut failures := #[]
   for phase in #["baseline", "corrupt", "restored"] do
@@ -689,7 +700,7 @@ private unsafe def fenceCorpusQualification (repo scratch : FilePath) (jobs : Na
         origin := s!"{name}.md:{fence.line}"
         kind := kindOf fence
       }
-  let results ← Documentation.auditTasks repo scratch jobs tasks
+  let results ← Documentation.auditTasks repo scratch jobs tasks #[] #[]
   let mut rendered : Array String := structural.map (s!"[X] {·}")
   for result in results do
     let mark := match result.status with

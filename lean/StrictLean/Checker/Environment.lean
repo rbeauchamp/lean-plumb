@@ -2,6 +2,7 @@ import StrictLean.Checker.PolicyCodec
 import StrictLean.Probe
 import StrictLean.Checker.Common
 import StrictLean.Checker.Admission
+import StrictLean.Checker.SourceBinding
 import StrictLean.Linter.Documentation
 
 /-!
@@ -104,72 +105,88 @@ private def replacementHistory (sourceRoots : Array FilePath)
 private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Checker.ProducerReport.Environment := do
+    IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   if modules.isEmpty || modules.toList.eraseDups.length != modules.size then
     throw <| IO.userError "environment report requires unique nonempty modules"
-  unsafe Lean.enableInitializersExecution
-  let requested := modules
-  let importNames :=
-    if requested.contains probeModuleName.toName then requested
-    else requested.push probeModuleName.toName
-  let imports := importNames.map fun module =>
-    ({ module, importAll := true } : Import)
-  let env ← timedPhase "environment imports" <| importModules imports {} 0 (loadExts := true) (level := .private)
-  let ownedModules := requested ++ moduleSources.map (·.1) |>.filter
-    (fun name => !probeModuleNames.contains name.toString)
-  if let some root := ownedOutput then
-    for name in env.header.moduleNames do
-      if !ownedModules.contains name && !probeModuleNames.contains name.toString then
-        if ← pathWithin (← Lean.findOLean name) root then
-          throw <| IO.userError s!"unexpected-project-module: kernel-admission cannot classify {name}"
-  let admission ← timedPhase "kernel admission" <| Admission.validate env ownedModules
-  -- Freeze the selector from the completed environment before reading docstrings.
-  -- Loading server/private data above is necessary for both Lean doc formats.
-  let own := StrictLean.Probe.ownedConstants env requested.toList
-  let mut selected := #[]
-  for (name, _) in own do
-    if StrictLean.Linter.Documentation.selected env name then
-      let some idx := env.getModuleIdxFor? name
-        | throw <| IO.userError s!"material declaration has no module: {name}"
-      selected := selected.push (env.header.modules[(idx : Nat)]!.module, name)
-  let documentation : StrictLean.Checker.ProducerReport.DocumentationObservation := {
-    modules := ← requested.mapM fun name => do
-      return (name, ← IO.ofExcept <| StrictLean.Linter.Documentation.modulePresent env name)
-    materialDeclarations := selected
-    declarations := ← selected.mapM fun key => do
-      return (key, ← Lean.findDocString? env key.2)
-  }
-  let histories ← IO.mkRef ({} : NameMap ProducerReport.HistoryOutcome)
-  let loadHistory (moduleName : Name) := do
-    if let some result := (← histories.get).find? moduleName then return result.edges
-    let result ← replacementHistory sourceRoots moduleSources moduleName
-    histories.modify (·.insert moduleName result)
-    return result.edges
-  let ctx : Elab.Command.Context := {
-    fileName := "<trusted-environment-probe>"
-    fileMap := FileMap.ofString ""
-    snap? := none
-    cancelTk? := none
-  }
-  let state := Elab.Command.mkState env
-  match ← timedPhase "declaration report" <| EIO.toIO' <|
-      (StrictLean.Probe.environmentReport requested.toList loadHistory includeExecution includeModuleOrigins).run ctx |>.run state with
-  | .error ex => throw <| IO.userError (← ex.toMessageData.toString)
-  | .ok (report, _) =>
-    let historyTable ← histories.get
-    let historyKeys := StrictLeanPolicy.canonicalNames (historyTable.toArray.map (·.1))
-    let historyRecords ← historyKeys.mapM fun name => do
-      let some outcome := historyTable.find? name
-        | throw <| IO.userError "producer-history: missing recorded lookup"
-      pure (name, outcome)
-    let report : ProducerReport.Environment := {
-      toCollected := report
-      admission := some admission
-      documentation := some documentation
-      histories := historyRecords
+  let mut resolvedSources := moduleSources
+  for name in modules do
+    if !resolvedSources.any (·.1 == name) then
+      -- Compiled verbatim snippets live alongside their exact isolated source.
+      -- Ordinary project modules already have authoritative Lake source entries.
+      let source := (← Lean.findOLean name).withExtension "lean"
+      resolvedSources := resolvedSources.push (name, source)
+  let sourceBindings ← SourceBinding.capture resolvedSources
+  return (← SourceBinding.withUnchanged sourceBindings #[] do
+    unsafe Lean.enableInitializersExecution
+    let requested := modules
+    let importNames :=
+      if requested.contains probeModuleName.toName then requested
+      else requested.push probeModuleName.toName
+    let imports := importNames.map fun module =>
+      ({ module, importAll := true } : Import)
+    let env ← timedPhase "environment imports" <| importModules imports {} 0 (loadExts := true) (level := .private)
+    let ownedModules := requested ++ moduleSources.map (·.1) |>.filter
+      (fun name => !probeModuleNames.contains name.toString)
+    if let some root := ownedOutput then
+      for name in env.header.moduleNames do
+        if !ownedModules.contains name && !probeModuleNames.contains name.toString then
+          if ← pathWithin (← Lean.findOLean name) root then
+            throw <| IO.userError s!"unexpected-project-module: kernel-admission cannot classify {name}"
+    let admissionResult ← timedPhase "kernel admission" <| Admission.validate env ownedModules
+    if let .error failure := admissionResult then return .error failure
+    let .ok admission := admissionResult
+      | throw <| IO.userError "unreachable admission outcome"
+    -- Freeze the selector from the completed environment before reading docstrings.
+    -- Loading server/private data above is necessary for both Lean doc formats.
+    let own := StrictLean.Probe.ownedConstants env requested.toList
+    let mut selected := #[]
+    for (name, _) in own do
+      if StrictLean.Linter.Documentation.selected env name then
+        let some idx := env.getModuleIdxFor? name
+          | throw <| IO.userError s!"material declaration has no module: {name}"
+        selected := selected.push (env.header.modules[(idx : Nat)]!.module, name)
+    let documentation : StrictLean.Checker.ProducerReport.DocumentationObservation := {
+      modules := ← requested.mapM fun name => do
+        return (name, ← IO.ofExcept <| StrictLean.Linter.Documentation.modulePresent env name)
+      materialDeclarations := selected
+      declarations := ← selected.mapM fun key => do
+        return (key, ← Lean.findDocString? env key.2)
     }
-    IO.ofExcept report.validate
-    return report
+    let histories ← IO.mkRef ({} : NameMap ProducerReport.HistoryOutcome)
+    let loadHistory (moduleName : Name) := do
+      if let some result := (← histories.get).find? moduleName then return result.edges
+      let result ← replacementHistory sourceRoots resolvedSources moduleName
+      histories.modify (·.insert moduleName result)
+      return result.edges
+    let ctx : Elab.Command.Context := {
+      fileName := "<trusted-environment-probe>"
+      fileMap := FileMap.ofString ""
+      snap? := none
+      cancelTk? := none
+    }
+    let state := Elab.Command.mkState env
+    match ← timedPhase "declaration report" <| EIO.toIO' <|
+        (StrictLean.Probe.environmentReport requested.toList loadHistory includeExecution includeModuleOrigins).run ctx |>.run state with
+    | .error ex => throw <| IO.userError (← ex.toMessageData.toString)
+    | .ok (report, _) =>
+      let historyTable ← histories.get
+      let historyKeys := StrictLeanPolicy.canonicalNames (historyTable.toArray.map (·.1))
+      let historyRecords ← historyKeys.mapM fun name => do
+        let some outcome := historyTable.find? name
+          | throw <| IO.userError "producer-history: missing recorded lookup"
+        pure (name, outcome)
+      let report : ProducerReport.Environment := {
+        toCollected := report
+        admission := some admission
+        documentation := some documentation
+        histories := historyRecords
+        sourceBindings := sourceBindings.filter (fun s => report.modules.contains s.moduleName)
+      }
+      SourceBinding.unchanged report.sourceBindings
+      if let .error failure := report.validateSourceEvidence then return .error failure
+      IO.ofExcept report.validate
+      return .ok report
+  ).bind id
 
 /-- Lean resolves a whole module prefix at the first matching directory.
 A fresh project that builds only `Contract` must not mask the trusted probe,
@@ -178,7 +195,7 @@ Expose only the checker-owned prefix ahead of the audited search roots. -/
 private unsafe def loadReportCore (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Checker.ProducerReport.Environment := do
+    IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   let some selfLib ← checkerPackageLibDir
     | throw <| IO.userError "trusted checker library directory unavailable"
   withScratch (← IO.currentDir) "probe-search" fun overlay => do
@@ -195,23 +212,40 @@ private unsafe def loadReportCore (modules : Array Name) (sourceRoots : Array Fi
 /-- Load exact modules using the already configured search path. This variant
 supports bounded parallel, read-only imports while a caller owns the global
 search-path scope. -/
-unsafe def loadReportCurrentSearchPath (modules : Array Name)
+unsafe def loadReportCurrentSearchPathOutcome (modules : Array Name)
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Checker.ProducerReport.Environment :=
+    IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) :=
   loadReportCore modules #[] moduleSources ownedOutput includeExecution includeModuleOrigins
 
 /-- Load exact modules through Lean's import semantics and return their typed
 declaration report. Extra search roots are temporary and restored afterward. -/
-unsafe def loadReport (modules : Array Name)
+unsafe def loadReportOutcome (modules : Array Name)
     (extraSearchRoots : Array FilePath := #[]) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
     (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
-    IO StrictLean.Checker.ProducerReport.Environment := do
+    IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   let selfLib ← checkerPackageLibDir
   let oldSearchPath ← Lean.searchPathRef.get
   Lean.searchPathRef.set (extraSearchRoots.toList ++ selfLib.toList ++ oldSearchPath)
   try loadReportCore modules sourceRoots moduleSources ownedOutput includeExecution includeModuleOrigins
   finally Lean.searchPathRef.set oldSearchPath
+
+/-- Compatibility wrapper for callers that report all incomplete inspection failures
+at their own stage. Public rule adapters use the typed outcome variant above. -/
+unsafe def loadReportCurrentSearchPath (modules : Array Name)
+    (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
+    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
+    IO ProducerReport.Environment := do
+  IO.ofExcept <| (← loadReportCurrentSearchPathOutcome modules moduleSources ownedOutput
+    includeExecution includeModuleOrigins).mapError (·.detail)
+
+unsafe def loadReport (modules : Array Name)
+    (extraSearchRoots : Array FilePath := #[]) (sourceRoots : Array FilePath := #[])
+    (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
+    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
+    IO ProducerReport.Environment := do
+  IO.ofExcept <| (← loadReportOutcome modules extraSearchRoots sourceRoots moduleSources ownedOutput
+    includeExecution includeModuleOrigins).mapError (·.detail)
 
 end StrictLean.Checker.Environment

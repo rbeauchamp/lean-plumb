@@ -1,10 +1,13 @@
 # Rule source fixtures
 
-These files are the source of truth for checked rule examples. They are intentionally
-outside every positive Lake library. `Violation.lean` may compile successfully: the actual
-registered detector must establish its advertised result.
+These files are the source of truth for all twenty rule-reference examples. They are
+intentionally outside every positive Lake library. A violation can elaborate successfully;
+the actual registered detector must produce its advertised result.
 
-Currently SL5001 and SL5002 have fresh-project fixed/violation/fresh-restored controls through
-`lean/StrictLean/Qualification/Producer.lean`. Both retain the same universally quantified reflexivity claim;
-the fix adds only documentation. See [producer evidence](../../docs/guides/engine-producers.md)
-for exact commands, exported evidence, scope and remaining twenty-rule corpus work.
+[`corpus.json`](corpus.json) fixes expected rule IDs, reasons, modes, subjects and locations.
+The [rule-example guide](../../docs/guides/rule-examples.md) gives each source pair's exact
+remediation, accepted-example and diagnostic-demonstration distinctions, qualification
+commands, and export and trust contracts for the future website.
+
+The existing SL5001/SL5002 [producer campaign](../../docs/guides/engine-producers.md#source-owned-examples-and-qualification)
+remains available through `lake exe qualify producers`.

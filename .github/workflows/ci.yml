@@ -81,6 +81,9 @@ jobs:
       - name: Qualify project producer receipts and documentation diagnostics
         run: ./scripts/verify.sh diagnostics producers
 
+      - name: Qualify source-owned rules and diagnostic demonstrations
+        run: ./scripts/verify.sh diagnostics rule-examples
+
       # PRODUCT-01 integration; canonical metadata design credits con-leche.
       # Separate from, and never a partition of, 420-second acceptance.
       - name: Restore pinned Verso dependencies

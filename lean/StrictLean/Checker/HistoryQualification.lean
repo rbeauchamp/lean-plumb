@@ -41,4 +41,49 @@ def main (args : List String) : IO UInt32 := do
         throw <| IO.userError s!"{label}: unrelated rejection: {error}"
     let _ ← IO.ofExcept (decode original)
     IO.println s!"history transport {label}: intended refusal + restored control PASS"
+  let observed ← IO.ofExcept (decode original)
+  let some index := observed.execution.findIdx? (fun root =>
+      !root.closure.currentReplacementEdges.isEmpty && !root.closure.historyEdges.isEmpty)
+    | throw <| IO.userError "control has no replacement-bearing closure"
+  let some root := observed.execution[index]?
+    | throw <| IO.userError "selected closure index unavailable"
+  let mutate (changed : StrictLean.Report.ExecutionRoot) := toJson
+    { observed with execution := observed.execution.set! index changed }
+  let invalid := "producer-closure: invalid reached-node, edge, or boundary account"
+  let closureMutations := #[
+    ("omitted-root", invalid, mutate {root with closure := {root.closure with nodes := root.closure.nodes.filter (· != root.name)}}),
+    ("omitted-visit", invalid, mutate {root with closure := {root.closure with visits := root.closure.visits.pop}}),
+    ("cyclic-discovery", invalid, mutate {root with closure := {root.closure with visits := root.closure.visits.modify 0 (fun v => {v with parent := some 0})}}),
+    ("misclassified-history-channel", "producer-closure: replacement boundary coverage mismatch",
+      mutate {root with closure := {root.closure with
+        historyEdges := #[]
+        logicalEdges := StrictLeanPolicy.canonicalEdges (root.closure.logicalEdges ++ root.closure.historyEdges)}}),
+    ("omitted-boundary", "producer-closure: replacement boundary coverage mismatch",
+      mutate {root with boundaries := root.boundaries.filter (·.boundary != .runtimeReplacement)}),
+    ("wrong-module", "producer-closure: reached module attribution mismatch",
+      mutate {root with closure := {root.closure with visits := root.closure.visits.modify 0 (fun v => {v with moduleName := none})}}),
+    ("missing-code-account", invalid,
+      mutate {root with closure := {root.closure with requiredCode := #[]}})]
+  for (label, expected, mutated) in closureMutations do
+    match decode mutated with
+    | .ok _ => throw <| IO.userError s!"{label}: mutation admitted"
+    | .error error => unless error == expected do
+        throw <| IO.userError s!"{label}: unrelated rejection: {error}"
+    let _ ← IO.ofExcept (decode original)
+    IO.println s!"closure transport {label}: intended refusal + restored control PASS"
+  let bindings ← IO.ofExcept <| original.getObjValAs? (Array Json) "sourceBindings"
+  let some source := bindings[0]? | throw <| IO.userError "control has no owned source snapshot"
+  let sourceMutations := #[
+    ("missing-source", "producer-source: source coverage or coordinates mismatch",
+      original.setObjVal! "sourceBindings" empty),
+    ("changed-history-source", "producer-source: history differs from owned source snapshot",
+      original.setObjVal! "sourceBindings" (toJson (bindings.set! 0 (source.setObjVal! "content"
+        (toJson ((← IO.ofExcept <| source.getObjValAs? String "content") ++ "\n"))))))]
+  for (label, expected, mutated) in sourceMutations do
+    match decode mutated with
+    | .ok _ => throw <| IO.userError s!"{label}: mutation admitted"
+    | .error error => unless error == expected do
+        throw <| IO.userError s!"{label}: unrelated rejection: {error}"
+    let _ ← IO.ofExcept (decode original)
+    IO.println s!"source transport {label}: intended refusal + restored control PASS"
   return 0

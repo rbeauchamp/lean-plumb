@@ -34,6 +34,21 @@ def prepareProject (root project : FilePath) (packageName claim rationale : Stri
   let result ← run root "ln" #["-s", (root / ".lake/packages").toString, (project / ".lake/packages").toString]
   requireChecks [⟨"pinned dependency link", result.exitCode == 0⟩]
 
+/-- Core-only adopter for source/evidence controls. No checker dependency is imported
+into the observed surface, matching the original standalone qualification path. -/
+def prepareCoreProject (root project : FilePath) (packageName claim : String) : IO Unit := do
+  IO.FS.writeBinFile (project / "lean-toolchain") (← IO.FS.readBinFile (root / "lean-toolchain"))
+  IO.FS.writeFile (project / "lakefile.toml") s!"name = \"{packageName}\"\n[[lean_lib]]\nname = \"Example\"\n"
+  let manifest ← readJson (root / "lake-manifest.json")
+  writeJson (project / "lake-manifest.json")
+    ((manifest.setObjVal! "packages" (toJson (#[] : Array Json))).setObjVal! "name" (.str packageName))
+  writeJson (project / "foundation_manifest.json") (Json.mkObj [
+    ("schema-version", toJson (2 : Nat)), ("surfaces", toJson #[Json.mkObj [
+      ("library", .str "Example"), ("claim", .str claim),
+      ("rationale", .str "The same fixed mathematical claim in positive and restored phases.")]]),
+    ("excluded-libraries", toJson (#[] : Array Json)), ("excluded-executables", toJson (#[] : Array Json))])
+  IO.FS.createDirAll (project / "docs")
+
 /-- Delete only this owned scratch project's build output before a restored control. -/
 def clearBuild (project : FilePath) : IO Unit := do
   if ← (project / ".lake/build").pathExists then IO.FS.removeDirAll (project / ".lake/build")

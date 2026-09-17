@@ -1,0 +1,894 @@
+{
+  "SL1001": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL1001",
+        "subreason": "project-axiom",
+        "detailPattern": "unknown-axiom",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
+            "startByte": 51,
+            "endByte": 60
+          },
+          "range": {
+            "startByte": 45,
+            "endByte": 78
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 1,
+              "character": 6
+            },
+            "end": {
+              "line": 1,
+              "character": 15
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 1,
+              "character": 0
+            },
+            "end": {
+              "line": 1,
+              "character": 33
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "reflexive"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ]
+  },
+  "SL1002": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL1002",
+        "subreason": "hole",
+        "detailPattern": "hole",
+        "location": {
+          "kind": "source",
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "range": {
+            "startByte": 45,
+            "endByte": 92
+          },
+          "selectionRange": {
+            "startByte": 53,
+            "endByte": 62
+          },
+          "lspRange": {
+            "start": {
+              "line": 1,
+              "character": 0
+            },
+            "end": {
+              "line": 1,
+              "character": 47
+            }
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 1,
+              "character": 8
+            },
+            "end": {
+              "line": 1,
+              "character": 17
+            }
+          }
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "reflexive"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "standard-logical"
+      }
+    ],
+    "claim": "standard-logical"
+  },
+  "SL1003": {
+    "invocation": "project",
+    "mode": "freshProject",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL1003",
+        "subreason": "unknown-axiom",
+        "detailPattern": "unknown-axiom",
+        "location": {
+          "kind": "source",
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "range": {
+            "startByte": 68,
+            "endByte": 129
+          },
+          "selectionRange": {
+            "startByte": 76,
+            "endByte": 85
+          },
+          "lspRange": {
+            "start": {
+              "line": 2,
+              "character": 0
+            },
+            "end": {
+              "line": 2,
+              "character": 61
+            }
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 2,
+              "character": 8
+            },
+            "end": {
+              "line": 2,
+              "character": 17
+            }
+          }
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "reflexive"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ],
+    "source": "Example.lean"
+  },
+  "SL1004": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL1004",
+        "subreason": "compiler-trusting",
+        "detailPattern": "compiler-trusting",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
+            "startByte": 107,
+            "endByte": 120
+          },
+          "range": {
+            "startByte": 107,
+            "endByte": 120
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 2,
+              "character": 36
+            },
+            "end": {
+              "line": 2,
+              "character": 49
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 2,
+              "character": 36
+            },
+            "end": {
+              "line": 2,
+              "character": 49
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "ax_1_1"
+            ],
+            [
+              "str",
+              "native_decide"
+            ],
+            [
+              "str",
+              "_native"
+            ],
+            [
+              "str",
+              "equal"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      },
+      {
+        "id": "SL1004",
+        "subreason": "compiler-trusting",
+        "detailPattern": "compiler-trusting",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
+            "startByte": 79,
+            "endByte": 84
+          },
+          "range": {
+            "startByte": 71,
+            "endByte": 120
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 2,
+              "character": 8
+            },
+            "end": {
+              "line": 2,
+              "character": 13
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 2,
+              "character": 0
+            },
+            "end": {
+              "line": 2,
+              "character": 49
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "equal"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ]
+  },
+  "SL1005": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL1005",
+        "subreason": "label-exceeds-claim",
+        "detailPattern": "choice-free",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
+            "startByte": 72,
+            "endByte": 81
+          },
+          "range": {
+            "startByte": 64,
+            "endByte": 154
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 1,
+              "character": 8
+            },
+            "end": {
+              "line": 1,
+              "character": 17
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 1,
+              "character": 0
+            },
+            "end": {
+              "line": 1,
+              "character": 88
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "reflexive"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ]
+  },
+  "SL1006": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL1006",
+        "subreason": "escape-hatch",
+        "detailPattern": "unsafe",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
+            "startByte": 47,
+            "endByte": 55
+          },
+          "range": {
+            "startByte": 36,
+            "endByte": 76
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 1,
+              "character": 11
+            },
+            "end": {
+              "line": 1,
+              "character": 19
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 1,
+              "character": 0
+            },
+            "end": {
+              "line": 1,
+              "character": 40
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "identity"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ]
+  },
+  "SL1007": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL1007",
+        "subreason": "executable-contract",
+        "detailPattern": "registration must be closed",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
+            "startByte": 136,
+            "endByte": 144
+          },
+          "range": {
+            "startByte": 128,
+            "endByte": 237
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 3,
+              "character": 8
+            },
+            "end": {
+              "line": 3,
+              "character": 16
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 3,
+              "character": 0
+            },
+            "end": {
+              "line": 3,
+              "character": 105
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "contract"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ]
+  },
+  "SL2001": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "diagnosticDemonstration",
+    "diagnostics": [
+      {
+        "id": "SL2001",
+        "subreason": "environment",
+        "detailPattern": "lake-workspace-load-failed",
+        "location": {
+          "kind": "project",
+          "identity": "$PROJECT"
+        },
+        "subject": {
+          "subject": "$PROJECT"
+        },
+        "impact": "incomplete",
+        "claim": null
+      }
+    ],
+    "source": "Example.lean",
+    "unresolvedPatterns": [
+      "lake-workspace-load-failed"
+    ]
+  },
+  "SL2002": {
+    "invocation": "project",
+    "mode": "freshProject",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL2002",
+        "subreason": "configuration",
+        "detailPattern": "manifest-schema:.*unknown key",
+        "location": {
+          "kind": "project",
+          "identity": "$PROJECT"
+        },
+        "subject": {
+          "subject": "$PROJECT"
+        },
+        "impact": "violation",
+        "claim": null
+      }
+    ],
+    "source": "Example.lean",
+    "unresolvedPatterns": [
+      "manifest-schema:.*unknown key"
+    ]
+  },
+  "SL2003": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL2003",
+        "subreason": "source-build",
+        "detailPattern": "Variable name `unused` is not explicitly referenced",
+        "location": {
+          "kind": "project",
+          "identity": "$SOURCE"
+        },
+        "subject": {
+          "subject": "$SOURCE"
+        },
+        "impact": "violation",
+        "claim": null
+      }
+    ]
+  },
+  "SL2004": {
+    "invocation": "project",
+    "mode": "freshProject",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL2004",
+        "subreason": "coverage",
+        "detailPattern": "unexpected-project-module.*StrictLean.Report",
+        "location": {
+          "kind": "project",
+          "identity": "$PROJECT"
+        },
+        "subject": {
+          "subject": "$PROJECT"
+        },
+        "impact": "violation",
+        "claim": null
+      }
+    ]
+  },
+  "SL2005": {
+    "invocation": "project",
+    "mode": "freshProject",
+    "kind": "diagnosticDemonstration",
+    "diagnostics": [
+      {
+        "id": "SL2005",
+        "subreason": "admission",
+        "detailPattern": "kernel-admission",
+        "location": {
+          "kind": "project",
+          "identity": "$PROJECT"
+        },
+        "subject": {
+          "subject": "$PROJECT"
+        },
+        "impact": "incomplete",
+        "claim": null
+      }
+    ]
+  },
+  "SL3001": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "diagnosticDemonstration",
+    "diagnostics": [
+      {
+        "id": "SL3001",
+        "subreason": "execution-unresolved",
+        "detailPattern": "replacement history unavailable.*unsupported replacement-history evaluators",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
+            "startByte": 144,
+            "endByte": 152
+          },
+          "range": {
+            "startByte": 110,
+            "endByte": 173
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 3,
+              "character": 34
+            },
+            "end": {
+              "line": 3,
+              "character": 42
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 3,
+              "character": 0
+            },
+            "end": {
+              "line": 3,
+              "character": 63
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "root": [
+            [
+              "str",
+              "identity"
+            ]
+          ]
+        },
+        "impact": "incomplete",
+        "claim": "checked"
+      }
+    ]
+  },
+  "SL3002": {
+    "invocation": "file",
+    "mode": "freshFile",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL3002",
+        "subreason": "execution-trusted-boundary",
+        "detailPattern": "identity reaches identity",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
+            "startByte": 152,
+            "endByte": 160
+          },
+          "range": {
+            "startByte": 118,
+            "endByte": 181
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 2,
+              "character": 34
+            },
+            "end": {
+              "line": 2,
+              "character": 42
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 2,
+              "character": 0
+            },
+            "end": {
+              "line": 2,
+              "character": 63
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "root": [
+            [
+              "str",
+              "identity"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "checked"
+      }
+    ]
+  },
+  "SL4001": {
+    "invocation": "documentation",
+    "mode": "documentationExample",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL4001",
+        "subreason": "fence-structure",
+        "detailPattern": "marker is not immediately adjacent",
+        "location": {
+          "kind": "project",
+          "identity": "$DOCS"
+        },
+        "subject": {
+          "subject": "$DOCS"
+        },
+        "impact": "violation",
+        "claim": null
+      }
+    ],
+    "source": "{case}.md"
+  },
+  "SL4002": {
+    "invocation": "documentation",
+    "mode": "documentationExample",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL4002",
+        "subreason": "positive-example",
+        "detailPattern": "project-axiom: reflexive",
+        "location": {
+          "kind": "project",
+          "identity": "Example.md:1"
+        },
+        "subject": {
+          "subject": "Example.md:1"
+        },
+        "impact": "violation",
+        "claim": null
+      },
+      {
+        "id": "SL1001",
+        "subreason": "project-axiom",
+        "detailPattern": "project-axiom: reflexive",
+        "location": {
+          "uri": "$SNIPPET_URI",
+          "source": "$SNIPPET_TEXT",
+          "selectionRange": {
+            "startByte": 51,
+            "endByte": 60
+          },
+          "range": {
+            "startByte": 45,
+            "endByte": 78
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 1,
+              "character": 6
+            },
+            "end": {
+              "line": 1,
+              "character": 15
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 1,
+              "character": 0
+            },
+            "end": {
+              "line": 1,
+              "character": 33
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "reflexive"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "standard-logical"
+      }
+    ],
+    "source": "{case}.md",
+    "snippet": [
+      8,
+      86,
+      "Example.md:1"
+    ]
+  },
+  "SL4003": {
+    "invocation": "documentation",
+    "mode": "documentationExample",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL4003",
+        "subreason": "negative-example",
+        "detailPattern": "negative example elaborated successfully",
+        "location": {
+          "kind": "project",
+          "identity": "Example.md:2"
+        },
+        "subject": {
+          "subject": "Example.md:2"
+        },
+        "impact": "violation",
+        "claim": null
+      }
+    ],
+    "source": "{case}.md"
+  },
+  "SL4004": {
+    "invocation": "documentation",
+    "mode": "documentationExample",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL4004",
+        "subreason": "trusted-example",
+        "detailPattern": "trusted marker found no compiler-trusting declaration",
+        "location": {
+          "kind": "project",
+          "identity": "Example.md:2"
+        },
+        "subject": {
+          "subject": "Example.md:2"
+        },
+        "impact": "violation",
+        "claim": null
+      }
+    ],
+    "source": "{case}.md"
+  },
+  "SL5001": {
+    "invocation": "project",
+    "mode": "freshProject",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL5001",
+        "subreason": "module-documentation",
+        "detailPattern": "module-documentation",
+        "location": {
+          "kind": "module",
+          "name": [
+            [
+              "str",
+              "Example"
+            ]
+          ]
+        },
+        "subject": {
+          "subject": "Example"
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ]
+  },
+  "SL5002": {
+    "invocation": "project",
+    "mode": "freshProject",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "SL5002",
+        "subreason": "material-documentation",
+        "detailPattern": "material-documentation",
+        "location": {
+          "kind": "source",
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "range": {
+            "startByte": 112,
+            "endByte": 178
+          },
+          "selectionRange": {
+            "startByte": 144,
+            "endByte": 153
+          },
+          "lspRange": {
+            "start": {
+              "line": 2,
+              "character": 0
+            },
+            "end": {
+              "line": 2,
+              "character": 66
+            }
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 2,
+              "character": 32
+            },
+            "end": {
+              "line": 2,
+              "character": 41
+            }
+          }
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "reflexive"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ]
+  }
+}
