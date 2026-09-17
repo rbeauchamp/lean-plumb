@@ -16,12 +16,18 @@ private def dispatch (args : List String) : IO Unit := do
   match args with
   | ["registry"] => StrictLean.Qualification.RegistryCli.check
   | ["native"] => StrictLean.Qualification.NativeLinter.checkAll
+  | ["combined"] => do
+      StrictLean.Qualification.RegistryCli.check
+      StrictLean.Qualification.NativeLinter.checkAll
   | ["native-launcher"] => StrictLean.Qualification.NativeLinter.paired
   | ["rule-examples", "--evidence", path] => StrictLean.Qualification.RuleExamples.check ⟨path⟩ none
   | "rule-examples" :: "--evidence" :: path :: "--rules" :: rules =>
       StrictLean.Qualification.RuleExamples.check ⟨path⟩ (some rules.toArray)
   | ["producers"] => StrictLean.Qualification.Producer.check none
   | ["producers", "--evidence", path] => StrictLean.Qualification.Producer.check (some ⟨path⟩)
+  | ["producers-combined"] => do
+      StrictLean.Qualification.Producer.check none
+      StrictLean.Qualification.History.check
   | ["history"] => StrictLean.Qualification.History.check
   | ["closure-evidence"] => StrictLean.Qualification.SourceEvidence.closure
   | ["configuration-capture"] => StrictLean.Qualification.SourceEvidence.configuration
@@ -29,7 +35,7 @@ private def dispatch (args : List String) : IO Unit := do
   | ["frozen-exits"] => StrictLean.Qualification.FrozenExit.check
   | ["documentation-source"] => StrictLean.Qualification.DocumentationSource.check false
   | ["documentation-source", "--source-read-only"] => StrictLean.Qualification.DocumentationSource.check true
-  | _ => throw <| IO.userError "usage: lake exe qualify registry|native|native-launcher|producers [--evidence PATH]|history|closure-evidence|configuration-capture|fence-evidence|frozen-exits|documentation-source [--source-read-only]|rule-examples --evidence PATH [--rules RULE ...]"
+  | _ => throw <| IO.userError "usage: lake exe qualify registry|native|combined|native-launcher|producers [--evidence PATH]|history|closure-evidence|configuration-capture|fence-evidence|frozen-exits|documentation-source [--source-read-only]|rule-examples --evidence PATH [--rules RULE ...]"
 
 /-- Standalone commands get one group-wide 420-second bound. The private protocol flag
 is supplied by this wrapper or the already timed acceptance driver, never documented
