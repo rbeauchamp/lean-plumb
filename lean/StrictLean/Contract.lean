@@ -1,4 +1,4 @@
-module
+import StrictLean.Probe
 
 @[expose] public section
 /-!
