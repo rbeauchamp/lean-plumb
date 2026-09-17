@@ -29,20 +29,6 @@ instance : FromJson SourceSpec := ⟨fun j => do
     captureRejection := ← j.getObjValAs? _ "captureRejection"
   }⟩
 
-private instance : ToJson ProcessResult where
-  toJson value := Json.mkObj [
-    ("exitCode", toJson value.exitCode.toNat),
-    ("stdout", toJson value.stdout), ("stderr", toJson value.stderr)]
-
-private instance : FromJson ProcessResult where
-  fromJson? value := do
-    StrictLean.Checker.PolicyCodec.exactFields value ["exitCode", "stdout", "stderr"]
-    let code : Nat ← value.getObjValAs? Nat "exitCode"
-    if code >= 2^32 then throw "invalid process exit code"
-    let stdout ← value.getObjValAs? String "stdout"
-    let stderr ← value.getObjValAs? String "stderr"
-    return { exitCode := UInt32.ofNat code, stdout, stderr }
-
 structure Compilation where
   spec : SourceSpec
   sourcePath : FilePath
@@ -93,6 +79,7 @@ instance : FromJson GroupRequest := ⟨fun j => do
 structure GroupReport where
   report : StrictLean.Checker.ProducerReport.Environment
   transcripts : Array Frontend.Transcript
+  deriving Repr
 
 unsafe def inspectGroupWorker (request : GroupRequest) : IO ProducerReport.Outcome := do
   let outcome ← SourceBinding.withUnchanged request.sourceBindings #[] do

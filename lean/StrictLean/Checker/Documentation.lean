@@ -1,3 +1,4 @@
+import StrictLean.Checker.Acceptance
 import StrictLeanPolicy.Pattern
 import StrictLean.Checker.SourceAudit
 import StrictLean.Checker.Lake
@@ -29,12 +30,16 @@ structure PendingMarker where
   deriving Repr
 
 structure Fence where
+  document : StrictLeanPolicy.SourceSnapshot
+  opening : StrictLeanPolicy.ByteRange
+  bodyRange : StrictLeanPolicy.ByteRange
+  closing : StrictLeanPolicy.ByteRange
   body : String
   line : Nat
   failPattern : Option String
   trusted : Bool
   markerLine : Option Nat
-  deriving Repr
+  deriving Repr, DecidableEq
 
 structure ScanResult where
   fences : Array Fence
@@ -99,7 +104,7 @@ def matchesPattern (pattern output : String) : Bool :=
   StrictLeanPolicy.matchesPattern pattern output
 
 /-- Fail-closed, balanced scanner for the documented Lean fence protocol. -/
-def scan (text origin : String) : ScanResult := Id.run do
+def scan (text origin : String) (sourceURI : Option String := none) : ScanResult := Id.run do
   let lines := text.splitOn "\n" |>.toArray
   let mut fences : Array Fence := #[]
   let mut problems : Array String := #[]
@@ -107,12 +112,17 @@ def scan (text origin : String) : ScanResult := Id.run do
   let mut openLength := 0
   let mut openInfo := ""
   let mut openLine := 0
+  let mut opening : StrictLeanPolicy.ByteRange := ⟨0, 0⟩
+  let mut bodyStart := 0
+  let mut offset := 0
   let mut body : Array String := #[]
   let mut pending : Option PendingMarker := none
 
   for index in [:lines.size] do
     let lineNo := index + 1
     let line := lines[index]!
+    let lineOffset := offset
+    offset := offset + line.utf8ByteSize + (if index + 1 < lines.size then 1 else 0)
     if let some character := openCharacter then
       if closingFence line character openLength then
         let language := firstWord openInfo
@@ -122,6 +132,10 @@ def scan (text origin : String) : ScanResult := Id.run do
           let trusted := pending.any fun marker =>
             match marker.kind with | .trusted => true | .fail _ => false
           fences := fences.push {
+            document := ⟨sourceURI.getD origin, text⟩
+            opening
+            bodyRange := ⟨bodyStart, if body.isEmpty then bodyStart else lineOffset - 1⟩
+            closing := ⟨lineOffset, lineOffset + line.utf8ByteSize⟩
             body := "\n".intercalate body.toList
             line := openLine
             failPattern
@@ -181,6 +195,8 @@ def scan (text origin : String) : ScanResult := Id.run do
       openLength := count
       openInfo := info
       openLine := lineNo
+      opening := ⟨lineOffset, lineOffset + line.utf8ByteSize⟩
+      bodyStart := offset
       body := #[]
       continue
 
@@ -205,7 +221,7 @@ structure Task where
   fence : Fence
   origin : String
   kind : Kind
-  deriving Repr
+  deriving Repr, DecidableEq
 
 inductive Status where
   | pass
@@ -214,6 +230,14 @@ inductive Status where
   | fail
   deriving Repr, BEq, DecidableEq, ToJson, FromJson
 
+/-- Real compiler/group observations retained for finalization. Every unit carries
+its original fence and exact compiled source; classifications alone are not evidence. -/
+structure RawExample where
+  compilation : SourceAudit.Compilation
+  group : Option SourceAudit.GroupReport := none
+  units : Array (Task × SourceAudit.Compilation)
+  deriving Repr
+
 structure Result where
   task : Task
   status : Status
@@ -221,6 +245,7 @@ structure Result where
   policyProblems : Array (StrictLean.RuleId × StrictLean.Report.Declaration) := #[]
   incomplete : Bool := false
   admissionFailure : Option ProducerReport.AdmissionFailure := none
+  raw : Option RawExample := none
   deriving Repr
 
 structure Classification where
@@ -280,7 +305,7 @@ private def compilationFailure (compilation : SourceAudit.Compilation)
   else "emitted warning: " ++ " | ".intercalate (warnings.extract 0 4).toList
   { task, status := .fail, detail, incomplete := !SourceAudit.sourceDiagnosticFailure compilation }
 
-private def assessPositive (task : Task) (declarations : Array StrictLean.Report.Declaration)
+private def assessPositive (task : Task) (unitName : Name) (declarations : Array StrictLean.Report.Declaration)
     (transcripts : Array Frontend.Transcript) : Result := Id.run do
   let .ok scope := Policy.admitScope declarations transcripts
     | return { task, status := .fail, detail := "invalid policy observation inventory", incomplete := true }
@@ -291,6 +316,7 @@ private def assessPositive (task : Task) (declarations : Array StrictLean.Report
     let mut problems : Array String := #[]
     let mut compilerCount := 0
     for decl in declarations do
+      if decl.module != unitName then continue
       if let some id := Policy.ruleFor decl (some claim) scope then
         let reason := (StrictLean.descriptor id).applicability
         problems := problems.push s!"{reason}: {decl.name} axioms={repr decl.axioms.toList}"
@@ -387,7 +413,7 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
     withSourceEvidence tasks snippets #[] do
       IO.println s!"fence compilations complete: {tasks.size}; inspecting declarations"
       (← IO.getStdout).flush
-      let mut results : Array (Option Result) := Array.replicate tasks.size none
+      let mut responses : Array (Nat × Result) := #[]
       let mut groups : Array InspectionGroup := #[]
       for index in [:tasks.size] do
         let some task := tasks[index]?
@@ -395,9 +421,11 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
         let some compilation := compilations[index]?
           | throw <| IO.userError "internal error: missing documentation compilation"
         if task.kind == .negative then
-          results := results.set! index (some (auditNegative compilation task))
+          responses := responses.push (index, { auditNegative compilation task with
+            raw := some ⟨compilation, none, #[(task, compilation)]⟩ })
         else if !SourceAudit.compilationPassed compilation then
-          results := results.set! index (some (compilationFailure compilation task))
+          responses := responses.push (index, { compilationFailure compilation task with
+            raw := some ⟨compilation, none, #[(task, compilation)]⟩ })
         else
           let (moduleData, _) ← Lean.readModuleData compilation.oleanPath
           let item : PendingPositive := {
@@ -435,33 +463,127 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
                 (item.index, result)
             let .ok inspected := outcome
               | throw <| IO.userError "unreachable admission outcome"
+            let units := group.items.map fun item => (item.task, item.compilation)
             return group.items.map fun item =>
-              let declarations := inspected.report.declarations.filter
-                (·.«module» == item.compilation.spec.«module».toName)
-              let transcripts := inspected.transcripts.filter
-                (·.«module» == item.compilation.spec.«module».toName)
-              (item.index, assessPositive item.task declarations transcripts)
+              let assessed := assessPositive item.task item.compilation.spec.module.toName
+                inspected.report.declarations inspected.transcripts
+              (item.index, { assessed with raw := some ⟨item.compilation, some inspected, units⟩ })
           catch error =>
             return group.items.map fun item =>
               let failure : Result := { task := item.task, status := .fail, detail := s!"checker inspection failed: {error}", incomplete := true }
               (item.index, failure)
       let updates ← try timedPhase "fence inspection" inspectGroups
         finally Lean.searchPathRef.set oldSearchPath
-      let mut finalResults := results
-      for group in updates do
-        for (index, result) in group do
-          finalResults := finalResults.set! index (some result)
-
-      let mut complete : Array Result := #[]
-      for index in [:finalResults.size] do
-        let some result := finalResults[index]?
-          | throw <| IO.userError "internal error: missing documentation result slot"
-        let some result := result
-          | throw <| IO.userError "internal error: documentation task was not assessed"
-        complete := complete.push result
+      for group in updates do responses := responses ++ group
+      let required := StrictLeanPolicy.CanonicalSet.normalize (List.range tasks.size)
+      let bound := fun index (result : Result) => tasks[index]? = some result.task
+      let initial : StrictLeanPolicy.ResultState required bound := .empty
+      let table ← IO.ofExcept <| (initial.collect responses.toList).mapError
+        (fun failure => s!"documentation result admission: {repr failure}")
+      let complete ← (Array.range tasks.size).mapM fun index => do
+        let some result := table.entries[index]?
+          | throw <| IO.userError "documentation task was not assessed"
+        pure result
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
       return complete
+
+/-- Admit the scanner's exact original byte spans. Verbatim body equality is checked
+before a fence can become a required coverage key. -/
+def Fence.key (fence : Fence) : Except String StrictLeanPolicy.FenceKey := do
+  let expectation ← match fence.failPattern with
+    | some pattern => do
+      if fence.trusted then throw "conflicting example classifications"
+      validatePattern pattern
+      if hp : pattern ≠ "" then pure (.compilerRejection pattern hp)
+      else throw "empty compiler rejection expectation"
+    | none => pure (if fence.trusted then .trustedTeaching else .positive)
+  if hn : fence.document.uri ≠ "" then
+    if ho : fence.opening.start ≤ fence.opening.stop ∧ fence.opening.stop ≤ fence.bodyRange.start ∧
+        fence.bodyRange.start ≤ fence.bodyRange.stop ∧ fence.bodyRange.stop ≤ fence.closing.start ∧
+        fence.closing.start ≤ fence.closing.stop then
+      if hp : ∀ n ∈ [fence.opening.start, fence.opening.stop, fence.bodyRange.start,
+          fence.bodyRange.stop, fence.closing.start, fence.closing.stop],
+          String.Pos.Raw.isValid fence.document.source ⟨n⟩ = true then
+        unless fence.body == String.Pos.Raw.extract fence.document.source
+            ⟨fence.bodyRange.start⟩ ⟨fence.bodyRange.stop⟩ do
+          throw "fence body differs from original document bytes"
+        return ⟨fence.document, fence.opening, fence.bodyRange, fence.closing, expectation, hn, ho, hp⟩
+      else throw "fence span is not a UTF-8 boundary"
+    else throw "unordered fence byte spans"
+  else throw "missing fence document identity"
+
+/-- Documentation has no positive project ownership. Its fixed fence inventory is
+independent of returned compilation results, including when a document has no fences. -/
+structure DocumentPlan (claim : StrictLeanPolicy.Claim) where
+  census : StrictLeanPolicy.Census
+  plan : StrictLeanPolicy.Plan claim census
+  roles : StrictLeanPolicy.Roles census.policy
+
+def freezeDocuments (claim : StrictLeanPolicy.Claim) (tasks : Array Task) :
+    Except String (DocumentPlan claim) := do
+  let fences ← tasks.mapM (·.fence.key)
+  let policy ← StrictLeanPolicy.admitInventory #[] #[]
+  let execution ← StrictLeanPolicy.admitExecution #[]
+  let census : StrictLeanPolicy.Census := {
+    policy, execution, modules := #[], importedModules := #[], moduleSources := #[], importedSources := #[],
+    unclassifiedRootImports := #[], admissionDeclarations := #[], declarations := #[], roots := #[],
+    materialDeclarations := #[], fences, configuredTargets := #[], discoveredTargets := #[] }
+  let plan ← StrictLeanPolicy.buildPlan claim census
+  return ⟨census, plan, StrictLeanPolicy.authorize policy⟩
+
+/-- Convert retained real production into observations. Roles are authenticated against
+the entire compatible group; each policy check then selects only its original unit. -/
+def exampleObservation (result : Result) : IO StrictLeanPolicy.ExampleObservation := do
+  let some raw := result.raw | throw <| IO.userError "missing example production observations"
+  if result.incomplete then throw <| IO.userError "example production incomplete"
+  unless raw.compilation.process.succeeded do throw <| IO.userError "example compiler process failed"
+  let fence ← IO.ofExcept result.task.fence.key
+  let before := raw.compilation.spec.source
+  let after ← IO.FS.readFile raw.compilation.sourcePath
+  let units ← raw.units.mapM fun (task, compilation) => do
+    let key ← IO.ofExcept task.fence.key
+    pure ({
+      moduleName := compilation.spec.module.toName, fence := key,
+      source := ⟨compilation.sourcePath.toString, compilation.spec.source⟩ } : StrictLeanPolicy.ExampleUnit)
+  let (census, outcome) ← if result.task.kind == .negative then do
+      let some errors := raw.compilation.errors
+        | throw <| IO.userError "missing completed compiler diagnostics"
+      pure (#[], StrictLeanPolicy.ExampleOutcome.compilerRejection errors)
+    else do
+      let some group := raw.group | throw <| IO.userError "missing example group inspection"
+      IO.ofExcept group.report.validate
+      IO.ofExcept <| group.report.validateSourceEvidence.mapError (·.detail)
+      let scope ← IO.ofExcept <| Policy.admitScope group.report.declarations group.transcripts
+      let some replay := group.report.admission
+        | throw <| IO.userError "missing example logical admission"
+      pure (group.report.census.declarations,
+        StrictLeanPolicy.ExampleOutcome.elaborated scope.inventory replay.required replay.admitted #[])
+  return {
+    fence, unitName := raw.compilation.spec.module.toName, units, before, after,
+    warnings := warningLines raw.compilation.process.output, declarationCensus := census, outcome }
+
+/-- Finalize exactly the previously frozen document plan with real build and scanner
+observations. Neither per-example status labels nor a zero failure count can accept it. -/
+def finishDocuments {claim : StrictLeanPolicy.Claim} (frozen : DocumentPlan claim)
+    (build : StrictLeanPolicy.BuildObservation) (documents : Array StrictLeanPolicy.SourceSnapshot)
+    (structural : Array String) (results : Array Result) : IO (StrictLeanPolicy.AcceptedRun claim) := do
+  let examples ← results.mapM exampleObservation
+  let inputs ← frozen.plan.jobs.mapIdxM fun slot key => do
+    let evidence ← match key.stage, key.subject with
+      | .discovery, .scope => pure (StrictLeanPolicy.JobEvidence.discovery frozen.census)
+      | .build, .scope => pure (.build build)
+      | .documentScan, .scope => pure (.documentScan ⟨documents, frozen.census.fences, structural⟩)
+      | .example, .fence fence => do
+          let matching := examples.filter (fun observation => decide (observation.fence = fence))
+          let [observation] := matching.toList
+            | throw <| IO.userError "missing or repeated documentation example observation"
+          pure (.example observation)
+      | _, _ => throw <| IO.userError "unsupported documentation observation stage"
+    pure (slot, ({ key, snapshot := claim.val.snapshot, completion := .completed, evidence } : StrictLeanPolicy.JobObservation))
+  let result ← IO.ofExcept <| (StrictLeanPolicy.finalize frozen.plan frozen.roles inputs.toList).mapError
+    (fun failure => s!"documentation acceptance refused: {repr failure}")
+  return ⟨frozen.census, frozen.plan, frozen.roles, inputs.toList, result⟩
 
 private def relativeDisplay (root path : FilePath) : String :=
   let rootComponents := root.normalize.components
@@ -489,9 +611,11 @@ it from declaration admission through the last fence inspection. -/
 unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.SurfaceInventory)
     (sourceBindings : Array ProducerReport.SourceBinding)
     (configuration : Array (FilePath × Option String))
-    (jobs : Nat) (verbose : Bool)
+    (build : StrictLeanPolicy.BuildObservation) (jobs : Nat) (verbose : Bool)
     (emit : StrictLean.Finding → IO Unit := fun _ => pure ())
-    (observe : Array Result → IO Unit := fun _ => pure ()) : IO UInt32 := do
+    (observe : Array Result → IO Unit := fun _ => pure ())
+    (observeAccepted : (claim : StrictLeanPolicy.Claim) → StrictLeanPolicy.AcceptedRun claim → IO Unit := fun _ _ => pure ())
+    (sharedSnapshot : Option StrictLeanPolicy.AdmittedSnapshot := none) : IO UInt32 := do
   let outcome : Except ProducerReport.AdmissionFailure UInt32 ←
     SourceBinding.withUnchanged sourceBindings configuration do
       if !(← docsRoot.isDir) then
@@ -503,11 +627,23 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
         IO.println s!"FAIL: no Markdown files found recursively below {docsRoot}"
         return 1
 
+      let documents ← markdown.mapM fun path => do
+        pure (⟨path.toString, ← IO.FS.readFile path⟩ : StrictLeanPolicy.SourceSnapshot)
+      let dependencies ← Snapshot.dependencies inventory
+      let snapshot ← match sharedSnapshot with
+        | some snapshot => pure snapshot
+        | none => do
+            let allSources ← Acceptance.sourceSnapshots sourceBindings #[] documents
+            IO.ofExcept <| Snapshot.make repo configuration allSources dependencies
+      let claim ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
+        scope := .documentation documents, mode := .documentationExample,
+        snapshot := snapshot.val, surfaces := #[] }
       let mut tasks : Array Task := #[]
       let mut structural : Array String := #[]
-      for path in markdown do
+      for document in documents do
+        let path := FilePath.mk document.uri
         let relative := relativeDisplay docsRoot path
-        let scan := Documentation.scan (← IO.FS.readFile path) relative
+        let scan := Documentation.scan document.source relative (some document.uri)
         structural := structural ++ scan.problems
         for fence in scan.fences do
           tasks := tasks.push {
@@ -522,9 +658,20 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
         s!"(conforming-positive {positiveCount}, negative {negativeCount}, trusted {trustedCount})"
       (← IO.getStdout).flush
 
+      let frozen ← IO.ofExcept <| freezeDocuments claim tasks
       let fenceScratch := repo / "tmp" / "fence-build"
       IO.FS.createDirAll fenceScratch
       let results ← auditTasks repo fenceScratch jobs tasks sourceBindings configuration inventory.leanPath (some inventory.leanLibDir)
+      let currentMarkdown := ((← docsRoot.walkDir).filter fun path => path.extension == some "md")
+        |>.qsort fun left right => left.toString < right.toString
+      unless currentMarkdown == markdown do throw <| IO.userError "documentation inventory changed"
+      for document in documents do
+        unless (← IO.FS.readFile document.uri) == document.source do
+          throw <| IO.userError s!"documentation source changed: {document.uri}"
+      Snapshot.dependenciesUnchanged dependencies
+      let accepted ← if structural.isEmpty && results.all (·.status != .fail) then
+          pure (some (← finishDocuments frozen build documents structural results))
+        else pure none
       let mut failures := structural.size
       for problem in structural do
         IO.println s!"[X] {problem}"
@@ -535,7 +682,9 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
       for result in results.qsort fun left right => left.task.origin < right.task.origin do
         let mark := match result.status with
           | .pass => "." | .passNegative => "n" | .passTrusted => "t" | .fail => "X"
-        IO.println s!"[{mark}] {result.task.origin} {statusName result.status}"
+        let label := if result.status == .fail || accepted.isSome then statusName result.status
+          else "OBSERVED (audit incomplete)"
+        IO.println s!"[{mark}] {result.task.origin} {label}"
         if result.status == .fail then
           failures := failures + 1
           let detail := if verbose then result.detail
@@ -573,7 +722,12 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
       observe results
-      return if failures == 0 then 0 else 1
+      if failures != 0 then return 1
+      let some accepted := accepted | throw <| IO.userError "missing accepted documentation evidence"
+      observeAccepted claim accepted
+      let report := accepted.report
+      IO.println s!"accepted {report.jobs.size} documentation policy jobs for {report.claim.val.mode.spelling}"
+      return 0
   match outcome with
   | .ok result => return result
   | .error failure =>

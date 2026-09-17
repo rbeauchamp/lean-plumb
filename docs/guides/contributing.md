@@ -78,8 +78,35 @@ For review, use the repository-local
 the affected claims, retain required checks, and distinguish historical results
 from evidence for the current revision.
 
+## Change an acceptance boundary
+
+Use the [success-owner and API map](policy-acceptance.md) when changing a driver.
+Freeze the request and independently discovered census before result collection;
+reuse `ResultState.collect`, `finalize` and `AcceptedRun` instead of another transition
+or success Boolean. Require accepted evidence in success renderers. Worker packets
+carry raw observations and strict request identity; serialized `acceptance` fields
+are never proof inputs. Keep file, fresh/incremental project, documentation, optional
+graph and classification-only meanings separate. Con-leche's complete indexed assembly
+is credited at this boundary; its proofs are not imported.
+
+Trace the actual theorem-to-execution path and preserve all source/admission guards.
+An axiom census or theorem-statement reference alone does not establish semantic linkage.
+Collection proofs establish universal finite-data guarantees; public positive/refusal/
+restored controls qualify the IO boundary. Record commands, exact relevant input identity,
+failed attempts and pending gates in the issue evidence rather than inferring coverage
+from a few mutations or a worker exit.
+
 ## Linter and website development
 
 Follow the [architecture](linter-architecture.md), [comparative design decisions](ecosystem-design.md), [developer experience](developer-experience.md) and [coverage map](rule-coverage.md). A rule change updates its descriptor, actual detector, source fixtures, expected typed diagnostics and explanatory page together. Follow the [attribution scope](design-influences.md): preserve actual code/license notices and cite relevant component-level design influences; examples such as CA1416, Ruff and Pyrefly are not exclusive design mandates. Never replace semantic review with docstring presence or generated-page counts.
 
 The [prototype README](../../examples/rule-reference-prototype/README.md) specifies separate pinned website setup and `python3 examples/rule-reference-prototype/run.py`. This bounded integration check complements the unchanged 420-second acceptance command. Review workflow must inspect rule IDs, exact scopes/modes, source ranges, versioned help routes and generated-source agreement where affected; no extra mandatory benchmark campaign is introduced.
+
+The acceptance transport groups are maintained, capability-triggered diagnostics. Run
+all affected groups when worker dispatch, codecs, joins, request reconstruction or
+terminal output ownership changes. Their positive/refusal/restoration observations
+qualify those IO boundaries; `collect_success_iff` and `finalize_iff` already quantify
+universally over supplied finite observations. Do not add the multi-minute groups to
+every ordinary acceptance run. Existing CI builds transitively check all proof and
+adapter modules; complete ordinary, producer, corpus and site checks remain required.
+After fixes, reuse a diagnostic only with an explicit unchanged-relevant-input argument.

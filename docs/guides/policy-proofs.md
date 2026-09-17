@@ -5,8 +5,8 @@ not claim that these proofs verify the Lean compiler, source collectors, filesys
 JSON parser, registry adapter, or a user's intended specification.
 
 The [domain guide](policy-domain.md) describes the input types. The
-[acceptance contract](policy-acceptance.md) remains the design contract for complete
-project integration. Normative meaning comes from [chapter 8](../standard/8-tooling-and-machine-audit.md).
+[acceptance contract](policy-acceptance.md) records the concrete operational
+acceptance boundary. Normative meaning comes from [chapter 8](../standard/8-tooling-and-machine-audit.md).
 
 ## What the theorems establish
 
@@ -53,9 +53,11 @@ Paths in this table start at `lean/StrictLean/`.
 | `Checker/Policy.ruleFor` / `reasonFor` | `policyFor` | Exhaustive mapping to the sole registry and its existing subreasons. |
 | `Checker/Policy.labelOf` / `classify` | `foundationFor` | Actual transitive `Lean.collectAxioms` results and module ownership. |
 | `Checker/Policy.executionFailureRecords` / `executionFailures` | `executionFailureRecords` | Root/closure collection, retained compiler edges, correspondence admission, source history and canonical runtime origins. |
-| `Checker/Common.admitIndexedWorkerResults` | `ResultState.insertResult` | Child completion, strict packet decoding and exact request/source binding. |
+| `Checker/Common.admitIndexedWorkerResults`, `mapWorkQueue`; `Documentation.auditTasks` | `ResultState.collect`, `collect_success_iff`, `collect_lookup` | Child completion, strict packet decoding and exact request/source binding. |
 | `Checker/Documentation.matchesPattern` | `matchesPattern` | Structural fence scanning, supported-pattern diagnostic text, and completed effective-error extraction. |
-| `Checker/Acceptance` compatibility import | `accept` and `Accepted.report` | POLICY-04 (#7) must make every actual audit success renderer/exit consume the result, and compose project/documentation results under one snapshot. That integration is not delivered by the pure theorem. |
+| `Checker/Acceptance.finish`; `Documentation.finishDocuments`; `FreshChecker.finishGraph` | `finalize`, `finalize_iff`, `accepted_report_identity`, `accepted_covers_slot` | Independently supplied census and truthful actual observations remain external; each finalizer supplies all derived jobs and returns `AcceptedRun`. |
+| `AxiomGate.auditSurface` combined success | `combineAccepted`, `combined_policy`, `combined_reports_same_snapshot` | Child completion/raw decoding, terminal source stability and truthful environment extraction remain operational. |
+| `ResultProtocol.writeAccepted`; project/file/docs/graph success renderers | `AcceptedRun.report`, `acceptedRun_claim` | Rendering/JSON/OS exit semantics are not universally proved. JSON is never decoded into acceptance. |
 
 Source extraction and transport qualification remain necessary. The existing
 `Admission.validate`, fresh frontend attribution, canonical pinned `.olean`
@@ -63,6 +65,38 @@ origin check and conservative execution walk remain operational gates. A proof
 about an exactness/replay field does not prove the underlying Lean value equality
 or compiler run. A private constructor alone would not establish hostile
 in-process unforgeability either.
+
+
+## Complete collection and composition
+
+For arbitrary `p : Plan c i`, `roles : Roles i.policy` and
+`inputs : List (Nat × JobObservation)`, `finalize_iff` proves:
+`(∃ result, finalize p roles inputs = .ok result) ↔ InputsOK p roles inputs`.
+`InputsOK` requires distinct required slots with exact key/snapshot binding and a
+policy-satisfying supplied observation for every slot in `List.range p.jobs.size`.
+It does not assume a producer returned enough observations. `collect_success_iff`
+and `collect_lookup` prove the executed fold retains exactly its supplied pairs;
+`finalized_covers_input` connects every required lookup back to that input list.
+
+`CombinedAccepted pc dc documents` carries both accepted plans, exact project/fresh
+and documentation modes, the requested documents and equal snapshots.
+`combined_policy` retains both completeness/policy capstones;
+`combined_reports_same_snapshot` preserves report identities. File compilation
+uses `FileSourceBinding.sameBytes` while retaining both actual URIs. Graph selection
+is frozen in `Census.graphRoots/graphCoverage`; `GraphOK` cannot select a shorter
+root set than `GraphPlanOK` admitted.
+
+Repeated immutable requests use Lean's `withPtrEqDecEq` shortcut with the original
+structural equality as fallback. This decides the same equality, without a digest
+or caller-supplied identity token. The kernel sees the structural computation;
+the compiled pointer shortcut has Lean's existing runtime trust boundary. No
+wall-clock bound follows from these proofs.
+
+A statement-reference audit, transitive axiom census or occurrence of an
+implementation name is not proof-body semantic linkage. Review the actual executed
+definition and theorem hypotheses, then trace the call through each success owner.
+The caller table and collection/composition theorems supply distinct parts of that
+account; neither substitutes for source/provenance qualification.
 
 ## Rule-ID linkage
 
@@ -77,10 +111,10 @@ The table does not claim the rules' external collectors or residual review are p
 | SL1005 | `foundationFor_least`, `leastFoundation_ext`, `policyFor_conforming_iff` and ordered outcome equivalence; `labelOf`/`ruleFor`. | Least containing profile of observed axioms, not least possible axioms for the proposition. |
 | SL1006 | `authorizedUnsafeRecHelpers_iff`, `policyFor_conforming_iff` and ordered outcome equivalence; `admitScope`/`ruleFor`. | Exact helper observations are checked; acquisition authenticity and execution coverage remain separate. |
 | SL1007 | `ContractOK` and declaration outcome equivalence through `ruleFor`. | Recorded contract failures are enforced. Probe's proposition/root extraction, proof admission and adequacy are not proved by this relation. |
-| SL2004 | `policyFor_ordered` places invalid-inventory membership refusal first; `ruleFor` maps it to coverage. `CensusOK`/`PlanOK` also contribute to future composite acceptance. | Membership refusal does not establish complete Lake/environment ownership acquisition. |
+| SL2004 | `policyFor_ordered` places invalid-inventory membership refusal first; `ruleFor` maps it to coverage. `CensusOK`/`PlanOK` also contribute to executed composite acceptance. | Membership refusal does not establish complete Lake/environment ownership acquisition. |
 | SL3001, SL3002 | `executionFailureRecords_empty_iff` and `boundaryFailures_empty_iff`; `Checker.Policy.executionFailureRecords`/`executionFailures`. | Theorems cover supplied unresolved paths and boundaries, not complete root/closure discovery or external runtime correctness. |
-| SL4003 | `matchesPattern_iff` and `orderedLiterals_iff`; `Checker.Documentation.matchesPattern`. | One effective error under the restricted grammar; producer completion and error extraction are operational. Typed policy-negative expectation integration remains #7/#13. |
-| SL2001–SL2005, SL4001–SL4004, SL5001–SL5002 | Concrete `PlanOK`, `StageOK` and named scope/build/admission/document/example/presence predicates compose through `accept_iff` and `accepted_report_identity`. | Data-level composite guarantee. #7 must populate authentic complete observations and route global success through `Accepted`; #13 supplies missing collectors, presence checks and example adapters. This row does not claim those features are already integrated. |
+| SL4003 | `matchesPattern_iff` and `orderedLiterals_iff`; `Checker.Documentation.matchesPattern`. | One effective error under the restricted grammar; producer completion and error extraction are operational. Policy-negative source fixtures retain the separate registry-bound expectation qualifier; a rejection is not positive conformance. |
+| SL2001–SL2005, SL4001–SL4004, SL5001–SL5002 | Concrete `PlanOK`, `StageOK` and named scope/build/admission/document/example/presence predicates compose through `accept_iff` and `accepted_report_identity`. | The adapters populate these relations and route audit success through `AcceptedRun`; completed ENGINE collectors retain their provenance guards. The proof remains about supplied observations, not external acquisition. |
 
 ## Complete observations and example expectations
 
@@ -93,8 +127,8 @@ identities or caller-selected requirements. Recorded successful executable-contr
 roots must be represented in execution modes. Known root-target imports must agree
 with positive target assignments; the collector must also report unclassified root
 imports. History observations bind the exact module/source pair. These checks do
-not establish external census completeness or repair the remaining ordinary-root
-selector qualification assigned to #7/#13.
+not establish external census completeness. The completed ENGINE producer
+qualification is a separate scoped observation, not a proof of IO extraction.
 
 `JobObservation` separates completion state, exact snapshot and stage-specific
 fields. `StageOK` checks the appropriate relation for the stage and subject; an
@@ -109,8 +143,8 @@ policy diagnostics retain stable identity tokens, optional subreason, exact
 primary location and related locations. Matching requires the configured ordered
 list with no additional diagnostics. The sole registry adapter validates identity
 vocabulary and authentic locations. A completed rejection observation is not
-itself proof that the external producer performed that work; #7/#13 must establish
-that linkage through their actual invocation and packet boundaries.
+itself proof that the external producer performed that work. Actual invocation,
+strict packet decoding and source guards retain that operational linkage.
 
 Accepting a negative or teaching expectation never supplies conforming positive
 program evidence. Documentation examples retain their logical-only scope;
@@ -126,10 +160,11 @@ The implementation targets Lean 4.33.1, compiler commit
 the pure policy library itself imports Init/Std and its own modules, not Mathlib
 or the excluded operational checker.
 
-The [delivery evidence](../../session/evidence/issue-6-verification.md) records the
-exact current Mathlib revision, declaration and
+The [POLICY-03 evidence](../../session/evidence/issue-6-verification.md) records its
+historical Mathlib revision, declaration and
 axiom census, applicable diagnostics, independent reviews and complete acceptance
-result. Explicit theorem hypotheses are distinct from transitive logical axioms.
+result. [Issue7 evidence](../../session/evidence/issue-7-verification.md) owns current
+collection/integration qualification and pending delivery gates. Explicit theorem hypotheses are distinct from transitive logical axioms.
 The manifest's Standard-Logical profile is an upper bound, not a claim that every
 proof uses all three permitted axioms. Optional serialized-graph checking and
 unrun broader operational campaigns are separate claims.

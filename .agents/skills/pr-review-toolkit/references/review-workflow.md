@@ -23,6 +23,23 @@ coordinate expensive commands through one owner to avoid competing builds. Colle
 reviews before modifying their frozen subject. If independent review is unavailable, report
 that gate as incomplete while completing unaffected authorized work.
 
+## Accepted-result review
+
+For acceptance changes, use [the source/theorem map](../../../../docs/guides/policy-acceptance.md)
+and assign distinct fresh-context proof and integration review. The proof review checks
+that the executed collector/finalizer derives complete coverage and approved predicates
+for every required slot, with explicit hypotheses and exact axiom sets. Statement-reference
+or axiom-closure audits alone do not establish proof-body/execution linkage.
+
+The integration review traces every success branch through `AcceptedRun.report` (and
+`CombinedAccepted` for project/docs), independently frozen requests/censuses, raw packet
+reconstruction and unchanged source/ownership/admission guards. Check exact mode and
+snapshot identity, full replay preservation, infrastructure disjointness/authentication,
+original-file/temporary-copy binding, grouped fence units and optional graph roots.
+Review constructor/caller visibility without claiming hostile in-process unforgeability.
+Help, planning, workers, local editor observations and diagnostic demonstrations must
+stay explicitly non-audit; rendered JSON/status cannot reconstruct a proof.
+
 ## Evidence and repairs
 
 Check findings against the exact Lean claim and supported pin. A checker bypass repair needs

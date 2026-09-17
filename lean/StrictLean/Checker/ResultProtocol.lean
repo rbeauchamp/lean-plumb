@@ -1,10 +1,11 @@
+import StrictLeanPolicy.Acceptance
 import StrictLean.Website
 import StrictLean.Checker.Producer
 import StrictLean.Checker.RuleDiagnostics
 
-/-! Versioned result output. This records scoped checker observations; it is not the
-future proof-bearing Accepted value. Complete policy integration belongs to CL-04.
-Canonical output construction credits con-leche (StrictLean.RuleId). -/
+/-! Versioned observation output and accepted-report rendering. JSON is display/transport
+of scoped evidence, never a deserializable proof or whole-standard conformance certificate.
+The accepted constructor requires the executed con-leche-inspired indexed finalization. -/
 namespace StrictLean.Checker.ResultProtocol
 open Lean
 
@@ -35,6 +36,67 @@ def write (path : System.FilePath) (scope : Json) (mode : EvidenceMode) (status 
     (findings : Array Finding) (unresolved : Array String := #[]) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
   IO.FS.writeFile path ((resultJson scope mode status findings unresolved).pretty ++ "\n")
+
+private def sourceJson (source : StrictLeanPolicy.SourceSnapshot) : Json :=
+  Json.mkObj [("uri", toJson source.uri), ("source", toJson source.source)]
+
+private def declarationKeyJson (key : StrictLeanPolicy.DeclarationKey) : Json :=
+  Json.mkObj [("module", RegistryCodec.nameJson key.moduleKey.name.name),
+    ("name", RegistryCodec.nameJson key.name.name)]
+
+private def subjectJson : StrictLeanPolicy.JobSubject → Json
+  | .scope => Json.mkObj [("kind", .str "scope")]
+  | .module key => Json.mkObj [("kind", .str "module"), ("module", RegistryCodec.nameJson key.name.name)]
+  | .declaration key => Json.mkObj [("kind", .str "declaration"), ("declaration", declarationKeyJson key)]
+  | .root key => Json.mkObj [("kind", .str "root"), ("root", declarationKeyJson key)]
+  | .boundary key => Json.mkObj [("kind", .str "boundary"), ("root", declarationKeyJson key.root),
+      ("reached", declarationKeyJson key.reached), ("boundary", .str key.kind.spelling),
+      ("occurrence", toJson key.occurrence), ("replacement", key.replacement.map declarationKeyJson |>.getD .null)]
+  | .fence key => Json.mkObj [("kind", .str "fence"), ("document", toJson key.document.uri),
+      ("opening", toJson (key.opening.start, key.opening.stop)),
+      ("body", toJson (key.body.start, key.body.stop)), ("closing", toJson (key.closing.start, key.closing.stop)),
+      ("expectation", toJson (reprStr key.expectation))]
+
+/-- Renderer accepts only a proof-bearing run and projects its exact report. The common
+snapshot is stored once; each subject inherits it. These rendered fields are observations,
+not serialized authority, and consumers must never deserialize them into Accepted. -/
+def acceptedJson {claim : StrictLeanPolicy.Claim} (accepted : StrictLeanPolicy.AcceptedRun claim) : Json :=
+  let report := accepted.report
+  let snapshot := report.claim.val.snapshot
+  Json.mkObj [
+    ("mode", toJson report.claim.val.mode.spelling),
+    ("scope", toJson (reprStr report.claim.val.scope)),
+    ("surfaces", toJson (report.claim.val.surfaces.map fun surface => Json.mkObj [
+      ("target", toJson surface.target), ("modules", toJson (surface.modules.map fun n => RegistryCodec.nameJson n.name)),
+      ("profile", toJson surface.profile.spelling), ("execution", toJson surface.execution.spelling)])),
+    ("snapshot", Json.mkObj [("sources", toJson (snapshot.sources.map sourceJson)),
+      ("configuration", sourceJson snapshot.configuration), ("toolchain", toJson (reprStr snapshot.toolchain)),
+      ("dependencies", toJson (snapshot.dependencies.map fun dependency => Json.mkObj [
+        ("package", toJson dependency.package), ("revision", toJson dependency.nominalRevision),
+        ("dirty", toJson dependency.dirty), ("files", toJson (dependency.files.map sourceJson))]))]),
+    ("modules", toJson (report.census.modules.map fun key => RegistryCodec.nameJson key.name.name)),
+    ("importedModules", toJson (report.census.importedModules.map fun key => RegistryCodec.nameJson key.name.name)),
+    ("infrastructureModules", toJson (report.census.infrastructureModules.map fun key => RegistryCodec.nameJson key.name.name)),
+    ("admissionModules", toJson (report.census.admissionModules.map fun key => RegistryCodec.nameJson key.name.name)),
+    ("admissionDeclarations", toJson (report.census.admissionDeclarations.map declarationKeyJson)),
+    ("declarations", toJson (report.census.declarations.map declarationKeyJson)),
+    ("roots", toJson (report.census.roots.map declarationKeyJson)),
+    ("fileSource", report.census.fileSource.map (fun binding => Json.mkObj [
+      ("requested", sourceJson binding.requested), ("compiled", sourceJson binding.compiled)]) |>.getD .null),
+    ("graphRoots", toJson (report.census.graphRoots.map fun key => RegistryCodec.nameJson key.name.name)),
+    ("graphCoverage", toJson (report.census.graphCoverage.map fun (key, modules) => Json.mkObj [
+      ("root", RegistryCodec.nameJson key.name.name), ("modules", toJson (modules.map fun (moduleKey : StrictLeanPolicy.ModuleKey) => RegistryCodec.nameJson moduleKey.name.name))])),
+    ("jobs", toJson (report.jobs.mapIdx fun slot key => Json.mkObj [
+      ("slot", toJson slot), ("stage", toJson (reprStr key.stage)), ("subject", subjectJson key.subject)]))]
+
+/-- Public audit completion cannot be constructed from diagnostic counts or worker exits. -/
+def writeAccepted {claim : StrictLeanPolicy.Claim} (path : System.FilePath)
+    (accepted : StrictLeanPolicy.AcceptedRun claim) (scope : Json) : IO Unit := do
+  let report := accepted.report
+  let value := (resultJson scope report.claim.val.mode .completed #[] #[]).setObjVal!
+    "acceptance" (acceptedJson accepted)
+  if let some parent := path.parent then IO.FS.createDirAll parent
+  IO.FS.writeFile path (value.pretty ++ "\n")
 
 /-- Structural names are rendered only at this legacy display boundary. -/
 private def legacyName (value : Json) : Json :=

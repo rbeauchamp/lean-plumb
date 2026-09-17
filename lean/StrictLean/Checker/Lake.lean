@@ -37,6 +37,7 @@ structure SurfaceInventory where
   leanSrcPath : Array FilePath
   libraries : Array LibraryInventory
   executables : Array ExecutableInventory
+  dependencies : Array (String × FilePath)
   deriving Repr
 
 /-- Exact source locations already discovered through Lake for root-package
@@ -96,7 +97,9 @@ def surfaceInventory (repo : FilePath) : IO SurfaceInventory :=
       executables := executables.push { executable, root, source }
     let leanPath := #[leanLibDir] ++ ws.leanPath.toArray
     let leanSrcPath := ws.leanSrcPath.toArray
-    return { leanLibDir, leanPath, leanSrcPath, libraries, executables }
+    let dependencies ← (ws.packages.extract 1 ws.packages.size).mapM fun package => do
+      pure (package.baseName.toString, ← IO.FS.realPath package.dir)
+    return { leanLibDir, leanPath, leanSrcPath, libraries, executables, dependencies }
 
 /-- Build the targets with the inherited Lean search paths removed, so the
 build resolves modules only through the workspace being built. -/
@@ -105,10 +108,10 @@ def buildTargets (repo : FilePath) (targets : Array String) : IO ProcessResult :
 
 /-- Build the claimed Lake targets and require success with no warnings.
 Returns the diagnostic lines to report on failure. -/
-def buildChecked (repo : FilePath) (targets : Array String)
-    (mode : String) : IO (Option (Array String)) := do
+def buildCheckedObservation (repo : FilePath) (targets : Array String)
+    (mode : String) : IO (ProcessResult × Option (Array String)) := do
   let build ← buildTargets repo targets
-  if build.succeeded && (warningLines build.output).isEmpty then return none
+  if build.succeeded && (warningLines build.output).isEmpty then return (build, none)
   let diagnostics :=
     -- A warning's payload (the unused simp argument, the hint) sits on the
     -- continuation lines after its head; report the whole block.
@@ -117,8 +120,13 @@ def buildChecked (repo : FilePath) (targets : Array String)
     -- that context so public-gate qualification can identify the obligation.
     else if !(errorLines build.output).isEmpty then outputLines build.output
     else takeLast 20 (outputLines build.output)
-  return some (#[s!"FAIL[build-failed]: positive surface did not build {mode} and warning-free"]
-    ++ diagnostics)
+  return (build, some (#[s!"FAIL[build-failed]: positive surface did not build {mode} and warning-free"]
+    ++ diagnostics))
+
+/-- Compatibility diagnostic projection. Acceptance callers retain the process observation. -/
+def buildChecked (repo : FilePath) (targets : Array String)
+    (mode : String) : IO (Option (Array String)) := do
+  return (← buildCheckedObservation repo targets mode).2
 
 def transitiveImports (repo : FilePath) (moduleName : String) : IO (Array String) := do
   jsonStringArray s!"transitive imports for {moduleName}" <|

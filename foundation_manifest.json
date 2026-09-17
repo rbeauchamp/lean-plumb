@@ -19,7 +19,7 @@
       "library": "StrictLeanPolicy",
       "claim": "standard-logical",
       "execution": "report",
-      "rationale": "Pure policy categories, structural identities, admitted observations, and invariant-preserving collections used by the checker. Every declaration is checked under its exact transitive axiom set. The library proves finite-observation classification, declaration/execution decisions and concrete acceptance. These guarantees do not authenticate compiler or filesystem observations or establish global operational integration."
+      "rationale": "Pure policy categories, structural identities, admitted observations, and invariant-preserving collections used by the checker. Every declaration is checked under its exact transitive axiom set. The library proves finite-observation classification, declaration/execution decisions and concrete acceptance. The operational adapters collect complete request-indexed jobs through these definitions. Their proofs do not authenticate compiler or filesystem observations, compiled machine code, or semantic adequacy."
     }
   ],
   "excluded-libraries": [

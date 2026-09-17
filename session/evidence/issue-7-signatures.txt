@@ -1,0 +1,62 @@
+StrictLeanPolicy.ResultState.collect.{u, v} {κ : Type u} {β : Type v} [Ord κ] [Std.TransOrd κ] [Std.LawfulEqOrd κ]
+  {required : StrictLeanPolicy.CanonicalSet κ} {bound : κ → β → Prop} [DecidableRel bound]
+  (s : StrictLeanPolicy.ResultState required bound) :
+  List (κ × β) → Except StrictLeanPolicy.AdmissionFailure (StrictLeanPolicy.ResultState required bound)
+StrictLeanPolicy.ResultState.collect_success_iff.{u, v} {κ : Type u} {β : Type v} [Ord κ] [Std.TransOrd κ]
+  [Std.LawfulEqOrd κ] {required : StrictLeanPolicy.CanonicalSet κ} {bound : κ → β → Prop} [DecidableRel bound]
+  (inputs : List (κ × β)) (s : StrictLeanPolicy.ResultState required bound) :
+  (∃ final, s.collect inputs = Except.ok final) ↔ s.BatchOK inputs
+StrictLeanPolicy.ResultState.collect_lookup.{u, v} {κ : Type u} {β : Type v} [Ord κ] [Std.TransOrd κ]
+  [Std.LawfulEqOrd κ] {required : StrictLeanPolicy.CanonicalSet κ} {bound : κ → β → Prop} [DecidableRel bound]
+  (inputs : List (κ × β)) (s final : StrictLeanPolicy.ResultState required bound)
+  (h : s.collect inputs = Except.ok final) (key : κ) (value : β) :
+  final.entries[key]? = some value ↔ s.entries[key]? = some value ∨ (key, value) ∈ inputs
+StrictLeanPolicy.ResultState.collect_empty_lookup.{u, v} {κ : Type u} {β : Type v} [Ord κ] [Std.TransOrd κ]
+  [Std.LawfulEqOrd κ] {required : StrictLeanPolicy.CanonicalSet κ} {bound : κ → β → Prop} [DecidableRel bound]
+  (inputs : List (κ × β)) (final : StrictLeanPolicy.ResultState required bound)
+  (h : StrictLeanPolicy.ResultState.empty.collect inputs = Except.ok final) (key : κ) (value : β) :
+  final.entries[key]? = some value ↔ (key, value) ∈ inputs
+StrictLeanPolicy.finalize {c : StrictLeanPolicy.Claim} {i : StrictLeanPolicy.Census} (p : StrictLeanPolicy.Plan c i)
+  (roles : StrictLeanPolicy.Roles i.policy) (inputs : List (Nat × StrictLeanPolicy.JobObservation)) :
+  Except StrictLeanPolicy.FinalizationFailure (StrictLeanPolicy.Finalized p roles inputs)
+StrictLeanPolicy.finalize_iff {c : StrictLeanPolicy.Claim} {i : StrictLeanPolicy.Census} (p : StrictLeanPolicy.Plan c i)
+  (roles : StrictLeanPolicy.Roles i.policy) (inputs : List (Nat × StrictLeanPolicy.JobObservation)) :
+  (∃ result, StrictLeanPolicy.finalize p roles inputs = Except.ok result) ↔ StrictLeanPolicy.InputsOK p roles inputs
+StrictLeanPolicy.finalized_covers_input {c : StrictLeanPolicy.Claim} {i : StrictLeanPolicy.Census}
+  {p : StrictLeanPolicy.Plan c i} {roles : StrictLeanPolicy.Roles i.policy}
+  {inputs : List (Nat × StrictLeanPolicy.JobObservation)} (result : StrictLeanPolicy.Finalized p roles inputs)
+  (slot : Nat) (hs : slot < p.jobs.size) :
+  ∃ o, (slot, o) ∈ inputs ∧ p.jobs[slot]? = some o.key ∧ StrictLeanPolicy.PolicyOK c i roles o
+StrictLeanPolicy.AcceptedRun (c : StrictLeanPolicy.Claim) : Type
+StrictLeanPolicy.acceptedRun_claim {c : StrictLeanPolicy.Claim} (run : StrictLeanPolicy.AcceptedRun c) :
+  run.report.claim = c
+StrictLeanPolicy.combineAccepted {pc dc : StrictLeanPolicy.Claim} (documents : Array StrictLeanPolicy.SourceSnapshot)
+  (project : StrictLeanPolicy.AcceptedRun pc) (documentation : StrictLeanPolicy.AcceptedRun dc) :
+  Except String (StrictLeanPolicy.CombinedAccepted pc dc documents)
+StrictLeanPolicy.combined_policy {pc dc : StrictLeanPolicy.Claim} {documents : Array StrictLeanPolicy.SourceSnapshot}
+  (accepted : StrictLeanPolicy.CombinedAccepted pc dc documents) :
+  (StrictLeanPolicy.CompleteFor accepted.project.plan accepted.project.result.table ∧
+      StrictLeanPolicy.AllPolicyOK accepted.project.plan accepted.project.roles accepted.project.result.table) ∧
+    StrictLeanPolicy.CompleteFor accepted.documentation.plan accepted.documentation.result.table ∧
+      StrictLeanPolicy.AllPolicyOK accepted.documentation.plan accepted.documentation.roles
+        accepted.documentation.result.table
+StrictLeanPolicy.combined_reports_same_snapshot {pc dc : StrictLeanPolicy.Claim}
+  {documents : Array StrictLeanPolicy.SourceSnapshot} (accepted : StrictLeanPolicy.CombinedAccepted pc dc documents) :
+  accepted.project.report.claim = pc ∧
+    accepted.documentation.report.claim = dc ∧
+      accepted.project.report.claim.val.snapshot = accepted.documentation.report.claim.val.snapshot
+StrictLeanPolicy.infrastructure_disjoint (c : StrictLeanPolicy.Claim) (i : StrictLeanPolicy.Census)
+  (h : StrictLeanPolicy.InfrastructureOK c i) (m : StrictLeanPolicy.ModuleKey) (hm : m ∈ i.infrastructureModules) :
+  ¬m ∈ i.modules ∧ ¬m ∈ i.importedModules
+StrictLeanPolicy.fileSourceBinding_bytes (binding : StrictLeanPolicy.FileSourceBinding) :
+  binding.requested.source = binding.compiled.source
+'StrictLeanPolicy.ResultState.collect_success_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.ResultState.collect_lookup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.ResultState.collect_empty_lookup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.finalize_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.finalized_covers_input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.acceptedRun_claim' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.combined_policy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.combined_reports_same_snapshot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.infrastructure_disjoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'StrictLeanPolicy.fileSourceBinding_bytes' does not depend on any axioms

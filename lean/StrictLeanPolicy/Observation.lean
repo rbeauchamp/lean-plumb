@@ -19,6 +19,7 @@ structure BuildObservation where
   deriving Repr, DecidableEq
 
 structure AdmissionObservation where
+  modules : Array ModuleKey
   required : Array DeclarationKey
   admitted : Array DeclarationKey
   failures : Array String
@@ -109,7 +110,7 @@ instance (o : BuildObservation) : Decidable (BuildOK o) := by unfold BuildOK; in
 
 /-- Every frozen replay key is admitted exactly once, with no skipped/failed observations. -/
 def AdmissionOK (i : Census) (o : AdmissionObservation) : Prop :=
-  o.required = i.admissionDeclarations ∧ o.admitted.toList.Pairwise (· ≠ ·) ∧
+  o.modules = i.admissionModules ∧ o.required = i.admissionDeclarations ∧ o.admitted.toList.Pairwise (· ≠ ·) ∧
   (∀ d ∈ o.required, d ∈ o.admitted) ∧ (∀ d ∈ o.admitted, d ∈ o.required) ∧ o.failures = #[]
 instance (i : Census) (o : AdmissionObservation) : Decidable (AdmissionOK i o) := by
   unfold AdmissionOK; infer_instance
@@ -230,7 +231,8 @@ instance (c : Claim) (i : Census) (m : ModuleKey) (o : HistoryObservation) : Dec
 /-- Every selected graph root was checked and the resulting closure covers all claimed
 modules. Plan-only and missing roots cannot satisfy a serialized-graph expectation. -/
 def GraphOK (i : Census) (o : GraphObservation) : Prop :=
-  o.plannedOnly = false ∧ o.failures = #[] ∧ o.selected ≠ #[] ∧
+  o.plannedOnly = false ∧ o.failures = #[] ∧ o.selected = i.graphRoots ∧
+  o.covered = i.graphCoverage.flatMap (·.2) ∧ o.selected ≠ #[] ∧
   o.selected.toList.Pairwise (· ≠ ·) ∧ o.checked.toList.Pairwise (· ≠ ·) ∧
   (∀ m ∈ o.selected, m ∈ o.checked ∧ m ∈ i.modules) ∧
   (∀ m ∈ o.checked, m ∈ o.selected) ∧ (∀ m ∈ i.modules, m ∈ o.covered) ∧

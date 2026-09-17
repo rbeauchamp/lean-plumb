@@ -26,6 +26,13 @@ structure Snapshot where
   dependencies : Array DependencyState
   deriving Repr, DecidableEq
 
+/- Repeated jobs share one immutable snapshot. Lean's established pointer-equality
+shortcut decides the same equality and otherwise runs full structural comparison;
+no digest, identity token or assumed equality replaces source bytes. -/
+attribute [-instance] instDecidableEqSnapshot
+instance snapshotDecidableEq : DecidableEq Snapshot := fun left right =>
+  withPtrEqDecEq left right (fun _ => instDecidableEqSnapshot left right)
+
 /-- Structural validity of exact content maps; truthful acquisition stays operational. -/
 def Snapshot.Valid (s : Snapshot) : Prop :=
   s.sources.toList.Pairwise (fun a b => a.uri ≠ b.uri) ∧
@@ -136,6 +143,11 @@ structure ClaimCandidate where
   surfaces : Array SurfaceAssignment
   deriving Repr, DecidableEq
 
+attribute [-instance] instDecidableEqClaimCandidate
+/-- Preserve exact structural fallback when requests are not shared at runtime. -/
+instance claimCandidateDecidableEq : DecidableEq ClaimCandidate := fun left right =>
+  withPtrEqDecEq left right (fun _ => instDecidableEqClaimCandidate left right)
+
 /-- Supported scope/mode combinations. Fresh files never acquire whole-project scope. -/
 def ScopeModeCompatible : Scope → EvidenceMode → Bool
   | .project, .freshProject | .project, .incrementalProject | .project, .serializedGraph => true
@@ -203,6 +215,16 @@ def StageSubjectCompatible : Stage → JobSubject → Bool
   | .example, .fence _ => true
   | _, _ => false
 
+/-- Every subject retains the exact snapshot of its requested claim. -/
+def SubjectSnapshotOK (claim : Claim) : JobSubject → Prop
+  | .scope => True
+  | .module k => k.snapshot.val = claim.val.snapshot
+  | .declaration k | .root k => k.moduleKey.snapshot.val = claim.val.snapshot
+  | .boundary k => k.root.moduleKey.snapshot.val = claim.val.snapshot
+  | .fence k => k.document ∈ claim.val.snapshot.sources
+instance (claim : Claim) (subject : JobSubject) : Decidable (SubjectSnapshotOK claim subject) := by
+  cases subject <;> unfold SubjectSnapshotOK <;> infer_instance
+
 /-- An attempt identifier is transport metadata, never part of a required job key. -/
 structure JobKey where
   claim : Claim
@@ -210,11 +232,22 @@ structure JobKey where
   subject : JobSubject
   requiredStage : stage ∈ requiredStages claim
   compatibleSubject : StageSubjectCompatible stage subject = true
-  subjectSnapshot : match subject with
-    | .scope => True
-    | .module k => k.snapshot.val = claim.val.snapshot
-    | .declaration k | .root k => k.moduleKey.snapshot.val = claim.val.snapshot
-    | .boundary k => k.root.moduleKey.snapshot.val = claim.val.snapshot
-    | .fence k => k.document ∈ claim.val.snapshot.sources
+  subjectSnapshot : SubjectSnapshotOK claim subject
   deriving Repr, DecidableEq
+/-- Admit a requested stage/subject without inventing a compatible replacement. -/
+def admitJobKey (claim : Claim) (stage : Stage) (subject : JobSubject) : Except String JobKey :=
+  if hr : stage ∈ requiredStages claim then
+    if hc : StageSubjectCompatible stage subject = true then
+      if hs : SubjectSnapshotOK claim subject then
+        .ok ⟨claim, stage, subject, hr, hc, hs⟩
+      else .error "job subject snapshot differs from requested claim"
+    else .error "job stage and subject are incompatible"
+  else .error "job stage is not required by requested mode"
+
+/-- Every valid exact job is reconstructed, with no default stage or subject. -/
+theorem admitJobKey_exact (key : JobKey) :
+    admitJobKey key.claim key.stage key.subject = .ok key := by
+  unfold admitJobKey
+  rw [dif_pos key.requiredStage, dif_pos key.compatibleSubject, dif_pos key.subjectSnapshot]
+
 end StrictLeanPolicy

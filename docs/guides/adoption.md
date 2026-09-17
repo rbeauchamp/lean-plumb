@@ -188,3 +188,26 @@ not the gate alone.
 ## Planned linter and linked rule reference
 
 The [registry](rule-registry.md) is implemented. The [product architecture](linter-architecture.md) and [developer experience](developer-experience.md) specify conventional `lake lint`, editor integration and the GitHub Pages site still under development. The latter includes coexistence with an existing Mathlib lint driver and explicit local/project scope. Use the existing supported instructions above until their delivery issues integrate. The [one-rule prototype](../../examples/rule-reference-prototype/README.md) is interface evidence, not a complete adopter configuration or a published site. Canonical metadata and accepted-result design credit con-leche as detailed in the architecture.
+
+## Accepted results and modes
+
+Audit success is finalized against the exact requested claim and independently frozen
+inventory. Project, explicit conforming-file and documentation drivers retain a
+proof-bearing `AcceptedRun`; combined project/docs also checks the shared snapshot.
+`--json-out` renders acceptance metadata from that value. Treat it as a report of
+observations, never as a deserializable Lean proof or an authenticated external attestation.
+See the [API and success-owner map](policy-acceptance.md).
+
+`--build-lint`/`--incremental` still mean current policy inspection over an incremental
+build. A fresh file claim covers the original file's bytes and its isolated compilation,
+with incrementally built dependencies. No-profile and compiler-trusting file requests
+report `CLASSIFIED`, not conforming success. Documentation accepts each configured
+positive, rejection or teaching expectation without promoting negatives/teaching to
+positive conformance. Help, worker and optional graph planning exits have no audit certificate.
+The complete cold-root `./scripts/verify.sh` remains the ordinary420 acceptance command;
+external-adopter/build-integration diagnostics and serialized-graph checking remain separate.
+
+This boundary is informed by con-leche's complete indexed result assembly, without
+importing its code or asserting its kernel/model guarantees for Lean/Lake, the filesystem,
+JSON parsing, process completion or compiled machine code. Semantic adequacy and the
+standard's residual review accounts remain separate obligations.

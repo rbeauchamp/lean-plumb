@@ -32,7 +32,8 @@ reporter, frontend, registry, Mathlib or IO execution. `Specification` states
 independent declaration predicates; `Plan` and `Observation`
 define the concrete census, derived jobs and stage relations; `Acceptance` proves
 soundness, completeness and report identity for those fixed inputs.
-`Checker.PolicyDomain` and `Checker.Acceptance` are compatibility re-exports.
+`Checker.PolicyDomain` is a compatibility re-export. `Checker.Acceptance` re-exports
+the pure API and builds the operational census/observations without duplicating policy.
 
 ## Connection to execution
 
@@ -51,9 +52,11 @@ batches use `ResultState` to admit indexed payloads against their requested sour
 and artifact paths, then require all requested slots. Source workers additionally
 bind their exact input text.
 
-This local request/result validation does not yet populate the proved whole-project
-census/plan or make every success boundary consume `Accepted`. POLICY-04 (#7)
-owns that integration and project/documentation composition. The core expectation
+The project/file/documentation/optional-graph adapters populate the fixed census and
+plan, execute `ResultState.collect` plus `finalize`, and retain `AcceptedRun` through
+success rendering. Combined project/documentation uses `CombinedAccepted` with one
+exact snapshot. The [success-owner map](policy-acceptance.md) separates these audit
+routes from help, internal raw workers and local diagnostics. The core expectation
 record retains exact diagnostic identities, optional subreasons and locations; the
 registry adapter must validate its vocabulary and authenticate its observations.
 
@@ -92,8 +95,8 @@ require IR. Public controls include both an authored tagged lookalike and a
 runtime-modified genuine helper.
 
 The universal results cover the actual category/name codecs, structural ordering,
-canonical set projections, evidence admission, inventory/claim admission and result
-insertion, least-foundation classification, role/declaration/execution decisions,
+canonical set projections, evidence admission, inventory/claim admission and full result
+collection/finalization, least-foundation classification, role/declaration/execution decisions,
 and concrete acceptance. See the [theorem and caller map](policy-proofs.md) for exact
 hypotheses and limits. JSON text parsing and filesystem/process authenticity remain
 operational boundaries.

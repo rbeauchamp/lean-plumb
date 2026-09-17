@@ -26,6 +26,64 @@ structure TargetAssignment where
   surface : Option String
   deriving Repr, DecidableEq
 
+/-- Exact reporter identities used only to select authentication obligations. Membership
+alone never grants an exemption. Contract remains the public contract interface. -/
+def reporterModuleNames : Array Name :=
+  #[`StrictLean.Probe, `StrictLean.Report, `StrictLean.Contract, `StrictLean.Checker.PolicyCodec]
+
+/-- These implementation imports remain forbidden through ordinary dependencies. -/
+def reporterOnlyModuleNames : Array Name :=
+  #[`StrictLean.Probe, `StrictLean.Report, `StrictLean.Checker.PolicyCodec]
+
+/-- Only the existing force-loaded reporter, public name codec and conditional collector
+can enter the infrastructure partition. This is not a whole-library exemption. -/
+def infrastructureModuleNames : Array Name :=
+  reporterModuleNames ++ #[`StrictLean.StructuralName, `StrictLean.Collect]
+
+/-- Canonical-artifact equality for one exact infrastructure module and snapshot. The
+adapter obtains both paths independently from actual resolution and the checker library;
+this type proves equality of those observations, not filesystem or compiler authenticity. -/
+structure InfrastructureOrigin where
+  moduleKey : ModuleKey
+  actual : String
+  expected : String
+  eligible : moduleKey.name.name ∈ infrastructureModuleNames
+  nonempty : actual ≠ ""
+  agrees : actual = expected
+  deriving DecidableEq
+
+/-- Refuse unsupported identities, absent origins and mismatched canonical artifacts. -/
+def admitInfrastructureOrigin (key : ModuleKey) (actual expected : String) :
+    Except String InfrastructureOrigin :=
+  if hn : key.name.name ∈ infrastructureModuleNames then
+    if hp : actual ≠ "" then
+      if he : actual = expected then .ok ⟨key, actual, expected, hn, hp, he⟩
+      else .error "infrastructure artifact origin mismatch"
+    else .error "empty infrastructure artifact origin"
+  else .error "unsupported infrastructure module"
+
+/-- Every authenticated candidate is retained unchanged; no arbitrary fallback module
+or artifact is substituted. Incoming-import checks remain a whole-census obligation. -/
+theorem admitInfrastructureOrigin_exact (origin : InfrastructureOrigin) :
+    admitInfrastructureOrigin origin.moduleKey origin.actual origin.expected = .ok origin := by
+  unfold admitInfrastructureOrigin
+  rw [dif_pos origin.eligible, dif_pos origin.nonempty, dif_pos origin.agrees]
+
+/-- A standalone file is compiled in an isolated module. Retain both identities and
+exact byte equality; this does not authenticate either filesystem read. -/
+structure FileSourceBinding where
+  requested : SourceSnapshot
+  compiled : SourceSnapshot
+  sameBytes : requested.source = compiled.source
+  deriving DecidableEq
+
+def admitFileSourceBinding (requested compiled : SourceSnapshot) : Except String FileSourceBinding :=
+  if h : requested.source = compiled.source then .ok ⟨requested, compiled, h⟩
+  else .error "standalone source copy differs from requested file"
+
+theorem fileSourceBinding_bytes (binding : FileSourceBinding) :
+    binding.requested.source = binding.compiled.source := binding.sameBytes
+
 /-- Frozen observations and independently collected keys. No field records policy success.
 Material declarations are the explicit public evidence-registration census; its adequacy
 remains semantic review. Imported modules are separate from claimed owned modules. -/
@@ -34,22 +92,32 @@ structure Census where
   execution : ExecutionInventory
   modules : Array ModuleKey
   importedModules : Array ModuleKey
+  infrastructure : Array InfrastructureOrigin := #[]
+  origins : Array ModuleOrigin := #[]
+  infrastructureSources : Array (ModuleKey × SourceSnapshot) := #[]
   moduleSources : Array (ModuleKey × SourceSnapshot)
+  fileSource : Option FileSourceBinding := none
   importedSources : Array (ModuleKey × SourceSnapshot)
   unclassifiedRootImports : Array ModuleKey
+  admissionModules : Array ModuleKey := #[]
   admissionDeclarations : Array DeclarationKey
   declarations : Array DeclarationKey
   roots : Array RootKey
   materialDeclarations : Array DeclarationKey
   fences : Array FenceKey
+  graphRoots : Array ModuleKey := #[]
+  graphCoverage : Array (ModuleKey × Array ModuleKey) := #[]
   configuredTargets : Array TargetAssignment
   discoveredTargets : Array DiscoveredTarget
   deriving DecidableEq
 
-def Census.allModules (i : Census) : Array ModuleKey := i.modules ++ i.importedModules
+def Census.infrastructureModules (i : Census) : Array ModuleKey := i.infrastructure.map (·.moduleKey)
+
+def Census.allModules (i : Census) : Array ModuleKey :=
+  i.modules ++ i.importedModules ++ i.infrastructureModules
 
 def Census.allModuleSources (i : Census) : Array (ModuleKey × SourceSnapshot) :=
-  i.moduleSources ++ i.importedSources
+  i.moduleSources ++ i.importedSources ++ i.infrastructureSources
 
 def snapshotSources (c : Claim) : Array SourceSnapshot :=
   c.val.snapshot.sources ++ c.val.snapshot.dependencies.flatMap (·.files)
@@ -58,6 +126,33 @@ def moduleNames (ms : Array ModuleKey) : Array Name := ms.map (·.name.name)
 
 def declarationNames (ds : Array DeclarationKey) : Array (Name × Name) :=
   ds.map (fun d => (d.moduleKey.name.name, d.name.name))
+
+/-- The complete loaded import census binds every infrastructure receipt. Direct import
+edges are inspected for every loaded module, including ordinary dependencies. Collect
+is infrastructure only in its existing force-only case. Positive ownership is disjoint. -/
+def InfrastructureOK (c : Claim) (i : Census) : Prop :=
+  (∀ m ∈ i.infrastructureModules, m ∉ i.modules ∧ m ∉ i.importedModules ∧
+    m.snapshot.val = c.val.snapshot) ∧
+  uniqueNames (i.origins.map (·.name)) ∧
+  canonicalNames (i.origins.map (·.name)) = canonicalNames (moduleNames i.allModules) ∧
+  (∀ receipt ∈ i.infrastructure, ∃ origin ∈ i.origins,
+    origin.name = receipt.moduleKey.name.name ∧ origin.olean = receipt.actual) ∧
+  (∀ origin ∈ i.origins, ∀ imported ∈ origin.imports,
+    imported ∈ reporterOnlyModuleNames → origin.name ∈ reporterModuleNames ∧
+      ∃ receipt ∈ i.infrastructure, receipt.moduleKey.name.name = origin.name) ∧
+  (∀ receipt ∈ i.infrastructure, receipt.moduleKey.name.name = `StrictLean.Collect →
+    ∀ origin ∈ i.origins, `StrictLean.Collect ∈ origin.imports → origin.name ∈ reporterModuleNames) ∧
+  i.infrastructureSources.toList.Pairwise (fun a b => a.1 ≠ b.1) ∧
+  (∀ entry ∈ i.infrastructureSources,
+    entry.1 ∈ i.infrastructureModules ∧ entry.2 ∈ snapshotSources c)
+set_option synthInstance.maxSize 1024 in
+instance (c : Claim) (i : Census) : Decidable (InfrastructureOK c i) := by
+  unfold InfrastructureOK; infer_instance
+
+/-- The admitted partition never supplies positive ownership or an ordinary import. -/
+theorem infrastructure_disjoint (c : Claim) (i : Census) (h : InfrastructureOK c i)
+    (m : ModuleKey) (hm : m ∈ i.infrastructureModules) : m ∉ i.modules ∧ m ∉ i.importedModules :=
+  ⟨(h.1 m hm).1, (h.1 m hm).2.1⟩
 
 /-- Exact target partition, including excluded targets and standalone-executable conflicts.
 Each positive surface owns its library and any separately classified executable roots. -/
@@ -84,10 +179,24 @@ set_option synthInstance.maxSize 1024 in
 instance (c : Claim) (i : Census) : Decidable (TargetPartitionOK c i) := by
   unfold TargetPartitionOK; infer_instance
 
+/-- Optional graph selection and import coverage are frozen before checker processes.
+The relation proves exact accounting of supplied coverage, not Lean import extraction. -/
+def GraphPlanOK (c : Claim) (i : Census) : Prop :=
+  if c.val.mode = .serializedGraph then
+    i.graphRoots ≠ #[] ∧ i.graphRoots.toList.Pairwise (· ≠ ·) ∧
+    i.graphCoverage.map (·.1) = i.graphRoots ∧
+    (∀ root ∈ i.graphRoots, root ∈ i.modules) ∧
+    (∀ entry ∈ i.graphCoverage, entry.1 ∈ entry.2 ∧ ∀ m ∈ entry.2, m ∈ i.modules) ∧
+    ∀ m ∈ i.modules, ∃ entry ∈ i.graphCoverage, m ∈ entry.2
+  else i.graphRoots = #[] ∧ i.graphCoverage = #[]
+instance (c : Claim) (i : Census) : Decidable (GraphPlanOK c i) := by
+  unfold GraphPlanOK; infer_instance
+
 /-- Exact admitted key/data reconciliation and claim bindings. These checks cannot establish
 that the external environment traversal or source scan omitted nothing; that is the collector
 boundary. They do prevent a returned policy table from defining its own required census. -/
 def CensusOK (c : Claim) (i : Census) : Prop :=
+  InfrastructureOK c i ∧ GraphPlanOK c i ∧
   uniqueNames (moduleNames i.allModules) ∧
   (∀ m ∈ i.allModules, m.snapshot.val = c.val.snapshot) ∧
   i.moduleSources.map (·.1) = i.modules ∧
@@ -98,7 +207,9 @@ def CensusOK (c : Claim) (i : Census) : Prop :=
   (∀ m ∈ i.importedModules, ∀ target ∈ i.discoveredTargets, m.name.name ∈ target.modules →
     ∃ assignment ∈ i.configuredTargets, assignment.kind = target.kind ∧
       assignment.name = target.name ∧ assignment.surface.isSome = true) ∧
-  (∀ d ∈ i.admissionDeclarations, d.moduleKey ∈ i.allModules) ∧
+  uniqueNames (moduleNames i.admissionModules) ∧
+  (∀ m ∈ i.admissionModules, m.snapshot.val = c.val.snapshot) ∧
+  (∀ d ∈ i.admissionDeclarations, d.moduleKey ∈ i.allModules ∧ d.moduleKey ∈ i.admissionModules) ∧
   i.admissionDeclarations.toList.Pairwise (· ≠ ·) ∧
   (∀ d ∈ i.policy.declarations, d.isUnsafe = false → d.isPartial = false →
     (d.module, d.name) ∈ declarationNames i.admissionDeclarations) ∧
@@ -115,7 +226,8 @@ def CensusOK (c : Claim) (i : Census) : Prop :=
    | .project => TargetPartitionOK c i ∧
        canonicalNames (moduleNames i.modules) = canonicalNames
          (c.val.surfaces.flatMap (fun s => s.modules.map (·.name))) ∧ i.fences = #[]
-   | .file source .. => i.modules.size = 1 ∧ i.fences = #[] ∧ i.moduleSources.map (·.2) = #[source]
+   | .file source .. => i.modules.size = 1 ∧ i.fences = #[] ∧
+       ∃ binding ∈ i.fileSource, binding.requested = source ∧ i.moduleSources.map (·.2) = #[binding.compiled]
    | .editor n source .. => moduleNames i.modules = #[n.name] ∧ i.fences = #[] ∧
        i.moduleSources.map (·.2) = #[source]
    | .documentation docs => i.modules = #[] ∧ i.declarations = #[] ∧ i.roots = #[] ∧
@@ -201,4 +313,10 @@ theorem admitPlan_exact (c : Claim) (i : Census) (p : Plan c i) :
     admitPlan c i p.jobs = .ok p := by
   unfold admitPlan
   rw [dif_pos p.valid, dif_pos p.exactJobs, dif_pos p.exactClaim]
+/-- Realize all independently derived jobs; mapM refuses rather than discarding an
+unsupported subject. The existing plan admission checks the complete resulting array. -/
+def buildPlan (c : Claim) (i : Census) : Except String (Plan c i) := do
+  let jobs ← (requiredJobs c i).mapM fun (stage, subject) => admitJobKey c stage subject
+  admitPlan c i jobs
+
 end StrictLeanPolicy

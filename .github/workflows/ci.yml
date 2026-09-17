@@ -84,6 +84,10 @@ jobs:
           df -h .
           uptime
 
+      # Includes StrictLeanPolicy collection/finalization proofs and all acceptance
+      # adapters through the existing executable and diagnostic-owner build targets.
+      # Raw-packet mutation groups remain capability-triggered diagnostics; they are
+      # not appended to, or substituted for, complete cold-root acceptance.
       - name: Verify (same command and seven-minute limit as local)
         run: ./scripts/verify.sh
 

@@ -1,3 +1,4 @@
+import StrictLeanPolicy.Plan
 import StrictLean.Checker.PolicyCodec
 import StrictLean.Probe
 import StrictLean.Checker.Common
@@ -20,7 +21,7 @@ trusted reporter is always available: the probe and its transitive imports
 inside the checker library. They are never part of an audited surface, so
 their presence in an environment is not evidence about the claimed modules. -/
 def probeModuleNames : Array String :=
-  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.Contract", "StrictLean.Checker.PolicyCodec"]
+  StrictLeanPolicy.reporterModuleNames.map (·.toString)
 
 /-- The probe modules no claimed module may import. `StrictLean.Contract`
 is the published contract interface (docs/standard/8 §8.12) and is the one checker module
@@ -28,7 +29,7 @@ a claimed surface imports by design; the probe and its report records are
 checker tooling that reach an audited environment only through the force
 import, never through a claimed module's own imports. -/
 def probeOnlyModuleNames : Array String :=
-  #["StrictLean.Probe", "StrictLean.Report", "StrictLean.Checker.PolicyCodec"]
+  StrictLeanPolicy.reporterOnlyModuleNames.map (·.toString)
 
 /-- The checker-owned probe module force-imported into every report so the
 trusted reporter is always available. It is never part of an audited surface. -/
@@ -60,6 +61,32 @@ def forcedCollectorOnly (report : StrictLean.Checker.ProducerReport.Environment)
       !probeModuleNames.contains origin.name.toString && origin.imports.contains name) then
     return none
   return some name
+
+/-- Authenticate the narrow infrastructure partition against the running checker's
+canonical artifacts, retaining the request snapshot. Import restrictions are subsequently
+rechecked over the complete census by `InfrastructureOK`; these receipts alone do not
+allow a source import of a reporter or change any replay ownership. -/
+def infrastructureOrigins (snapshot : StrictLeanPolicy.AdmittedSnapshot)
+    (report : ProducerReport.Environment) : IO (Array StrictLeanPolicy.InfrastructureOrigin) := do
+  let some lib ← checkerPackageLibDir
+    | throw <| IO.userError "checker library path unavailable"
+  let collector ← forcedCollectorOnly report
+  let mut receipts := #[]
+  for name in StrictLeanPolicy.infrastructureModuleNames do
+    if name == `StrictLean.Collect && collector.isNone then continue
+    let origins := report.moduleOrigins.filter (·.name == name)
+    let some origin := origins[0]?
+      | throw <| IO.userError s!"missing infrastructure origin: {name}"
+    unless origins.size == 1 do
+      throw <| IO.userError s!"ambiguous infrastructure origin: {name}"
+    let expected ← IO.FS.realPath (Lean.modToFilePath lib name "olean")
+    let actual ← IO.FS.realPath origin.olean
+    unless origin.olean == actual.toString do
+      throw <| IO.userError s!"noncanonical infrastructure origin: {name}"
+    let key : StrictLeanPolicy.ModuleKey := ⟨snapshot, ← IO.ofExcept (StrictLeanPolicy.admitIdentity name)⟩
+    receipts := receipts.push (← IO.ofExcept <|
+      StrictLeanPolicy.admitInfrastructureOrigin key actual.toString expected.toString)
+  return receipts
 
 /-- Re-elaboration recovers overwritten `implemented_by` choices that neither
 the final attribute map nor optimized IR preserves. Isolate the frontend's

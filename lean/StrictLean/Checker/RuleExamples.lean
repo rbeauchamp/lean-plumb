@@ -74,31 +74,43 @@ unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
       let inventory ← Lake.surfaceInventory copy
       let projectSources ← SourceBinding.capture inventory.moduleSources
       stable projectSources configuration do
-        if let some lines ← Lake.buildChecked copy (Manifest.positiveTargets manifest) "fresh" then
+        let (buildProcess, buildResult) ← Lake.buildCheckedObservation copy (Manifest.positiveTargets manifest) "fresh"
+        if let some lines := buildResult then
           throw <| IO.userError ("example dependency build failed: " ++ "\n".intercalate lines.toList)
         let findings ← IO.mkRef (#[] : Array Finding)
         let classifications ← IO.mkRef (#[] : Array Documentation.Classification)
-        let code ← Documentation.auditBuiltProject copy docsRoot inventory projectSources configuration 1 true
+        let certificate ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
+        let code ← Documentation.auditBuiltProject copy docsRoot inventory projectSources configuration (Acceptance.buildObservation buildProcess) 1 true
           (fun finding => findings.modify (·.push finding))
           (fun results => classifications.set (results.map Documentation.classification))
+          (fun claim accepted => certificate.set (some ⟨claim, accepted⟩))
         let actual ← findings.get
         unless (code == 0) == actual.isEmpty do
           throw <| IO.userError "documentation completion/findings mismatch"
-        return (code, actual, ← classifications.get, copy.toString, configuration)).toBaseIO
+        return (code, actual, ← classifications.get, copy.toString, configuration, ← certificate.get)).toBaseIO
   -- Markdown is not a Lean module map. Preserve its own exact snapshots even on errors.
   for (path, source) in sources do
     unless (← IO.FS.readFile path) == source do throw <| IO.userError "documentation source changed"
-  let (code, actual, classifications, configurationRoot, configuration) ← IO.ofExcept <| outcome.mapError (fun error => toString error)
+  let (code, actual, classifications, configurationRoot, configuration, certificate) ← IO.ofExcept <| outcome.mapError (fun error => toString error)
+  let completion ← if code == 0 then do
+      let some ⟨_, accepted⟩ := certificate
+        | throw <| IO.userError "documentation adapter lacks accepted evidence"
+      let report := accepted.report
+      unless report.claim.val.scope == .documentation (sources.map fun (path, source) => ⟨path.toString, source⟩) do
+        throw <| IO.userError "documentation adapter request mismatch"
+      pure (if report.census.fences.size > 0 && report.census.fences.all
+        (fun fence => decide (fence.expectation = .positive)) then ResultProtocol.Status.completed else .classified)
+    else pure (if actual.any (·.2.impact == .incomplete) then .incomplete else .rejected)
   ResultProtocol.write output (Json.mkObj [
     ("configuration", toJson configuration), ("configurationRoot", toJson configurationRoot),
     ("fences", toJson classifications),
     ("documents", toJson (sources.map fun (path, source) => Json.mkObj [
       ("uri", toJson path.toString), ("source", toJson source)]))])
-    .documentationExample (if actual.any (·.2.impact == .incomplete) then .incomplete
-      else if code != 0 then .rejected
-      else if (Documentation.admitPositiveClassifications classifications).toOption.isSome then .completed
-      else .classified) actual
+    .documentationExample completion actual
   let value ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile output)
+  let value := match certificate with
+    | some ⟨_, accepted⟩ => value.setObjVal! "acceptance" (ResultProtocol.acceptedJson accepted)
+    | none => value
   let request := ResultProtocol.requestJson "documentation" repo.toString docsRoot.toString none none requestedConfiguration
   writeJson output ((value.setObjVal! "request" request).setObjVal! "effective"
     (Json.mkObj [("root", toJson configurationRoot), ("configuration", toJson configuration)]))

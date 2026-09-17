@@ -1,8 +1,9 @@
 # Project producer evidence
 
-ENGINE-01's producer increments add independent extraction keys, replay receipts,
-completed documentation observations, closure witnesses and source bindings. They do **not** complete ENGINE-01 or
-POLICY-04's global `Accepted` construction. The [coverage map](rule-coverage.md) and
+The completed ENGINE-01 producer delivery supplies independent extraction keys, replay
+receipts, completed documentation observations, closure witnesses and source bindings.
+These operational observations are inputs to POLICY-04's separate global acceptance
+boundary; producer correctness is not inferred from a pure data-level proof. The [coverage map](rule-coverage.md) and
 [policy acceptance contract](policy-acceptance.md) retain the remaining obligations.
 
 ## Implemented paths
@@ -210,7 +211,8 @@ remains unresolved (SL3001); an inactive reflexive candidate does not create an 
 cycle. Ordinary recursive IR self-edges remain a separate channel.
 
 The existing pure execution/Plan/Observation interfaces consume this strengthened admitted
-inventory; global required jobs and construction of `Accepted` remain #7.
+inventory; the [acceptance adapter](policy-acceptance.md) freezes global required jobs
+and constructs `AcceptedRun` from these observations.
 
 ### Source and configuration binding
 
