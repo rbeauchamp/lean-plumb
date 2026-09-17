@@ -11,11 +11,13 @@ open Lean System StrictLeanPolicy
 
 /-- An actual dependency observation, including dirty/path state, not only a lockfile pin. -/
 structure DependencyObservation where
+  project : FilePath
   package : String
   root : FilePath
   revision : Option String
   dirty : Bool
   state : Json
+  sourcePaths : Array (Name × FilePath)
   deriving BEq
 
 private def excluded (path : FilePath) : Bool :=
@@ -29,8 +31,18 @@ private def fileBytes (root : FilePath) (relative : String) : IO Json := do
 
 /-- Git state includes an exact binary diff and each untracked file's actual bytes.
 An unversioned path package is observed directly. No shell parser or digest is used. -/
-def dependency (package : String) (root : FilePath) : IO DependencyObservation := do
+def dependency (project : FilePath) (package : String) (root : FilePath)
+    (sourcePaths : Array (Name × FilePath)) : IO DependencyObservation := do
   let root ← IO.FS.realPath root
+  let sources ← sourcePaths.mapM fun (name, path) => do
+    let canonical ← IO.FS.realPath path
+    let bytes ← IO.FS.readBinFile canonical
+    let some text := String.fromUTF8? bytes
+      | throw <| IO.userError s!"dependency source is not UTF-8: {path}"
+    pure <| Json.mkObj [("module", toJson name), ("path", toJson path.toString),
+      ("canonical", toJson canonical.toString), ("source", toJson text)]
+  let configuration ← #["lakefile.lean", "lakefile.toml", "lake-manifest.json", "lean-toolchain"].mapM
+    (fileBytes root)
   let head ← runProcess root "git" #["rev-parse", "HEAD"]
   let top ← runProcess root "git" #["rev-parse", "--show-toplevel"]
   let ownRepository ← if top.succeeded then
@@ -48,9 +60,10 @@ def dependency (package : String) (root : FilePath) : IO DependencyObservation :
     let revision := head.stdout.trimAscii.toString
     if revision.isEmpty then throw <| IO.userError s!"empty dependency revision: {package}"
     return {
-      package, root, revision := some revision, dirty := !diff.stdout.isEmpty || !files.isEmpty,
+      project, package, root, sourcePaths, revision := some revision, dirty := !diff.stdout.isEmpty || !files.isEmpty,
       state := Json.mkObj [("root", toJson root.toString), ("revision", toJson revision),
-        ("diff", toJson diff.stdout), ("untracked", toJson files)] }
+        ("diff", toJson diff.stdout), ("untracked", toJson files),
+        ("sources", toJson sources), ("configuration", toJson configuration)] }
   let entries ← root.walkDir fun path => pure (!excluded (FilePath.mk
     ("/".intercalate (path.normalize.components.drop root.normalize.components.length))))
   let mut relativeFiles := #[]
@@ -60,18 +73,21 @@ def dependency (package : String) (root : FilePath) : IO DependencyObservation :
         ("/".intercalate (path.normalize.components.drop root.normalize.components.length))
   let files ← (relativeFiles.qsort (· < ·)).mapM (fileBytes root)
   return {
-    package, root, revision := none, dirty := true,
-    state := Json.mkObj [("root", toJson root.toString), ("files", toJson files)] }
+    project, package, root, sourcePaths, revision := none, dirty := true,
+    state := Json.mkObj [("root", toJson root.toString), ("files", toJson files),
+      ("sources", toJson sources), ("configuration", toJson configuration)] }
 
 /-- Resolve dependency names/locations through the frozen Lake discovery. -/
 def dependencies (inventory : Lake.SurfaceInventory) : IO (Array DependencyObservation) :=
-  inventory.dependencies.mapM fun (name, root) => dependency name root
+  inventory.dependencies.mapM fun entry =>
+    dependency inventory.root entry.package entry.root (entry.sources.map fun source => (source.module, source.source))
 
 /-- Check the actual dependency working state again at the request's terminal boundary. -/
 def dependenciesUnchanged (before : Array DependencyObservation) : IO Unit := do
-  for observed in before do
-    unless (← dependency observed.package observed.root) == observed do
-      throw <| IO.userError s!"dependency snapshot changed: {observed.package}"
+  let some first := before[0]? | return
+  let current ← dependencies (← Lake.surfaceInventory first.project)
+  unless current == before do
+    throw <| IO.userError "dependency snapshot changed: Lake inventory or source/configuration state"
 
 /-- Exact request bytes include configuration presence/absence and actual dependency state.
 Additional imported sources (for example history) are included by the coordinator only

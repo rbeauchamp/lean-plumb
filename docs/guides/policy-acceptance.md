@@ -52,6 +52,26 @@ and restoration. A killed process cannot promote the current incomplete receipt.
 invocations likewise invalidate recognizable absolute result destinations before argument
 parsing or root discovery, and relative destinations once their project root is resolved.
 
+Dependency snapshots use Lake's buildable library domains and executable roots to retain
+module identities, canonical source paths and exact bytes independently of Git ignore
+rules. Library roots whose globs admit their submodules include those submodules even
+when the configured target array selects only the root. Git state and dependency
+configuration presence/bytes remain additional observations. Terminal checks rediscover the Lake domain and reread
+these same inputs, refusing newly added or removed sources; filesystem acquisition and change-and-restore races remain trusted
+boundaries. No whole-workspace file scan substitutes for this Lake source inventory.
+
+Project census construction retains failures until the existing policy diagnostic pass
+has completed. Unavailable history still prevents acceptance, while its producer-linked
+execution findings retain SL3001, `execution-unresolved` and root locations in fresh,
+incremental and build-lint modes. A stored census error is raised if no typed policy
+failure already refuses the run; it is never replaced by an empty census.
+
+The focused `python3 scripts/acceptance_snapshot_checks.py` diagnostic exercises ignored
+Git-backed dependency source/configuration mutations with restoration, and the SL3001
+project control through fresh, incremental and build-lint invocations. It checks typed
+root/source attribution and absence of acceptance on unavailable history. These are
+scoped operational controls, not a proof of IO extraction or a full acceptance run.
+
 `Common.mapWorkQueue`, `admitIndexedWorkerResults` and documentation's task collector
 execute `ResultState.collect`; no result slot is overwritten. Group reconciliation
 may share identical overlapping imported observations, but never deduplicates job

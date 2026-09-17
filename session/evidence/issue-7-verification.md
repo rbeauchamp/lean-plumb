@@ -253,6 +253,47 @@ After fixes, rerun invalidated diagnostic claims and explicitly identify unchang
 relevant inputs before reusing others. Do not append these multi-minute campaigns to
 every ordinary acceptance run or combine them into a substitute acceptance result.
 
+## Review-phase R1/R2 repairs
+
+Starting HEAD: `4c7af873960578caab34c2d7c7d8abd36c8ad03c`. Repairs remain in the
+working tree; the outer pipeline owns the fix commit, ordinary acceptance, CI and delivery.
+
+Dependency acquisition now enumerates Lake's buildable library domains and executable
+roots, resolves module ownership through the workspace, and captures canonical paths
+and exact UTF-8 source bytes regardless of Git ignore rules. Existing Git/path and
+configuration guards remain. Terminal comparison rediscovers the same Lake domain and
+compares all observations against the original capture, detecting new ignored modules.
+Project census construction captures refusal before the existing policy loop, allowing
+root/source-attributed SL3001 findings without permitting an AcceptedRun on missing history.
+
+Focused evidence on Lean `leanprover/lean4:v4.33.1`:
+
+- PASS: `axiomGate` and its import closure, including changed
+  `StrictLean.Checker.Lake`, `Snapshot` and `AxiomGate`, compiled from the actual
+  worktree sources using an isolated Core-only Lake configuration, warnings as errors
+  and interpreter support. Initial syntax/deprecation/type-inference errors were fixed
+  before the final warning-free build. Mathlib, Audit surfaces and full declaration/axiom
+  coverage were not exercised; this is not ordinary acceptance.
+- PASS: `scripts/acceptance_snapshot_checks.py --group dependencies` with the isolated
+  checker. Changed ignored source bytes, ignored configuration and a newly added ignored
+  buildable module were refused; each restoration passed. Discovery included an
+  unimported buildable submodule outside the configured target array.
+- PASS: the same driver with `--group history`, across fresh, incremental and build-lint
+  public checker invocations: nine positive/refusal/restored controls. Refusals retained
+  SL3001, execution-unresolved, identity-root/source attribution, incomplete status and
+  no acceptance, without SL2001. Initial fixture setup omitted its lockfile and correctly
+  failed the configuration guard; provisioning it before the audit repaired the control.
+  History evidence predates only the final dependency-domain rediscovery enhancement;
+  these fixtures have no dependencies, so their relevant inputs and behavior are unchanged.
+- CLEAN: fresh-context independent static review of both repairs, including the pinned
+  Lake buildable-domain formula and the terminal rediscovery refinement. These operational
+  observations do not establish universal IO, compiler or extraction correctness.
+
+The isolated build used `tmp/review-build/.lake/build/bin/axiomGate` with the driver's
+`--checker` option. Temporary build and probe directories were removed. The regression
+driver remains available; complete acceptance, required campaigns and hosted CI remain
+separate pending claims.
+
 ## Pending delivery gates
 
 - Retain the initial180s incomplete build-lint attempt and subsequent full diagnostic

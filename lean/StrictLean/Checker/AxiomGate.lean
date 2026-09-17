@@ -372,16 +372,19 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         pure ({
           expectedModules := info.modules, report := inspected.report,
           transcripts := inspected.transcripts } : Acceptance.RequestedInspection)
-      let histories ← IO.ofExcept <| Acceptance.historyObservations rawInspections
-      let snapshotSources ← Acceptance.sourceSnapshots sourceBindings histories documents
-      Snapshot.dependenciesUnchanged dependencies
-      let snapshot ← IO.ofExcept <| Snapshot.make repo configuration snapshotSources dependencies
-      let request ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
-        scope := .project, mode := if fresh then .freshProject else .incrementalProject,
-        snapshot := snapshot.val, surfaces := assignments }
-      let frozenResult ← (Acceptance.freeze request (surfaces.flatMap (·.modules))
-        (Acceptance.configuredTargets manifest) (Acceptance.discoveredTargets inventory)
-        sourceBindings inventory.leanLibDir rawInspections).toBaseIO
+      let freezeRequest : IO ((c : StrictLeanPolicy.Claim) × Acceptance.Frozen c) := do
+        let histories ← IO.ofExcept <| Acceptance.historyObservations rawInspections
+        let snapshotSources ← Acceptance.sourceSnapshots sourceBindings histories documents
+        Snapshot.dependenciesUnchanged dependencies
+        let snapshot ← IO.ofExcept <| Snapshot.make repo configuration snapshotSources dependencies
+        let request ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
+          scope := .project, mode := if fresh then .freshProject else .incrementalProject,
+          snapshot := snapshot.val, surfaces := assignments }
+        let frozen ← Acceptance.freeze request (surfaces.flatMap (·.modules))
+          (Acceptance.configuredTargets manifest) (Acceptance.discoveredTargets inventory)
+          sourceBindings inventory.leanLibDir rawInspections
+        pure ⟨request, frozen⟩
+      let frozenResult ← freezeRequest.toBaseIO
 
       let mut failures : Array String := #[]
       let mut findings : Array StrictLean.Finding := #[]
@@ -552,9 +555,11 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       for document in documents do
         unless (← IO.FS.readFile document.uri) == document.source do
           throw <| IO.userError s!"documentation snapshot changed: {document.uri}"
-      let accepted ← if failures.isEmpty then do
-          let frozen ← IO.ofExcept frozenResult
-          pure (some (← IO.ofExcept <| Acceptance.finish frozen (Acceptance.buildObservation buildProcess)))
+      let accepted : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c) ←
+        if failures.isEmpty then do
+          let ⟨request, frozen⟩ ← IO.ofExcept frozenResult
+          let accepted ← IO.ofExcept <| Acceptance.finish frozen (Acceptance.buildObservation buildProcess)
+          pure (some (⟨request, accepted⟩ : (c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
         else pure none
       if let some output := jsonOut then
         writeRemappedJson output (Json.mkObj [
@@ -582,7 +587,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
             ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
             ("libraries", toJson (libraries.map libraryInfoJson)),
             ("completedStages", toJson #["claimedSourceBuild", "ownedAdmission", "declarationPolicy", "executionInspection"])]
-        if let some accepted := accepted then
+        if let some ⟨_, accepted⟩ := accepted then
           if internalWorker then
             ResultProtocol.write output resultScope (if fresh then .freshProject else .incrementalProject)
               .incomplete #[] #["internal production; parent acceptance pending"]
@@ -598,7 +603,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           let reason := (failure.splitOn ":").head?.getD "violation"
           IO.println s!"  [{reason}] {failure}"
         return 1
-      let some accepted := accepted
+      let some ⟨_, accepted⟩ := accepted
         | throw <| IO.userError "missing accepted evidence for project success"
       observeProduction ⟨buildProcess, rawInspections⟩
       if internalWorker then return 0

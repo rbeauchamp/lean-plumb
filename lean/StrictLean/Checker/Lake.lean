@@ -31,13 +31,20 @@ structure ExecutableInventory where
   source : FilePath
   deriving Repr
 
+structure DependencyInventory where
+  package : String
+  root : FilePath
+  sources : Array SourceEntry
+  deriving Repr
+
 structure SurfaceInventory where
+  root : FilePath
   leanLibDir : FilePath
   leanPath : Array FilePath
   leanSrcPath : Array FilePath
   libraries : Array LibraryInventory
   executables : Array ExecutableInventory
-  dependencies : Array (String × FilePath)
+  dependencies : Array DependencyInventory
   deriving Repr
 
 /-- Exact source locations already discovered through Lake for root-package
@@ -98,8 +105,30 @@ def surfaceInventory (repo : FilePath) : IO SurfaceInventory :=
     let leanPath := #[leanLibDir] ++ ws.leanPath.toArray
     let leanSrcPath := ws.leanSrcPath.toArray
     let dependencies ← (ws.packages.extract 1 ws.packages.size).mapM fun package => do
-      pure (package.baseName.toString, ← IO.FS.realPath package.dir)
-    return { leanLibDir, leanPath, leanSrcPath, libraries, executables, dependencies }
+      let names ← IO.mkRef ({} : NameSet)
+      for library in package.leanLibs do
+        let globs := library.config.globs ++ (library.roots.filter fun root =>
+          library.config.globs.any (·.matches root)).map _root_.Lake.Glob.andSubmodules
+        for glob in globs do
+          glob.forEachModuleIn library.srcDir fun name => do
+            names.modify (·.insert name)
+      let mut sources := #[]
+      for name in (← names.get).toArray.qsort Name.quickLt do
+        let some resolved := ws.findModule? name
+          | throw <| IO.userError s!"lake-query-malformed: dependency module {name} is unresolved"
+        if resolved.pkg.keyName != package.keyName then continue
+        let source ← checkSource package.dir s!"dependency module {name}"
+          name.toString resolved.leanFile.toString
+        sources := sources.push { «module» := name, source }
+      for exe in package.leanExes do
+        if sources.any (·.module == exe.root.name) then continue
+        let source ← checkSource package.dir s!"dependency executable {exe.name}"
+          exe.root.name.toString exe.root.leanFile.toString
+        sources := sources.push { «module» := exe.root.name, source }
+      let root ← IO.FS.realPath package.dir
+      pure ({ package := package.baseName.toString, root, sources } : DependencyInventory)
+    let root ← IO.FS.realPath repo
+    return { root, leanLibDir, leanPath, leanSrcPath, libraries, executables, dependencies }
 
 /-- Build the targets with the inherited Lean search paths removed, so the
 build resolves modules only through the workspace being built. -/
