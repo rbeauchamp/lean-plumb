@@ -65,7 +65,7 @@ private def lake (args : Array String) : Command := ⟨"lake", args⟩
 Qualification's private flag retains the already timed process group. -/
 def commands : Mode → List Command
   | .ordinary => [
-      lake #["build", "--jobs", "4", "StrictLeanPolicy", "StrictLeanQualification", "axiomGate", "docFenceAudit", "qualify",
+      lake #["build", "StrictLeanPolicy", "StrictLeanQualification", "axiomGate", "docFenceAudit", "qualify",
         "+StrictLean.Checker.CheckerSelftest:olean", "+StrictLean.Checker.FreshChecker:olean",
         "+StrictLean.RegistryChecks:olean", "+StrictLean.Linter:olean",
         "+StrictLean.Checker.ProducerQualification:olean", "+StrictLean.Checker.HistoryQualification:olean",
@@ -76,7 +76,7 @@ def commands : Mode → List Command
   | .graph => [lake #["exe", "freshChecker", "--verbose"]]
   | .diagnostics => [lake #["exe", "checkerSelftest", "--build-bound", "--jobs", "4"]]
   | .producers => [
-      lake #["build", "--jobs", "4", "axiomGate", "qualify", "+StrictLean.Checker.ProducerQualification:olean", "+StrictLean.Checker.HistoryQualification:olean"],
+      lake #["build", "axiomGate", "qualify", "+StrictLean.Checker.ProducerQualification:olean", "+StrictLean.Checker.HistoryQualification:olean"],
       lake #["exe", "qualify", "--under-deadline", "producers-combined"]]
   | .ruleExamples => [
       lake #["build", "axiomGate", "ruleExamples", "ruleExampleQualification", "qualify"],
