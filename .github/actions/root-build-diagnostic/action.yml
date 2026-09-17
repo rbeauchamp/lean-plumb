@@ -1,0 +1,12 @@
+name: Temporary bounded root-build setup
+description: Allocation083 pinned cache provisioning and three isolated checkouts under total300
+inputs:
+  toolchain-key:
+    required: true
+    description: Existing exact toolchain cache key
+  dependencies-key:
+    required: true
+    description: Existing exact dependency cache key
+runs:
+  using: node24
+  main: setup.cjs
