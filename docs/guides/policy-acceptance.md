@@ -55,8 +55,11 @@ parsing or root discovery, and relative destinations once their project root is 
 Dependency snapshots use Lake's buildable library domains and executable roots to retain
 module identities, canonical source paths and exact bytes independently of Git ignore
 rules. Library roots whose globs admit their submodules include those submodules even
-when the configured target array selects only the root. Git state and dependency
-configuration presence/bytes remain additional observations. Terminal checks rediscover the Lake domain and reread
+when the configured target array selects only the root. Nominal Git revision and dirty
+status are observed only for the declared inputs. Configuration paths come from Lake's
+actual package configuration/manifest plus toolchain and default-config presence checks.
+No Git diff, untracked-file content list or directory-wide bytes are retained; unrelated
+files and build outputs are not inputs merely because they share a dependency directory. Terminal checks rediscover the Lake domain and reread
 these same inputs, refusing newly added or removed sources; filesystem acquisition and change-and-restore races remain trusted
 boundaries. No whole-workspace file scan substitutes for this Lake source inventory.
 

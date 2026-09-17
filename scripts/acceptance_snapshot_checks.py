@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +25,19 @@ def main (args : List String) : IO Unit := do
     throw <| IO.userError "ignored imported module missing"
   unless observed.sourcePaths.any (·.1 == `Dep.Unimported) do
     throw <| IO.userError "buildable submodule missing"
+  Snapshot.dependenciesUnchanged before
+  let snapshot ← IO.ofExcept <| Snapshot.make inventory.root #[] #[] before
+  let marker := "R4_SYNTHETIC_UNRELATED"
+  let encoded := (toJson (marker.toUTF8.toList.map UInt8.toNat)).compress
+  if snapshot.val.configuration.source.contains marker || snapshot.val.configuration.source.contains encoded then
+    throw <| IO.userError "unrelated bytes were serialized"
+  IO.FS.writeFile (FilePath.mk dependency / ".env") "R4_SYNTHETIC_CHANGED"
+  IO.FS.writeFile (FilePath.mk dependency / "unrelated.txt") "R4_SYNTHETIC_CHANGED"
+  Snapshot.dependenciesUnchanged before
+  let build ← Lake.buildTargets project #["Example"]
+  unless build.succeeded do throw <| IO.userError build.output
+  unless ← (FilePath.mk dependency / "build/lib/lean/Dep.olean").pathExists do
+    throw <| IO.userError "custom build output missing"
   Snapshot.dependenciesUnchanged before
   let source := FilePath.mk dependency / "Dep/Generated.lean"
   let original ← IO.FS.readFile source
@@ -78,17 +92,19 @@ def main() -> None:
         dep.mkdir()
         (dep / "Dep").mkdir()
         (dep / "lakefile.toml").write_text(
-            'name = "dep"\n[[lean_lib]]\nname = "Dep"\nglobs = ["Dep"]\n')
+            'name = "dep"\nbuildDir = "build"\n[[lean_lib]]\nname = "Dep"\nglobs = ["Dep"]\n')
         (dep / "Dep.lean").write_text('import Dep.Generated\n')
         (dep / "Dep/Generated.lean").write_text('def generated : Nat := 3\n')
         (dep / "Dep/Unimported.lean").write_text('def unimported : Nat := 4\n')
         (dep / "lean-toolchain").write_bytes((ROOT / "lean-toolchain").read_bytes())
         (dep / ".gitignore").write_text('Dep/Generated.lean\nDep/Unimported.lean\nDep/New.lean\nlean-toolchain\n.lake/\n')
+        (dep / ".env").write_text("R4_SYNTHETIC_UNRELATED")
         for command in (["git", "init", "-q"], ["git", "add", "."],
                         ["git", "-c", "user.name=Snapshot Control", "-c",
                          "user.email=snapshot@example.invalid", "-c", "commit.gpgsign=false",
                          "commit", "-qm", "dependency control"]):
             require_success(run(command, dep))
+        (dep / "unrelated.txt").write_text("R4_SYNTHETIC_UNRELATED")
         project = scratch / "project"
         project.mkdir()
         (project / "lean-toolchain").write_bytes((ROOT / "lean-toolchain").read_bytes())
@@ -101,8 +117,30 @@ def main() -> None:
         control.write_text(SNAPSHOT_CONTROL)
         env = dict(os.environ, LEAN_PATH=str(checker.parent.parent / "lib/lean"))
         if args.group != "history":
-            require_success(run(["lean", "--run", str(control), str(project), str(dep)], ROOT, env=env))
-            print("dependency snapshot controls: PASS", flush=True)
+            (project / "foundation_manifest.json").write_text(json.dumps({
+                "schema-version": 2, "surfaces": [{"library": "Example", "claim": "standard-logical",
+                    "rationale": "Declared dependency inputs only."}],
+                "excluded-libraries": [], "excluded-executables": []}))
+            for kind in ("git", "non-git"):
+                if kind == "non-git":
+                    shutil.rmtree(dep / ".git")
+                for output_dir in (dep / "build", project / ".lake/build"):
+                    if output_dir.exists():
+                        shutil.rmtree(output_dir)
+                for unrelated in (dep / ".env", dep / "unrelated.txt"):
+                    unrelated.write_text("R4_SYNTHETIC_UNRELATED")
+                require_success(run(["lean", "--run", str(control), str(project), str(dep)], ROOT, env=env))
+                shutil.rmtree(dep / "build")
+                output = scratch / "scope-result.json"
+                require_success(run([str(checker), "--project", str(project), "--json-out", str(output)], ROOT))
+                encoded = output.read_text()
+                packet = json.loads(encoded)
+                assert packet["status"] == "completed" and "acceptance" in packet, packet
+                assert ".env" not in encoded and "unrelated.txt" not in encoded
+                for marker in ("R4_SYNTHETIC_UNRELATED", "R4_SYNTHETIC_CHANGED"):
+                    assert marker not in encoded
+                    assert json.dumps(list(marker.encode()), separators=(",", ":")) not in encoded.replace(" ", "")
+                print(f"dependency snapshot controls {kind}: PASS", flush=True)
         if args.group == "dependencies":
             return
         (project / "lakefile.toml").write_text(

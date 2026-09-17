@@ -34,6 +34,7 @@ structure ExecutableInventory where
 structure DependencyInventory where
   package : String
   root : FilePath
+  configurationPaths : Array FilePath
   sources : Array SourceEntry
   deriving Repr
 
@@ -129,7 +130,10 @@ def surfaceInventory (repo : FilePath) : IO SurfaceInventory :=
           exe.root.name.toString exe.root.leanFile.toString
         sources := sources.push { «module» := exe.root.name, source }
       let root ← IO.FS.realPath package.dir
-      pure ({ package := package.baseName.toString, root, sources } : DependencyInventory)
+      let configurationPaths := #[package.configFile, package.manifestFile,
+        package.dir / "lean-toolchain", package.dir / "lakefile.lean", package.dir / "lakefile.toml"]
+        |>.toList.eraseDups.toArray
+      pure ({ package := package.baseName.toString, root, sources, configurationPaths } : DependencyInventory)
     let root ← IO.FS.realPath repo
     return { root, leanLibDir, leanPath, leanSrcPath, libraries, executables, dependencies }
 

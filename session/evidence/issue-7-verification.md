@@ -336,6 +336,40 @@ listed final controls passed afterward. The temporary Core-only build and fixtur
 removed. Full cold-root420 acceptance, broader campaigns, exact-head CI and delivery
 remain separate outer-pipeline gates; none were run in this review phase.
 
+## Review-phase R4 repair
+
+Starting HEAD: `815a5f6f201e88dfdcf5780fa8ca76c9ae1cb02f`. This assigned review
+phase removes unrestricted dependency-directory, Git diff and untracked-file byte
+capture. Earlier R1/R3 descriptions of broad Git/path capture are superseded here.
+Lake-resolved source inputs, actual package configuration/manifest paths, toolchain
+and default-config presence, canonical identities and nominal revisions remain bound.
+Git dirty status is scoped to these inputs through bounded literal pathspecs; it does
+not assert whole-checkout cleanliness. Pre-build capture and terminal rediscovery/byte
+comparison remain unchanged, as do typed history refusals.
+
+Focused evidence on Lean `leanprover/lean4:v4.33.1`:
+
+- PASS: warning-free isolated Core-only build of `axiomGate` and its import closure,
+  including changed `StrictLean.Checker.Lake` and `Snapshot`, from the actual worktree
+  sources. No Mathlib/Audit or complete declaration/axiom audit claim is made.
+- PASS: `python3 scripts/acceptance_snapshot_checks.py --checker
+  tmp/review-r4-build/.lake/build/bin/axiomGate --group dependencies`, for Git-backed
+  and non-Git synthetic path dependencies. Unrelated tracked/untracked fixture bytes
+  are absent from snapshot and accepted JSON output; changing those files leaves
+  declared-input equality intact. Real cold builds into custom `buildDir = "build"`
+  preserve the snapshot and public fresh project acceptance.
+- PASS in both fixture kinds: changed ignored source/configuration bytes and newly
+  added buildable modules are refused, with positive restoration. All unrelated data
+  was synthetic and created inside disposable worktree fixtures; no real credential
+  or user-data files were inspected or copied.
+- CLEAN: fresh-context independent static review of removal, remaining input coverage,
+  terminal checks and executable controls. These observations are scoped qualification,
+  not proofs of filesystem acquisition or compiled execution.
+
+The temporary build and fixture directories were removed. Full cold-root420 acceptance,
+required broader diagnostics, fix commits, exact-head CI and delivery remain with the
+outer pipeline and were not performed in this phase.
+
 ## Pending delivery gates
 
 - Retain the initial180s incomplete build-lint attempt and subsequent full diagnostic
@@ -356,8 +390,8 @@ They do not authenticate Lean/Lake traversal, filesystem reads, JSON parsing, so
 freshness between observations, OS scheduling/signals, compiled binaries or semantic
 contract adequacy. Existing fresh builds, canonical paths, source/configuration guards,
 full kernel replay, compiler/role/transcript/history extraction and packet checks remain.
-Dependency identity records observed Git base/diff/untracked state or path file observations
-inside the exact configuration snapshot; it is not a proof of a whole filesystem or a
+Dependency identity records Lake-resolved source/configuration bytes, nominal Git revision
+and input-scoped dirty status inside the exact configuration snapshot; it is not a proof of a whole filesystem or a
 fresh rebuild of every dependency. Lean's pointer-equality shortcut has full structural
 fallback and the existing compiled-runtime trust boundary; no hash equality is substituted.
 

@@ -2,10 +2,9 @@ import StrictLean.Checker.Lake
 import StrictLean.Checker.Producer
 import StrictLeanPolicy.Claim
 
-/-! Exact request snapshots. Lake supplies dependency roots; Git supplies observed base
-and working-tree state where available. Path-only packages retain file bytes instead.
-These are IO observations, not kernel authentication of a filesystem or compiled artifact.
-Build outputs, VCS internals and scratch/cache directories are outside the source snapshot. -/
+/-! Exact request snapshots of Lake-resolved sources and configuration, with nominal
+Git revisions and input-scoped dirty status where available. These are IO observations,
+not kernel authentication of a filesystem or compiled artifact. -/
 namespace StrictLean.Checker.Snapshot
 open Lean System StrictLeanPolicy
 
@@ -20,19 +19,26 @@ structure DependencyObservation where
   sourcePaths : Array (Name × FilePath)
   deriving BEq
 
-private def excluded (path : FilePath) : Bool :=
-  path.components.any fun part => [".git", ".lake", ".cache", "tmp"].contains part
+private def fileBytes (path : FilePath) : IO Json := do
+  if !(← path.pathExists) then return Json.mkObj [("path", toJson path.toString), ("bytes", Json.null)]
+  let canonical ← IO.FS.realPath path
+  let bytes ← IO.FS.readBinFile canonical
+  return Json.mkObj [("path", toJson path.toString), ("canonical", toJson canonical.toString),
+    ("bytes", toJson (bytes.toList.map UInt8.toNat))]
 
-private def fileBytes (root : FilePath) (relative : String) : IO Json := do
-  let path := root / relative
-  if !(← path.pathExists) then return Json.mkObj [("path", toJson relative), ("bytes", Json.null)]
-  let bytes ← IO.FS.readBinFile path
-  return Json.mkObj [("path", toJson relative), ("bytes", toJson (bytes.toList.map UInt8.toNat))]
+private def inputsDirty (root : FilePath) (paths : Array FilePath) : IO Bool := do
+  let mut offset := 0
+  while offset < paths.size do
+    let status ← runProcess root "git" (#["--literal-pathspecs", "status", "--porcelain=v1",
+      "-z", "--untracked-files=all", "--ignored=matching", "--"] ++
+      (paths.extract offset (offset + 64)).map (·.toString))
+    unless status.succeeded do throw <| IO.userError "dependency input status unavailable"
+    if !status.stdout.isEmpty then return true
+    offset := offset + 64
+  return false
 
-/-- Git state includes an exact binary diff and each untracked file's actual bytes.
-An unversioned path package is observed directly. No shell parser or digest is used. -/
 def dependency (project : FilePath) (package : String) (root : FilePath)
-    (sourcePaths : Array (Name × FilePath)) : IO DependencyObservation := do
+    (sourcePaths : Array (Name × FilePath)) (configurationPaths : Array FilePath) : IO DependencyObservation := do
   let root ← IO.FS.realPath root
   let sources ← sourcePaths.mapM fun (name, path) => do
     let canonical ← IO.FS.realPath path
@@ -41,46 +47,29 @@ def dependency (project : FilePath) (package : String) (root : FilePath)
       | throw <| IO.userError s!"dependency source is not UTF-8: {path}"
     pure <| Json.mkObj [("module", toJson name), ("path", toJson path.toString),
       ("canonical", toJson canonical.toString), ("source", toJson text)]
-  let configuration ← #["lakefile.lean", "lakefile.toml", "lake-manifest.json", "lean-toolchain"].mapM
-    (fileBytes root)
+  let configuration ← configurationPaths.mapM fileBytes
   let head ← runProcess root "git" #["rev-parse", "HEAD"]
   let top ← runProcess root "git" #["rev-parse", "--show-toplevel"]
   let ownRepository ← if top.succeeded then
     pure ((← IO.FS.realPath (FilePath.mk top.stdout.trimAscii.toString)) == root)
     else pure false
-  if head.succeeded && ownRepository then
-    let selectors := #["--", ".", ":(exclude)**/.lake/**", ":(exclude).lake/**",
-      ":(exclude)**/.cache/**", ":(exclude).cache/**", ":(exclude)tmp/**"]
-    let diff ← runProcess root "git" (#["diff", "--binary", "--no-ext-diff", "--no-textconv", "HEAD"] ++ selectors)
-    let names ← runProcess root "git" (#["ls-files", "--others", "--exclude-standard", "-z"] ++ selectors)
-    unless diff.succeeded && names.succeeded do
-      throw <| IO.userError s!"dependency state unavailable: {package}"
-    let untracked := (names.stdout.splitOn (String.singleton '\x00')).filter (!·.isEmpty)
-    let files ← (untracked.filter (fun name => !excluded (FilePath.mk name))).toArray.mapM (fileBytes root)
-    let revision := head.stdout.trimAscii.toString
-    if revision.isEmpty then throw <| IO.userError s!"empty dependency revision: {package}"
-    return {
-      project, package, root, sourcePaths, revision := some revision, dirty := !diff.stdout.isEmpty || !files.isEmpty,
-      state := Json.mkObj [("root", toJson root.toString), ("revision", toJson revision),
-        ("diff", toJson diff.stdout), ("untracked", toJson files),
-        ("sources", toJson sources), ("configuration", toJson configuration)] }
-  let entries ← root.walkDir fun path => pure (!excluded (FilePath.mk
-    ("/".intercalate (path.normalize.components.drop root.normalize.components.length))))
-  let mut relativeFiles := #[]
-  for path in entries do
-    if !(← path.isDir) then
-      relativeFiles := relativeFiles.push
-        ("/".intercalate (path.normalize.components.drop root.normalize.components.length))
-  let files ← (relativeFiles.qsort (· < ·)).mapM (fileBytes root)
+  let revision ← if head.succeeded && ownRepository then do
+      let revision := head.stdout.trimAscii.toString
+      if revision.isEmpty then throw <| IO.userError s!"empty dependency revision: {package}"
+      pure (some revision)
+    else pure none
+  let dirty ← if revision.isSome then inputsDirty root (sourcePaths.map (·.2) ++ configurationPaths)
+    else pure true
   return {
-    project, package, root, sourcePaths, revision := none, dirty := true,
-    state := Json.mkObj [("root", toJson root.toString), ("files", toJson files),
+    project, package, root, sourcePaths, revision, dirty,
+    state := Json.mkObj [("root", toJson root.toString), ("revision", toJson revision),
       ("sources", toJson sources), ("configuration", toJson configuration)] }
 
 /-- Resolve dependency names/locations through the frozen Lake discovery. -/
 def dependencies (inventory : Lake.SurfaceInventory) : IO (Array DependencyObservation) :=
   inventory.dependencies.mapM fun entry =>
     dependency inventory.root entry.package entry.root (entry.sources.map fun source => (source.module, source.source))
+      entry.configurationPaths
 
 /-- Check the actual dependency working state again at the request's terminal boundary. -/
 def dependenciesUnchanged (before : Array DependencyObservation) : IO Unit := do
