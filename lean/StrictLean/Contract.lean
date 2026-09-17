@@ -2,7 +2,7 @@ module
 
 public import StrictLean.MaterialClaim
 
-section
+@[expose] public section
 
 /-!
 Proof requirements for a named executable definition. `ExecutableContract f R`
