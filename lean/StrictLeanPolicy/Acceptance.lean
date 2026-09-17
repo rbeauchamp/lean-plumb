@@ -24,8 +24,24 @@ subject inventories are empty. Unique lookup and absence of extra keys come from
 def CompleteFor {c : Claim} {i : Census} (p : Plan c i) (s : ResultTable p) : Prop :=
   PlanOK c i ∧ ∀ slot ∈ List.range p.jobs.size,
     ∃ o ∈ s.entries[slot]?, o.completion = .completed
+/-- The exact admitted plan already proves validity; result completion still checks every
+required slot, optional lookup and status. No observation or serialized verdict supplies it. -/
+theorem completeFor_iff_slots {c : Claim} {i : Census} (p : Plan c i) (s : ResultTable p) :
+    CompleteFor p s ↔ ∀ slot ∈ List.range p.jobs.size,
+      ∃ o ∈ s.entries[slot]?, o.completion = .completed :=
+  ⟨And.right, fun hs => ⟨p.valid, hs⟩⟩
+
 instance {c : Claim} {i : Census} (p : Plan c i) (s : ResultTable p) :
-    Decidable (CompleteFor p s) := by unfold CompleteFor; infer_instance
+    Decidable (CompleteFor p s) :=
+  decidable_of_iff _ (completeFor_iff_slots p s).symm
+
+/-- Same Boolean outcome as the former structural decision, universally over the exact
+indexed inputs. Proof irrelevance changes neither the proposition nor its truth value. -/
+theorem completeFor_decide_eq_previous {c : Claim} {i : Census}
+    (p : Plan c i) (s : ResultTable p) :
+    decide (CompleteFor p s) = @decide (CompleteFor p s)
+      (by unfold CompleteFor; infer_instance) := by
+  congr
 
 /-- Every planned job, rather than every merely returned success, meets its own policy. -/
 def AllPolicyOK {c : Claim} {i : Census} (p : Plan c i) (roles : Roles i.policy)
@@ -51,6 +67,17 @@ def accept {c : Claim} {i : Census} (p : Plan c i) (roles : Roles i.policy)
   if hc : CompleteFor p s then
     if hp : AllPolicyOK p roles s then .ok ⟨hc, hp⟩ else .error .policyViolation
   else .error .incomplete
+
+/-- Any decision of the same completeness proposition gives the identical success value
+or exact refusal, with incompleteness before policy failure. This includes the former
+structural decision, not merely the successful cases. -/
+theorem accept_decision_eq {c : Claim} {i : Census} (p : Plan c i) (roles : Roles i.policy)
+    (s : ResultTable p) (decision : Decidable (CompleteFor p s)) :
+    accept p roles s = @dite (Except AcceptanceFailure (Accepted p roles s))
+      (CompleteFor p s) decision
+      (fun hc => if hp : AllPolicyOK p roles s then .ok ⟨hc, hp⟩ else .error .policyViolation)
+      (fun _ => .error .incomplete) := by
+  by_cases hc : CompleteFor p s <;> simp [accept, hc]
 
 /-- Soundness holds for every admitted plan, role receipt and result table. It does not
 assert that any external worker actually completed or that its observation is truthful. -/
@@ -143,6 +170,52 @@ def finalize {c : Claim} {i : Census} (p : Plan c i) (roles : Roles i.policy)
   | .ok table => match accept p roles table with
     | .error failure => .error (.acceptance failure)
     | .ok accepted => .ok ⟨table, hc, accepted⟩
+
+/-- A collector refusal is the exact finalization refusal, before policy evaluation. -/
+theorem finalize_collection_error {c : Claim} {i : Census} (p : Plan c i)
+    (roles : Roles i.policy) (inputs : List (Nat × JobObservation)) (failure : AdmissionFailure)
+    (hc : ResultState.collect (required := requiredSlots p) (bound := ResultBound p) .empty inputs = .error failure) :
+    finalize p roles inputs = .error (.collection failure) := by
+  unfold finalize
+  split
+  next reason he => rw [hc] at he; cases he; rfl
+  next table he => rw [hc] at he; contradiction
+
+/-- Once the exact collector returns a table, finalization uses precisely its acceptance.
+This equality also binds IO phase attribution to the sole pure finalizer. -/
+theorem finalize_of_collected {c : Claim} {i : Census} (p : Plan c i)
+    (roles : Roles i.policy) (inputs : List (Nat × JobObservation)) (table : ResultTable p)
+    (hc : ResultState.collect .empty inputs = .ok table) :
+    finalize p roles inputs = (match accept p roles table with
+      | .error failure => .error (.acceptance failure)
+      | .ok accepted => .ok ⟨table, hc, accepted⟩) := by
+  unfold finalize
+  split
+  next failure he => rw [hc] at he; contradiction
+  next observed he =>
+    have eq : observed = table := Except.ok.inj (he.symm.trans hc)
+    subst observed
+    rfl
+
+/-- Changing only the completeness decision preserves the whole finalizer, including
+collection errors, their precedence, the collected table and the exact accepted report.
+Instantiate `decision` with the former structural decision for old/new correspondence. -/
+theorem finalize_decision_eq {c : Claim} {i : Census} (p : Plan c i) (roles : Roles i.policy)
+    (inputs : List (Nat × JobObservation))
+    (decision : ∀ s : ResultTable p, Decidable (CompleteFor p s)) :
+    finalize p roles inputs =
+      (match hc : ResultState.collect (bound := ResultBound p) .empty inputs with
+      | .error failure => .error (.collection failure)
+      | .ok table =>
+        match @dite (Except AcceptanceFailure (Accepted p roles table))
+          (CompleteFor p table) (decision table)
+          (fun complete => if hp : AllPolicyOK p roles table then .ok ⟨complete, hp⟩
+            else .error .policyViolation)
+          (fun _ => .error .incomplete) with
+        | .error failure => .error (.acceptance failure)
+        | .ok accepted => .ok ⟨table, hc, accepted⟩) := by
+  simp only [← accept_decision_eq]
+  rfl
 
 /-- A finalized report is projected from its actual Accepted evidence. -/
 def Finalized.report {c : Claim} {i : Census} {p : Plan c i} {roles : Roles i.policy}

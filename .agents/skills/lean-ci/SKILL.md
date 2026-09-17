@@ -83,6 +83,12 @@ lock, platform and architecture. Dependency provisioning outside a cold-root gat
 not permit root-output or accepted-verdict reuse. Do not remove forced reconfiguration
 unless the remaining source/toolchain/configuration validation justifies that reuse.
 
+Treat elaboration-captured provenance as a build input: Git HEAD/dirty state, generated
+configuration and other embedded identity can change the request even when source bytes
+match. Record the identity actually compiled and rebuild when it changes. Code-byte
+correspondence permits only the evidence reuse justified by that claim; it does not make
+an old Accepted artifact evidence for a new request or a dirty run an exact published-head run.
+
 When sharing a prerequisite build across audit stages, freeze its required source,
 configuration and dependency observations before the build, carry those same observations
 to every consumer, and recheck their inventories as well as bytes before acceptance, including zero-item

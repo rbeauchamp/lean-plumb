@@ -561,7 +561,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         if failures.isEmpty then do
           let ⟨request, frozen⟩ ← IO.ofExcept frozenResult
           let accepted ← timedPhase "worker acceptance finalization" do
-            IO.ofExcept (← IO.lazyPure fun _ => Acceptance.finish frozen (Acceptance.buildObservation buildProcess))
+            Acceptance.finish frozen (Acceptance.buildObservation buildProcess)
           pure (some (⟨request, accepted⟩ : (c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
         else pure none
       if let some output := jsonOut then
@@ -747,7 +747,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
         sources inventory.leanLibDir inspections
       let build := Acceptance.buildObservation production.build
       let projectAccepted ← timedPhase "parent acceptance finalization" do
-        IO.ofExcept (← IO.lazyPure fun _ => Acceptance.finish frozen build)
+        Acceptance.finish frozen build
       let docFindings ← IO.mkRef (#[] : Array StrictLean.Finding)
       let documentAccepted ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
       let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory sources configuration dependencies documents build 4 verbose
@@ -926,7 +926,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                       snapshot := snapshot.val, surfaces := #[] }
                     let frozen ← Acceptance.freeze request #[moduleName.toName] #[] #[] bindings
                       inventory.leanLibDir #[inspection] (some binding)
-                    let accepted ← IO.ofExcept <| Acceptance.finish frozen
+                    let accepted ← Acceptance.finish frozen
                       (Acceptance.buildObservation compilation.process)
                     pure (some (⟨request, accepted⟩ : (c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
                 | _ => pure none

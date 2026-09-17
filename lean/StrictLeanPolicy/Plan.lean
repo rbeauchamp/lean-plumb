@@ -276,6 +276,31 @@ def stageSubjects (i : Census) : Stage → Array JobSubject
 def requiredJobs (c : Claim) (i : Census) : Array (Stage × JobSubject) :=
   (requiredStages c).toArray.flatMap (fun stage => (stageSubjects i stage).map (stage, ·))
 
+/-- Bucket selection only: collisions are resolved by full structural stage/subject
+equality, including snapshots, source bytes and every constructor field. Omitting these
+fields from the hash does not omit them from the original uniqueness relation. -/
+private def jobSubjectBucket : JobSubject → UInt64
+  | .scope => 0
+  | .module k => hash k.name.name
+  | .declaration k | .root k => hash (k.moduleKey.name.name, k.name.name)
+  | .boundary k => hash (k.root.name.name, k.occurrence)
+  | .fence k => hash (k.document.uri, k.body.start)
+
+local instance : BEq (Stage × JobSubject) := ⟨fun a b => decide (a = b)⟩
+local instance : LawfulBEq (Stage × JobSubject) where
+  eq_of_beq h := of_decide_eq_true h
+  rfl {a} := by change decide (a = a) = true; exact decide_eq_true rfl
+local instance : Hashable (Stage × JobSubject) := ⟨fun key => jobSubjectBucket key.2⟩
+local instance : LawfulHashable (Stage × JobSubject) where
+  hash_eq _ _ h := eq_of_beq h ▸ rfl
+
+/-- The index decides the exact stage/subject relation required by PlanOK, not full
+JobKey uniqueness (which would be weaker when claims differ). Ordered jobs are untouched. -/
+theorem requiredJobs_distinct_iff (c : Claim) (i : Census) :
+    (Std.ExtHashSet.ofList (requiredJobs c i).toList).size = (requiredJobs c i).toList.length ↔
+      (requiredJobs c i).toList.Pairwise (· ≠ ·) :=
+  distinct_iff _
+
 /-- Concrete plan validity checks the census, derived keys, profile assignments and root
 request coverage. Unknown module ownership cannot default to a permissive profile. -/
 def PlanOK (c : Claim) (i : Census) : Prop :=
@@ -289,7 +314,16 @@ def PlanOK (c : Claim) (i : Census) : Prop :=
     ∀ contract ∈ d.executableContract, contract.failure = none →
       ∃ root ∈ i.roots, root.name.name = contract.root)
 set_option synthInstance.maxSize 1024 in
-instance (c : Claim) (i : Census) : Decidable (PlanOK c i) := by unfold PlanOK; infer_instance
+instance (c : Claim) (i : Census) : Decidable (PlanOK c i) := by
+  letI : Decidable ((requiredJobs c i).toList.Pairwise (· ≠ ·)) :=
+    decidable_of_iff _ (requiredJobs_distinct_iff c i)
+  unfold PlanOK
+  infer_instance
+
+/-- The indexed implementation decides the same proposition as the prior finite scan. -/
+theorem planOK_decide_eq_previous (c : Claim) (i : Census) :
+    decide (PlanOK c i) = @decide (PlanOK c i) (by unfold PlanOK; infer_instance) := by
+  congr
 
 /-- The fixed JobKeys exactly realize the independently derived plan. Admission cannot
 accept a caller-selected shorter list, duplicates, or another claim's keys. -/
@@ -307,6 +341,19 @@ def admitPlan (c : Claim) (i : Census) (jobs : Array JobKey) : Except String (Pl
       else .error "job belongs to a different claim"
     else .error "jobs do not exactly realize the required plan"
   else .error "invalid census or plan"
+
+/-- Any decision of the identical plan predicate preserves every admission outcome,
+including ordered realization, exact claim equality and the original refusal precedence. -/
+theorem admitPlan_decision_eq (c : Claim) (i : Census) (jobs : Array JobKey)
+    (decision : Decidable (PlanOK c i)) :
+    admitPlan c i jobs = @dite (Except String (Plan c i)) (PlanOK c i) decision
+      (fun hp =>
+        if hj : jobs.map (fun k => (k.stage, k.subject)) = requiredJobs c i then
+          if hc : ∀ k ∈ jobs, k.claim = c then .ok ⟨jobs, hp, hj, hc⟩
+          else .error "job belongs to a different claim"
+        else .error "jobs do not exactly realize the required plan")
+      (fun _ => .error "invalid census or plan") := by
+  by_cases hp : PlanOK c i <;> simp [admitPlan, hp]
 
 /-- Every valid keyed realization is admitted with its exact projections. -/
 theorem admitPlan_exact (c : Claim) (i : Census) (p : Plan c i) :

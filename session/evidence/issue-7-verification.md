@@ -776,3 +776,176 @@ their original inputs. P3 historical-status prose remains explicitly deferred to
 The outer executor owns signed publication, exact-head hosted verification including the
 Linux producer/rule-example pair and all other checks, merge and cleanup. This is not
 CI-ready, issue7closure, full repository compliance or verified compiled-runtime semantics.
+
+
+## CI gate 6 — same-predicate plan and completeness decisions
+
+Subject: HEAD `2976130c3e3b58373910f934d3d4fd93dea83c07`, tree `3bdb829d19f7ade99f4400db39a5ce7461b5644a`, plus the
+reviewed dirty patch `6d89373d737589a2370227b668b29d20766fba9a68ce174251549d2dfe5eb8be`. This is the assigned CI repair
+inside the existing pipeline; no pipeline control, push, PR update or hosted rerun
+was performed. Hosted297 failed the hard420 gate at documentation inspection;
+its full failed log is retained at `tmp/ci-round6/hosted-full.log`, SHA256
+`1ae81eec2041528973365178ff5ec2bc6070a79581b7814e669d1f75b673011e`. Prior receipts remain intact.
+
+### Exact repair and preservation interfaces
+
+Changed executable/proof files:
+- `lean/StrictLeanPolicy/Acceptance.lean`
+- `lean/StrictLeanPolicy/Plan.lean`
+- `lean/StrictLean/Checker/Acceptance.lean`
+- `lean/StrictLean/Checker/AxiomGate.lean`
+
+`CompleteFor` itself is unchanged. For every implicit `c : Claim`, `i : Census`,
+`p : Plan c i`, and `s : ResultTable p`, `completeFor_iff_slots` proves precisely
+`CompleteFor p s ↔ ∀ slot ∈ List.range p.jobs.size, ∃ o ∈ s.entries[slot]?,
+o.completion = .completed`. The reverse implication pairs slot evidence with the
+same `p.valid`. The executable instance transfers the slot decision through this iff;
+it never obtains validity from a worker flag and still inspects every required lookup/status.
+`completeFor_decide_eq_previous` equates its Boolean result to the former structural
+conjunction decision. `accept_decision_eq` and `finalize_decision_eq` quantify arbitrary
+decisions of the same proposition and equate complete Except results, preserving
+incomplete-before-policy refusal, collection failures before acceptance, exact collected
+tables, input multiplicity and accepted report identity. The old decision is an instance
+of these universal equalities; no sampled-agreement premise is used.
+
+Plan optimization is deliberately limited to the original required-job uniqueness clause.
+`requiredJobs_distinct_iff c i` specializes the established `distinct_iff` to the exact
+`(requiredJobs c i).toList : List (Stage × JobSubject)`. There is no replacement by
+full JobKey uniqueness and no differently projected relation. Local BEq is `decide (a = b)`
+on the full pair; LawfulBEq and LawfulHashable are proved. The bucket hash uses structural
+names or fence URI/body position, omitting stage and other fields only from bucket selection.
+Full equality retains every stage/constructor/key/snapshot/source/expectation field and
+resolves collisions. `planOK_decide_eq_previous` and `admitPlan_decision_eq` preserve the
+same predicate and all candidate-admission outcomes, including ordered exactJobs, exactClaim
+and original refusal precedence. Untrusted candidates still run PlanOK. Census decisions,
+observation association, collector multiplicity and required domain construction are unchanged.
+No membership index, observation index or general key framework was added.
+
+Inner timers remain solely in Checker IO. Pure computations are suspended by IO.lazyPure.
+`finish` now returns IO to expose construction, collection and acceptance separately;
+every computed collection/acceptance result carries its defining equality. The final
+result subtype requires equality to the original pure `finalize`, discharged using
+`finalize_collection_error` and `finalize_of_collected`. Proof erasure leaves one collector
+and one acceptance call, with the same error rendering. All three AxiomGate callers were
+adapted. Worker acceptance and parent independent reconstruction remain required.
+Snapshot IO, raw report validation, producer reconciliation and human output remain.
+The source/theorem map in `docs/guides/policy-acceptance.md` now describes this exact linkage.
+
+### Checks, independent review and identities
+
+Focused Lake builds PASS; all nine new correspondence theorems were inspected with
+#print axioms: each has exactly propext, Quot.sound and Classical.choice. No new axiom,
+hole, unsafe escape or IO dependency was added to StrictLeanPolicy. Complete fresh
+owned admission and per-declaration axiom coverage also passed in the whole gate.
+
+Two fresh-context Codex/gpt-6-astra/medium reviewers independently returned CLEAN:
+proof contracts/equality/hash laws and IO/caller/generated-code linkage. Their scoped
+coverage and limits are retained in `tmp/ci-round6/reviews.md`. Generated C confirmed
+that CompleteFor no longer calls PlanOK, the requiredJobs hash index executes at plan
+admission, and timed computations stay inside lazy IO closures. The later one-sentence
+source-map correction received a separate CLEAN documentation follow-up. These reviews
+are scoped, not full repository-compliance or compiler-correctness claims.
+
+25 executable pure decision/collector controls PASS (`Controls.lean`, `controls.log`):
+deliberately colliding fence buckets with different expectations/source bytes, identical
+duplicates, mandatory empty-domain slots, missing entries, duplicate/conflicting entries,
+unknown keys, wrong key/snapshot bindings, all four noncompleted statuses before policy
+failure, wrong policy, ordered/omitted/repeated plan jobs, invalid census, restoration and
+report identity. The universal correspondence proofs establish preservation; these controls
+only qualify executed interfaces on the pinned runtime.
+
+Public native fresh-file positive / project-axiom SL1001 violation / fresh restored
+positive controls PASS after the cold rebuild. Exact output Producer identity is
+`2976130c3e3b58373910f934d3d4fd93dea83c07:unreleased-worktree`; binary SHA256 is recorded per phase in
+`file-controls.json`. Rejected output contains no acceptance. An earlier attempt used a
+fixture name already declared by Lean and failed SL2003; it was corrected and its receipt
+is preserved as fixture-setup-*. The first passing pre-cold sequence had inherited
+`f4b8fca809ca30e0ab329d79edab8a0d562def3a:unreleased-worktree` from old Producer artifacts.
+It remains under pre-cold-file-controls and is NOT evidence for the current request.
+The entire focused sequence was repeated using the newly rebuilt 297 dirty producer.
+An interpreted inventory helper hit Lean's IR-interpreter unreachable assertion; its log
+is preserved. A native helper using actual Lake.surfaceInventory supplied the successful
+pre/post inventories. Neither failed setup attempt is relabeled PASS.
+
+The system skill-creator validator passed for the concise generally applicable provenance
+lesson in `.agents/skills/lean-ci/SKILL.md`: elaboration-captured HEAD/dirty/configuration
+is a build input; equal code bytes are not same-request evidence; rebuild when identity
+changes and never transfer old Accepted artifacts. No private paths/details were added there.
+
+### One complete cold-root gate
+
+Actual unmodified `./scripts/verify.sh`: **PASS**, exit 0,
+**236.480728959s**, hard 420-second owner unchanged. Root .lake/build was absent at entry;
+prior root outputs/report were moved into tmp/ci-round6 and not reused by acceptance.
+Pinned dependency artifacts and GNU timeout/ShellCheck were already provisioned; no
+package/application/global configuration was changed. There was no standalone benchmark,
+partitioned acceptance, timeout override, cached acceptance or second whole-gate attempt.
+
+Tested Lean 4.33.1/compiler 819816b2e0a3bf405af45ae5c7af2491d8f5bee6 and
+Mathlib 0df444a360eaa60ab8c11dca51a86af692955474. All 119 build jobs, registry/CLI and 36 native
+source controls passed. The same 29 Lake-owned modules yielded 4465 declarations:
+Audit 313, AuditApp 197, StrictLeanPolicy 3955; 1667 theorems, 2365 definitions, 109 recursors,
+214 constructors, 109 inductives, 1 opaque. The exact module lists and every declaration's
+module/name/kind/axioms are retained in coverage.json and declaration-axiom-inventory.json.
+Axiom union is only Classical.choice/Quot.sound/propext. All three surfaces retain
+Standard-Logical/report mode. Accepted 6211 project and 97 documentation jobs; all 94 fences
+passed (70 positive, 23 negative, 1 trusted teaching). Counts are coverage observations, not proofs.
+
+All 9852 pre/post input hashes, canonical paths and actual Lake root/dependency inventories
+were unchanged; HEAD and dirty patch also remained identical during the run. The rebuilt
+binary reports `2976130c3e3b58373910f934d3d4fd93dea83c07:unreleased-worktree`. This is the actual tested
+request identity, not a clean published-head run or a transferable Accepted certificate.
+
+| Whole-gate inner interval | Worker seconds | Parent seconds |
+| --- | ---: | ---: |
+| Raw report/source/transcript validation (three reports summed per coordinator) | 3.064 | 2.886 |
+| Plan construction/admission | 3.445 | 3.124 |
+| Observation construction | 0.082 | 0.083 |
+| Result collection | 0.003 | 0.003 |
+| Completion and all-policy acceptance | 2.364 | 2.006 |
+| Outer request freeze | 14.987 | 8.631 |
+| Outer finalization | 2.450 | 2.093 |
+
+Complete declaration audit 87.629s; packet parse/decode 5.808s; fence compilation 20.778s,
+fence inspection 45.080s. Full phase arrays are in attribution.json. Outer and inner
+intervals overlap/nest; they are not additive CPU measurements. Generated linkage shows
+that the repeated PlanOK decision is absent and the exact index is used in measured plan
+work. The new measurements do not isolate the old individual clauses or establish a
+matched causal speedup. Historical clean 297 local 245.680411292s and hosted 420 failure have
+different request/environment identities. Sufficient hosted savings remain UNKNOWN.
+No additional Census/observation optimization is justified or attempted by these receipts.
+
+Receipt hashes:
+
+- cold420.log: `4e00188eda86cedc9a0bf7413233aebb6861b04d64e602abe779f8fcf595caa9`
+- fresh legacy report: `4e878b3799ab3171d94f03cc117d51c567eca90449deb7db83d024c14b09f9e4`
+- inputs-before.json: `4ff2989a59864592b160e6423fc4413f4af9e915f821ded445f1fdcca1b75294`
+- inputs-after.json: `d76f7d018e72f96cdf2a8137ee7b74a32d6f4a511cf716a7bbd0b207bde9e23b`
+
+Raw receipts, complete command output, failed hosted log, compiled registry identity,
+reviewed source hashes, native inventory helper and qualification recipes remain under
+`tmp/ci-round6/`. The five reviewed/tested source/skill hashes remain unchanged. The
+one-sentence source-map correction and this evidence section were written AFTER the cold
+run and recorded separately in final-state.json; no same-request identity is claimed for
+that later documentation tree. The outer executor owns final signed-head qualification.
+No normative rule, fixture/manifest inventory, runner, deadline or CI command changed.
+
+### Preserved limits and next owner
+
+Historical original 60s adopter timeout remains INCOMPLETE versus the separate 120s/71.233s
+diagnostic. Packet 420 aggregate timeout after eight passes remains INCOMPLETE versus the
+separate 61.222s restoration. Historical f4b8 forced-collector 273.587s evidence is reused only
+for unchanged collection/source-exclusion capabilities under the prior explicit scope;
+it is neither a new 297 execution nor repeated merely for relabeling. The new universal
+same-proposition/outcome equalities and focused controls cover this decision repair;
+transport/parser/snapshot/role/exclusion implementations are unchanged. No unrun broad
+campaign is claimed PASS. P3 remains the nonblocking issue 14 carry; no #14/#15/#10 work occurred.
+
+The outer executor must still establish exact published-head local/hosted qualification,
+including Linux producer/rule-example and Verso checks. This local result is not checks-ready,
+issue 7 closure or integrated delivery. If the next hosted whole gate fails, the authorized
+stop condition requires a concrete Firstmate design/runner disposition, not another
+automatic microfix chain. Remaining trust includes truthful IO/Lake/environment extraction,
+source/serialization/provenance acquisition, compiler/native runtime, external processes
+and OS scheduling. The con-leche-inspired fixed-request collection proofs do not verify
+those external systems or prove a universal 420-second runtime bound.

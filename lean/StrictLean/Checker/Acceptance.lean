@@ -165,10 +165,11 @@ def freeze (claim : Claim) (positive : Array Name)
   let mut declarationDocs := #[]
   for inspected in reports do
     let report := inspected.report
-    IO.ofExcept report.validate
-    IO.ofExcept <| (report.validateSourceEvidence).mapError (·.detail)
-    IO.ofExcept <| (SourceBinding.validateAgainst sources report).mapError (·.detail)
-    IO.ofExcept <| (SourceBinding.transcriptsMatch sources inspected.transcripts).mapError (·.detail)
+    timedPhase "freeze report validation" do
+      IO.ofExcept (← IO.lazyPure fun _ => report.validate)
+      IO.ofExcept (← IO.lazyPure fun _ => (report.validateSourceEvidence).mapError (·.detail))
+      IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.validateAgainst sources report).mapError (·.detail))
+      IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.transcriptsMatch sources inspected.transcripts).mapError (·.detail))
     unless report.census.modules == inspected.expectedModules && report.census.executionRoots.isSome do
       throw <| IO.userError "producer census differs from independently requested surface"
     let some replay := report.admission
@@ -232,7 +233,8 @@ def freeze (claim : Claim) (positive : Array Name)
     admissionModules := replayModules, admissionDeclarations := required, declarations,
     roots := rootKeys, materialDeclarations := material, fences := #[],
     configuredTargets := configured, discoveredTargets := discovered }
-  let plan ← IO.ofExcept <| buildPlan claim census
+  let plan ← timedPhase "plan admission" do
+    IO.ofExcept (← IO.lazyPure fun _ => buildPlan claim census)
   return {
     census, plan, roles := scope.roles, admission := ⟨replayModules, required, admitted, #[]⟩,
     moduleDocumentation := moduleDocs, declarationDocumentation := declarationDocs, histories }
@@ -297,10 +299,30 @@ def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservati
 /-- Final operational admission returns evidence indexed by the exact requested claim.
 Consumer APIs must keep this package until projecting `AcceptedRun.report`. -/
 def finish {claim : Claim} (frozen : Frozen claim) (build : BuildObservation) :
-    Except String (AcceptedRun claim) := do
-  let inputs ← observations frozen build
-  let result ← (finalize frozen.plan frozen.roles inputs).mapError fun failure =>
-    s!"acceptance refused: {repr failure}"
+    IO (AcceptedRun claim) := do
+  let inputs ← timedPhase "observation construction" do
+    IO.ofExcept (← IO.lazyPure fun _ => observations frozen build)
+  -- Keep the computed collection and its equality together across the IO timer. The
+  -- proof is erased; the exact collector runs once, on the complete original inputs.
+  let collected ← timedPhase "result collection" <| IO.lazyPure fun _ =>
+    (⟨ResultState.collect (required := requiredSlots frozen.plan) (bound := ResultBound frozen.plan) .empty inputs, rfl⟩ :
+      { result // ResultState.collect (required := requiredSlots frozen.plan) (bound := ResultBound frozen.plan) .empty inputs = result })
+  let result : { result // result = finalize frozen.plan frozen.roles inputs } ←
+    match hc : collected.val with
+    | .error failure => pure ⟨.error (.collection failure), by
+        exact (finalize_collection_error _ _ _ _ (collected.property.trans hc)).symm⟩
+    | .ok table => do
+      let accepted ← timedPhase "result acceptance" <| IO.lazyPure fun _ =>
+        (⟨accept frozen.plan frozen.roles table, rfl⟩ :
+          { result // accept frozen.plan frozen.roles table = result })
+      pure <| match ha : accepted.val with
+        | .error failure =>
+            ⟨.error (.acceptance failure), by
+              rw [finalize_of_collected _ _ _ _ (collected.property.trans hc), accepted.property.trans ha]⟩
+        | .ok evidence =>
+            ⟨.ok ⟨table, collected.property.trans hc, evidence⟩, by
+              rw [finalize_of_collected _ _ _ _ (collected.property.trans hc), accepted.property.trans ha]⟩
+  let result ← IO.ofExcept <| result.val.mapError fun failure => s!"acceptance refused: {repr failure}"
   return ⟨frozen.census, frozen.plan, frozen.roles, inputs, result⟩
 
 end StrictLean.Checker.Acceptance
