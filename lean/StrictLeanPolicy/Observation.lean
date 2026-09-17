@@ -144,7 +144,14 @@ def ExampleAdmissionOK (i : Inventory) (required admitted : Array (Name × Name)
   canonicalEdges admitted = canonicalEdges required ∧ failures = #[] ∧
   ∀ d ∈ i.declarations, d.isUnsafe = false → d.isPartial = false → (d.module, d.name) ∈ required
 instance (i : Inventory) (r a : Array (Name × Name)) (f : Array String) :
-    Decidable (ExampleAdmissionOK i r a f) := by unfold ExampleAdmissionOK; infer_instance
+    Decidable (ExampleAdmissionOK i r a f) := by
+  unfold ExampleAdmissionOK
+  let required := Std.ExtHashSet.ofList r.toList
+  letI : Decidable (r.toList.Pairwise (· ≠ ·)) := distinctDecidable r.toList
+  letI : Decidable (a.toList.Pairwise (· ≠ ·)) := distinctDecidable a.toList
+  letI (key : Name × Name) : Decidable (key ∈ r) :=
+    decidable_of_iff (key ∈ required) (by simp [required, Std.ExtHashSet.mem_ofList])
+  infer_instance
 
 /-- Every role transcript is tied to an exact original source unit in the fixed fence
 plan, including grouped environments. Policy assessment selects this fence's declarations

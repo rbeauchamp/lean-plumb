@@ -30,6 +30,9 @@ faster sample.
   proposition**. Connect its proof to the executed admission callers. Replacing repeated
   membership scans with lawful indices, or normalization equality with an equivalent
   order check, must retain missing-element, duplicate and ordering refusals.
+  Pairwise distinctness can use set cardinality only after proving equivalence to
+  the original predicate. Deduplicating input alone would silently accept duplicates;
+  lawful hash-set equality must still distinguish colliding keys.
 - Check repeated compiler startup, source elaboration and broad imports. A stable receipt
   qualifier can be a Lake-built executable of the same entrypoint rather than `lean --run`
   for every record. Preserve initialization, interpreter/dynamic-evaluation requirements,

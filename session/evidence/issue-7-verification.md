@@ -502,3 +502,52 @@ Exact claimed module arrays (the executable `Main` belongs to the AuditApp assig
 Normative meaning and modes are unchanged, so no normative prose or fence changes were
 needed. Broader diagnostic campaigns were not rerun or relabelled PASS. Final hosted CI,
 new commit identity and all outer delivery phases remain with the active executor.
+
+## CI repair: repeated inventory decisions
+
+Assigned CI phase at `12d7a014e6133fb90ad6eec3236e474b0718423d`, for failed
+check 105073988305 in run 35181358909. Hosted ordinary acceptance reached the 420s
+deadline during fence inspection; it remains a failed run. This phase did not
+control the pipeline, publish commits, or start another hosted run.
+
+Native profiling of the existing executable identified pairwise distinctness and
+repeated required-key membership in `ExampleAdmissionOK` during documentation
+finalization. `uniqueNames` used the same pairwise decision for admitted inventories.
+The repair leaves both propositions unchanged and supplies cheaper decisions.
+For every `α : Type` with `BEq`, `Hashable`, `LawfulBEq`, and `LawfulHashable`, and
+every `xs : List α`, `distinct_iff` proves
+`(Std.ExtHashSet.ofList xs).size = xs.length ↔ xs.Pairwise (· ≠ ·)`.
+`distinctDecidable` transfers that equality decision to the original proposition.
+Both replay arrays use it; required-key membership uses `ExtHashSet.mem_ofList`.
+Hash collisions do not authorize equality, and no worst-case linear-time theorem
+is claimed. Transitive axioms of the theorem and decision are exactly
+`propext`, `Classical.choice`, and `Quot.sound`.
+
+The 107-job development build passed. Executed `admitInventory` and
+`ExampleAdmissionOK` controls passed: duplicate declaration, duplicate required or
+admitted replay key, missing required declaration, missing admission and failed
+replay were refused; positive/restored, reordered admission, empty-name and
+structurally distinct-name controls passed. These exercise the actual decisions,
+not source-text patterns. The universal equivalence supplies predicate preservation;
+the controls do not prove the IO checker. Invocation, transport, snapshot and
+collection protocols are unchanged, so their earlier qualification remains scoped
+to those unchanged inputs. No broader diagnostic campaign is claimed here.
+
+Fresh-context independent review was CLEAN for proof, decision linkage, collision
+semantics and generated-code sharing. Generated C calls the new distinctness
+decision and constructs the membership set outside the declaration loop. This is
+compiler inspection, not verification of machine code. The three-line lean-ci
+guidance addition also received independent review and passed the system skill
+validator; the existing skill already covers the general indexed-membership method.
+
+Complete modified-source cold-root `./scripts/verify.sh`: **PASS**, exit 0 in
+277.095s, with root `.lake/build` absent at start and the unchanged 420s deadline.
+Lean 4.33.1/compiler 819816b2e0a3bf405af45ae5c7af2491d8f5bee6 and
+Mathlib 0df444a360eaa60ab8c11dca51a86af692955474. All 119 build jobs,
+registry/CLI and 36 native bridge controls passed. The same 29 modules listed above
+yielded 4441 owned declarations and 6184 accepted project jobs; all 94 fences passed
+(70 positive, 23 negative, 1 teaching), with 97 accepted documentation jobs.
+The complete declaration phase took 120.930s. Logs, stack samples and the timed
+result are in `tmp/ci-round3/`; temporary Lean probes were removed.
+This local observation is not a hosted timing guarantee or an exact-head CI result.
+The outer executor owns the repair commit and hosted verification.

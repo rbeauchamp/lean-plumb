@@ -10,6 +10,30 @@ not the truth of compiler extraction. Generated roles remain bound to this entir
 inventory; all policy decisions consume a member of that same admitted inventory. -/
 namespace StrictLeanPolicy
 
+/-- Hash-set cardinality detects precisely pairwise distinct inputs. Hash collisions
+are resolved by lawful equality; this does not equate hashes with identities. -/
+theorem distinct_iff {α : Type} [BEq α] [Hashable α] [LawfulBEq α] [LawfulHashable α]
+    (xs : List α) : (Std.ExtHashSet.ofList xs).size = xs.length ↔ xs.Pairwise (· ≠ ·) := by
+  induction xs with
+  | nil => simp
+  | cons x xs ih =>
+    have cons : Std.ExtHashSet.ofList (x :: xs) = (Std.ExtHashSet.ofList xs).insert x := by
+      ext a
+      simp [Std.ExtHashSet.mem_ofList]
+      exact or_congr eq_comm Iff.rfl
+    rw [cons, Std.ExtHashSet.size_insert]
+    by_cases h : x ∈ xs
+    · have bound := Std.ExtHashSet.size_ofList_le (l := xs)
+      have no : ¬ (Std.ExtHashSet.ofList xs).size = xs.length + 1 := by
+        omega
+      simp [Std.ExtHashSet.mem_ofList, h, no, List.pairwise_cons, List.forall_mem_ne]
+    · simp [Std.ExtHashSet.mem_ofList, h, List.pairwise_cons, ih, List.forall_mem_ne]
+
+/-- Decide the original distinctness proposition without comparing every pair. -/
+def distinctDecidable {α : Type} [BEq α] [Hashable α] [LawfulBEq α] [LawfulHashable α]
+    (xs : List α) : Decidable (xs.Pairwise (· ≠ ·)) :=
+  decidable_of_iff ((Std.ExtHashSet.ofList xs).size = xs.length) (distinct_iff xs)
+
 /-- Structural key validity. Anonymous prefixes are legal; complete keys are not. -/
 def named (n : Lean.Name) : Prop := n ≠ .anonymous
 instance (n : Lean.Name) : Decidable (named n) := inferInstanceAs (Decidable (n ≠ .anonymous))
@@ -17,7 +41,7 @@ instance (n : Lean.Name) : Decidable (named n) := inferInstanceAs (Decidable (n 
 /-- Repeated observations are refused even when their payloads agree. -/
 def uniqueNames (names : Array Lean.Name) : Prop := names.toList.Pairwise (· ≠ ·)
 instance (names : Array Lean.Name) : Decidable (uniqueNames names) :=
-  inferInstanceAs (Decidable (names.toList.Pairwise (· ≠ ·)))
+  distinctDecidable names.toList
 
 /-- Every policy-relevant declaration reference is structural and nonanonymous.
 A failed executable-contract observation may lack a root; it remains a refusal. -/
