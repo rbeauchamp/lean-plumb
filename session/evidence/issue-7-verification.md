@@ -294,6 +294,48 @@ The isolated build used `tmp/review-build/.lake/build/bin/axiomGate` with the dr
 driver remains available; complete acceptance, required campaigns and hosted CI remain
 separate pending claims.
 
+## Review-phase R3 repair
+
+Starting HEAD: `59d48589c858cbdd50d827f6a392b47d921d23de`; changes and evidence
+belong to the assigned review phase, with commits and delivery owned by the outer executor.
+
+`DocFenceAudit.run` and `RuleExamples.documentation` now capture dependency observations
+before their prerequisite build and pass that same array through a required
+`Documentation.auditBuiltProject` parameter. The adapter's post-build recapture is
+removed; its existing terminal comparison precedes finalization. Combined project/docs
+passes its original pre-build observations alongside the shared snapshot.
+
+The first focused control exposed a prior R1 compatibility defect: expanding a valid
+single-file library root with `andSubmodules` attempted to open an absent submodule
+directory. Discovery now retains the configured globs and adds only existing submodule
+directories. Root capture, canonical ownership and terminal rediscovery remain intact.
+
+Focused evidence on Lean `leanprover/lean4:v4.33.1`:
+
+- PASS: `axiomGate`, `docFenceAudit`, `ruleExamples` and their import closure, including
+  changed `StrictLean.Checker.Documentation`, `DocFenceAudit`, `RuleExamples`, `AxiomGate`
+  and `Lake`, compiled warning-free from the actual worktree sources in an isolated
+  Core-only Lake build. No Mathlib/Audit surface or full declaration/axiom coverage claim.
+- PASS: `python3 scripts/documentation_dependency_checks.py --bin-dir
+  tmp/review-r3-build/.lake/build/bin`. Both public standalone documentation commands
+  passed positive, changed-during-prerequisite-build refusal, and restored controls.
+  The mutation changes a real path dependency from `Dep.n = 1` to `Dep.n = 2` after its
+  artifact was built. Each refusal identifies dependency snapshot change and emits no
+  accepted result. Combined `axiomGate --with-docs` also passed with both certificates.
+- PASS: `scripts/acceptance_snapshot_checks.py --group dependencies` against that same
+  isolated checker, retaining ignored source/configuration and added-module refusals
+  plus restoration after the enumeration repair.
+- CLEAN: fresh-context independent static review of R3 and the single-file library
+  repair. Behavioral observations do not prove filesystem or compiler correctness.
+- PASS: system skill-creator `quick_validate.py .agents/skills/lean-ci`. The concise
+  addition records pre-build capture timing, unchanged observations across consumers,
+  and Lake source-domain completeness; validation does not prove agent behavior.
+
+The initial single-file dependency control failed before the enumeration repair; all
+listed final controls passed afterward. The temporary Core-only build and fixtures were
+removed. Full cold-root420 acceptance, broader campaigns, exact-head CI and delivery
+remain separate outer-pipeline gates; none were run in this review phase.
+
 ## Pending delivery gates
 
 - Retain the initial180s incomplete build-lint attempt and subsequent full diagnostic

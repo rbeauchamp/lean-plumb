@@ -73,6 +73,7 @@ unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
       let manifest ← Manifest.load (Manifest.defaultPath copy)
       let inventory ← Lake.surfaceInventory copy
       let projectSources ← SourceBinding.capture inventory.moduleSources
+      let dependencies ← Snapshot.dependencies inventory
       stable projectSources configuration do
         let (buildProcess, buildResult) ← Lake.buildCheckedObservation copy (Manifest.positiveTargets manifest) "fresh"
         if let some lines := buildResult then
@@ -80,7 +81,7 @@ unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
         let findings ← IO.mkRef (#[] : Array Finding)
         let classifications ← IO.mkRef (#[] : Array Documentation.Classification)
         let certificate ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
-        let code ← Documentation.auditBuiltProject copy docsRoot inventory projectSources configuration (Acceptance.buildObservation buildProcess) 1 true
+        let code ← Documentation.auditBuiltProject copy docsRoot inventory projectSources configuration dependencies (Acceptance.buildObservation buildProcess) 1 true
           (fun finding => findings.modify (·.push finding))
           (fun results => classifications.set (results.map Documentation.classification))
           (fun claim accepted => certificate.set (some ⟨claim, accepted⟩))

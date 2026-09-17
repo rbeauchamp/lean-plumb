@@ -611,6 +611,7 @@ it from declaration admission through the last fence inspection. -/
 unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.SurfaceInventory)
     (sourceBindings : Array ProducerReport.SourceBinding)
     (configuration : Array (FilePath × Option String))
+    (dependencies : Array Snapshot.DependencyObservation)
     (build : StrictLeanPolicy.BuildObservation) (jobs : Nat) (verbose : Bool)
     (emit : StrictLean.Finding → IO Unit := fun _ => pure ())
     (observe : Array Result → IO Unit := fun _ => pure ())
@@ -629,7 +630,6 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
 
       let documents ← markdown.mapM fun path => do
         pure (⟨path.toString, ← IO.FS.readFile path⟩ : StrictLeanPolicy.SourceSnapshot)
-      let dependencies ← Snapshot.dependencies inventory
       let snapshot ← match sharedSnapshot with
         | some snapshot => pure snapshot
         | none => do

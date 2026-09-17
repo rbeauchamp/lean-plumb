@@ -60,6 +60,12 @@ lock, platform and architecture. Dependency provisioning outside a cold-root gat
 not permit root-output or accepted-verdict reuse. Do not remove forced reconfiguration
 unless the remaining source/toolchain/configuration validation justifies that reuse.
 
+When sharing a prerequisite build across audit stages, freeze its required source,
+configuration and dependency observations before the build, carry those same observations
+to every consumer, and recheck them before acceptance. A post-build capture cannot bind
+earlier artifacts to their inputs. Use Lake-resolved source domains rather than Git's
+tracked/untracked lists alone: ignored generated inputs and inventory changes still matter.
+
 Keep ownership, standalone roots, source freshness, warning handling, admission and exact
 negative reasons intact. Qualification observations complement implementation-linked
 proofs; samples do not replace them. Retain controls until their purpose and replacement

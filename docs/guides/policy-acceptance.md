@@ -60,6 +60,12 @@ configuration presence/bytes remain additional observations. Terminal checks red
 these same inputs, refusing newly added or removed sources; filesystem acquisition and change-and-restore races remain trusted
 boundaries. No whole-workspace file scan substitutes for this Lake source inventory.
 
+Standalone documentation and rule-example documentation callers capture dependencies
+before their prerequisite build and pass that observation into `auditBuiltProject`.
+The combined project/documentation route passes its existing pre-build observation
+alongside its shared snapshot. The documentation adapter performs no replacement
+capture; it rechecks the supplied dependency observation before finalization.
+
 Project census construction retains failures until the existing policy diagnostic pass
 has completed. Unavailable history still prevents acceptance, while its producer-linked
 execution findings retain SL3001, `execution-unresolved` and root locations in fresh,

@@ -749,7 +749,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       let projectAccepted ← IO.ofExcept <| Acceptance.finish frozen build
       let docFindings ← IO.mkRef (#[] : Array StrictLean.Finding)
       let documentAccepted ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
-      let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory sources configuration build 4 verbose
+      let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory sources configuration dependencies build 4 verbose
         (fun finding => docFindings.modify (·.push finding)) (fun _ => pure ())
         (fun claim accepted => documentAccepted.set (some ⟨claim, accepted⟩)) (some snapshot)
       let acceptedDocs ← documentAccepted.get

@@ -107,8 +107,11 @@ def surfaceInventory (repo : FilePath) : IO SurfaceInventory :=
     let dependencies ← (ws.packages.extract 1 ws.packages.size).mapM fun package => do
       let names ← IO.mkRef ({} : NameSet)
       for library in package.leanLibs do
-        let globs := library.config.globs ++ (library.roots.filter fun root =>
-          library.config.globs.any (·.matches root)).map _root_.Lake.Glob.andSubmodules
+        let mut globs := library.config.globs
+        for root in library.roots do
+          if library.config.globs.any (·.matches root) &&
+              (← (Lean.modToFilePath library.srcDir root "").isDir) then
+            globs := globs.push (.submodules root)
         for glob in globs do
           glob.forEachModuleIn library.srcDir fun name => do
             names.modify (·.insert name)
