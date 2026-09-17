@@ -375,7 +375,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       let freezeRequest : IO ((c : StrictLeanPolicy.Claim) × Acceptance.Frozen c) := do
         let histories ← IO.ofExcept <| Acceptance.historyObservations rawInspections
         let snapshotSources ← Acceptance.sourceSnapshots sourceBindings histories documents
-        Snapshot.dependenciesUnchanged dependencies
+        Snapshot.inputsUnchanged inventory dependencies
         let snapshot ← IO.ofExcept <| Snapshot.make repo configuration snapshotSources dependencies
         let request ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
           scope := .project, mode := if fresh then .freshProject else .incrementalProject,
@@ -551,7 +551,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
 
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
-      Snapshot.dependenciesUnchanged dependencies
+      Snapshot.inputsUnchanged inventory dependencies
       for document in documents do
         unless (← IO.FS.readFile document.uri) == document.source do
           throw <| IO.userError s!"documentation snapshot changed: {document.uri}"
@@ -694,12 +694,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
     let docsInputs := docsInputs.bind fun value => value.toOption
     let sources := docsInputs.map (·.2.1) |>.getD #[]
     let configuration := effectiveConfiguration
-    let documents ← if withDocs then do
-        let paths := ((← (copy / "docs").walkDir).filter (·.extension == some "md")).qsort
-          (fun left right => left.toString < right.toString)
-        paths.mapM fun path => do
-          pure (⟨path.toString, ← IO.FS.readFile path⟩ : StrictLeanPolicy.SourceSnapshot)
-      else pure #[]
+    let documents ← if withDocs then Documentation.captureMarkdown (copy / "docs") else pure #[]
     let dependencies ← match docsInputs with
       | some (inventory, _, _) => Snapshot.dependencies inventory
       | none => pure #[]
@@ -738,7 +733,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
         pure ({ response with expectedModules := expected } : Acceptance.RequestedInspection)
       let histories ← IO.ofExcept <| Acceptance.historyObservations inspections
       let snapshotSources ← Acceptance.sourceSnapshots sources histories documents
-      Snapshot.dependenciesUnchanged dependencies
+      Snapshot.inputsUnchanged inventory dependencies
       let snapshot ← IO.ofExcept <| Snapshot.make copy configuration snapshotSources dependencies
       let claim ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
         scope := .project, mode := .freshProject, snapshot := snapshot.val, surfaces := assignments }
@@ -749,7 +744,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       let projectAccepted ← IO.ofExcept <| Acceptance.finish frozen build
       let docFindings ← IO.mkRef (#[] : Array StrictLean.Finding)
       let documentAccepted ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
-      let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory sources configuration dependencies build 4 verbose
+      let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory sources configuration dependencies documents build 4 verbose
         (fun finding => docFindings.modify (·.push finding)) (fun _ => pure ())
         (fun claim accepted => documentAccepted.set (some ⟨claim, accepted⟩)) (some snapshot)
       let acceptedDocs ← documentAccepted.get
@@ -759,7 +754,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
           let receipt ← IO.ofExcept <| StrictLeanPolicy.combineAccepted documents projectAccepted accepted
           SourceBinding.unchanged sources
           SourceBinding.configurationUnchanged configuration
-          Snapshot.dependenciesUnchanged dependencies
+          Snapshot.inputsUnchanged inventory dependencies
           pure (some (⟨docClaim, receipt⟩ : (dc : StrictLeanPolicy.Claim) × StrictLeanPolicy.CombinedAccepted claim dc documents))
         else pure none
       if let some output := resultOut then
@@ -910,7 +905,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                     SourceBinding.unchanged bindings
                     SourceBinding.unchanged #[fileSource]
                     SourceBinding.configurationUnchanged configuration
-                    Snapshot.dependenciesUnchanged dependencies
+                    Snapshot.inputsUnchanged inventory dependencies
                     let inspection : Acceptance.RequestedInspection := {
                       expectedModules := #[moduleName.toName], report := inspected.report,
                       transcripts := inspected.transcripts }

@@ -605,6 +605,18 @@ def snapshotMarkdown (source target : FilePath) : IO Unit := do
     if let some parent := destination.parent then IO.FS.createDirAll parent
     IO.FS.writeFile destination (← IO.FS.readFile path)
 
+def captureMarkdown (root : FilePath) : IO (Array StrictLeanPolicy.SourceSnapshot) := do
+  unless ← root.isDir do throw <| IO.userError s!"documentation root is not a directory: {root}"
+  let paths := ((← root.walkDir).filter (·.extension == some "md")).qsort
+    (fun left right => left.toString < right.toString)
+  paths.mapM fun path => do pure ⟨path.toString, ← IO.FS.readFile path⟩
+
+def checkMarkdown (root : FilePath) (documents : Array StrictLeanPolicy.SourceSnapshot) : IO Unit := do
+  let current ← captureMarkdown root
+  unless current.map (·.uri) == documents.map (·.uri) do
+    throw <| IO.userError "documentation inventory changed"
+  unless current == documents do throw <| IO.userError "documentation source changed"
+
 /-- Audit all documentation against the caller's freshly built isolated workspace.
 The standalone command creates that workspace itself; combined verification owns
 it from declaration admission through the last fence inspection. -/
@@ -612,6 +624,7 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
     (sourceBindings : Array ProducerReport.SourceBinding)
     (configuration : Array (FilePath × Option String))
     (dependencies : Array Snapshot.DependencyObservation)
+    (documents : Array StrictLeanPolicy.SourceSnapshot)
     (build : StrictLeanPolicy.BuildObservation) (jobs : Nat) (verbose : Bool)
     (emit : StrictLean.Finding → IO Unit := fun _ => pure ())
     (observe : Array Result → IO Unit := fun _ => pure ())
@@ -619,17 +632,10 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
     (sharedSnapshot : Option StrictLeanPolicy.AdmittedSnapshot := none) : IO UInt32 := do
   let outcome : Except ProducerReport.AdmissionFailure UInt32 ←
     SourceBinding.withUnchanged sourceBindings configuration do
-      if !(← docsRoot.isDir) then
-        IO.println s!"FAIL: documentation root is not a directory: {docsRoot}"
-        return 1
-      let markdown := ((← docsRoot.walkDir).filter fun path => path.extension == some "md")
-        |>.qsort fun left right => left.toString < right.toString
-      if markdown.isEmpty then
+      if documents.isEmpty then
         IO.println s!"FAIL: no Markdown files found recursively below {docsRoot}"
         return 1
-
-      let documents ← markdown.mapM fun path => do
-        pure (⟨path.toString, ← IO.FS.readFile path⟩ : StrictLeanPolicy.SourceSnapshot)
+      checkMarkdown docsRoot documents
       let snapshot ← match sharedSnapshot with
         | some snapshot => pure snapshot
         | none => do
@@ -662,13 +668,8 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
       let fenceScratch := repo / "tmp" / "fence-build"
       IO.FS.createDirAll fenceScratch
       let results ← auditTasks repo fenceScratch jobs tasks sourceBindings configuration inventory.leanPath (some inventory.leanLibDir)
-      let currentMarkdown := ((← docsRoot.walkDir).filter fun path => path.extension == some "md")
-        |>.qsort fun left right => left.toString < right.toString
-      unless currentMarkdown == markdown do throw <| IO.userError "documentation inventory changed"
-      for document in documents do
-        unless (← IO.FS.readFile document.uri) == document.source do
-          throw <| IO.userError s!"documentation source changed: {document.uri}"
-      Snapshot.dependenciesUnchanged dependencies
+      checkMarkdown docsRoot documents
+      Snapshot.inputsUnchanged inventory dependencies
       let accepted ← if structural.isEmpty && results.all (·.status != .fail) then
           pure (some (← finishDocuments frozen build documents structural results))
         else pure none

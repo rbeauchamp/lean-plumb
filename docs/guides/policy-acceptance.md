@@ -101,6 +101,34 @@ The success owners above consume the dependent package, and typed
 an ergonomic boundary, not hostile in-process unforgeability. `acceptance` JSON is
 rendered metadata only: a parent decodes raw production and recomputes evidence.
 
+### Frozen input coverage at operational entry points
+
+Each row concerns the effective workspace actually consumed. Fresh project audits own
+an isolated copy; incremental/file/graph modes consume their selected workspace.
+`Lake.surfaceInventory` fixes target/module/source identities, with canonical source
+paths; `SourceBinding.capture` fixes root bytes. `Snapshot.inputsUnchanged` rediscovers
+root targets/modules/paths and dependencies even when the dependency array is empty.
+It compares against the original records; it never replaces the accepted request.
+Configuration observations retain presence and exact bytes for the selected manifest,
+Lake configuration, lock and toolchain. These checks are IO observations, not filesystem
+or compiler proofs; changes restored between observations remain outside the guarantee.
+
+| Entry point / claim | Frozen before consuming build/import/replay | Carried to success | Terminal inventory and byte checks |
+| --- | --- | --- | --- |
+| `AxiomGate.auditSurfaceAt`, fresh/incremental/build-lint and internal surface worker | Lake root inventory, root bytes, configuration, dependency source/configuration; parent-supplied docs when combined | Existing inventory/source/configuration/dependency records and raw inspections feed the same claim and frozen census | `SourceBinding` checks bytes/configuration; `Snapshot.inputsUnchanged` checks root and dependency inventories/canonical paths/bytes before `Acceptance.finish`. Worker completion is raw production only. |
+| `AxiomGate.auditSurface --with-docs` | Parent freezes copied root inventory/bytes/configuration, dependency inputs and complete copied Markdown before starting the surface child | Child packets are reconciled against parent assignments; `auditBuiltProject` receives the original documents/dependencies and shared snapshot | Parent input reconciliation before project finalization; documentation inventory/bytes and inputs before document finalization; original inputs rechecked before combined success |
+| `DocFenceAudit.run` | Original requested Markdown inventory/bytes before the prerequisite build; copied root/configuration/dependencies before that build | Required `documents` and `dependencies` arguments plus existing inventory/source/configuration/build records | `checkMarkdown` compares inventory/bytes before fence work and before `finishDocuments`; root/dependency and source/configuration checks remain |
+| `RuleExamples.documentation` | Original Markdown inventory/bytes before copying/building; copied root/configuration/dependencies before build | Same required documentation arguments; original requested documents also retained for result binding | Same adapter checks; original Markdown inventory/bytes rechecked before emitting the bound result |
+| `AxiomGate.auditFile`, accepted fresh-file claim | Selected file bytes, root inventory/bytes/configuration and dependencies before prerequisite build and temporary compilation | Existing source bindings and dependency observations feed file claim/finalizer | Root/dependency inventory and bytes plus selected/root file/configuration checks before acceptance; no project-wide documentation claim |
+| `FreshChecker.run`, optional serialized-graph claim | Root inventory/bytes/configuration and dependencies before build/checker processes | Existing frozen graph plan and snapshot | Same root/dependency inventory and root/configuration byte checks before `finishGraph`; plan-only has no certificate |
+| SourceAudit workers, `Documentation.auditTasks`, policy-negative examples, help, native editor | Parent requests / mode-local observations | Raw completion, diagnostic classification or explicitly partial editor observations | No standalone whole-audit success claim; acceptance-owning parents above retain the relevant input checks |
+
+Zero declarations or executable roots do not skip root input reconciliation. Projects
+still require a nonempty library surface. No Markdown files is a refusal; Markdown with
+zero fences can be accepted only after its inventory/bytes and scan/build evidence are
+checked. Negative and teaching fences retain their existing classified meanings and
+cannot stand in for conforming positive evidence.
+
 ## 2. Claim, identity and completeness
 
 ### Claim domain

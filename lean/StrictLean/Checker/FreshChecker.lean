@@ -259,7 +259,7 @@ unsafe def run (args : List String) : IO UInt32 := do
         if options.failFast then break
     SourceBinding.unchanged sources
     SourceBinding.configurationUnchanged configuration
-    Snapshot.dependenciesUnchanged dependencies
+    Snapshot.inputsUnchanged inventory dependencies
     if failures.isEmpty then
       accepted := some ⟨frozen.claim, ← IO.ofExcept (finishGraph frozen build checks)⟩
   if let some path := options.jsonOut then

@@ -370,6 +370,36 @@ The temporary build and fixture directories were removed. Full cold-root420 acce
 required broader diagnostics, fix commits, exact-head CI and delivery remain with the
 outer pipeline and were not performed in this phase.
 
+## R5/R6 frozen inventory repair
+
+Starting HEAD: `2be75302055e0d8a100977d4d6625dd3aef3c104`; these results cover
+its working-tree repair. Root reconciliation now reloads Lake and compares target,
+module and canonical source identities even without dependencies. Documentation
+callers carry required pre-build Markdown records through the existing adapter.
+The finite entrypoint/input-class coverage table is in
+[the acceptance guide](../../docs/guides/policy-acceptance.md#frozen-input-coverage-at-operational-entry-points).
+
+- PASS: isolated Core-only `lake build axiomGate docFenceAudit ruleExamples freshChecker`
+  against the actual changed sources on Lean `v4.33.1` (111 jobs). An initial helper
+  syntax error was corrected before the successful build. This excludes Mathlib,
+  Audit dogfood and full repository declaration/axiom coverage.
+- PASS: `scripts/input_inventory_checks.py` with those binaries: six root controls
+  across incremental/build-lint, including actual successful builds of injected
+  unimported axiom modules, intended inventory refusal and restored acceptance;
+  ten documentation controls across both public adapters, including edits/removals
+  of failing Markdown during prerequisite builds and restored positive results.
+- PASS: existing `scripts/documentation_dependency_checks.py` with those binaries:
+  six dependency controls and combined project/docs same-snapshot acceptance.
+- PASS: lean-ci skill metadata validation and diff whitespace check.
+- CLEAN: fresh-context independent static repair review of root equality, canonical
+  identities, all documentation callers, the coverage table, zero-item paths and
+  preservation of prior dependency/history and teaching-mode repairs. Pure theorem
+  definitions were unchanged; these controls do not prove IO acquisition or runtime.
+
+Fixtures and the isolated build were confined to disposable worktree directories.
+Full cold-root420 acceptance, broader proof/integration review, signed fix commits and
+exact-head CI remain with the outer pipeline; none was performed in this phase.
+
 ## Pending delivery gates
 
 - Retain the initial180s incomplete build-lint attempt and subsequent full diagnostic

@@ -71,11 +71,15 @@ def dependencies (inventory : Lake.SurfaceInventory) : IO (Array DependencyObser
     dependency inventory.root entry.package entry.root (entry.sources.map fun source => (source.module, source.source))
       entry.configurationPaths
 
-/-- Check the actual dependency working state again at the request's terminal boundary. -/
-def dependenciesUnchanged (before : Array DependencyObservation) : IO Unit := do
-  let some first := before[0]? | return
-  let current ← dependencies (← Lake.surfaceInventory first.project)
-  unless current == before do
+/-- Reconcile the frozen Lake root and dependency inputs at the terminal boundary. -/
+def inputsUnchanged (inventory : Lake.SurfaceInventory)
+    (before : Array DependencyObservation) : IO Unit := do
+  let current ← Lake.surfaceInventory inventory.root
+  unless current.root == inventory.root && current.leanLibDir == inventory.leanLibDir &&
+      current.leanPath == inventory.leanPath && current.leanSrcPath == inventory.leanSrcPath &&
+      current.libraries == inventory.libraries && current.executables == inventory.executables do
+    throw <| IO.userError "root inventory changed: Lake modules, targets or source identities"
+  unless (← dependencies current) == before do
     throw <| IO.userError "dependency snapshot changed: Lake inventory or source/configuration state"
 
 /-- Exact request bytes include configuration presence/absence and actual dependency state.

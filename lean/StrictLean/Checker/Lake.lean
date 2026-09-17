@@ -12,31 +12,31 @@ open StrictLean.Checker
 structure RootInventory where
   libraries : Array String
   leanLibDir : FilePath
-  deriving Repr
+  deriving Repr, BEq
 
 structure SourceEntry where
   «module» : Name
   source : FilePath
-  deriving Repr
+  deriving Repr, BEq
 
 structure LibraryInventory where
   library : String
   modules : Array Name
   sources : Array SourceEntry
-  deriving Repr
+  deriving Repr, BEq
 
 structure ExecutableInventory where
   executable : String
   root : Name
   source : FilePath
-  deriving Repr
+  deriving Repr, BEq
 
 structure DependencyInventory where
   package : String
   root : FilePath
   configurationPaths : Array FilePath
   sources : Array SourceEntry
-  deriving Repr
+  deriving Repr, BEq
 
 structure SurfaceInventory where
   root : FilePath
@@ -46,7 +46,7 @@ structure SurfaceInventory where
   libraries : Array LibraryInventory
   executables : Array ExecutableInventory
   dependencies : Array DependencyInventory
-  deriving Repr
+  deriving Repr, BEq
 
 /-- Exact source locations already discovered through Lake for root-package
 modules. Reuse these for frontend history instead of a module-prefix search. -/
@@ -64,7 +64,7 @@ private def checkSource (repo : FilePath) (what : String)
     invalidSource := !(← pathWithin source repo)
   if invalidSource then
     throw <| IO.userError s!"lake-query-malformed: {what} has invalid source"
-  return source
+  return ← IO.FS.realPath source
 
 /-- Obtain every root-package Lean library and executable, exact module, and
 exact source from Lake's own elaborated package model. This loads the checked

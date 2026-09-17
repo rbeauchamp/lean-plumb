@@ -62,7 +62,9 @@ unless the remaining source/toolchain/configuration validation justifies that re
 
 When sharing a prerequisite build across audit stages, freeze its required source,
 configuration and dependency observations before the build, carry those same observations
-to every consumer, and recheck them before acceptance. A post-build capture cannot bind
+to every consumer, and recheck their inventories as well as bytes before acceptance, including zero-item
+branches. Review this as a finite entrypoint-by-input-class table when several adapters
+share the build. A post-build capture cannot bind
 earlier artifacts to their inputs. Use Lake-resolved source domains rather than Git's
 tracked/untracked lists alone: ignored generated inputs and inventory changes still matter.
 

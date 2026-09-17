@@ -25,7 +25,7 @@ def main (args : List String) : IO Unit := do
     throw <| IO.userError "ignored imported module missing"
   unless observed.sourcePaths.any (·.1 == `Dep.Unimported) do
     throw <| IO.userError "buildable submodule missing"
-  Snapshot.dependenciesUnchanged before
+  Snapshot.inputsUnchanged inventory before
   let snapshot ← IO.ofExcept <| Snapshot.make inventory.root #[] #[] before
   let marker := "R4_SYNTHETIC_UNRELATED"
   let encoded := (toJson (marker.toUTF8.toList.map UInt8.toNat)).compress
@@ -33,38 +33,38 @@ def main (args : List String) : IO Unit := do
     throw <| IO.userError "unrelated bytes were serialized"
   IO.FS.writeFile (FilePath.mk dependency / ".env") "R4_SYNTHETIC_CHANGED"
   IO.FS.writeFile (FilePath.mk dependency / "unrelated.txt") "R4_SYNTHETIC_CHANGED"
-  Snapshot.dependenciesUnchanged before
+  Snapshot.inputsUnchanged inventory before
   let build ← Lake.buildTargets project #["Example"]
   unless build.succeeded do throw <| IO.userError build.output
   unless ← (FilePath.mk dependency / "build/lib/lean/Dep.olean").pathExists do
     throw <| IO.userError "custom build output missing"
-  Snapshot.dependenciesUnchanged before
+  Snapshot.inputsUnchanged inventory before
   let source := FilePath.mk dependency / "Dep/Generated.lean"
   let original ← IO.FS.readFile source
   IO.FS.writeFile source (original ++ "\ndef added : Nat := 9\n")
-  let changed ← (Snapshot.dependenciesUnchanged before).toBaseIO
+  let changed ← (Snapshot.inputsUnchanged inventory before).toBaseIO
   IO.FS.writeFile source original
   match changed with
   | .ok _ => throw <| IO.userError "accepted changed ignored source"
   | .error e => unless e.toString.contains "dependency snapshot changed:" do throw e
-  Snapshot.dependenciesUnchanged before
+  Snapshot.inputsUnchanged inventory before
   let configuration := FilePath.mk dependency / "lean-toolchain"
   let original ← IO.FS.readFile configuration
   IO.FS.writeFile configuration (original ++ "\n")
-  let changed ← (Snapshot.dependenciesUnchanged before).toBaseIO
+  let changed ← (Snapshot.inputsUnchanged inventory before).toBaseIO
   IO.FS.writeFile configuration original
   match changed with
   | .ok _ => throw <| IO.userError "accepted changed ignored configuration"
   | .error e => unless e.toString.contains "dependency snapshot changed:" do throw e
-  Snapshot.dependenciesUnchanged before
+  Snapshot.inputsUnchanged inventory before
   let generated := FilePath.mk dependency / "Dep/New.lean"
   IO.FS.writeFile generated "def newGenerated : Nat := 5\n"
-  let changed ← (Snapshot.dependenciesUnchanged before).toBaseIO
+  let changed ← (Snapshot.inputsUnchanged inventory before).toBaseIO
   IO.FS.removeFile generated
   match changed with
   | .ok _ => throw <| IO.userError "accepted newly generated ignored source"
   | .error e => unless e.toString.contains "dependency snapshot changed:" do throw e
-  Snapshot.dependenciesUnchanged before
+  Snapshot.inputsUnchanged inventory before
   IO.println "dependency snapshot controls: PASS"
 '''
 
