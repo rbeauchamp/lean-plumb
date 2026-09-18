@@ -353,7 +353,7 @@ No speculative scheduling or fast/reference implementation is proposed.
 
 This delivery is a source-grounded design. It changes no Lean implementation or checked Lean
 example, and claims no new compiler result, axiom coverage, performance or full compliance.
-The inspected root pins remain Lean 4.33.1 (`819816b2e0a3bf405af45ae5c7af2491d8f5bee6`),
+The root pins inspected for that design were Lean 4.33.1 (`819816b2e0a3bf405af45ae5c7af2491d8f5bee6`),
 Mathlib `0df444a360eaa60ab8c11dca51a86af692955474`. Earlier PRODUCT-01 runtime results are
 historical, scoped evidence; they do not prove these new contracts. Full implementation
 acceptance remains one **unpartitioned `./scripts/verify.sh` with a hard 420-second deadline**

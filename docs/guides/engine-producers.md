@@ -138,7 +138,7 @@ validator. CI runs this named campaign separately from the unchanged unpartition
 manifests still need reconciliation with the `StrictLeanPolicy` root before that campaign
 can establish its broader claims; the small adopter qualifies the changed standalone path.
 
-The collectors and documentation lookups reuse Lean 4.33.1 APIs. No con-leche code is imported;
+The collectors and documentation lookups reuse Lean 4.34.0 APIs. No con-leche code is imported;
 the existing complete-census design credit remains in [design influences](design-influences.md).
 
 ## Reached closure and source snapshot account
@@ -169,7 +169,7 @@ the remaining fields belong to its `closure` account:
 Every enqueue site records its edge and a parent visit together. Visited-name suppression
 terminates ordinary recursion without deleting self edges. Retained IR dependencies now use
 the declaration step of Lean's pinned
-[`IR.CollectUsedDecls.collectDecl`](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Compiler/IR/EmitUtil.lean):
+[`IR.CollectUsedDecls.collectDecl`](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Compiler/IR/EmitUtil.lean):
 `collectUsedDecls` also inserts the declaration itself synthetically, so filtering its
 result by inequality incorrectly discarded genuine recursive calls. This is a specialized
 pinned compiler API, not a promised stable extension interface; upgrades must requalify

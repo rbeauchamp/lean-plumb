@@ -261,9 +261,9 @@ hosting change is part of this research delivery.
 
 ## Source ledger and credit
 
-Lean source pin: **4.33.1**, `819816b2e0a3bf405af45ae5c7af2491d8f5bee6`.
+Historical research snapshot: Lean **4.33.1**, `819816b2e0a3bf405af45ae5c7af2491d8f5bee6`.
 Mathlib: `0df444a360eaa60ab8c11dca51a86af692955474`; Batteries:
-`4488d40d070b9700d4d5a6aa342f0d40c31b2a2d`. Documentation keeps its separate
+`4488d40d070b9700d4d5a6aa342f0d40c31b2a2d`. Documentation then used a separate
 Lean 4.33.0 / Verso `3bdedf29bada13d8103e6c979001c51dcee210c8` pin.
 The inspected VS Code source reports extension version 0.0.239; this is a research snapshot,
 not an assertion that the user's installed extension matches it.

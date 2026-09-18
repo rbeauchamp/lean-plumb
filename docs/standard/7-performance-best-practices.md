@@ -6,7 +6,7 @@ Efficient Lean code usually comes from choosing an appropriate representation an
 
 This chapter covers native application performance, allocation and retained memory, and the development-time costs of proofs and metaprograms. It complements [§3.2.5 on proof economy](3-logic-proof-patterns.md#325-proof-economy-four-cost-domains-and-one-trust-question); it does not replace the correctness, foundation, or execution-boundary rules in [§3.6](3-logic-proof-patterns.md#36-contracts-for-executable-and-effectful-mechanisms). An optimization must preserve the intended result, input domain, error behavior, and relevant ordering of effects. A faster implementation of a different specification is not an optimization of the original contract.
 
-**Version scope.** Implementation-specific statements use Lean `v4.33.1`, the standard's supported toolchain. The reference catalogue distinguishes pinned source from the versioned `4.33.0` Array manual and the moving language reference and tutorial. A moving manual is useful explanation, not a substitute for checking the supported release. The examples use Core, Std, or Lean itself; none requires Mathlib.
+**Version scope.** The repository and this chapter's checked examples target Lean `v4.34.0`. Implementation-specific descriptions retain the inspected `v4.33.1` source snapshot identified in the reference catalogue; that historical evidence does not establish every runtime mechanism on the newer release. The reference catalogue distinguishes pinned source from the versioned `4.33.0` Array manual and the moving language reference and tutorial. A moving manual is useful explanation, not a substitute for checking the supported release. The examples use Core, Std, or Lean itself; none requires Mathlib.
 
 ## Practical selection guide
 
@@ -37,7 +37,7 @@ The sections below supply the source basis, examples, and qualifications for thi
 
 Lake's `LeanConfig` defaults to `release`. On the pinned C-backend path, release supplies `-O3 -DNDEBUG`; `relWithDebInfo` retains `-O3` and adds debug information. Additional project flags can override the defaults. The TOML loader recognizes these build-type names.[^lake-config][^lake-toml]
 
-Use an executable target, build it before measuring, and run the resulting executable with representative runtime input. There is normally no missing optimization switch to add to an otherwise ordinary release-configured Lake project. For a standalone illustration, place this configuration in `lakefile.toml` and select `leanprover/lean4:v4.33.1` in `lean-toolchain`:
+Use an executable target, build it before measuring, and run the resulting executable with representative runtime input. There is normally no missing optimization switch to add to an otherwise ordinary release-configured Lake project. For a standalone illustration, place this configuration in `lakefile.toml` and select `leanprover/lean4:v4.34.0` in `lean-toolchain`:
 
 ```toml
 name = "perf_examples"
@@ -625,7 +625,7 @@ Inlining, specialization, precompilation, batching thresholds, and parallelism a
 
 ## Authoritative references
 
-The links below are the source of truth for the stated mechanisms at their identified scope. Pinned source is linked at `v4.33.1`; declarations or sections to inspect are named so readers need not rely on an unversioned search result. The moving manuals and tutorial are explanatory supplements.
+The links below are the source of truth for the stated mechanisms at their identified scope. Pinned source retains the historical `v4.33.1` source snapshot; declarations or sections to inspect are named so readers need not rely on an unversioned search result. The moving manuals and tutorial are explanatory supplements.
 
 [^lake-config]: Lean/Lake, [pinned `Lake/Config/LeanConfig.lean`](https://raw.githubusercontent.com/leanprover/lean4/v4.33.1/src/lake/Lake/Config/LeanConfig.lean): `BuildType`, `BuildType.leancArgs`, and `LeanConfig.buildType`; release/debug flags, defaults, and overrides.
 

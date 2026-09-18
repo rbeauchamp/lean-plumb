@@ -81,7 +81,7 @@ private def recursionPredefinition? (env : Environment) (baseName : Name) :
       | some info => some (.wellFounded, info.levelParams, info.value, info.declNames)
       | none => none
 
-/-- Reconstruct the exact executable body transformation used by Lean 4.33.1's
+/-- Reconstruct the exact executable body transformation used by Lean 4.34.0's
 `addAndCompilePartialRec` from the built-in recursion equation metadata. -/
 private def unsafeRecExpected? (env : Environment) (baseName : Name) :
     Option (RecursionOrigin × Expr) := do

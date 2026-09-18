@@ -27,7 +27,7 @@ Prefer raw boundary data, then proof-producing admission, then immutable domain 
 **Example - Smart Constructor Pattern**:
 
 ```lean
-import Mathlib.Data.NNReal.Defs
+import Mathlib.Basic.NNReal.Defs
 
 /-- A resource whose capacity is non-negative. The proof of the invariant is
     carried by Mathlib's canonical `NNReal` subtype. The outer structure keeps
@@ -46,7 +46,7 @@ A direct construction cannot bypass the obligation. The anonymous-constructor fo
 
 <!-- lean-fail: Insufficient number of fields|failed to synthesize -->
 ```lean
-import Mathlib.Data.NNReal.Defs
+import Mathlib.Basic.NNReal.Defs
 
 structure Resource where
   capacity : NNReal
@@ -195,7 +195,7 @@ def efficientResourceSum (resources : Array Float) : Float := do
 
 ```lean
 import Mathlib.Algebra.Order.Monoid.Defs
-import Mathlib.Data.NNReal.Defs
+import Mathlib.Basic.NNReal.Defs
 
 /-- Pure composition reuses Mathlib's lawful `Monoid` interface and `List.prod`;
     there is no duplicate hand-written associativity/identity structure. -/

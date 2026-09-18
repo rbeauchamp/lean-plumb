@@ -120,9 +120,9 @@ boundaries while strengthening the pure core.
 
 ## Pinned Lean and Lake integration
 
-Supported checker/examples: Lean **4.33.1**, compiler commit
-`819816b2e0a3bf405af45ae5c7af2491d8f5bee6`; root Mathlib
-`0df444a360eaa60ab8c11dca51a86af692955474`. Check version/commit before pin-sensitive inspection.
+The checker/examples use the [supported toolchain](../../README.md#supported-toolchain).
+Check version/commit before pin-sensitive inspection; the compiler-dependent account
+is specified in [module 8 §8.6](../standard/8-tooling-and-machine-audit.md#execution-roots-and-conservative-coverage).
 Use Core/Std/Lean APIs without importing Mathlib into the linter. Adopters may use Mathlib;
 transitive package resolution does not require compiling its mathematical modules.
 
@@ -188,19 +188,18 @@ language server is selected.
 
 ## Website, versions, and synchronization
 
-Select **Verso**, pinned `3bdedf29bada13d8103e6c979001c51dcee210c8` (v4.33.0), on documentation
-Lean **4.33.0**, independently from checker/examples **4.33.1**. Separate toolchains are supported
-by the [package-docs template][template] at `76c9edf5a70f14d272af0f0f354ec833ac22c350`.
-Retain the complete lock manifest shipped in the prototype; do not resolve moving dependency
-branches in CI. Pins: SubVerso `3a75ede05278806fd3249bb0c97a6fb5777a4f7d`, MD4Lean
-`31907cc18f48a95384f99cee5582c00fb39e0f67`, Plausible
-`b7eb3304aeae834b12dda98993a37f6a41f6f0bb`, Illuminate
-`6bc815869cba1f19515715dc6b47795acd521f1c`.
+Select **Verso**, pinned in the documentation package's
+[Lake configuration](../../examples/rule-reference-prototype/site/lakefile.toml).
+The documentation package and checker/examples all use the same supported Lean release. The separate
+documentation workspace follows the [package-docs template][template] at
+`76c9edf5a70f14d272af0f0f354ec833ac22c350`; rendering remains distinct from checking examples.
+Retain the complete [lock manifest](../../examples/rule-reference-prototype/site/lake-manifest.json)
+shipped in the prototype; do not resolve moving dependency branches in CI.
 
 The bounded probe generates Verso source from the Lean-exported descriptor and exact fixture
-files after their real 4.33.1 checker outcomes pass. These source-included blocks render as text;
+files after their real 4.34.0 checker outcomes pass. These source-included blocks render as text;
 no implicit re-elaboration by the documentation compiler is claimed. #15 retains this simple
-cross-toolchain contract initially. Optional SubVerso highlighting may replace presentation only
+checked-source rendering contract initially. Optional SubVerso highlighting may replace presentation only
 with exact source/output correspondence and the matching pin in the example package; it is not
 a prerequisite to checked source inclusion. Narrative source lives in `website/Rules/<ID>.lean`
 or an explicit prose input consumed by a generator; generated descriptors/examples are never
@@ -284,12 +283,12 @@ is [issue #3](https://github.com/rbeauchamp/strict-lean/issues/3); its con-ron d
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean
 [equiv]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Frontend/Scan/Equiv.lean
-[command]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Elab/Command.lean
-[env-lint]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Linter/EnvLinter/Basic.lean
-[lake-config]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/lake/Lake/Config/PackageConfig.lean
-[lsp]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Data/Lsp/Diagnostics.lean
-[log]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Log.lean
-[interactive]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Widget/InteractiveDiagnostic.lean
+[command]: https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Elab/Command.lean
+[env-lint]: https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Linter/EnvLinter/Basic.lean
+[lake-config]: https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/lake/Lake/Config/PackageConfig.lean
+[lsp]: https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Data/Lsp/Diagnostics.lean
+[log]: https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Log.lean
+[interactive]: https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Widget/InteractiveDiagnostic.lean
 [template]: https://github.com/leanprover/verso-templates/tree/76c9edf5a70f14d272af0f0f354ec833ac22c350/package-docs
 [ca1416]: https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1416
 

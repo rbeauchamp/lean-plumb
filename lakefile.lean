@@ -75,4 +75,4 @@ lean_exe «auditApp» where
   supportInterpreter := true
 
 require mathlib from git
-  "https://github.com/leanprover-community/mathlib4" @ "0df444a360eaa60ab8c11dca51a86af692955474"
+  "https://github.com/leanprover-community/mathlib4" @ "5ed2965256430c3649e86755f9576b54eca72435"

@@ -52,11 +52,11 @@ unsafe def validate (env : Environment) (ownedModules : Array Name) :
     for (name, _) in declarations do
       if (base.toKernelEnv.find? name).isSome then
         throw <| IO.userError s!"owned declaration {name} already exists in replay base"
-    let checked ← base.replay declarations
+    let checked ← Lean.Kernel.Environment.replay declarations base.toKernelEnv
     let mut admitted := #[]
     for key in required do
       let name := key.2
-      if (checked.toKernelEnv.find? name).isNone then
+      if (checked.find? name).isNone then
         throw <| IO.userError s!"missing replayed declaration {name}"
       admitted := admitted.push key
     return .ok { modules := StrictLeanPolicy.canonicalNames replayModules, required, admitted }

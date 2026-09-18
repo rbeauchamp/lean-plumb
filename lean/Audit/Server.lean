@@ -40,7 +40,7 @@ theorem Server.validate_none (served cap : Nat) :
 theorem Server.validate_roundtrip (s : Server) :
     validate s.served s.cap = some s := by
   unfold validate
-  rw [dif_pos s.bounded]
+  rw [dite_eq_left s.bounded]
 
 /-- Initialization is possible for every capacity, including zero. -/
 def Server.init (cap : Nat) : Server := ⟨0, cap, Nat.zero_le _⟩
