@@ -1,7 +1,5 @@
 module
 
-public import StrictLean.MaterialClaim
-
 @[expose] public section
 
 /-!
@@ -12,6 +10,10 @@ executable constant and accounts for its compiler/runtime boundaries.
 -/
 namespace StrictLean
 
+/-- Required evidence about the exact implementation, not a similarly named model.
+The linter recognizes closed declarations of this type as executable promises.
+Use a named constant as `implementation`; put its complete domain inside `condition`.
+Classical evidence is permitted under the selected Standard-Logical profile. -/
 structure ExecutableContract {α : Type u} (implementation : α)
     (condition : α → Prop) : Prop where
   evidence : condition implementation

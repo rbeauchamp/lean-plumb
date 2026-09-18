@@ -1,12 +1,12 @@
 # Native observation and local feedback
 
 The native component (#25, a blocker of ENGINE-01 #13) uses the root package's
-Lean **4.33.1**, commit `819816b2e0a3bf405af45ae5c7af2491d8f5bee6`.
+Lean **4.34.0**, commit `293d5d0c0c3f3dded4688b3ccd6a33939ac5102b`.
 Its native public import supports legacy files and Lean `module` files.
 Its imports require Lean/Std and Strict Lean's neutral policy modules;
 they do not import Mathlib, `StrictLean.Report` or `StrictLean.Probe`.
 The root development dependency remains Mathlib
-`0df444a360eaa60ab8c11dca51a86af692955474`.
+`5ed2965256430c3649e86755f9576b54eca72435`.
 
 ## Use while editing
 
@@ -118,8 +118,8 @@ proofs are documented separately in [policy-proofs.md](policy-proofs.md).
 
 The shared record constructor is extracted from Strict Lean's existing Probe;
 it retains the same pure data domain. It directly reuses Lean's
-[`getNewDecls`](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Linter/Util.lean),
-[`getDeclsInCurrModule`](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Linter/EnvLinter/Frontend.lean),
+[`getNewDecls`](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Linter/Util.lean),
+[`getDeclsInCurrModule`](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Linter/EnvLinter/Frontend.lean),
 command/module linter hooks, declaration ranges, axiom collection and docstring
 APIs. Direct message publication follows Lean's logger semantics while retaining
 Strict Lean's own rule URL instead of Lean's manual widget. No upstream code is

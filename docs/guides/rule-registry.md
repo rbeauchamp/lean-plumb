@@ -210,17 +210,17 @@ and [Installed](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd
 Joachim Breitner and contributors at Lean FRO. No con-leche code or proof is copied
 or imported as a proof of Strict Lean's predicates.
 
-The source and native-message adapters use Lean 4.33.1, commit
-`819816b2e0a3bf405af45ae5c7af2491d8f5bee6`:
-[FileMap](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Data/Position.lean),
-[UTF-16 conversion](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Data/Lsp/Utf16.lean),
-and [command linter hooks](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Elab/Command.lean).
+The source and native-message adapters use Lean 4.34.0, commit
+`293d5d0c0c3f3dded4688b3ccd6a33939ac5102b`:
+[FileMap](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Data/Position.lean),
+[UTF-16 conversion](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Data/Lsp/Utf16.lean),
+and [command linter hooks](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Elab/Command.lean).
 Credit Lean's authors for these APIs. The existing prototype retains Verso credit
 and the [Microsoft CA1416](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416)
 illustrative presentation reference. The [ecosystem study](ecosystem-design.md) broadens
 the comparison; none of these examples prescribes an exact UX or supplies Lean policy
 semantics or suppression permission. Root Mathlib remains pinned to
-`0df444a360eaa60ab8c11dca51a86af692955474`.
+`5ed2965256430c3649e86755f9576b54eca72435`.
 
 The shared registry attribution describes a metadata design influence, not authorship of every
 rule or a runtime dependency. See [attribution scope](design-influences.md).

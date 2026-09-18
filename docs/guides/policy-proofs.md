@@ -120,14 +120,14 @@ accepted report is not full standard conformance.
 
 ## Evidence and supported domain
 
-The implementation targets Lean 4.33.1, compiler commit
-`819816b2e0a3bf405af45ae5c7af2491d8f5bee6`. The root dependency pin is Mathlib
-`0df444a360eaa60ab8c11dca51a86af692955474`;
+The implementation targets Lean 4.34.0, compiler commit
+`293d5d0c0c3f3dded4688b3ccd6a33939ac5102b`. The root dependency pin is Mathlib
+`5ed2965256430c3649e86755f9576b54eca72435`;
 the pure policy library itself imports Init/Std and its own modules, not Mathlib
 or the excluded operational checker.
 
-The [delivery evidence](../../session/evidence/issue-6-verification.md) records the
-exact current Mathlib revision, declaration and
+The [original delivery evidence](../../session/evidence/issue-6-verification.md) records the
+then-current Mathlib revision, declaration and
 axiom census, applicable diagnostics, independent reviews and complete acceptance
 result. Explicit theorem hypotheses are distinct from transitive logical axioms.
 The manifest's Standard-Logical profile is an upper bound, not a claim that every

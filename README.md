@@ -37,8 +37,8 @@ Root configuration files keep this a directly usable Lake package. Tool-owned hi
 
 | Component | Pin | Source of truth |
 | --- | --- | --- |
-| Lean | `leanprover/lean4:v4.33.1` | [lean-toolchain](lean-toolchain) |
-| Mathlib | `0df444a360eaa60ab8c11dca51a86af692955474` | [lake-manifest.json](lake-manifest.json) |
+| Lean | `leanprover/lean4:v4.34.0` | [lean-toolchain](lean-toolchain) |
+| Mathlib | `5ed2965256430c3649e86755f9576b54eca72435` | [lake-manifest.json](lake-manifest.json) |
 
 Only this Lean release is supported. The checker imports no Mathlib modules; Mathlib is used by the standard's mathematical examples. See the [adoption guide](docs/guides/adoption.md) for dependency resolution and the [contributor guide](docs/guides/contributing.md#develop-and-verify) for build commands.
 

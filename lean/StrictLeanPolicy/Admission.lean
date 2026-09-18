@@ -73,7 +73,7 @@ def InventoryValid (decls : Array Declaration) (transcripts : Array Frontend.Tra
   uniqueNames (transcripts.map (·.module)) ∧
   (∀ t ∈ transcripts, named t.module ∧ t.source ≠ "" ∧
     t.sourceBytes = t.sourceContent.utf8ByteSize ∧
-    t.leanVersion = "4.33.1" ∧ t.leanGitHash = "819816b2e0a3bf405af45ae5c7af2491d8f5bee6" ∧
+    t.leanVersion = "4.34.0" ∧ t.leanGitHash = "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b" ∧
     t.validCoordinates = true ∧
     ∀ d ∈ decls, d.module = t.module → d.ranges.all (·.validFor t.sourceContent) = true)
 instance instDecidableInventoryValid (decls : Array Declaration) (transcripts : Array Frontend.Transcript) :

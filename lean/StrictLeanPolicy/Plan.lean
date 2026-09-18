@@ -167,8 +167,8 @@ def requiredJobs (c : Claim) (i : Census) : Array (Stage × JobSubject) :=
 /-- Concrete plan validity checks the census, derived keys, profile assignments and root
 request coverage. Unknown module ownership cannot default to a permissive profile. -/
 def PlanOK (c : Claim) (i : Census) : Prop :=
-  c.val.snapshot.toolchain.leanVersion = "4.33.1" ∧
-  c.val.snapshot.toolchain.compilerCommit = "819816b2e0a3bf405af45ae5c7af2491d8f5bee6" ∧
+  c.val.snapshot.toolchain.leanVersion = "4.34.0" ∧
+  c.val.snapshot.toolchain.compilerCommit = "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b" ∧
   CensusOK c i ∧ (requiredJobs c i).toList.Pairwise (· ≠ ·) ∧
   (∀ job ∈ requiredJobs c i, StageSubjectCompatible job.1 job.2 = true) ∧
   (∀ d ∈ i.declarations, (profileForModule c d.moduleKey.name.name).isSome = true) ∧

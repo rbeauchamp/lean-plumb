@@ -495,7 +495,7 @@ def environmentReport (modules : List Name)
     CommandElabM StrictLean.Report.Collected := do
   if modules.isEmpty then
     throwError "environmentReport: no owned module names were supplied"
-  if Lean.githash != "819816b2e0a3bf405af45ae5c7af2491d8f5bee6" then
+  if Lean.githash != "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b" then
     throwError "execution coverage is unsupported on compiler commit {Lean.githash}"
   let env ← getEnv
   -- Execution trust checks always need canonical origins. Logical-only
