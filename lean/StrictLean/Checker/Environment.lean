@@ -127,6 +127,14 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
     let env ← timedPhase "environment imports" <| importModules imports {} 0 (loadExts := true) (level := .private)
     let ownedModules := requested ++ moduleSources.map (·.1) |>.filter
       (fun name => !probeModuleNames.contains name.toString)
+    if true then
+      IO.println s!"DEBUG: ownedModules: {ownedModules.toList}"
+      IO.println s!"DEBUG: moduleSources: {moduleSources.toList}"
+      IO.println s!"DEBUG: requested: {requested.toList}"
+      IO.println s!"DEBUG: probeModuleNames: {probeModuleNames.toList}"
+      for name in env.header.moduleNames do
+        if name.toString.contains "Contract" then
+          IO.println s!"DEBUG: Contract module found: {name}, in owned: {ownedModules.contains name}"
     if let some root := ownedOutput then
       for name in env.header.moduleNames do
         if !ownedModules.contains name && !probeModuleNames.contains name.toString then

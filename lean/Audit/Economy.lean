@@ -1,5 +1,5 @@
 import Mathlib.Tactic.Ring
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 
 /-!
 Checked examples for proof economy (docs/standard/3 §3.2.5) and lawful mixins
@@ -123,8 +123,10 @@ theorem sumWf_eq_sumTo (n : Nat) : sumWf n = sumTo n := by
   induction n with
   | zero => rw [sumWf_unfold]; rfl
   | succ k ih =>
-    rw [sumWf_unfold, if_neg (Nat.succ_ne_zero k), Nat.add_sub_cancel, ih]
-    rfl
+    rw [sumWf_unfold]
+    split
+    · exfalso; exact Nat.succ_ne_zero _ (by assumption)
+    · simp [ih, sumTo]
 
 /-- Operations only. The lawful mixin takes the intended order separately,
 so this instance does not select another relation for its laws. Bundled order
