@@ -120,9 +120,9 @@ boundaries while strengthening the pure core.
 
 ## Pinned Lean and Lake integration
 
-Supported checker/examples: Lean **4.34.0**, compiler commit
-`293d5d0c0c3f3dded4688b3ccd6a33939ac5102b`; root Mathlib
-`5ed2965256430c3649e86755f9576b54eca72435`. Check version/commit before pin-sensitive inspection.
+The checker/examples use the [supported toolchain](../../README.md#supported-toolchain).
+Check version/commit before pin-sensitive inspection; the compiler-dependent account
+is specified in [module 8 §8.6](../standard/8-tooling-and-machine-audit.md#execution-roots-and-conservative-coverage).
 Use Core/Std/Lean APIs without importing Mathlib into the linter. Adopters may use Mathlib;
 transitive package resolution does not require compiling its mathematical modules.
 
@@ -188,8 +188,9 @@ language server is selected.
 
 ## Website, versions, and synchronization
 
-Select **Verso**, pinned `cad4b633e75ea769b851f12f9ca3b4f0dfcc625f` (v4.34.0).
-The documentation package and checker/examples all use Lean **4.34.0**. The separate
+Select **Verso**, pinned in the documentation package's
+[Lake configuration](../../examples/rule-reference-prototype/site/lakefile.toml).
+The documentation package and checker/examples all use the same supported Lean release. The separate
 documentation workspace follows the [package-docs template][template] at
 `76c9edf5a70f14d272af0f0f354ec833ac22c350`; rendering remains distinct from checking examples.
 Retain the complete [lock manifest](../../examples/rule-reference-prototype/site/lake-manifest.json)

@@ -84,9 +84,11 @@ not prove its collector or policy universally correct; proof-bearing acceptance 
 
 ## Pins and credit
 
-- Checker/examples: Lean 4.34.0, compiler `293d5d0c0c3f3dded4688b3ccd6a33939ac5102b`.
-- Docs: Lean 4.34.0; [Verso](https://github.com/leanprover/verso/tree/cad4b633e75ea769b851f12f9ca3b4f0dfcc625f).
-  Transitive revisions are in `site/lake-manifest.json`; do not update moving branches.
+- Checker/examples: the root [supported toolchain](../../README.md#supported-toolchain).
+- Docs: [site/lean-toolchain](site/lean-toolchain) matches the root pin;
+  [site/lakefile.toml](site/lakefile.toml) selects Verso's exact revision.
+  Transitive revisions are in [site/lake-manifest.json](site/lake-manifest.json);
+  do not update moving branches.
 - **Lean FRO's con-leche**: [Installed.lean](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean)
   and [PropWhen.lean](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean)
   motivate canonical metadata and proof-bearing boundaries. No con-leche code/proof is copied;

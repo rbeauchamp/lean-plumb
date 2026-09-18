@@ -35,12 +35,12 @@ Root configuration files keep this a directly usable Lake package. Tool-owned hi
 
 ## Supported toolchain
 
-| Component | Pin | Source of truth |
-| --- | --- | --- |
-| Lean | `leanprover/lean4:v4.34.0` | [lean-toolchain](lean-toolchain) |
-| Mathlib | `5ed2965256430c3649e86755f9576b54eca72435` | [lake-manifest.json](lake-manifest.json) |
+| Component | Authoritative pin |
+| --- | --- |
+| Lean | [lean-toolchain](lean-toolchain) |
+| Mathlib | The `mathlib` entry in [lake-manifest.json](lake-manifest.json) |
 
-Only this Lean release is supported. The checker imports no Mathlib modules; Mathlib is used by the standard's mathematical examples. See the [adoption guide](docs/guides/adoption.md) for dependency resolution and the [contributor guide](docs/guides/contributing.md#develop-and-verify) for build commands.
+Only the pinned Lean release is supported. The checker imports no Mathlib modules; Mathlib is used by the standard's mathematical examples. See the [adoption guide](docs/guides/adoption.md) for dependency resolution and the [contributor guide](docs/guides/contributing.md#develop-and-verify) for build commands.
 
 ## Verification
 

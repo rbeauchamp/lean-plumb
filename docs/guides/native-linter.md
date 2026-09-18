@@ -1,12 +1,12 @@
 # Native observation and local feedback
 
 The native component (#25, a blocker of ENGINE-01 #13) uses the root package's
-Lean **4.34.0**, commit `293d5d0c0c3f3dded4688b3ccd6a33939ac5102b`.
+[supported toolchain](../../README.md#supported-toolchain).
 Its native public import supports legacy files and Lean `module` files.
 Its imports require Lean/Std and Strict Lean's neutral policy modules;
 they do not import Mathlib, `StrictLean.Report` or `StrictLean.Probe`.
-The root development dependency remains Mathlib
-`5ed2965256430c3649e86755f9576b54eca72435`.
+The root development dependency on Mathlib is locked in the
+[root manifest](../../lake-manifest.json).
 
 ## Use while editing
 
