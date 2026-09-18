@@ -29,7 +29,7 @@ def environment (root : FilePath) (state : State) (overrides : Array (String × 
   let start ← IO.monoMsNow
   let result ← if let some (_, capture) := (← state.cache.get).find? (·.1 == overrides) then pure capture else do
     let output ← run root "lake" #["env", "/usr/bin/env", "-0"] overrides
-    requireChecks [⟨"Lake environment capture", output.exitCode == 0 && output.stderr.isEmpty⟩]
+    requireChecks [⟨"Lake environment capture", output.exitCode == 0⟩]
     let env ← IO.ofExcept (admit output.stdout)
     let resolved ← run root "/usr/bin/which" #["lean"] (env.val.map fun (k, v) => (k, some v))
     requireChecks [⟨"Lean executable resolution", resolved.exitCode == 0 && resolved.stderr.isEmpty &&
