@@ -61,11 +61,13 @@ environment diagnostic and `qualify` compiled. Raw root build logs are in
 `tmp/environment-diagnostic-setup.log`; the second contains an intermediate failed
 proof build and must not be relabeled a passing run.
 
-Fresh-context semantic review found no concrete weakening of the new policy
+At the earlier checkpoint, fresh-context semantic review found no concrete weakening of the new policy
 guards, but identified an incomplete whole-run compatibility obligation: the first
 declaration/execution preservation lemmas alone do not prove all-stage old-flat or
 singleton finalizer preservation. That obligation remains open until its additional
-checked transfer and focused independent review are recorded here.
+checked transfer and focused independent review are recorded here. The later scoped
+review below supersedes treating legacy IO equivalence as a prerequisite for the
+current executed guarantee.
 
 ## Validation outstanding at the prior checkpoint
 
@@ -89,9 +91,14 @@ The expanded `LocalEvidenceTransfer.sound/refl`, `GlobalEvidenceTransfer.sound/r
 `finalize_reindexed` and `finalize_singleton_transfer` now compile on Lean 4.34.0.
 Global transfer uses structural evidence correspondence, not an assumed new
 policy judgment. These are conditional transfer theorems over the actual
-`finalize` and occurrence lists. Instantiation of all coherence hypotheses for
-the former flattened collector remains a focused proof-review obligation; this
-receipt does not claim that compiler success closes that obligation.
+`finalize` and occurrence lists. The coherence hypotheses have not been instantiated
+for the former flattened IO collector; operational legacy equivalence is not
+established or claimed. Current acceptance does not call those conditional transfer
+lemmas. Its guarantee follows from the coordinator-fixed full census,
+environment-local roles/jobs, actual ResultState collection, `finalize_iff` and
+checked split equality at the implemented success routes. Fresh independent
+semantic review at `7940214`, supplied with this continuation, is CLEAN for that
+current guarantee, not for legacy operational equivalence.
 
 `lake build StrictLeanPolicy qualify axiomGate docFenceAudit ruleExamples` passed
 in `tmp/environment-resume-build6.log`. Subsequent native builds passed, ending
@@ -190,3 +197,151 @@ All results remain conditional on truthful Lean/Lake extraction, actual compiler
 and replay observations, source/filesystem stability, process completion and native
 execution. No source theorem authenticates the OS, serialization provenance or
 compiled binary. There is no full conformance or issue-closure claim here.
+
+### Receipt-boundary continuation from f500fd5
+
+Entry HEAD was `f500fd5ef20dfa3e26a060de6007e37964645236`, clean. The prior
+signed checkpoint, cold276.37 result and raw attempts remain preserved.
+The current repair initializes acceptance/environment evidence before timeout
+selection or spawn and passes one attempt ID into the timed child. It preserves
+the original single420 timer. Result/trace sidecars and incremental active-case
+file locations are saved before JSON parsing/source extraction; completed command
+records now include executable and argv. Missing files remain explicit nulls.
+`finishDocuments` is private and documents that only unchanged, admitted
+`auditTasks` output may reach it. No arbitrary raw-occurrence guarantee is claimed.
+
+`tmp/ci-receipt-build.log` is a failed intermediate compile (reserved identifier);
+`tmp/ci-receipt-build2.log` and `tmp/ci-receipt-adapters-build.log` pass. The
+signature probe `issue-7-signatures.lean` was rerun against the pinned compiler;
+`issue-7-signatures.txt` now records actual CensusRoles/environment types and
+split-finalization/census/conditional-transfer hypotheses and exact axiom sets.
+
+The preserved pre-repair native binary reproduces the stale-completion defect:
+with PATH pointing to an empty worktree directory, its public acceptance command
+exits1 for missing GNU timeout while the seeded receipt still says completed.
+Evidence: `tmp/ci-receipt-before.log`, `tmp/ci-receipt-before.json`; binary digests
+are in `tmp/ci-receipt-binary-sha256.txt`. The repaired public command passes all six
+seeded receipt controls in `tmp/ci-receipt-boundaries.log`: missing timeout,
+unusable timeout, and selection followed by actual spawn failure, through both
+acceptance and environments. Every failure leaves a new incomplete attempt.
+The spawn control removes its isolated substitute after a successful version
+probe; it does not merely inject a synthetic exception or change host tools.
+
+Fresh-context reviewer `/root/receipt_review` returned CLEAN for frozen
+`tmp/ci-receipt-review.patch` plus `ReceiptBoundary.lean`: outer invalidation,
+same-attempt handoff, one timer, pre-parse artifact retention/partial accounting,
+complete commands, private helper precondition, and the native legacy-control
+matrix. This is scoped source review only, not campaign, CI or issue closure.
+
+`acceptance sources` passed all seven phases with completed evidence at
+`tmp/ci-acceptance-sources.json` and its raw sidecars. The first surface attempt,
+`tmp/ci-acceptance-surface.json`, failed its first restoration with the intended
+`dependency snapshot changed` refusal because this agent briefly edited a root
+qualification source during the campaign. It is an invalid qualification attempt,
+not a production regression or a passing campaign. All artifacts remain retained.
+The remaining root-inventory oracle now explicitly requires absence of accepted
+text in combined stdout/stderr, in addition to its existing typed authority and
+actual-build witnesses. Sources will remain fixed for subsequent campaigns.
+
+After the final root-refusal assertion, `tmp/ci-receipt-build3.log` passed.
+The focused reviewer cleared that one-line delta and refreshed signature/prose
+claims. `tmp/ci-receipt-reviewed-source-sha256.txt` records the fixed source inputs.
+`lake exe qualify input-inventory` passed all16 phases in
+`tmp/ci-input-inventory.log`, including the strengthened absence check, actual new
+module build witness, both root modes, and both Markdown mutation routes.
+`lake exe qualify documentation-dependencies` passed both routes and their
+restorations plus the combined typed-authority positive; raw log:
+`tmp/ci-documentation-dependencies.log`.
+
+The fixed-source surface rerun passed all9 phases, including missing, duplicate,
+misindexed and stale-request packets and every restoration:
+`tmp/ci-acceptance-surface-fixed.json` (completed) and corresponding log/sidecars.
+
+Current remaining local work at this checkpoint: acceptance evidence/fences/process
+campaigns; snapshot history campaign; native retirement only after all replacement
+controls pass; separate producer/history/rule-example420 commands; provision pinned
+Verso and run site qualification; final cold ordinary420 for current sources.
+The dependency snapshot campaign at f500fd5 remains reusable for unchanged
+snapshot implementation/oracles. The original raw packets and cold276.37 result
+remain evidence for 7940214 only. Hosted CI/publication/merge remain outer-executor
+work, and issue7 is not complete.
+
+The evidence-packet campaign passed all7 phases, including unknown declaration
+kind, conflicting source bytes, failed build observation and each restoration:
+`tmp/ci-acceptance-evidence.json` (completed), corresponding log and raw sidecars.
+No source changes occurred during the successful surface/evidence campaigns.
+
+The next command is complete cold-root ordinary acceptance on the current reviewed
+working-tree inputs, not the historical clean7940214 head. Warm root outputs are
+preserved at `tmp/ci-receipt-pre-cold-build`; `.lake/build` is absent at gate entry.
+The original warm backup and all failed attempts remain intact. Dependency artifacts
+remain provisioned. Hosted CI and remaining diagnostic campaigns are separate.
+
+### Current cold ordinary result
+
+`/usr/bin/time -p ./scripts/verify.sh` exited0 in **243.88 seconds**, inside the
+unchanged420 process-group deadline. Raw log: `tmp/ci-receipt-cold420.log`.
+Current raw declaration/axiom report: `tmp/ci-receipt-cold-report.json` (copied
+from the gate's `tmp/axiom-report.json`). This was a cold root build on the reviewed
+working tree based on f500fd5, not a clean published-head or hosted result.
+Source hashes remain `tmp/ci-receipt-reviewed-source-sha256.txt`.
+
+Coverage: five claimed libraries, one claimed executable,40 owned modules,
+5,237 owned declarations; standard-logical/execution-report profiles for
+StrictLeanPolicy, StrictLeanVerification, StrictLeanQualification, Audit and
+AuditApp. Combined finalization accepted7,272 project and97 documentation jobs.
+Fences:70/70 conforming positives,23/23 negatives,1/1 teaching, zero failures.
+The raw report retains exact selected module arrays and declaration axiom sets;
+`issue-7-signatures.txt` records the queried capstones and their precise hypotheses.
+Observed pin: Lean4.34.0 /293d5d0c0c3f3dded4688b3ccd6a33939ac5102b,
+Mathlib5ed2965256430c3649e86755f9576b54eca72435, arm64 macOS.
+This does not establish external IO correctness, legacy flattened equivalence,
+full semantic conformance, hosted acceptance or issue7 completion.
+
+The process campaign passed all5 phases in `tmp/ci-acceptance-process.json` and
+its log/sidecars. The real timeout observed the started worker marker and worker
+exit137; the coordinator emitted incomplete output with both acceptance fields
+absent, and the final restored positive passed. This is separate from the six
+outer timeout-selection/spawn failure controls and from overall420 termination.
+`tmp/ci-receipt-coverage.json` is the compact projection of the current cold
+report's exact40 module names, surface declaration counts and observed axiom sets.
+
+### End-of-invocation checkpoint: CI phase INCOMPLETE
+
+`lake exe qualify acceptance-snapshots history` exited0; all9 fresh,
+incremental and build-lint positive/refusal/restored phases passed in
+`tmp/ci-snapshot-history.log`. The earlier snapshot-history log is also preserved.
+Final changed-source digest verification and `git diff --check` passed. No
+pipeline control, push, PR/issue write, merge, host configuration or package
+installation was performed. Changes remain uncommitted for the outer executor.
+
+The two concrete receipt-boundary defects and the raw-artifact/command-record
+repairs are implemented, compiled and independently reviewed. Ordinary cold420
+passes on the current reviewed inputs. This is a truthful partial checkpoint
+within the invocation budget, NOT approval of CI or completion of issue7.
+Do not relabel the following unrun work PASS:
+
+1. `lake exe qualify acceptance fences --evidence tmp/ci-acceptance-fences.json`
+   (the remaining migrated transport group).
+2. Only after that group and all retained controls pass, retire the four preserved
+   historical Python drivers and update active migration/handoff instructions.
+   No Python driver has been executed or removed in this invocation.
+3. Run the separate required commands sequentially, each with its existing420
+   deadline: `./scripts/verify.sh diagnostics producers`,
+   `./scripts/verify.sh diagnostics history`, and
+   `./scripts/verify.sh diagnostics rule-examples`.
+4. Provision pinned Verso via `lake build verso/VersoManual` from
+   `examples/rule-reference-prototype/site` (its dependency directory is currently
+   absent), then run `lake env lean --run examples/rule-reference-prototype/Run.lean`
+   from the root under its existing600-second qualification wrapper. Provisioning
+   and this site diagnostic do not replace ordinary acceptance.
+5. Obtain focused review/checks for any further repairs; rerun ordinary cold420
+   if its relevant claimed inputs change. Reuse unchanged source/semantic evidence
+   with its original scope rather than inventing legacy IO equivalence.
+
+Outer executor alone owns signed delivery checkpoints, exact-head hosted CI,
+GitHub handoffs, integration and cleanup. Preserve 7940214 and f500fd5, both
+cold results, raw sidecars, intermediate build failure and invalidated surface
+attempt. The current guarantee is full coordinator-fixed census and local
+policy/collection/finalization evidence; legacy flattened operational equivalence
+and arbitrary raw `finishDocuments` occurrence admission remain unclaimed.

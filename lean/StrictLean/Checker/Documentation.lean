@@ -560,9 +560,11 @@ def exampleObservation (result : Result) : IO StrictLeanPolicy.ExampleObservatio
     fence, unitName := raw.compilation.spec.module.toName, units, before, after,
     warnings := warningLines raw.compilation.process.output, declarationCensus := census, outcome }
 
-/-- Finalize exactly the previously frozen document plan with real build and scanner
-observations. Neither per-example status labels nor a zero failure count can accept it. -/
-def finishDocuments {claim : StrictLeanPolicy.Claim} (frozen : DocumentPlan claim)
+/-- Finalize the frozen document plan using the unchanged output of `auditTasks`,
+which has already collected every task occurrence and refused unknown, duplicate,
+or missing results. This private helper does not admit arbitrary raw result arrays.
+Neither per-example labels nor a zero failure count can accept the document plan. -/
+private def finishDocuments {claim : StrictLeanPolicy.Claim} (frozen : DocumentPlan claim)
     (build : StrictLeanPolicy.BuildObservation) (documents : Array StrictLeanPolicy.SourceSnapshot)
     (structural : Array String) (results : Array Result) : IO (StrictLeanPolicy.AcceptedRun claim) := do
   let examples ← results.mapM exampleObservation

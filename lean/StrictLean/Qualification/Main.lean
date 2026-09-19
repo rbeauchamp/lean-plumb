@@ -7,6 +7,7 @@ import StrictLean.Qualification.FrozenExit
 import StrictLean.Qualification.RuleExamples
 import StrictLean.Qualification.EnvironmentCensus
 import StrictLean.Qualification.Acceptance
+import StrictLean.Qualification.ReceiptBoundary
 
 /-! One Lake executable for operational qualification, with independently selectable
 campaigns. Each oracle is proved on the positive `StrictLeanQualification` surface;
@@ -14,7 +15,7 @@ this process dispatcher and its IO adapters remain operational tooling. -/
 
 /-- Explicit commands; unknown or extra arguments refuse instead of silently skipping
 work. The acceptance shell owns the overall deadline, not this dispatcher. -/
-private unsafe def dispatch (args : List String) : IO Unit := do
+private unsafe def dispatch (args : List String) (attempt : Option String := none) : IO Unit := do
   match args with
   | ["registry"] => StrictLean.Qualification.RegistryCli.check
   | ["native"] => StrictLean.Qualification.NativeLinter.checkAll
@@ -31,11 +32,12 @@ private unsafe def dispatch (args : List String) : IO Unit := do
       StrictLean.Qualification.Producer.check none
       StrictLean.Qualification.History.check
   | ["history"] => StrictLean.Qualification.History.check
-  | ["environments", "--evidence", path] => StrictLean.Qualification.EnvironmentCensus.check ⟨path⟩
-  | ["acceptance", group, "--evidence", path] => StrictLean.Qualification.Acceptance.check group ⟨path⟩
+  | ["environments", "--evidence", path] => StrictLean.Qualification.EnvironmentCensus.check ⟨path⟩ attempt
+  | ["acceptance", group, "--evidence", path] => StrictLean.Qualification.Acceptance.check group ⟨path⟩ attempt
   | ["acceptance-snapshots", group] => StrictLean.Qualification.DependencySnapshot.check group
   | ["documentation-dependencies"] => StrictLean.Qualification.Acceptance.documentationDependencies
   | ["input-inventory"] => StrictLean.Qualification.InputInventory.check
+  | ["receipt-boundaries"] => StrictLean.Qualification.ReceiptBoundary.check
   | ["closure-evidence"] => StrictLean.Qualification.SourceEvidence.closure
   | ["configuration-capture"] => StrictLean.Qualification.SourceEvidence.configuration
   | ["fence-evidence"] => StrictLean.Qualification.SourceEvidence.fences
@@ -48,11 +50,25 @@ private unsafe def dispatch (args : List String) : IO Unit := do
 is supplied by this wrapper or the already timed acceptance driver, never documented
 as a bounded standalone command. Nested commands do not create escaping groups. -/
 unsafe def main (args : List String) : IO UInt32 := do
+  if (← IO.getEnv "STRICT_LEAN_RECEIPT_TIMER") == some "1" && args == ["--version"] then
+    return ← StrictLean.Qualification.ReceiptBoundary.worker args
   match ← IO.getEnv "STRICT_LEAN_QUALIFICATION_WRAPPER" with
   | some "acceptance" => return ← StrictLean.Qualification.Acceptance.worker args
   | some "inventory" => return ← StrictLean.Qualification.InputInventory.worker args
   | some _ => throw <| IO.userError "unknown qualification wrapper mode"
   | none => pure ()
   match args with
+  | "--under-deadline" :: "--attempt" :: attempt :: rest => dispatch rest (some attempt); return 0
   | "--under-deadline" :: rest => dispatch rest; return 0
-  | _ => StrictLean.Qualification.runBounded (← IO.currentDir) 420 (← IO.appPath).toString (#["--under-deadline"] ++ args.toArray)
+  | _ =>
+    -- Recognize evidence destinations even when later argument validation refuses.
+    -- This must precede timeout selection and spawning, both of which can fail.
+    let attempt ← StrictLean.Qualification.freshAttempt
+    match args with
+    | "acceptance" :: group :: "--evidence" :: path :: _ =>
+      let _ ← StrictLean.Qualification.Acceptance.beginAttempt group ⟨path⟩ attempt
+    | "environments" :: "--evidence" :: path :: _ =>
+      StrictLean.Qualification.EnvironmentCensus.beginAttempt ⟨path⟩ attempt
+    | _ => pure ()
+    StrictLean.Qualification.runBounded (← IO.currentDir) 420 (← IO.appPath).toString
+      (#["--under-deadline", "--attempt", attempt] ++ args.toArray)

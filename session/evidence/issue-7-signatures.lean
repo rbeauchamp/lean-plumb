@@ -25,3 +25,21 @@ import StrictLeanPolicy.Acceptance
 #print axioms StrictLeanPolicy.combined_reports_same_snapshot
 #print axioms StrictLeanPolicy.infrastructure_disjoint
 #print axioms StrictLeanPolicy.fileSourceBinding_bytes
+
+-- Current environment-indexed and split-execution guarantees, with all hypotheses.
+#check StrictLeanPolicy.census_exact_requests
+#check StrictLeanPolicy.census_project_partition
+#check StrictLeanPolicy.requiredJobs_environment_coverage
+#check StrictLeanPolicy.accepted_environment_resolves
+#check StrictLeanPolicy.finalize_collection_error
+#check StrictLeanPolicy.finalize_of_collected
+#check StrictLeanPolicy.finalize_reindexed
+#check StrictLeanPolicy.finalize_singleton_transfer
+#print axioms StrictLeanPolicy.census_exact_requests
+#print axioms StrictLeanPolicy.census_project_partition
+#print axioms StrictLeanPolicy.requiredJobs_environment_coverage
+#print axioms StrictLeanPolicy.accepted_environment_resolves
+#print axioms StrictLeanPolicy.finalize_collection_error
+#print axioms StrictLeanPolicy.finalize_of_collected
+#print axioms StrictLeanPolicy.finalize_reindexed
+#print axioms StrictLeanPolicy.finalize_singleton_transfer

@@ -186,8 +186,29 @@ private def qualify (group : String) (evidence : FilePath) (receipt : IO.Ref Jso
         cmd := (bin / "axiomGate").toString, args,
         cwd := some project, env }
       let elapsed := (← IO.monoMsNow) - start
-      let value ← if ← output.pathExists then readJson output else pure Json.null
-      let sourceTrace ← if ← trace.pathExists then readJson trace else pure Json.null
+      -- Persist each existing raw artifact and its location before any parsing.
+      -- If the second move or a later parse fails, the active case still accounts
+      -- for the first file. Missing files are explicitly null, never fabricated.
+      let mut active := (← receipt.get).getObjVal? "activeCase" |>.toOption.getD Json.null
+      active := (active.setObjVal! "exitCode" (toJson result.exitCode.toNat)).setObjVal!
+        "log" (toJson (result.stdout ++ result.stderr))
+      update "activeCase" active
+      let resultEvidence := evidence.addExtension s!"result-{records.size}.json"
+      let traceEvidence := evidence.addExtension s!"source-trace-{records.size}.json"
+      let resultFile ← if ← output.pathExists then do
+        IO.FS.rename output resultEvidence
+        pure (toJson resultEvidence.toString)
+        else pure Json.null
+      active := active.setObjVal! "resultFile" resultFile
+      update "activeCase" active
+      let traceFile ← if ← trace.pathExists then do
+        IO.FS.rename trace traceEvidence
+        pure (toJson traceEvidence.toString)
+        else pure Json.null
+      active := active.setObjVal! "sourceTraceFile" traceFile
+      update "activeCase" active
+      let value ← if resultFile != Json.null then readJson resultEvidence else pure Json.null
+      let sourceTrace ← if traceFile != Json.null then readJson traceEvidence else pure Json.null
       let log := result.stdout ++ result.stderr
       let timeoutObservation ← if ← timeoutRecord.pathExists then readJson timeoutRecord else pure Json.null
       let timedOut := (timeoutObservation.getObjValAs? Nat "workerExitCode").toOption == some 137 &&
@@ -203,19 +224,8 @@ private def qualify (group : String) (evidence : FilePath) (receipt : IO.Ref Jso
         let expected ← array retained "sourceBindings"
         let child ← get sourceTrace "childResult"
         passed := passed && expected.size == 2 && (← get child "sourceAccount") == toJson expected
-      -- Retain the original emitted bytes once. Rewriting all previous raw packets
-      -- in each receipt update adds no evidence and scales quadratically.
-      let resultEvidence := evidence.addExtension s!"result-{records.size}.json"
-      let traceEvidence := evidence.addExtension s!"source-trace-{records.size}.json"
-      let resultFile ← if ← output.pathExists then do
-        IO.FS.rename output resultEvidence
-        pure (toJson resultEvidence.toString)
-        else pure Json.null
-      let traceFile ← if ← trace.pathExists then do
-        IO.FS.rename trace traceEvidence
-        pure (toJson traceEvidence.toString)
-        else pure Json.null
-      let record := Json.mkObj [("phase", toJson phase), ("fault", toJson fault), ("command", toJson args),
+      let record := Json.mkObj [("phase", toJson phase), ("fault", toJson fault),
+        ("command", toJson (#[ (bin / "axiomGate").toString ] ++ args)),
         ("milliseconds", toJson elapsed), ("exitCode", toJson result.exitCode.toNat), ("timeout", toJson timedOut),
         ("expectedReason", toJson reason), ("status", toJson status), ("pass", toJson passed),
         ("log", toJson log), ("resultFile", resultFile), ("sourceTraceFile", traceFile),
@@ -228,13 +238,19 @@ private def qualify (group : String) (evidence : FilePath) (receipt : IO.Ref Jso
 
 /-- Invalidate old evidence before setup. SIGKILL leaves a current incomplete receipt;
 ordinary exceptions retain failure and the active case. Filesystem atomicity is trusted. -/
-def check (group : String) (evidence : FilePath) : IO Unit := do
+def beginAttempt (group : String) (evidence : FilePath) (attempt : String) : IO Json := do
   if let some parent := evidence.parent then IO.FS.createDirAll parent
-  let attempt ← IO.getRandomBytes 16
-  let receipt ← IO.mkRef (Json.mkObj [("attemptId", toJson (attempt.toList.map UInt8.toNat)),
+  let receipt := Json.mkObj [("attemptId", toJson attempt),
     ("status", toJson "incomplete"), ("group", toJson group), ("inputs", Json.mkObj []),
-    ("records", toJson (#[] : Array Json))])
-  save evidence (← receipt.get)
+    ("records", toJson (#[] : Array Json))]
+  save evidence receipt
+  return receipt
+
+/-- The outer wrapper supplies its original attempt; direct timed dispatch creates
+one before setup. Neither path can reuse a previous completed receipt. -/
+def check (group : String) (evidence : FilePath) (attempt : Option String := none) : IO Unit := do
+  let attempt ← attempt.map pure |>.getD freshAttempt
+  let receipt ← IO.mkRef (← beginAttempt group evidence attempt)
   try
     requireChecks [⟨"known transport group", !(faults group).isEmpty⟩]
     qualify group evidence receipt

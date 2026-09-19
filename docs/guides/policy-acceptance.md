@@ -46,8 +46,11 @@ terminal source/configuration guards remain separate. The focused
 `lake exe qualify acceptance sources --evidence tmp/acceptance-sources.json`
 diagnostic checks two Lake-discovered sources, shortened/reordered/extra request refusals,
 retained source accounts and positive restoration; it does not prove IO extraction.
-Its evidence destination is initialized as a new incomplete attempt before binary/setup
-reads, retains obtained records on failure, and becomes completed only after every case
+Its evidence destination is initialized as a new incomplete attempt before timeout
+discovery/spawn and binary/setup reads. The timed child carries that same attempt.
+Raw result/trace sidecars and their partial-file locations are retained before parsing;
+completed case commands retain both executable and argv. The receipt retains obtained
+records on failure, and becomes completed only after every case
 and restoration. A killed process cannot promote the current incomplete receipt. Graph
 invocations likewise invalidate recognizable absolute result destinations before argument
 parsing or root discovery, and relative destinations once their project root is resolved.
@@ -113,6 +116,15 @@ All execution requests for a root come from registrations in its bound environme
 The existing collector and `finalize` still require exact input occurrence coverage
 and every policy obligation. File and graph paths use one environment; document
 plans use no project environment and retain their exact fence inventory and modes.
+
+The current executed guarantee uses this full census, environment-local roles/jobs,
+actual result collection and `finalize_iff`, including checked equality for split
+collection/finalization. Conditional legacy transfer lemmas are not used by the
+acceptance path. Their coherence hypotheses have not been instantiated to establish
+operational equivalence with the former flattened IO collector; no such equivalence
+is claimed. The private `finishDocuments` helper consumes unchanged `auditTasks`
+output, whose collector has already refused unknown, duplicate and missing task
+occurrences. The helper alone is not an arbitrary raw-occurrence admission API.
 
 This establishes relations among supplied observations. Lean/Lake extraction,
 compiler admission, source reads, process completion, and compiled execution retain

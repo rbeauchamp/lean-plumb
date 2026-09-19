@@ -157,6 +157,15 @@ termination and the coordinator's incomplete/no-acceptance response. It does not
 establish whole-coordinator cancellation; `TimeoutControl` retains the separate
 process-group descendant controls. No nested timer creates an escaping group.
 
+`lake exe qualify receipt-boundaries` seeds completed evidence and exercises
+actual missing/unusable timeout selection and selected-timer spawn failures for
+both `acceptance` and `environments`. Each public invocation replaces the old
+receipt with a fresh incomplete attempt before those fallible operations. The
+timed child carries the same attempt, and adds no new deadline. Acceptance keeps
+existing raw result/trace sidecars before parsing and records partial file
+locations on the active case; completed command records contain executable plus
+argv. These are diagnostic receipt guarantees under trusted filesystem/process IO.
+
 The operator approved a narrow exception for the existing CI bootstrap to install pinned
 Elan/Lean and required system tools before Lean is available, expose their paths, and
 check availability/versions. `AGENTS.md` records its exact scope: no policy decisions,

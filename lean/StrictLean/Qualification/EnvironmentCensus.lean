@@ -13,16 +13,21 @@ private def atomicWrite (path : FilePath) (value : Json) : IO Unit := do
   IO.FS.writeFile temporary (value.compress ++ "\n")
   IO.FS.rename temporary path
 
-private def save (path : FilePath) (packets records : Array Json) (status : String) : IO Unit :=
+private def save (attempt : String) (path : FilePath) (packets records : Array Json) (status : String) : IO Unit :=
   atomicWrite path <| Json.mkObj [
-    ("schemaVersion", toJson (1 : Nat)), ("status", toJson status),
+    ("attemptId", toJson attempt), ("schemaVersion", toJson (1 : Nat)), ("status", toJson status),
     ("packets", toJson packets), ("controls", toJson records)]
+
+/-- Invalidate the destination before timeout discovery or process launch. -/
+def beginAttempt (path : FilePath) (attempt : String) : IO Unit := do
+  if let some parent := path.parent then IO.FS.createDirAll parent
+  save attempt path #[] #[] "incomplete"
 
 /-- Exercise actual native acquisition and the public freeze/finalization adapters.
 The command owns one existing outer deadline, including its incremental build observation. -/
-private unsafe def checkCore (path : FilePath) : IO Unit := do
+private unsafe def checkCore (attempt : String) (path : FilePath) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
-  save path #[] #[] "incomplete"
+  save attempt path #[] #[] "incomplete"
   let root ← rootDirectory
   let configuration ← SourceBinding.configuration root (Manifest.defaultPath root)
   let inventory ← Lake.surfaceInventory root
@@ -35,7 +40,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
   let (build, failure) ← Lake.buildCheckedObservation root targets "incrementally for environment qualification"
   let mut records := #[Json.mkObj [("case", toJson "build"), ("observation", toJson build)]]
   let mut packets : Array Json := #[]
-  save path packets records "incomplete"
+  save attempt path packets records "incomplete"
   requireChecks [⟨"positive targets build warning-free", failure.isNone⟩]
   SourceBinding.unchanged sources
   SourceBinding.configurationUnchanged configuration
@@ -49,7 +54,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
       ("report", toJson report), ("transcripts", toJson (#[] : Array StrictLeanPolicy.Frontend.Transcript)),
       ("frontendComplete", toJson false)])
     packets := packets.push (toJson packetPath.toString)
-    save path packets records "incomplete"
+    save attempt path packets records "incomplete"
     let candidates := report.declarations.foldl (fun names d =>
       if Policy.needsFrontendTranscript #[d] && !names.contains d.module then names.push d.module
       else names) (#[] : Array Name)
@@ -61,7 +66,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
     let inspected : Acceptance.RequestedInspection := ⟨modules, report, transcripts⟩
     reports := reports.push inspected
     atomicWrite packetPath (toJson inspected)
-    save path packets records "incomplete"
+    save attempt path packets records "incomplete"
     IO.ofExcept ((SourceBinding.validateAgainst sources report).mapError (·.detail))
     IO.ofExcept ((SourceBinding.transcriptsMatch sources transcripts).mapError (·.detail))
     let _ ← IO.ofExcept <| Policy.admitScope report.declarations transcripts
@@ -81,7 +86,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
     (left.transcripts ++ right.transcripts)
   records := records.push <| Json.mkObj [("case", toJson "concatenated-inventory"),
     ("collisions", toJson collisions), ("refusal", toJson (joined.toOption.isNone))]
-  save path packets records "incomplete"
+  save attempt path packets records "incomplete"
   requireChecks [⟨"real cross-environment name collision retained", !collisions.isEmpty⟩,
     ⟨"concatenated unchanged inventories refused", joined.toOption.isNone⟩]
   let histories ← IO.ofExcept <| Acceptance.historyObservations reports
@@ -96,7 +101,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
   let buildObservation := Acceptance.buildObservation build
   let _ ← Acceptance.finish frozen buildObservation
   records := records.push <| Json.mkObj [("case", toJson "complete-positive"), ("passed", toJson true)]
-  save path packets records "incomplete"
+  save attempt path packets records "incomplete"
   for (name, mutated, reason) in #[
       ("omitted-environment", reports.extract 0 (reports.size - 1), "missing, duplicate or unrequested environment inspection"),
       ("duplicate-environment", reports.push left, "missing, duplicate or unrequested environment inspection"),
@@ -107,7 +112,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
     let result ← (freeze mutated).toBaseIO
     let refusal := match result with | .ok _ => "" | .error error => error.toString
     records := records.push <| Json.mkObj [("case", toJson name), ("refusal", toJson refusal)]
-    save path packets records "incomplete"
+    save attempt path packets records "incomplete"
     requireChecks [⟨name, refusal.contains reason⟩]
   let inputs ← IO.ofExcept <| Acceptance.observations frozen buildObservation
   -- Mutate only raw supplied observations; retain the independently frozen plan/roles.
@@ -124,7 +129,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
     | .error (.acceptance .policyViolation) => true
     | _ => false
   records := records.push <| Json.mkObj [("case", toJson "replay-omission"), ("refused", toJson replayRefused)]
-  save path packets records "incomplete"
+  save attempt path packets records "incomplete"
   requireChecks [⟨"replay-omission", replayRefused⟩]
   let some foreignRoot := right.report.execution.find? (·.name == `main)
     | throw <| IO.userError "application main execution observation absent"
@@ -167,7 +172,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
     let result := finalize frozen.plan frozen.roles mutated
     let refusal := match result with | .ok _ => "" | .error failure => reprStr failure
     records := records.push <| Json.mkObj [("case", toJson name), ("refusal", toJson refusal)]
-    save path packets records "incomplete"
+    save attempt path packets records "incomplete"
     requireChecks [⟨name, match result with
       | .error (.acceptance .policyViolation) => true
       | _ => false⟩]
@@ -186,7 +191,7 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
     let result := finalize frozen.plan frozen.roles mutated
     let refusal := match result with | .ok _ => "" | .error failure => reprStr failure
     records := records.push <| Json.mkObj [("case", toJson name), ("refusal", toJson refusal)]
-    save path packets records "incomplete"
+    save attempt path packets records "incomplete"
     requireChecks [⟨name, match result with
       | .error (.collection .invalidBinding) => true
       | _ => false⟩]
@@ -196,13 +201,15 @@ private unsafe def checkCore (path : FilePath) : IO Unit := do
   SourceBinding.configurationUnchanged configuration
   Snapshot.inputsUnchanged inventory dependencies
   records := records.push <| Json.mkObj [("case", toJson "restored-complete-positive"), ("passed", toJson true)]
-  save path packets records "complete"
+  save attempt path packets records "complete"
   IO.println "environment census qualification: PASS (scoped native observations)"
 
 /-- Ordinary failures retain all captured packets and report failure. Termination before
 this handler runs leaves the initialized incomplete receipt; atomic rename is trusted IO. -/
-unsafe def check (path : FilePath) : IO Unit := do
-  try checkCore path
+unsafe def check (path : FilePath) (attempt : Option String := none) : IO Unit := do
+  let attempt ← attempt.map pure |>.getD freshAttempt
+  beginAttempt path attempt
+  try checkCore attempt path
   catch error =>
     let evidence ← StrictLean.Qualification.readJson path
     atomicWrite path ((evidence.setObjVal! "status" (toJson "failed")).setObjVal!

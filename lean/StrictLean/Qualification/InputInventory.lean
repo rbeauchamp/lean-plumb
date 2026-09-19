@@ -76,6 +76,7 @@ def check : IO Unit := do
           requireChecks [⟨"added root actually built", observation == Json.mkObj [
             ("buildExit", toJson (0 : Nat)), ("addedBuilt", toJson true)]⟩,
             ⟨s!"root inventory refusal: {log}\n{packet.compress}", result.exitCode != 0 && log.contains "root inventory changed:" &&
+              !log.contains "accepted " &&
               (packet.getObjValAs? String "status").toOption == some "incomplete" &&
               (packet.getObjVal? "acceptance").toOption.isNone⟩]
         else
