@@ -12,7 +12,7 @@ Reuse Lean and Mathlib structures whose laws match the mathematical objects or e
 
 **Implementation Guidelines**:
 
-- Import `Mathlib.Data.Real.Basic` when the model uses real numbers.
+- Import `Mathlib.Basic.Real.Basic` when the model uses real numbers.
 - Use `ℝ` when the claim treats time, probability, or another quantity as real-valued. Use the corresponding refined type when bounds are required.
 - Use floating-point and fixed-width machine types when the claim is about that arithmetic, and name the semantics the claim relies on: rounding and exceptional values for `Float`; wrapping and bit width for machine words and `BitVec`; serialization when values cross a byte boundary.
 - Specify an executable representation directly when its behavior is the subject of the claim. Transfer an abstract model’s result through checked correspondence to the actual implementation ([module 1 §1.3](1-core-principles.md#13-the-specificationmodel-firewall)).
@@ -49,7 +49,7 @@ An `LE` instance supplies a relation used by `≤`. It provides no proofs of ref
 
 <!-- lean-fail: (?s)failed to synthesize.*LinearOrder -->
 ```lean
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 
 structure T where
   val : Real

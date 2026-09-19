@@ -156,7 +156,7 @@ def wrongDomain (t : Glossary.Time) : Unit := consume t
 **Example - Type-Safe Identifiers**:
 
 ```lean
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 
 namespace PhantomIds
 structure TaggedId (entity : Type) where
@@ -215,7 +215,7 @@ noncomputable def velocity (d : Distance) (t : Duration) : Velocity :=
 
 <!-- lean-fail: Application type mismatch|is expected to have type -->
 ```lean
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 
 inductive Meters
 inductive Seconds

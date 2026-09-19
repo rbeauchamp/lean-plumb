@@ -19,7 +19,7 @@ This section establishes proof patterns for mathematical statements and contract
 **Example - An Intrinsic Invariant and Its Consequences**:
 
 ```lean
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 import Mathlib.Data.List.Basic
 
 /-- A system state that must maintain invariants -/
@@ -181,7 +181,7 @@ A discovered counterexample can become a checked refutation, and a discovered wi
 The following class and instance elaborate, but the two advertised laws are false. The checked refutations identify the defect; merely compiling the operations would not.
 
 ```lean
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 import Mathlib.Tactic.NormNum
 
 -- ❌ CRITICAL VIOLATION: Laws only in documentation
@@ -220,7 +220,7 @@ example : ¬ Monotone (BadFlourishing.measure : ℝ → ℝ) := by
 Failure to prove a law leaves an unresolved obligation. A counterexample may show that the law or operations need correction; difficulty finding a proof does not prove either is wrong. This separate interface illustrates three order laws rather than repairing the associativity contract above.
 
 ```lean
-import Mathlib.Data.Real.Basic     -- `measure : α → ℝ` and the ℝ instance below
+import Mathlib.Basic.Real.Basic     -- `measure : α → ℝ` and the ℝ instance below
 import Mathlib.Algebra.Order.Group.Defs
 /-- The order is a separate lawful parameter (`Preorder`), not an `LE` parent
     the instance could choose for itself. -/
@@ -310,7 +310,7 @@ theorem noMixin {α : Type} [Preorder α] [Economy.Flourishable α] (a b : α) :
 A branch that affects runtime data needs a computable decision procedure. Classical reasoning may be used in erased proofs under an allowed foundation profile or in noncomputable logical definitions. Proof erasure and noncomputability do not prevent all logical reduction; they distinguish what must execute in compiled code. For example, this logical constructor uses noncomputable real order:
 
 ```lean
-import Mathlib.Data.NNReal.Defs
+import Mathlib.Basic.NNReal.Defs
 
 /-- Proof-producing logical admission; arbitrary real comparison is noncomputable. -/
 noncomputable def mkResource? (c : ℝ) : Option NNReal :=
@@ -693,7 +693,7 @@ example (ops : List Op) (l final : Limiter) :
 
 `executeChecked_exact` composes admission with this runner. `Main` passes `requiredContracts` to `executeChecked`, so required admission, update, input policy, success/refusal, and composition propositions are proof obligations about the same core it calls (§8.5). The shell describes success/refusal output using the returned result and state. The proofs do not establish terminal effects, native arithmetic correctness, complexity, empirical benefit, or external liveness. The default demonstration reaches a refusal; `AuditApp.demo_checked_error` derives its stopped state from the universal contract.
 
-**Choose the smallest proof interface.** The pinned Lean 4.33.1 library provides `Std.Do.Triple` (precondition entails weakest precondition), `Std.Do.Triple.bind` for composition, `WPMonad` instances for `StateT`/`ExceptT`, and `Std.Tactic.Do`'s `mvcgen`. Use these when they simplify verification conditions; no tactic is mandatory. This example reuses the standard transformers and proves exact outcome equations by reduction and list induction, avoiding an additional predicate-transformer encoding of the same equations. For a larger monadic program, `Triple.bind` connects the first result's postcondition to the continuation's precondition while retaining explicit exceptional postconditions.
+**Choose the smallest proof interface.** The pinned Lean 4.34.0 library provides `Std.Do.Triple` (precondition entails weakest precondition), `Std.Do.Triple.bind` for composition, `WPMonad` instances for `StateT`/`ExceptT`, and `Std.Tactic.Do`'s `mvcgen`. Use these when they simplify verification conditions; no tactic is mandatory. This example reuses the standard transformers and proves exact outcome equations by reduction and list induction, avoiding an additional predicate-transformer encoding of the same equations. For a larger monadic program, `Triple.bind` connects the first result's postcondition to the continuation's precondition while retaining explicit exceptional postconditions.
 
 Local `let mut`, a `for` loop, or an efficient array representation does not itself imply external effects or `unsafe` execution. Inspect the elaborated total function and prove its relation; efficient representations remain permitted with their boundary/correspondence proofs. For example, local rebinding below denotes a pure function for every `Nat`:
 
@@ -798,7 +798,7 @@ open AuditApp AuditApp.Refinement
 /-- Non-vacuity: every positive capacity admits the stated initial pair. -/
 example (cap : Nat) (h : 0 < cap) :
     admit cap = some ⟨cap, 0, Nat.zero_le cap⟩ := by
-  rw [admit_exact, if_pos h]
+  rw [admit_exact, ite_eq_left h]
 
 /-- Universal simulation, with an existential finite abstract match. -/
 example (cap a : Nat) (c c' : Limiter) (hr : R cap c a) (hs : StepC c c') :

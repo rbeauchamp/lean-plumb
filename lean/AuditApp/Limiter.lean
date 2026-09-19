@@ -70,7 +70,7 @@ theorem admit_sound {capacity : Nat} {l : Limiter} (h : admit capacity = some l)
 theorem admit_none {capacity : Nat} (h : capacity = 0) : admit capacity = none := by
   subst h
   unfold admit
-  rw [dif_neg (Nat.lt_irrefl 0)]
+  rw [dite_eq_right (Nat.lt_irrefl 0)]
 
 /-- Admission preserves the requested capacity and succeeds exactly for positive
 requests, returning the fresh state. This also rules out rejecting every request. -/
@@ -127,12 +127,12 @@ def release (l : Limiter) : Limiter :=
 theorem release_of_pos {l : Limiter} (h : 0 < l.inUse) :
     (release l).inUse = l.inUse - 1 := by
   unfold release
-  rw [if_neg (by omega : ¬ l.inUse = 0)]
+  rw [ite_eq_right (by omega : ¬ l.inUse = 0)]
 
 /-- Releasing an idle limiter is the identity transition. -/
 theorem release_of_zero {l : Limiter} (h : l.inUse = 0) : release l = l := by
   unfold release
-  rw [if_pos h]
+  rw [ite_eq_left h]
 
 /-- Update boundary: reset to idle, keeping the capacity. -/
 def reset (l : Limiter) : Limiter :=
@@ -170,10 +170,10 @@ theorem step_capacity (l : Limiter) (op : Op) : (step l op).capacity = l.capacit
   · show ((grant l).getD l).capacity = l.capacity
     by_cases hlt : l.inUse < l.capacity
     · unfold grant
-      rw [dif_pos hlt]
+      rw [dite_eq_left hlt]
       rfl
     · unfold grant
-      rw [dif_neg hlt]
+      rw [dite_eq_right hlt]
       rfl
   · show (release l).capacity = l.capacity
     unfold release
@@ -214,7 +214,7 @@ theorem run_replicate_grant (l : Limiter) (n : Nat) (h : l.inUse + n ≤ l.capac
     have hin : (step l Op.grant).inUse = l.inUse + 1 := by
       show ((grant l).getD l).inUse = l.inUse + 1
       unfold grant
-      rw [dif_pos hlt]
+      rw [dite_eq_left hlt]
       rfl
     have hcap : (step l Op.grant).capacity = l.capacity := step_capacity l Op.grant
     have h' : (step l Op.grant).inUse + k ≤ (step l Op.grant).capacity := by
@@ -253,9 +253,9 @@ theorem checkedStep_exact (op : Op) (l : Limiter) :
   cases op with
   | grant =>
     by_cases h : l.inUse = l.capacity
-    · rw [if_pos ⟨rfl, h⟩]
+    · rw [ite_eq_left ⟨rfl, h⟩]
       simp [checkedStep, grant_none.mpr h]
-    · rw [if_neg (by simp [h])]
+    · rw [ite_eq_right (by simp [h])]
       have hn : grant l ≠ none := fun he => h (grant_none.mp he)
       cases hg : grant l with
       | none => exact False.elim (hn hg)
@@ -290,7 +290,7 @@ theorem runChecked_success (ops : List Op) (l final : Limiter) :
   | cons op ops ih =>
     rw [runChecked_cons]
     by_cases h : op = .grant ∧ l.inUse = l.capacity
-    · rw [if_pos h]
+    · rw [ite_eq_left h]
       have hn : ¬ (op = .grant → l.inUse < l.capacity) := by
         intro hf
         have := hf h.1
@@ -301,7 +301,7 @@ theorem runChecked_success (ops : List Op) (l final : Limiter) :
       constructor
       · intro he; cases he.1
       · intro he; exact False.elim he
-    · rw [if_neg h, ih]
+    · rw [ite_eq_right h, ih]
       have hp : op = .grant → l.inUse < l.capacity := by
         intro ho
         have hb := l.bounded
@@ -368,7 +368,7 @@ theorem runChecked_error (ops : List Op) (l final : Limiter) :
       rw [hs, runChecked_append]
       rw [(runChecked_success before l final).mpr ⟨fits, hf⟩]
       change runChecked (.grant :: after) final = _
-      rw [runChecked_cons, if_pos ⟨rfl, full⟩]
+      rw [runChecked_cons, ite_eq_left ⟨rfl, full⟩]
 
 /-- Capacity is framed on success and error, including every successful prefix. -/
 theorem runChecked_capacity (ops : List Op) (l : Limiter) :

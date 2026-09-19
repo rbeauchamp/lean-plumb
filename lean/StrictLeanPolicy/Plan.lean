@@ -304,8 +304,8 @@ theorem requiredJobs_distinct_iff (c : Claim) (i : Census) :
 /-- Concrete plan validity checks the census, derived keys, profile assignments and root
 request coverage. Unknown module ownership cannot default to a permissive profile. -/
 def PlanOK (c : Claim) (i : Census) : Prop :=
-  c.val.snapshot.toolchain.leanVersion = "4.33.1" ∧
-  c.val.snapshot.toolchain.compilerCommit = "819816b2e0a3bf405af45ae5c7af2491d8f5bee6" ∧
+  c.val.snapshot.toolchain.leanVersion = "4.34.0" ∧
+  c.val.snapshot.toolchain.compilerCommit = "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b" ∧
   CensusOK c i ∧ (requiredJobs c i).toList.Pairwise (· ≠ ·) ∧
   (∀ job ∈ requiredJobs c i, StageSubjectCompatible job.1 job.2 = true) ∧
   (∀ d ∈ i.declarations, (profileForModule c d.moduleKey.name.name).isSome = true) ∧
@@ -359,7 +359,7 @@ theorem admitPlan_decision_eq (c : Claim) (i : Census) (jobs : Array JobKey)
 theorem admitPlan_exact (c : Claim) (i : Census) (p : Plan c i) :
     admitPlan c i p.jobs = .ok p := by
   unfold admitPlan
-  rw [dif_pos p.valid, dif_pos p.exactJobs, dif_pos p.exactClaim]
+  rw [dite_eq_left p.valid, dite_eq_left p.exactJobs, dite_eq_left p.exactClaim]
 /-- Realize all independently derived jobs; mapM refuses rather than discarding an
 unsupported subject. The existing plan admission checks the complete resulting array. -/
 def buildPlan (c : Claim) (i : Census) : Except String (Plan c i) := do

@@ -32,7 +32,7 @@ destination is planned, not yet live.
 
 ## What is checked
 
-1. Lean 4.33.1 compiles `Rule.lean` and `Probe.lean`; `Export.lean` exports the total one-rule
+1. Lean 4.34.0 compiles `Rule.lean` and `Probe.lean`; `Export.lean` exports the total one-rule
    descriptor. The probe registers a real command linter and emits a textual help URL. Its separate,
    explicitly named empty environment linter checks registration compatibility only, not detection.
 2. Actual fixture files compile independently. The violation contains an unused axiom; the fix
@@ -52,7 +52,7 @@ destination is planned, not yet live.
    contract preserves required/emitted IDs, route and observed checked-example conditions.
    These are presentation/transport contracts, not semantic detection or proofs of IO.
    Blocks render as text, without
-   silent re-elaboration on documentation Lean 4.33.0. The full dependency lock is retained.
+   silent re-elaboration on documentation Lean 4.34.0. The full dependency lock is retained.
    Generated source is never manually edited or committed. Every page includes appropriate credit.
 5. The output is assembled below the project base. Two renders at identical inputs must have
    identical relative file names and per-file bytes (no hash assumption). This is observed repeatability for these inputs, not a
@@ -84,15 +84,17 @@ not prove its collector or policy universally correct; proof-bearing acceptance 
 
 ## Pins and credit
 
-- Checker/examples: Lean 4.33.1, compiler `819816b2e0a3bf405af45ae5c7af2491d8f5bee6`.
-- Docs: Lean 4.33.0; [Verso](https://github.com/leanprover/verso/tree/3bdedf29bada13d8103e6c979001c51dcee210c8).
-  Transitive revisions are in `site/lake-manifest.json`; do not update moving branches.
+- Checker/examples: the root [supported toolchain](../../README.md#supported-toolchain).
+- Docs: [site/lean-toolchain](site/lean-toolchain) matches the root pin;
+  [site/lakefile.toml](site/lakefile.toml) selects Verso's exact revision.
+  Transitive revisions are in [site/lake-manifest.json](site/lake-manifest.json);
+  do not update moving branches.
 - **Lean FRO's con-leche**: [Installed.lean](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean)
   and [PropWhen.lean](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean)
   motivate canonical metadata and proof-bearing boundaries. No con-leche code/proof is copied;
   this does not claim that con-leche proves Strict Lean correct.
-- Lean authors supply [linter registration](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Elab/Command.lean)
-  and the [message/widget pattern](https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Log.lean).
+- Lean authors supply [linter registration](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Elab/Command.lean)
+  and the [message/widget pattern](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Log.lean).
   The diagnostic adapter is original API-use code informed by that pattern.
 - Verso authors and David Thrane Christiansen's [package-docs template](https://github.com/leanprover/verso-templates/tree/76c9edf5a70f14d272af0f0f354ec833ac22c350/package-docs)
   inform separate documentation/example toolchains; template prose/code is not copied.

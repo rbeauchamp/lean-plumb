@@ -59,7 +59,7 @@ theorem evaluate_error (checks : List Check) (label : String) :
           have hf := hs first (by simp)
           rw [← he.1, h] at hf
           contradiction
-    · rw [evaluate, if_pos h, ih]
+    · rw [evaluate, ite_eq_left h, ih]
       constructor
       · rintro ⟨before, bad, after, he, hs, hb, hl⟩
         exact ⟨check :: before, bad, after, by simp [he],

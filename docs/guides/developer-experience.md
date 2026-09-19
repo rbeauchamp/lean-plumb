@@ -206,8 +206,10 @@ visual styling or Lean semantics. See the [comparison and attribution](ecosystem
 No broad implementation rewrite is a prerequisite for the next unit. The shipped registry and
 prototype remain useful. New requirements must be copied into the full live successor bodies
 before #20 is marked Done; the links here do not substitute for missing settled decisions.
-All source-dependent findings use Lean 4.33.1; conventional integration and UX are future
-qualified behavior. The ordinary hard 420-second acceptance budget is unchanged.
+The source-dependent findings in this design were inspected on Lean 4.33.1; the links
+below retain that historical snapshot, not evidence for the current
+[supported toolchain](../../README.md#supported-toolchain). Conventional integration and
+UX remain future qualified behavior. The ordinary hard 420-second acceptance budget is unchanged.
 
 [lake-help]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/lake/Lake/CLI/Help.lean
 [lake-main]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/lake/Lake/CLI/Main.lean

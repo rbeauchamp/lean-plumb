@@ -149,8 +149,8 @@ serialized-graph or full-project completion claim follows from the corpus alone.
 
 The website must render these exported sources directly and retain the result identity.
 Reject a stale source/registry or unmatched source/configuration/mode; never replace an
-unavailable version with current source. The actual linter/examples use Lean 4.33.1 and the
-root pinned dependencies. Verso's separate Lean 4.33.0 toolchain renders them as text.
+unavailable version with current source. The actual linter/examples use Lean 4.34.0 and the
+root pinned dependencies. Verso's separate workspace uses the same Lean 4.34.0 toolchain and renders them as text.
 
 Detectors, ranges and elaboration reuse Lean/Lake facilities. The registry's canonical/indexed
 representation retains its specific [design attribution](design-influences.md); no con-leche

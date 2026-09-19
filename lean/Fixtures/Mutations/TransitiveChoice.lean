@@ -5,6 +5,6 @@ through a rational Cauchy completion and the classical linear-order instance.
 Importing Mathlib is not itself disqualifying; the transitive axiom set
 decides the label.
 -/
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 
 theorem fixtures_transitive_choice (x : ℝ) : x ≤ x := le_refl x

@@ -1,4 +1,4 @@
-import Mathlib.Data.NNReal.Defs
+import Mathlib.Basic.NNReal.Defs
 import Mathlib.Order.Basic
 
 /-!

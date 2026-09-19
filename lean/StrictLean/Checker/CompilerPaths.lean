@@ -163,12 +163,20 @@ private def phase (repo scratch : FilePath) (test : Case) (negative : Bool) : IO
   let supportName := test.supportModule.toName
   let supportPath := Lean.modToFilePath scratch supportName "lean"
   if let some parent := supportPath.parent then IO.FS.createDirAll parent
-  IO.FS.writeFile supportPath (header ++ "namespace CompilerPath\n" ++ body ++ "end CompilerPath\n")
+  IO.FS.writeFile supportPath (header ++
+    "/-! Imported execution-path qualification support. -/\n" ++
+    "namespace CompilerPath\n" ++ body ++ "end CompilerPath\n")
   IO.FS.writeFile (scratch / "Wrapper.lean")
-    s!"import {test.supportModule}\ndef callsImported (n : Nat) := CompilerPath.entry n\n"
+    s!"import {test.supportModule}\n/-! Execution-path qualification consumer. -/\ndef callsImported (n : Nat) := CompilerPath.entry n\n"
   IO.FS.writeFile (scratch / "lean-toolchain") (← IO.FS.readFile (repo / "lean-toolchain"))
   IO.FS.writeFile (scratch / "lakefile.toml")
     s!"name = \"compiler_path_control\"\n[[lean_lib]]\nname = \"{test.supportModule}\"\n[[lean_lib]]\nname = \"Wrapper\"\n"
+  -- Resolve configuration before the checker captures its immutable source
+  -- binding. A later first Lake invocation would otherwise create the manifest
+  -- inside the checked interval, correctly invalidating that binding.
+  let configured ← runProcess scratch "lake" #["update"]
+  if !configured.succeeded then
+    return #[s!"{test.name}: configuration setup failed:\n{configured.output}"]
   -- Lean resolves an entire module prefix from one search directory. Supply
   -- the unchanged toolchain Init artifacts by symlink alongside the isolated
   -- adopter module; never write into the actual toolchain. Each phase starts

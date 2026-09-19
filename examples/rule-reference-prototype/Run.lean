@@ -51,7 +51,10 @@ private def runPrototype : IO Unit := do
     requireChecks [⟨s!"{command} {args}: expected {expected}, got {result.exitCode}\n{result.stdout}{result.stderr}", result.exitCode == expected⟩]
     return result.stdout
   let version ← invoke root "lake" #["env", "lean", "--version"] 0 env
-  requireChecks [⟨"root supported compiler", version.contains "4.33.1"⟩]
+  requireChecks [⟨"root supported compiler", version.contains "4.34.0" &&
+    version.contains "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b"⟩]
+  let siteVersion ← invoke (here / "site") "lake" #["env", "lean", "--version"] 0 cleanEnv
+  requireChecks [⟨"site and checker use the same compiler", siteVersion == version⟩]
   let _ ← invoke root "lake" #["build", "axiomGate"] 0 env
   for name in #["Rule", "Probe"] do
     let _ ← invoke root "lake" #["env", "lean", "-o", (out / s!"{name}.olean").toString, (here / s!"{name}.lean").toString] 0 env

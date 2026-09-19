@@ -154,10 +154,8 @@ accepted report is not full standard conformance.
 
 ## Evidence and supported domain
 
-The implementation targets Lean 4.33.1, compiler commit
-`819816b2e0a3bf405af45ae5c7af2491d8f5bee6`. The root dependency pin is Mathlib
-`0df444a360eaa60ab8c11dca51a86af692955474`;
-the pure policy library itself imports Init/Std and its own modules, not Mathlib
+The implementation targets the [supported toolchain](../../README.md#supported-toolchain).
+The pure policy library itself imports Init/Std and its own modules, not Mathlib
 or the excluded operational checker.
 
 The [POLICY-03 evidence](../../session/evidence/issue-6-verification.md) records its
