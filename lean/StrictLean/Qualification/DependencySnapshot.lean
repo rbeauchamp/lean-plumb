@@ -135,6 +135,6 @@ def check (group : String) : IO Unit := do
               let loc ← d.getObjVal? "location"
               pure ((← loc.getObjValAs? String "kind") == "source" &&
                 (← loc.getObjValAs? String "uri").endsWith "Example.lean")).toOption == some true)⟩,
-            ⟨"unresolved history", result.stdout.contains "execution-unresolved"⟩]
+            ⟨"unresolved history", (result.stdout ++ result.stderr).contains "execution-unresolved"⟩]
         IO.println s!"snapshot history {mode}/{phase}: PASS"
 end StrictLean.Qualification.DependencySnapshot

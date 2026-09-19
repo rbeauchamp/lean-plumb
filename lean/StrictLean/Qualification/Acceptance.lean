@@ -279,10 +279,11 @@ def documentationDependencies : IO Unit := do
         let args := if route == "docFenceAudit" then #["--project", project.toString, "--jobs", "1"]
           else #["--documentation", project.toString, (project / "docs").toString, output.toString]
         let result ← run project (root / ".lake/build/bin" / route).toString args cleanEnv
+        let log := result.stdout ++ result.stderr
         if bad then
           requireChecks [⟨"dependency mutation occurred", (← IO.FS.readFile dependencySource) == changed⟩,
-            ⟨"frozen dependency refused", result.exitCode != 0 && result.stdout.contains "dependency snapshot changed:" &&
-              !result.stdout.contains "accepted "⟩]
+            ⟨s!"frozen dependency refused: {log}", result.exitCode != 0 && log.contains "dependency snapshot changed:" &&
+              !log.contains "accepted "⟩]
           if ← output.pathExists then
             requireChecks [⟨"no acceptance", ((← readJson output).getObjVal? "acceptance").toOption.isNone⟩]
         else

@@ -70,11 +70,12 @@ def check : IO Unit := do
           #["--project", project.toString, flag, "--json-out", output.toString]
           (env.push ("INVENTORY_FAULT", some phase))
         let packet ← readJson output
+        let log := result.stdout ++ result.stderr
         if phase == "root-add" then
           let observation ← readJson record
           requireChecks [⟨"added root actually built", observation == Json.mkObj [
             ("buildExit", toJson (0 : Nat)), ("addedBuilt", toJson true)]⟩,
-            ⟨"root inventory refusal", result.exitCode != 0 && result.stdout.contains "root inventory changed:" &&
+            ⟨s!"root inventory refusal: {log}\n{packet.compress}", result.exitCode != 0 && log.contains "root inventory changed:" &&
               (packet.getObjValAs? String "status").toOption == some "incomplete" &&
               (packet.getObjVal? "acceptance").toOption.isNone⟩]
         else
@@ -99,12 +100,13 @@ def check : IO Unit := do
           else #["--documentation", project.toString, docs.toString, output.toString]
         let result ← run project (root / ".lake/build/bin" / route).toString args
           (env ++ #[("INVENTORY_FAULT", some phase), ("INVENTORY_DOC", some target.toString)])
+        let log := result.stdout ++ result.stderr
         if bad then
           let observation ← readJson record
           let reason := if phase == "docs-remove" then "documentation inventory changed" else "documentation source changed"
           requireChecks [⟨"prerequisite build succeeded", (observation.getObjValAs? Nat "buildExit").toOption == some 0⟩,
-            ⟨"Markdown inventory refused", result.exitCode != 0 && result.stdout.contains reason &&
-              !result.stdout.contains "accepted "⟩]
+            ⟨s!"Markdown inventory refused: {log}", result.exitCode != 0 && log.contains reason &&
+              !log.contains "accepted "⟩]
           if ← output.pathExists then
             requireChecks [⟨"no documentation acceptance", ((← readJson output).getObjVal? "acceptance").toOption.isNone⟩]
         else success result
