@@ -69,7 +69,7 @@ in-process unforgeability either.
 
 ## Complete collection and composition
 
-For arbitrary `p : Plan c i`, `roles : Roles i.policy` and
+For arbitrary `p : Plan c i`, `roles : CensusRoles i` and
 `inputs : List (Nat × JobObservation)`, `finalize_iff` proves:
 `(∃ result, finalize p roles inputs = .ok result) ↔ InputsOK p roles inputs`.
 `InputsOK` requires distinct required slots with exact key/snapshot binding and a
@@ -118,15 +118,20 @@ The table does not claim the rules' external collectors or residual review are p
 
 ## Complete observations and example expectations
 
-`Census` records frozen module/declaration/root/fence identities and their source
-bindings separately from policy outcomes. `requiredJobs` derives applicable
+`Census` retains the original complete request and an exact array of environment
+requests. Each `EnvironmentCensus` records its full declaration/root/replay inventories,
+roles' input inventory and source bindings separately from policy outcomes.
+`CensusOK` checks the complete positive partition and global target classification.
+Local job identities include the requested environment; `EnvironmentStageOK` resolves
+the exact position and snapshot before applying the unchanged local predicates.
+`requiredJobs` derives applicable
 subjects from the fixed claim's mandatory stages. `Plan` requires the supplied
 `JobKey` array to equal that derivation, with every key belonging to the same claim.
 Natural-number result slots are positions in that exact array, not new semantic
 identities or caller-selected requirements. Recorded successful executable-contract
 roots must be represented in execution modes. Known root-target imports must agree
 with positive target assignments; the collector must also report unclassified root
-imports. History observations bind the exact module/source pair. These checks do
+imports. History observations bind the exact environment/module/source tuple. These checks do
 not establish external census completeness. The completed ENGINE producer
 qualification is a separate scoped observation, not a proof of IO extraction.
 

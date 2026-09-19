@@ -137,6 +137,14 @@ help/configuration output remain distinct. Preserve source admission, provenance
 all rule/example categories and unknown refusal; do not weaken global identity
 to repair composition collisions. Use the existing PR, not a second collector.
 
+The PR #33 CI repair retains this document's #38 baseline above. Its current
+environment-indexed census, exact occurrence collector and public success-path
+integration are tracked in [the repair receipt](../../session/evidence/ci-environment-census.md).
+F05/F06/F10/F11/F12 are not marked closed until the applicable proof, independent
+review, complete cold acceptance and diagnostic evidence is recorded there and
+delivery is integrated. The successor boundaries below remain unchanged; #39 is
+not a prerequisite for completing #7.
+
 ### #39: close the selected component relations
 
 The finite implementation set is: `Policy.admitScope`; the profile/request and

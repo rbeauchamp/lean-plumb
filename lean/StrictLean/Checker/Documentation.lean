@@ -518,19 +518,16 @@ independent of returned compilation results, including when a document has no fe
 structure DocumentPlan (claim : StrictLeanPolicy.Claim) where
   census : StrictLeanPolicy.Census
   plan : StrictLeanPolicy.Plan claim census
-  roles : StrictLeanPolicy.Roles census.policy
+  roles : StrictLeanPolicy.CensusRoles census
 
 def freezeDocuments (claim : StrictLeanPolicy.Claim) (tasks : Array Task) :
     Except String (DocumentPlan claim) := do
   let fences ← tasks.mapM (·.fence.key)
-  let policy ← StrictLeanPolicy.admitInventory #[] #[]
-  let execution ← StrictLeanPolicy.admitExecution #[]
   let census : StrictLeanPolicy.Census := {
-    policy, execution, modules := #[], importedModules := #[], moduleSources := #[], importedSources := #[],
-    unclassifiedRootImports := #[], admissionDeclarations := #[], declarations := #[], roots := #[],
-    materialDeclarations := #[], fences, configuredTargets := #[], discoveredTargets := #[] }
+    requests := #[], environments := #[], modules := #[], moduleSources := #[],
+    fences, configuredTargets := #[], discoveredTargets := #[] }
   let plan ← StrictLeanPolicy.buildPlan claim census
-  return ⟨census, plan, StrictLeanPolicy.authorize policy⟩
+  return ⟨census, plan, fun slot => StrictLeanPolicy.authorize census.environments[slot].policy⟩
 
 /-- Convert retained real production into observations. Roles are authenticated against
 the entire compatible group; each policy check then selects only its original unit. -/

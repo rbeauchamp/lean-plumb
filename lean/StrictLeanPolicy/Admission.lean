@@ -151,6 +151,23 @@ instance instDecidableInventoryValid (decls : Array Declaration) (transcripts : 
     declarationCoordinatesDecidable decls t.module (t.sourceContent.splitOn "\n")
   infer_instance
 
+/-- A shared declaration name prevents concatenated inventories from being valid,
+regardless of module identities, other declaration fields or supplied transcripts.
+This concerns the actual admission predicate; it does not establish that external
+producers returned either inventory or that a collision occurred in a running audit. -/
+theorem inventoryValid_append_false_of_shared_name
+    (left right : Array Declaration) (transcripts : Array Frontend.Transcript)
+    (a b : Declaration) (ha : a ∈ left) (hb : b ∈ right) (sameName : a.name = b.name) :
+    ¬ InventoryValid (left ++ right) transcripts := by
+  intro valid
+  have distinct : (left.toList.map (·.name) ++ right.toList.map (·.name)).Pairwise (· ≠ ·) := by
+    simpa only [uniqueNames, Array.map_append, Array.toList_append, Array.toList_map] using valid.1
+  have leftMember : a.name ∈ left.toList.map (·.name) :=
+    List.mem_map.mpr ⟨a, by simpa using ha, rfl⟩
+  have rightMember : b.name ∈ right.toList.map (·.name) :=
+    List.mem_map.mpr ⟨b, by simpa using hb, rfl⟩
+  exact (List.pairwise_append.mp distinct).2.2 a.name leftMember b.name rightMember sameName
+
 /-- No raw constructor or decoder can omit the inventory-validity proof. -/
 structure Inventory where
   declarations : Array Declaration

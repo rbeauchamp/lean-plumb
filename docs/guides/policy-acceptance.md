@@ -43,7 +43,7 @@ The surface worker retains each source-capture prefix for failure reporting. Aft
 returns, it compares the complete module/path/byte array with the coordinator's frozen
 request before build or inspection. A prefix is not a completed inventory. Parent and
 terminal source/configuration guards remain separate. The focused
-`python3 scripts/acceptance_checks.py --group sources --evidence tmp/acceptance-sources.json`
+`lake exe qualify acceptance sources --evidence tmp/acceptance-sources.json`
 diagnostic checks two Lake-discovered sources, shortened/reordered/extra request refusals,
 retained source accounts and positive restoration; it does not prove IO extraction.
 Its evidence destination is initialized as a new incomplete attempt before binary/setup
@@ -77,7 +77,7 @@ execution findings retain SL3001, `execution-unresolved` and root locations in f
 incremental and build-lint modes. A stored census error is raised if no typed policy
 failure already refuses the run; it is never replaced by an empty census.
 
-The focused `python3 scripts/acceptance_snapshot_checks.py` diagnostic exercises ignored
+The focused `lake exe qualify acceptance-snapshots all` diagnostic exercises ignored
 Git-backed dependency source/configuration mutations with restoration, and the SL3001
 project control through fresh, incremental and build-lint invocations. It checks typed
 root/source attribution and absence of acceptance on unavailable history. These are
@@ -85,9 +85,39 @@ scoped operational controls, not a proof of IO extraction or a full acceptance r
 
 `Common.mapWorkQueue`, `admitIndexedWorkerResults` and documentation's task collector
 execute `ResultState.collect`; no result slot is overwritten. Group reconciliation
-may share identical overlapping imported observations, but never deduplicates job
-responses or positive owned declarations. The full admission module/required/admitted
+preserves each requested environment separately and never deduplicates job
+responses, replay occurrences or positive owned declarations. The full admission module/required/admitted
 inventories survive the infrastructure partition.
+
+### Environment-indexed project census
+
+The original project `Claim` remains the index of `AcceptedRun` and of the project
+component of `CombinedAccepted`. `Census.requests` is the coordinator's ordered
+environment request array; each request contains its snapshot, ordinal and exact
+positive module assignment. `CensusOK` requires the returned environment requests
+to equal that array, its ordinals to match their positions, and its positive module
+partition to equal the full original claim. Target discovery and classification
+remain global, including excluded and unclassified imports.
+
+Each `EnvironmentCensus` retains its complete admitted policy inventory, transcripts,
+execution roots, replay arrays, sources and origins. `InventoryValid` still requires
+bare-name uniqueness within each Lean environment. Distinct environments may contain
+different declarations named `main`; concatenating their inventories is not a Lean
+environment. No entrypoint is renamed, filtered or exempted.
+
+Configuration, discovery and build jobs occur once. Local jobs carry an
+`EnvironmentKey` and local subject; admission, declaration policy, execution,
+transcript, history, origin and documentation-presence observations resolve only
+inside that environment. `CensusRoles` supplies roles indexed by that same inventory.
+All execution requests for a root come from registrations in its bound environment.
+The existing collector and `finalize` still require exact input occurrence coverage
+and every policy obligation. File and graph paths use one environment; document
+plans use no project environment and retain their exact fence inventory and modes.
+
+This establishes relations among supplied observations. Lean/Lake extraction,
+compiler admission, source reads, process completion, and compiled execution retain
+their existing trusted boundaries. Current compilation and qualification results
+belong in the CI repair evidence, not in the historical baseline receipts.
 
 `InfrastructureOrigin` is limited to exact reporter, codec and conditional collector
 identities. The IO adapter compares canonical actual artifacts with the running
@@ -171,11 +201,11 @@ as an IO observation. Full filesystem/process authenticity is outside the pure t
 | Key | Equality / multiplicity |
 | --- | --- |
 | Module | Snapshot identity + exact module `Name`; source mapping must be functional. Same module in two claimed surfaces is refused as ambiguous ownership, even with equal profiles. Excluded/excluded overlap may be deduplicated only for the module inventory; target classifications remain distinct. |
-| Declaration | Snapshot + owning module + exact constant `Name`; one canonical record. Names shared across independent fence environments remain distinct by snapshot/unit. |
-| Executable root | Snapshot + root module/name. Multiple valid registrations for one root share closure work but each registration remains a required declaration/contract obligation. |
+| Declaration | Requested environment + snapshot + owning module + exact constant `Name`; one record within that environment. Equal names across independent environments remain distinct. |
+| Executable root | Requested environment + snapshot + root module/name. Multiple valid registrations within that environment share closure work but each registration remains a required declaration/contract obligation. |
 | Boundary | Root key + reached declaration + kind + optional replacement target + evidence occurrence. Multiple candidates/history observations are legitimate; preserve their distinct occurrence identities. |
 | Fence | Document snapshot + opening/body/closing byte spans + marker kind and expected pattern. Synthesized `DocFence_N` names are temporary transport names, never permanent identity. |
-| Job | Claim identity + stage tag + exact subject key; group transport contains individual job keys. Attempts are transport metadata, not new required jobs. |
+| Job | Claim identity + stage tag + exact subject key, including the requested environment for local stages; group transport contains individual job keys. Attempts are transport metadata, not new required jobs. |
 
 Required-key sets use canonical duplicate-free sorted collections backed by existing
 Std ordered structures, with proved lookup/membership laws. The semantic specification

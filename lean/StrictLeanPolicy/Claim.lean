@@ -198,29 +198,52 @@ def requiredStages (c : Claim) : List Stage :=
   | .editorSnapshot => [.discovery, .admission, .declarationPolicy, .execution,
       .transcript, .history, .origin, .documentationPresence]
 
-inductive JobSubject where
+structure EnvironmentKey where
+  snapshot : AdmittedSnapshot
+  index : Nat
+  deriving Repr, DecidableEq
+
+/-- Coordinator-selected identity and complete positive module assignment. -/
+structure EnvironmentRequest where
+  key : EnvironmentKey
+  modules : Array ModuleKey
+  deriving Repr, DecidableEq
+
+inductive LocalJobSubject where
   | scope | module (key : ModuleKey) | declaration (key : DeclarationKey)
-  | root (key : RootKey) | boundary (key : BoundaryKey) | fence (key : FenceKey)
+  | root (key : RootKey) | boundary (key : BoundaryKey)
+  deriving Repr, DecidableEq
+
+inductive JobSubject where
+  | scope | environment (key : EnvironmentKey) (subject : LocalJobSubject) | fence (key : FenceKey)
   deriving Repr, DecidableEq
 
 /-- Stage tags restrict the kind of evidence subject they can request. -/
 def StageSubjectCompatible : Stage → JobSubject → Bool
   | .configuration, .scope | .discovery, .scope | .build, .scope
-  | .admission, .scope | .documentationPresence, .scope | .documentScan, .scope
+  | .documentScan, .scope
   | .graph, .scope => true
-  | .build, .module _ | .admission, .module _ | .transcript, .module _
-  | .history, .module _ | .origin, .module _ | .documentationPresence, .module _ => true
-  | .declarationPolicy, .declaration _ | .documentationPresence, .declaration _ => true
-  | .execution, .root _ | .execution, .boundary _ | .graph, .root _ => true
+  | .admission, .environment _ .scope => true
+  | .transcript, .environment _ (.module _) | .history, .environment _ (.module _)
+  | .origin, .environment _ (.module _) | .documentationPresence, .environment _ (.module _) => true
+  | .declarationPolicy, .environment _ (.declaration _)
+  | .documentationPresence, .environment _ (.declaration _) => true
+  | .execution, .environment _ (.root _) | .execution, .environment _ (.boundary _) => true
   | .example, .fence _ => true
   | _, _ => false
 
 /-- Every subject retains the exact snapshot of its requested claim. -/
-def SubjectSnapshotOK (claim : Claim) : JobSubject → Prop
+def LocalSubjectSnapshotOK (claim : Claim) : LocalJobSubject → Prop
   | .scope => True
   | .module k => k.snapshot.val = claim.val.snapshot
   | .declaration k | .root k => k.moduleKey.snapshot.val = claim.val.snapshot
   | .boundary k => k.root.moduleKey.snapshot.val = claim.val.snapshot
+instance (claim : Claim) (subject : LocalJobSubject) : Decidable (LocalSubjectSnapshotOK claim subject) := by
+  cases subject <;> unfold LocalSubjectSnapshotOK <;> infer_instance
+
+def SubjectSnapshotOK (claim : Claim) : JobSubject → Prop
+  | .scope => True
+  | .environment key subject => key.snapshot.val = claim.val.snapshot ∧ LocalSubjectSnapshotOK claim subject
   | .fence k => k.document ∈ claim.val.snapshot.sources
 instance (claim : Claim) (subject : JobSubject) : Decidable (SubjectSnapshotOK claim subject) := by
   cases subject <;> unfold SubjectSnapshotOK <;> infer_instance
@@ -248,6 +271,6 @@ def admitJobKey (claim : Claim) (stage : Stage) (subject : JobSubject) : Except 
 theorem admitJobKey_exact (key : JobKey) :
     admitJobKey key.claim key.stage key.subject = .ok key := by
   unfold admitJobKey
-  rw [dif_pos key.requiredStage, dif_pos key.compatibleSubject, dif_pos key.subjectSnapshot]
+  rw [dite_eq_left key.requiredStage, dite_eq_left key.compatibleSubject, dite_eq_left key.subjectSnapshot]
 
 end StrictLeanPolicy

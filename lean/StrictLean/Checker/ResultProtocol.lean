@@ -44,7 +44,7 @@ private def declarationKeyJson (key : StrictLeanPolicy.DeclarationKey) : Json :=
   Json.mkObj [("module", RegistryCodec.nameJson key.moduleKey.name.name),
     ("name", RegistryCodec.nameJson key.name.name)]
 
-private def subjectJson : StrictLeanPolicy.JobSubject → Json
+private def localSubjectJson : StrictLeanPolicy.LocalJobSubject → Json
   | .scope => Json.mkObj [("kind", .str "scope")]
   | .module key => Json.mkObj [("kind", .str "module"), ("module", RegistryCodec.nameJson key.name.name)]
   | .declaration key => Json.mkObj [("kind", .str "declaration"), ("declaration", declarationKeyJson key)]
@@ -52,6 +52,11 @@ private def subjectJson : StrictLeanPolicy.JobSubject → Json
   | .boundary key => Json.mkObj [("kind", .str "boundary"), ("root", declarationKeyJson key.root),
       ("reached", declarationKeyJson key.reached), ("boundary", .str key.kind.spelling),
       ("occurrence", toJson key.occurrence), ("replacement", key.replacement.map declarationKeyJson |>.getD .null)]
+
+private def subjectJson : StrictLeanPolicy.JobSubject → Json
+  | .scope => Json.mkObj [("kind", .str "scope")]
+  | .environment key subject => Json.mkObj [("kind", .str "environment"),
+      ("environment", toJson key.index), ("subject", localSubjectJson subject)]
   | .fence key => Json.mkObj [("kind", .str "fence"), ("document", toJson key.document.uri),
       ("opening", toJson (key.opening.start, key.opening.stop)),
       ("body", toJson (key.body.start, key.body.stop)), ("closing", toJson (key.closing.start, key.closing.stop)),
@@ -75,14 +80,17 @@ def acceptedJson {claim : StrictLeanPolicy.Claim} (accepted : StrictLeanPolicy.A
         ("package", toJson dependency.package), ("revision", toJson dependency.nominalRevision),
         ("dirty", toJson dependency.dirty), ("files", toJson (dependency.files.map sourceJson))]))]),
     ("modules", toJson (report.census.modules.map fun key => RegistryCodec.nameJson key.name.name)),
-    ("importedModules", toJson (report.census.importedModules.map fun key => RegistryCodec.nameJson key.name.name)),
-    ("infrastructureModules", toJson (report.census.infrastructureModules.map fun key => RegistryCodec.nameJson key.name.name)),
-    ("admissionModules", toJson (report.census.admissionModules.map fun key => RegistryCodec.nameJson key.name.name)),
-    ("admissionDeclarations", toJson (report.census.admissionDeclarations.map declarationKeyJson)),
-    ("declarations", toJson (report.census.declarations.map declarationKeyJson)),
-    ("roots", toJson (report.census.roots.map declarationKeyJson)),
-    ("fileSource", report.census.fileSource.map (fun binding => Json.mkObj [
-      ("requested", sourceJson binding.requested), ("compiled", sourceJson binding.compiled)]) |>.getD .null),
+    ("environments", toJson (report.census.environments.map fun environment => Json.mkObj [
+      ("index", toJson environment.request.key.index),
+      ("modules", toJson (environment.request.modules.map fun key => RegistryCodec.nameJson key.name.name)),
+      ("importedModules", toJson (environment.importedModules.map fun key => RegistryCodec.nameJson key.name.name)),
+      ("infrastructureModules", toJson (environment.infrastructureModules.map fun key => RegistryCodec.nameJson key.name.name)),
+      ("admissionModules", toJson (environment.admissionModules.map fun key => RegistryCodec.nameJson key.name.name)),
+      ("admissionDeclarations", toJson (environment.admissionDeclarations.map declarationKeyJson)),
+      ("declarations", toJson (environment.declarations.map declarationKeyJson)),
+      ("roots", toJson (environment.roots.map declarationKeyJson)),
+      ("fileSource", environment.fileSource.map (fun binding => Json.mkObj [
+        ("requested", sourceJson binding.requested), ("compiled", sourceJson binding.compiled)]) |>.getD .null)])),
     ("graphRoots", toJson (report.census.graphRoots.map fun key => RegistryCodec.nameJson key.name.name)),
     ("graphCoverage", toJson (report.census.graphCoverage.map fun (key, modules) => Json.mkObj [
       ("root", RegistryCodec.nameJson key.name.name), ("modules", toJson (modules.map fun (moduleKey : StrictLeanPolicy.ModuleKey) => RegistryCodec.nameJson moduleKey.name.name))])),

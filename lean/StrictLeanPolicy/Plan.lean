@@ -67,7 +67,7 @@ or artifact is substituted. Incoming-import checks remain a whole-census obligat
 theorem admitInfrastructureOrigin_exact (origin : InfrastructureOrigin) :
     admitInfrastructureOrigin origin.moduleKey origin.actual origin.expected = .ok origin := by
   unfold admitInfrastructureOrigin
-  rw [dif_pos origin.eligible, dif_pos origin.nonempty, dif_pos origin.agrees]
+  rw [dite_eq_left origin.eligible, dite_eq_left origin.nonempty, dite_eq_left origin.agrees]
 
 /-- A standalone file is compiled in an isolated module. Retain both identities and
 exact byte equality; this does not authenticate either filesystem read. -/
@@ -87,7 +87,8 @@ theorem fileSourceBinding_bytes (binding : FileSourceBinding) :
 /-- Frozen observations and independently collected keys. No field records policy success.
 Material declarations are the explicit public evidence-registration census; its adequacy
 remains semantic review. Imported modules are separate from claimed owned modules. -/
-structure Census where
+structure EnvironmentCensus where
+  request : EnvironmentRequest
   policy : Inventory
   execution : ExecutionInventory
   modules : Array ModuleKey
@@ -104,20 +105,32 @@ structure Census where
   declarations : Array DeclarationKey
   roots : Array RootKey
   materialDeclarations : Array DeclarationKey
-  fences : Array FenceKey
-  graphRoots : Array ModuleKey := #[]
-  graphCoverage : Array (ModuleKey × Array ModuleKey) := #[]
-  configuredTargets : Array TargetAssignment
-  discoveredTargets : Array DiscoveredTarget
   deriving DecidableEq
 
-def Census.infrastructureModules (i : Census) : Array ModuleKey := i.infrastructure.map (·.moduleKey)
+def EnvironmentCensus.infrastructureModules (i : EnvironmentCensus) : Array ModuleKey := i.infrastructure.map (·.moduleKey)
 
-def Census.allModules (i : Census) : Array ModuleKey :=
+def EnvironmentCensus.allModules (i : EnvironmentCensus) : Array ModuleKey :=
   i.modules ++ i.importedModules ++ i.infrastructureModules
 
-def Census.allModuleSources (i : Census) : Array (ModuleKey × SourceSnapshot) :=
+def EnvironmentCensus.allModuleSources (i : EnvironmentCensus) : Array (ModuleKey × SourceSnapshot) :=
   i.moduleSources ++ i.importedSources ++ i.infrastructureSources
+
+/-- One complete original request with separately admitted Lean environments. -/
+structure Census where
+  requests : Array EnvironmentRequest
+  environments : Array EnvironmentCensus
+  modules : Array ModuleKey
+  moduleSources : Array (ModuleKey × SourceSnapshot)
+  configuredTargets : Array TargetAssignment
+  discoveredTargets : Array DiscoveredTarget
+  fences : Array FenceKey := #[]
+  graphRoots : Array ModuleKey := #[]
+  graphCoverage : Array (ModuleKey × Array ModuleKey) := #[]
+  deriving DecidableEq
+
+def Census.allModules (i : Census) : Array ModuleKey := i.environments.flatMap (·.allModules)
+
+abbrev CensusRoles (i : Census) := (slot : Fin i.environments.size) → Roles i.environments[slot].policy
 
 def snapshotSources (c : Claim) : Array SourceSnapshot :=
   c.val.snapshot.sources ++ c.val.snapshot.dependencies.flatMap (·.files)
@@ -130,7 +143,7 @@ def declarationNames (ds : Array DeclarationKey) : Array (Name × Name) :=
 /-- The complete loaded import census binds every infrastructure receipt. Direct import
 edges are inspected for every loaded module, including ordinary dependencies. Collect
 is infrastructure only in its existing force-only case. Positive ownership is disjoint. -/
-def InfrastructureOK (c : Claim) (i : Census) : Prop :=
+def InfrastructureOK (c : Claim) (i : EnvironmentCensus) : Prop :=
   (∀ m ∈ i.infrastructureModules, m ∉ i.modules ∧ m ∉ i.importedModules ∧
     m.snapshot.val = c.val.snapshot) ∧
   uniqueNames (i.origins.map (·.name)) ∧
@@ -146,11 +159,11 @@ def InfrastructureOK (c : Claim) (i : Census) : Prop :=
   (∀ entry ∈ i.infrastructureSources,
     entry.1 ∈ i.infrastructureModules ∧ entry.2 ∈ snapshotSources c)
 set_option synthInstance.maxSize 1024 in
-instance (c : Claim) (i : Census) : Decidable (InfrastructureOK c i) := by
+instance (c : Claim) (i : EnvironmentCensus) : Decidable (InfrastructureOK c i) := by
   unfold InfrastructureOK; infer_instance
 
 /-- The admitted partition never supplies positive ownership or an ordinary import. -/
-theorem infrastructure_disjoint (c : Claim) (i : Census) (h : InfrastructureOK c i)
+theorem infrastructure_disjoint (c : Claim) (i : EnvironmentCensus) (h : InfrastructureOK c i)
     (m : ModuleKey) (hm : m ∈ i.infrastructureModules) : m ∉ i.modules ∧ m ∉ i.importedModules :=
   ⟨(h.1 m hm).1, (h.1 m hm).2.1⟩
 
@@ -195,8 +208,9 @@ instance (c : Claim) (i : Census) : Decidable (GraphPlanOK c i) := by
 /-- Exact admitted key/data reconciliation and claim bindings. These checks cannot establish
 that the external environment traversal or source scan omitted nothing; that is the collector
 boundary. They do prevent a returned policy table from defining its own required census. -/
-def CensusOK (c : Claim) (i : Census) : Prop :=
-  InfrastructureOK c i ∧ GraphPlanOK c i ∧
+def EnvironmentCensusOK (c : Claim) (global : Census) (i : EnvironmentCensus) : Prop :=
+  i.request.modules = i.modules ∧ i.request.key.snapshot.val = c.val.snapshot ∧
+  InfrastructureOK c i ∧
   uniqueNames (moduleNames i.allModules) ∧
   (∀ m ∈ i.allModules, m.snapshot.val = c.val.snapshot) ∧
   i.moduleSources.map (·.1) = i.modules ∧
@@ -204,8 +218,8 @@ def CensusOK (c : Claim) (i : Census) : Prop :=
   i.importedSources.toList.Pairwise (fun a b => a.1 ≠ b.1) ∧
   (∀ entry ∈ i.importedSources, entry.1 ∈ i.importedModules ∧ entry.2 ∈ snapshotSources c) ∧
   i.unclassifiedRootImports = #[] ∧
-  (∀ m ∈ i.importedModules, ∀ target ∈ i.discoveredTargets, m.name.name ∈ target.modules →
-    ∃ assignment ∈ i.configuredTargets, assignment.kind = target.kind ∧
+  (∀ m ∈ i.importedModules, ∀ target ∈ global.discoveredTargets, m.name.name ∈ target.modules →
+    ∃ assignment ∈ global.configuredTargets, assignment.kind = target.kind ∧
       assignment.name = target.name ∧ assignment.surface.isSome = true) ∧
   uniqueNames (moduleNames i.admissionModules) ∧
   (∀ m ∈ i.admissionModules, m.snapshot.val = c.val.snapshot) ∧
@@ -219,23 +233,86 @@ def CensusOK (c : Claim) (i : Census) : Prop :=
   (∀ r ∈ i.roots, r.moduleKey ∈ i.allModules) ∧
   (∀ d ∈ i.materialDeclarations, d ∈ i.declarations) ∧
   i.materialDeclarations.toList.Pairwise (· ≠ ·) ∧
+  (∀ r ∈ i.execution.roots, ∀ b ∈ r.boundaries, b.module ∈ moduleNames i.allModules) ∧
+  (match c.val.scope with
+   | .project => True
+   | .file source .. => i.modules.size = 1 ∧
+       ∃ binding ∈ i.fileSource, binding.requested = source ∧ i.moduleSources.map (·.2) = #[binding.compiled]
+   | .editor n source .. => moduleNames i.modules = #[n.name] ∧
+       i.moduleSources.map (·.2) = #[source]
+   | .documentation _ => False)
+set_option synthInstance.maxSize 1024 in
+instance (c : Claim) (global : Census) (i : EnvironmentCensus) : Decidable (EnvironmentCensusOK c global i) := by
+  unfold EnvironmentCensusOK
+  cases c.val.scope <;> infer_instance
+
+/-- Exact request occurrences and positive partition precede admission of any results.
+Environment position is identity; no producer may select or deduplicate this domain. -/
+def CensusOK (c : Claim) (i : Census) : Prop :=
+  i.environments.map (·.request) = i.requests ∧
+  (∀ n : Fin i.requests.size, i.requests[n].key.index = n.val) ∧
+  (∀ e ∈ i.environments, EnvironmentCensusOK c i e) ∧
+  i.modules = i.environments.flatMap (·.modules) ∧
+  uniqueNames (moduleNames i.modules) ∧
+  i.moduleSources = i.environments.flatMap (·.moduleSources) ∧
+  GraphPlanOK c i ∧
   i.fences.toList.Pairwise (· ≠ ·) ∧
   (∀ f ∈ i.fences, f.document ∈ c.val.snapshot.sources) ∧
-  (∀ r ∈ i.execution.roots, ∀ b ∈ r.boundaries, b.module ∈ moduleNames i.allModules) ∧
   (match c.val.scope with
    | .project => TargetPartitionOK c i ∧
        canonicalNames (moduleNames i.modules) = canonicalNames
-         (c.val.surfaces.flatMap (fun s => s.modules.map (·.name))) ∧ i.fences = #[]
-   | .file source .. => i.modules.size = 1 ∧ i.fences = #[] ∧
-       ∃ binding ∈ i.fileSource, binding.requested = source ∧ i.moduleSources.map (·.2) = #[binding.compiled]
-   | .editor n source .. => moduleNames i.modules = #[n.name] ∧ i.fences = #[] ∧
-       i.moduleSources.map (·.2) = #[source]
-   | .documentation docs => i.modules = #[] ∧ i.declarations = #[] ∧ i.roots = #[] ∧
-       ∀ f ∈ i.fences, f.document ∈ docs)
+         (c.val.surfaces.flatMap (fun s => s.modules.map (·.name))) ∧ i.fences = #[] ∧
+       (if c.val.mode = .serializedGraph then i.requests.size = 1 else
+         i.requests.map (fun r => moduleNames r.modules) = c.val.surfaces.map (fun s => s.modules.map (·.name)))
+   | .file .. | .editor .. => i.requests.size = 1 ∧ i.fences = #[]
+   | .documentation docs => i.requests = #[] ∧ ∀ f ∈ i.fences, f.document ∈ docs)
 set_option synthInstance.maxSize 1024 in
 instance (c : Claim) (i : Census) : Decidable (CensusOK c i) := by
   unfold CensusOK
   cases c.val.scope <;> infer_instance
+
+/-- Admission preserves the exact ordered request occurrences, without normalization. -/
+theorem census_exact_requests (c : Claim) (i : Census) (h : CensusOK c i) :
+    i.environments.map (·.request) = i.requests := h.1
+
+/-- The complete original positive module domain is partitioned across environments. -/
+theorem census_exact_modules (c : Claim) (i : Census) (h : CensusOK c i) :
+    i.modules = i.environments.flatMap (·.modules) ∧ uniqueNames (moduleNames i.modules) :=
+  ⟨h.2.2.2.1, h.2.2.2.2.1⟩
+
+theorem census_request_index (c : Claim) (i : Census) (h : CensusOK c i)
+    (slot : Fin i.requests.size) : i.requests[slot].key.index = slot.val := h.2.1 slot
+
+theorem census_environment_index (c : Claim) (i : Census) (h : CensusOK c i)
+    (slot : Fin i.environments.size) : i.environments[slot].request.key.index = slot.val := by
+  have bound : slot.val < i.requests.size := by simp [← h.1]
+  have position := h.2.1 ⟨slot.val, bound⟩
+  simpa [← h.1] using position
+
+/-- Two distinct response occurrences cannot be normalized into one request identity. -/
+theorem census_environment_unique (c : Claim) (i : Census) (h : CensusOK c i)
+    (left right : Fin i.environments.size)
+    (same : i.environments[left].request.key = i.environments[right].request.key) : left = right := by
+  apply Fin.ext
+  rw [← census_environment_index c i h left, ← census_environment_index c i h right]
+  exact congrArg (·.index) same
+
+/-- Each requested occurrence has its unchanged environment data and local obligations. -/
+theorem census_requested_environment (c : Claim) (i : Census) (h : CensusOK c i)
+    (request : EnvironmentRequest) (hr : request ∈ i.requests) :
+    ∃ e ∈ i.environments, e.request = request ∧ EnvironmentCensusOK c i e := by
+  rw [← h.1] at hr
+  obtain ⟨e, he, eq⟩ := Array.mem_map.mp hr
+  exact ⟨e, he, eq, h.2.2.1 e he⟩
+
+/-- Ordinary project requests use the full original surface assignment, in order. -/
+theorem census_project_partition (c : Claim) (i : Census) (h : CensusOK c i)
+    (scope : c.val.scope = .project) (mode : c.val.mode ≠ .serializedGraph) :
+    i.requests.map (fun r => moduleNames r.modules) =
+      c.val.surfaces.map (fun s => s.modules.map (·.name)) := by
+  have hs := h.2.2.2.2.2.2.2.2.2
+  rw [scope] at hs
+  simpa [mode] using hs.2.2.2
 
 /-- A module's profile is derived from its positive assignment, never a result payload. -/
 def profileForModule (c : Claim) (m : Name) : Option ConformingProfile :=
@@ -252,15 +329,15 @@ def executionForModule (c : Claim) (m : Name) : Option ExecutionClaim :=
 
 /-- A shared root must meet each requesting surface's execution obligation. The requests
 come from the owned ordinary declaration or each retained executable-contract registration. -/
-def rootRequests (c : Claim) (i : Census) (root : Name) : Array ExecutionClaim :=
+def rootRequests (c : Claim) (i : EnvironmentCensus) (root : Name) : Array ExecutionClaim :=
   (i.policy.declarations.filter (fun d => d.name == root ||
     d.executableContract.any (fun contract => contract.root == root))).filterMap
       (fun d => executionForModule c d.module)
 
 /-- Jobs use the existing stage/subject vocabulary; this pair is a projection of JobKey,
 not a second identity scheme. Fixed array order supplies deterministic result slots. -/
-def stageSubjects (i : Census) : Stage → Array JobSubject
-  | .configuration | .discovery | .build | .admission | .documentScan | .graph => #[.scope]
+def localStageSubjects (i : EnvironmentCensus) : Stage → Array LocalJobSubject
+  | .admission => #[.scope]
   | .declarationPolicy => i.declarations.map .declaration
   | .execution => i.roots.map .root
   | .transcript => (i.modules.filter (fun m => i.policy.declarations.any (fun d =>
@@ -270,20 +347,53 @@ def stageSubjects (i : Census) : Stage → Array JobSubject
   | .origin => (i.allModules.filter (fun m => i.execution.roots.any (fun r => r.boundaries.any
       (fun b => b.module == m.name.name && b.boundary == .nativeRuntime)))).map .module
   | .documentationPresence => i.modules.map .module ++ i.materialDeclarations.map .declaration
+  | _ => #[]
+
+def stageSubjects (i : Census) : Stage → Array JobSubject
+  | .configuration | .discovery | .build | .documentScan | .graph => #[.scope]
   | .example => i.fences.map .fence
+  | stage => i.environments.flatMap fun e =>
+      (localStageSubjects e stage).map (JobSubject.environment e.request.key)
 
 /-- Required jobs are derived from mandatory mode stages and census subjects before results. -/
 def requiredJobs (c : Claim) (i : Census) : Array (Stage × JobSubject) :=
   (requiredStages c).toArray.flatMap (fun stage => (stageSubjects i stage).map (stage, ·))
 
+/-- Every local derived job of every requested environment remains in the whole plan. -/
+theorem stageSubjects_environment (i : Census) (e : EnvironmentCensus) (he : e ∈ i.environments)
+    (stage : Stage) (subject : LocalJobSubject) (hs : subject ∈ localStageSubjects e stage) :
+    JobSubject.environment e.request.key subject ∈ stageSubjects i stage := by
+  cases stage <;> first
+    | solve | simp [localStageSubjects] at hs
+    | (simp only [stageSubjects, Array.mem_flatMap, Array.mem_map]
+       exact ⟨e, he, subject, hs, rfl⟩)
+
+theorem requiredJobs_environment_coverage (c : Claim) (i : Census) (h : CensusOK c i)
+    (request : EnvironmentRequest) (hr : request ∈ i.requests)
+    (stage : Stage) (hs : stage ∈ requiredStages c) :
+    ∃ e ∈ i.environments, e.request = request ∧
+      ∀ subject ∈ localStageSubjects e stage,
+        (stage, JobSubject.environment request.key subject) ∈ requiredJobs c i := by
+  obtain ⟨e, he, eq, _⟩ := census_requested_environment c i h request hr
+  refine ⟨e, he, eq, ?_⟩
+  intro subject hsubject
+  have hin := stageSubjects_environment i e he stage subject hsubject
+  rw [eq] at hin
+  simp only [requiredJobs, Array.mem_flatMap, List.mem_toArray, Array.mem_map]
+  exact ⟨stage, hs, JobSubject.environment request.key subject, hin, rfl⟩
+
 /-- Bucket selection only: collisions are resolved by full structural stage/subject
 equality, including snapshots, source bytes and every constructor field. Omitting these
 fields from the hash does not omit them from the original uniqueness relation. -/
-private def jobSubjectBucket : JobSubject → UInt64
+private def localJobSubjectBucket : LocalJobSubject → UInt64
   | .scope => 0
   | .module k => hash k.name.name
   | .declaration k | .root k => hash (k.moduleKey.name.name, k.name.name)
   | .boundary k => hash (k.root.name.name, k.occurrence)
+
+private def jobSubjectBucket : JobSubject → UInt64
+  | .scope => 0
+  | .environment key subject => mixHash (hash key.index) (localJobSubjectBucket subject)
   | .fence k => hash (k.document.uri, k.body.start)
 
 local instance : BEq (Stage × JobSubject) := ⟨fun a b => decide (a = b)⟩
@@ -308,11 +418,11 @@ def PlanOK (c : Claim) (i : Census) : Prop :=
   c.val.snapshot.toolchain.compilerCommit = "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b" ∧
   CensusOK c i ∧ (requiredJobs c i).toList.Pairwise (· ≠ ·) ∧
   (∀ job ∈ requiredJobs c i, StageSubjectCompatible job.1 job.2 = true) ∧
-  (∀ d ∈ i.declarations, (profileForModule c d.moduleKey.name.name).isSome = true) ∧
-  (∀ r ∈ i.roots, rootRequests c i r.name.name ≠ #[]) ∧
-  (.execution ∈ requiredStages c → ∀ d ∈ i.policy.declarations,
+  (∀ e ∈ i.environments, ∀ d ∈ e.declarations, (profileForModule c d.moduleKey.name.name).isSome = true) ∧
+  (∀ e ∈ i.environments, ∀ r ∈ e.roots, rootRequests c e r.name.name ≠ #[]) ∧
+  (.execution ∈ requiredStages c → ∀ e ∈ i.environments, ∀ d ∈ e.policy.declarations,
     ∀ contract ∈ d.executableContract, contract.failure = none →
-      ∃ root ∈ i.roots, root.name.name = contract.root)
+      ∃ root ∈ e.roots, root.name.name = contract.root)
 set_option synthInstance.maxSize 1024 in
 instance (c : Claim) (i : Census) : Decidable (PlanOK c i) := by
   letI : Decidable ((requiredJobs c i).toList.Pairwise (· ≠ ·)) :=
@@ -341,6 +451,16 @@ def admitPlan (c : Claim) (i : Census) (jobs : Array JobKey) : Except String (Pl
       else .error "job belongs to a different claim"
     else .error "jobs do not exactly realize the required plan"
   else .error "invalid census or plan"
+
+theorem admitPlan_invalid_census (c : Claim) (i : Census) (jobs : Array JobKey)
+    (invalid : ¬ CensusOK c i) : admitPlan c i jobs = .error "invalid census or plan" := by
+  have hp : ¬ PlanOK c i := fun h => invalid h.2.2.1
+  simp [admitPlan, hp]
+
+theorem admitPlan_request_mismatch (c : Claim) (i : Census) (jobs : Array JobKey)
+    (mismatch : i.environments.map (·.request) ≠ i.requests) :
+    admitPlan c i jobs = .error "invalid census or plan" :=
+  admitPlan_invalid_census c i jobs (fun h => mismatch h.1)
 
 /-- Any decision of the identical plan predicate preserves every admission outcome,
 including ordered realization, exact claim equality and the original refusal precedence. -/

@@ -381,7 +381,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         let request ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
           scope := .project, mode := if fresh then .freshProject else .incrementalProject,
           snapshot := snapshot.val, surfaces := assignments }
-        let frozen ← Acceptance.freeze request (surfaces.flatMap (·.modules))
+        let frozen ← Acceptance.freeze request (surfaces.map (·.modules))
           (Acceptance.configuredTargets manifest) (Acceptance.discoveredTargets inventory)
           sourceBindings inventory.leanLibDir rawInspections
         pure ⟨request, frozen⟩
@@ -742,7 +742,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
         IO.ofExcept (← IO.lazyPure fun _ => Snapshot.make copy configuration snapshotSources dependencies)
       let claim ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
         scope := .project, mode := .freshProject, snapshot := snapshot.val, surfaces := assignments }
-      let frozen ← timedPhase "parent request freeze" <| Acceptance.freeze claim (assignments.flatMap fun assignment => assignment.modules.map (·.name))
+      let frozen ← timedPhase "parent request freeze" <| Acceptance.freeze claim (assignments.map fun assignment => assignment.modules.map (·.name))
         (Acceptance.configuredTargets manifestValue) (Acceptance.discoveredTargets inventory)
         sources inventory.leanLibDir inspections
       let build := Acceptance.buildObservation production.build
@@ -924,7 +924,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                     let request ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
                       scope := .file requested profile execution, mode := .freshFile,
                       snapshot := snapshot.val, surfaces := #[] }
-                    let frozen ← Acceptance.freeze request #[moduleName.toName] #[] #[] bindings
+                    let frozen ← Acceptance.freeze request #[#[moduleName.toName]] #[] #[] bindings
                       inventory.leanLibDir #[inspection] (some binding)
                     let accepted ← Acceptance.finish frozen
                       (Acceptance.buildObservation compilation.process)

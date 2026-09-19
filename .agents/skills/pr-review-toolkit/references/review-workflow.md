@@ -37,6 +37,10 @@ reconstruction and unchanged source/ownership/admission guards. Check exact mode
 snapshot identity, full replay preservation, infrastructure disjointness/authentication,
 original-file/temporary-copy binding, grouped fence units and optional graph roots.
 Review constructor/caller visibility without claiming hostile in-process unforgeability.
+For a multi-environment census, verify the original full claim and coordinator-fixed
+request partition; local roles, roots, replay, histories and origins must resolve in
+the job's exact environment. Equal names across environments must not be flattened
+or deduplicated, and configuration/discovery/build obligations remain global.
 Help, planning, workers, local editor observations and diagnostic demonstrations must
 stay explicitly non-audit; rendered JSON/status cannot reconstruct a proof.
 

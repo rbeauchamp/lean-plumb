@@ -92,31 +92,26 @@ def buildObservation (process : ProcessResult) : BuildObservation :=
 
 /-- Operational observations retained after the independent census has been frozen.
 These data do not carry an accepted flag or determine the required stage list. -/
-structure Frozen (claim : Claim) where
-  census : Census
-  plan : Plan claim census
-  roles : Roles census.policy
+structure FrozenEnvironment where
+  census : EnvironmentCensus
   admission : AdmissionObservation
   moduleDocumentation : Array (Name × Bool)
   declarationDocumentation : Array ((Name × Name) × Option String)
   histories : Array HistoryObservation
+
+/-- The complete project plan retains each environment's observations without merging
+declaration namespaces, root registrations, replay or role authority. -/
+structure Frozen (claim : Claim) where
+  census : Census
+  plan : Plan claim census
+  roles : CensusRoles census
+  environments : Array FrozenEnvironment
 
 private def moduleKey (snapshot : AdmittedSnapshot) (name : Name) : Except String ModuleKey := do
   return ⟨snapshot, ← admitIdentity name⟩
 
 private def declarationKey (snapshot : AdmittedSnapshot) (key : Name × Name) : Except String DeclarationKey := do
   return ⟨← moduleKey snapshot key.1, ← admitIdentity key.2⟩
-
-/-- Overlapping imported observations from separately requested surfaces must agree.
-This reconciliation is never used to normalize job responses or owned declarations. -/
-private def reconcile [DecidableEq α] (what : String) (key : α → Name)
-    (values : Array α) : Except String (Array α) := do
-  let mut table : NameMap α := {}
-  for value in values do
-    if let some previous := table.find? (key value) then
-      unless previous = value do throw s!"conflicting {what} observation: {key value}"
-    else table := table.insert (key value) value
-  return table.toArray.map (·.2)
 
 /-- Preserve all completed histories, including their exact source binding. Unavailable
 history cannot be turned into an empty successful observation. -/
@@ -130,70 +125,36 @@ def historyObservations (reports : Array RequestedInspection) : Except String (A
         histories := histories.push {
           moduleName := name, before := ⟨path, before⟩, after := ⟨path, after⟩,
           replacements, unsupported := #[] }
-  -- The operational outcomes are compared through their actual fields; no verdict is reused.
-  let mut found : NameMap HistoryObservation := {}
-  for history in histories do
-    if let some previous := found.find? history.moduleName then
-      unless previous.before = history.before ∧ previous.after = history.after ∧
-          previous.replacements = history.replacements ∧ previous.unsupported = history.unsupported do
-        throw s!"conflicting history observation: {history.moduleName}"
-    else found := found.insert history.moduleName history
-  return found.toArray.map (·.2)
+  return histories
 
 /-- Reconcile full producer censuses with an independently selected positive domain. Full
 replay selection and both replay key arrays survive the infrastructure partition. Sources
 must already belong to the same frozen claim; no source or profile is invented here. -/
-def freeze (claim : Claim) (positive : Array Name)
-    (configured : Array TargetAssignment) (discovered : Array DiscoveredTarget)
+private def freezeEnvironment (claim : Claim) (request : EnvironmentRequest)
+    (discovered : Array DiscoveredTarget)
     (sources : Array ProducerReport.SourceBinding) (ownedOutput : FilePath)
-    (reports : Array RequestedInspection) (fileSource : Option FileSourceBinding := none) : IO (Frozen claim) := do
+    (inspected : RequestedInspection) (fileSource : Option FileSourceBinding := none) : IO FrozenEnvironment := do
   let snapshot : AdmittedSnapshot := ⟨claim.val.snapshot, claim.property.2.1⟩
-  unless decide (uniqueNames positive) do throw <| IO.userError "duplicate requested positive module"
-  let requested := reports.flatMap (·.expectedModules)
-  unless decide (uniqueNames requested) && canonicalNames requested == canonicalNames positive do
-    throw <| IO.userError "missing, duplicate or unrequested surface inspection"
-  let mut rawDeclarations := #[]
-  let mut transcripts := #[]
-  let mut rawRoots := #[]
-  let mut rawOrigins := #[]
-  let mut rawInfrastructure := #[]
-  let mut rawReplayModules := #[]
-  let mut rawRequired := #[]
-  let mut rawAdmitted := #[]
-  let mut rawMaterial := #[]
-  let mut moduleDocs := #[]
-  let mut declarationDocs := #[]
-  for inspected in reports do
-    let report := inspected.report
-    timedPhase "freeze report validation" do
-      IO.ofExcept (← IO.lazyPure fun _ => report.validate)
-      IO.ofExcept (← IO.lazyPure fun _ => (report.validateSourceEvidence).mapError (·.detail))
-      IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.validateAgainst sources report).mapError (·.detail))
-      IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.transcriptsMatch sources inspected.transcripts).mapError (·.detail))
-    unless report.census.modules == inspected.expectedModules && report.census.executionRoots.isSome do
-      throw <| IO.userError "producer census differs from independently requested surface"
-    let some replay := report.admission
-      | throw <| IO.userError "missing completed logical admission"
-    let some documentation := report.documentation
-      | throw <| IO.userError "missing completed documentation observation"
-    rawDeclarations := rawDeclarations ++ report.declarations
-    transcripts := transcripts ++ inspected.transcripts
-    rawRoots := rawRoots ++ report.execution
-    rawOrigins := rawOrigins ++ report.moduleOrigins
-    rawInfrastructure := rawInfrastructure ++ (← Environment.infrastructureOrigins snapshot report)
-    rawReplayModules := rawReplayModules ++ replay.modules
-    rawRequired := rawRequired ++ replay.required
-    rawAdmitted := rawAdmitted ++ replay.admitted
-    rawMaterial := rawMaterial ++ documentation.materialDeclarations
-    moduleDocs := moduleDocs ++ documentation.modules
-    declarationDocs := declarationDocs ++ documentation.declarations
-  let scope ← IO.ofExcept <| Policy.admitScope rawDeclarations transcripts
-  let roots ← IO.ofExcept <| reconcile "execution root" (·.name) rawRoots
-  let execution ← IO.ofExcept <| admitExecution roots
-  let origins ← IO.ofExcept <| reconcile "module origin" (·.name) rawOrigins
-  let infrastructure ← IO.ofExcept <| reconcile "infrastructure origin" (·.moduleKey.name.name) rawInfrastructure
-  let histories ← IO.ofExcept <| historyObservations reports
-  let modules ← IO.ofExcept <| positive.mapM (moduleKey snapshot)
+  let positive := request.modules.map (·.name.name)
+  let report := inspected.report
+  unless inspected.expectedModules == positive && report.census.modules == positive &&
+      report.census.executionRoots.isSome do
+    throw <| IO.userError "producer census differs from independently requested environment"
+  timedPhase "freeze report validation" do
+    IO.ofExcept (← IO.lazyPure fun _ => report.validate)
+    IO.ofExcept (← IO.lazyPure fun _ => (report.validateSourceEvidence).mapError (·.detail))
+    IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.validateAgainst sources report).mapError (·.detail))
+    IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.transcriptsMatch sources inspected.transcripts).mapError (·.detail))
+  let some replay := report.admission
+    | throw <| IO.userError "missing completed logical admission"
+  let some documentation := report.documentation
+    | throw <| IO.userError "missing completed documentation observation"
+  let scope ← IO.ofExcept <| Policy.admitScope report.declarations inspected.transcripts
+  let execution ← IO.ofExcept <| admitExecution report.execution
+  let origins := report.moduleOrigins
+  let infrastructure ← Environment.infrastructureOrigins snapshot report
+  let histories ← IO.ofExcept <| historyObservations #[inspected]
+  let modules := request.modules
   let infrastructureNames := infrastructure.map (·.moduleKey.name.name)
   let importedNames := origins.map (·.name) |>.filter fun name =>
     !positive.contains name && !infrastructureNames.contains name
@@ -213,13 +174,13 @@ def freeze (claim : Claim) (positive : Array Name)
   let importedSources ← (importedModules.filter (fun m => allSources.any (·.moduleName == m.name.name))).mapM sourceFor
   let infrastructureSources ← ((infrastructure.map (·.moduleKey)).filter
     (fun m => allSources.any (·.moduleName == m.name.name))).mapM sourceFor
-  let replayModules ← IO.ofExcept <| (canonicalNames rawReplayModules).mapM (moduleKey snapshot)
-  let required ← IO.ofExcept <| (canonicalEdges rawRequired).mapM (declarationKey snapshot)
-  let admitted ← IO.ofExcept <| (canonicalEdges rawAdmitted).mapM (declarationKey snapshot)
+  let replayModules ← IO.ofExcept <| replay.modules.mapM (moduleKey snapshot)
+  let required ← IO.ofExcept <| replay.required.mapM (declarationKey snapshot)
+  let admitted ← IO.ofExcept <| replay.admitted.mapM (declarationKey snapshot)
   let declarations ← IO.ofExcept <| (scope.inventory.declarations.map (fun d => (d.module, d.name))).mapM
     (declarationKey snapshot)
   let rootKeys ← IO.ofExcept <| (execution.roots.map (fun r => (r.module, r.name))).mapM (declarationKey snapshot)
-  let material ← IO.ofExcept <| rawMaterial.mapM (declarationKey snapshot)
+  let material ← IO.ofExcept <| documentation.materialDeclarations.mapM (declarationKey snapshot)
   let mut unclassifiedRootImports := #[]
   let configuredModules := discovered.flatMap (·.modules)
   for origin in origins do
@@ -227,17 +188,40 @@ def freeze (claim : Claim) (positive : Array Name)
         !infrastructureNames.contains origin.name && (← pathWithin origin.olean ownedOutput) then
       unclassifiedRootImports := unclassifiedRootImports.push
         (← IO.ofExcept (moduleKey snapshot origin.name))
-  let census : Census := {
-    policy := scope.inventory, execution, modules, importedModules, infrastructure, origins,
+  let census : EnvironmentCensus := {
+    request, policy := scope.inventory, execution, modules, importedModules, infrastructure, origins,
     moduleSources, fileSource, importedSources, infrastructureSources, unclassifiedRootImports,
     admissionModules := replayModules, admissionDeclarations := required, declarations,
-    roots := rootKeys, materialDeclarations := material, fences := #[],
+    roots := rootKeys, materialDeclarations := material }
+  return {
+    census, admission := ⟨replayModules, required, admitted, #[]⟩,
+    moduleDocumentation := documentation.modules, declarationDocumentation := documentation.declarations, histories }
+
+/-- Requests are the coordinator's ordered module assignments. Responses cannot alter
+their count, index, module partition or snapshot; each complete packet is admitted intact. -/
+def freeze (claim : Claim) (expected : Array (Array Name))
+    (configured : Array TargetAssignment) (discovered : Array DiscoveredTarget)
+    (sources : Array ProducerReport.SourceBinding) (ownedOutput : FilePath)
+    (reports : Array RequestedInspection) (fileSource : Option FileSourceBinding := none) : IO (Frozen claim) := do
+  let snapshot : AdmittedSnapshot := ⟨claim.val.snapshot, claim.property.2.1⟩
+  unless reports.size == expected.size do
+    throw <| IO.userError "missing, duplicate or unrequested environment inspection"
+  let requests ← expected.mapIdxM fun index names => do
+    let modules ← IO.ofExcept <| names.mapM (moduleKey snapshot)
+    pure ({ key := ⟨snapshot, index⟩, modules } : EnvironmentRequest)
+  let environments ← requests.mapIdxM fun index request => do
+    let some inspected := reports[index]?
+      | throw <| IO.userError "missing requested environment inspection"
+    freezeEnvironment claim request discovered sources ownedOutput inspected fileSource
+  let census : Census := {
+    requests, environments := environments.map (·.census),
+    modules := requests.flatMap (·.modules),
+    moduleSources := environments.flatMap (·.census.moduleSources),
     configuredTargets := configured, discoveredTargets := discovered }
   let plan ← timedPhase "plan admission" do
     IO.ofExcept (← IO.lazyPure fun _ => buildPlan claim census)
   return {
-    census, plan, roles := scope.roles, admission := ⟨replayModules, required, admitted, #[]⟩,
-    moduleDocumentation := moduleDocs, declarationDocumentation := declarationDocs, histories }
+    census, plan, roles := fun slot => authorize census.environments[slot].policy, environments }
 
 private def requireOne (what : String) (values : Array α) : Except String α :=
   match values.toList with
@@ -256,14 +240,9 @@ theorem modulePresence_iff (present : Bool) :
 /-- Each required slot receives its actual stage's observation. Failed lookup returns an
 explicit error; unknown stages cannot become a completed empty payload. The caller supplies
 the actual build process observation, not a synthesized success from diagnostic counts. -/
-def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservation) :
-    Except String (List (Nat × JobObservation)) := do
-  let values : Array (Nat × JobObservation) ← frozen.plan.jobs.mapIdxM fun slot key => do
-    let evidence ← match key.stage, key.subject with
-      | .configuration, .scope =>
-          pure (JobEvidence.configuration frozen.census.configuredTargets frozen.census.discoveredTargets)
-      | .discovery, .scope => pure <| .discovery frozen.census
-      | .build, .scope => pure <| .build build
+private def environmentEvidence (frozen : FrozenEnvironment) (stage : Stage)
+    (subject : LocalJobSubject) : Except String JobEvidence := do
+    match stage, subject with
       | .admission, .scope => pure <| .admission frozen.admission
       | .declarationPolicy, .declaration k => do
           let declaration ← requireOne "declaration" <| frozen.census.policy.declarations.filter
@@ -292,6 +271,22 @@ def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservati
           let observation ← requireOne "declaration documentation" <|
             frozen.declarationDocumentation.filter (·.1 == (k.moduleKey.name.name, k.name.name))
           pure <| .documentationPresence observation.2
+      | _, _ => throw "unsupported environment observation stage"
+
+/-- Global jobs are emitted once; local lookups select only the exact bound environment.
+Duplicate metadata occurrences fail instead of being normalized into one response. -/
+def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservation) :
+    Except String (List (Nat × JobObservation)) := do
+  let values : Array (Nat × JobObservation) ← frozen.plan.jobs.mapIdxM fun slot key => do
+    let evidence ← match key.stage, key.subject with
+      | .configuration, .scope =>
+          pure (JobEvidence.configuration frozen.census.configuredTargets frozen.census.discoveredTargets)
+      | .discovery, .scope => pure <| .discovery frozen.census
+      | .build, .scope => pure <| .build build
+      | stage, .environment request subject => do
+          let environment ← requireOne "environment" <| frozen.environments.filter
+            (fun value => decide (value.census.request.key = request))
+          environmentEvidence environment stage subject
       | _, _ => throw "unsupported observation stage for project/file collector"
     return (slot, ({ key, snapshot := claim.val.snapshot, completion := .completed, evidence } : JobObservation))
   return values.toList

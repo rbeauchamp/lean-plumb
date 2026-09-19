@@ -133,7 +133,7 @@ private structure FrozenGraph where
   claim : StrictLeanPolicy.Claim
   census : StrictLeanPolicy.Census
   plan : StrictLeanPolicy.Plan claim census
-  roles : StrictLeanPolicy.Roles census.policy
+  roles : StrictLeanPolicy.CensusRoles census
 
 private unsafe def freezeGraph (plan : Plan) (snapshot : StrictLeanPolicy.AdmittedSnapshot)
     (manifest : Manifest.Manifest) (inventory : Lake.SurfaceInventory)
@@ -169,13 +169,16 @@ private unsafe def freezeGraph (plan : Plan) (snapshot : StrictLeanPolicy.Admitt
     finally Lean.searchPathRef.set previous
   let policy ← IO.ofExcept <| StrictLeanPolicy.admitInventory #[] #[]
   let execution ← IO.ofExcept <| StrictLeanPolicy.admitExecution #[]
-  let census : StrictLeanPolicy.Census := {
-    policy, execution, modules, importedModules := #[], origins, moduleSources, importedSources := #[],
+  let request : StrictLeanPolicy.EnvironmentRequest := { key := ⟨snapshot, 0⟩, modules }
+  let environment : StrictLeanPolicy.EnvironmentCensus := {
+    request, policy, execution, modules, importedModules := #[], origins, moduleSources, importedSources := #[],
     unclassifiedRootImports := #[], admissionDeclarations := #[], declarations := #[], roots := #[],
-    materialDeclarations := #[], fences := #[], graphRoots, graphCoverage,
+    materialDeclarations := #[] }
+  let census : StrictLeanPolicy.Census := {
+    requests := #[request], environments := #[environment], modules, moduleSources, graphRoots, graphCoverage,
     configuredTargets := Acceptance.configuredTargets manifest, discoveredTargets := Acceptance.discoveredTargets inventory }
   let admitted ← IO.ofExcept <| StrictLeanPolicy.buildPlan claim census
-  return ⟨claim, census, admitted, StrictLeanPolicy.authorize policy⟩
+  return ⟨claim, census, admitted, fun slot => StrictLeanPolicy.authorize census.environments[slot].policy⟩
 
 private def finishGraph (frozen : FrozenGraph) (build : ProcessResult) (checks : Array Check) :
     Except String (StrictLeanPolicy.AcceptedRun frozen.claim) := do

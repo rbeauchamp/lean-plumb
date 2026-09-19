@@ -47,6 +47,15 @@ Library globs are therefore load-bearing. If a project intends every module belo
 
 Declaration ownership is the exact module index Lean records. A declaration name that begins with `Lib`, a module named `LibLookalike`, or a private/internal-looking name does not establish or remove ownership. To catch a root-package module imported outside every configured library, the audit resolves each imported module's `.olean` through Lean and compares its origin with Lake's root-package output directory. A root-owned import absent from the claimed library modules and claimed standalone executable roots fails before its declarations can escape classification. Exclusion records classify targets for inventory purposes; they do not permit a claimed module to import an excluded module.
 
+When a claim inspects independently loaded Lean environments, the audit MUST retain
+each requested environment's identity and exact module assignment. Declaration names
+are unique within one Lean environment; distinct environments may legitimately contain
+different declarations with the same name, including `main`. Their inventories MUST NOT
+be treated as one loaded environment. Declaration policies, generated-role evidence,
+execution requests, replay, transcripts, histories and origins MUST be resolved in the
+environment of the requested observation. The complete claim still requires every
+positively assigned module and the global target-classification checks above.
+
 ## 8.3 Clean Elaboration and Diagnostics
 
 **Requirement**: Every module in a positive surface MUST elaborate successfully from source in a fresh Lean/Lake build state, and the audit MUST reject every emitted warning.

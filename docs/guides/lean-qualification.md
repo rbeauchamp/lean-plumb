@@ -6,8 +6,9 @@ replacements; ordinary acceptance, the producer/history/corpus CI campaigns, and
 prototype do not need a Python interpreter. The branch's four additional diagnostics
 (`acceptance_checks.py`, `acceptance_snapshot_checks.py`, `documentation_dependency_checks.py`,
 and `input_inventory_checks.py`) remain preserved migration debt under `scripts/`.
-Their controls have not been ported or retired by this integration; see
-[acceptance qualification](policy-acceptance.md) for their existing scope.
+Native ports are present in this repair; retirement awaits their compiler and
+runtime qualification in the [repair receipt](../../session/evidence/ci-environment-census.md).
+Use the Lean commands below; do not execute the historical Python artifacts.
 The prototype's project-owned JavaScript widget was also removed. External Lean, Lake,
 Verso, runtime libraries and generated browser assets remain external dependencies, not
 claims of a wholly Lean or formally verified toolchain.
@@ -34,6 +35,10 @@ Conversely, passing these controls never proves arbitrary compiler or OS behavio
 | `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 36 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
 | `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Sixty source-owned phases for twenty rules, plus admission mutations and authentic wrong-claim/classification controls. |
 | prototype `run.py` | `lake env lean --run examples/rule-reference-prototype/Run.lean` | Separately pinned Verso integration, native messages, Lake dependency dispatch and identical-output comparison. |
+| `acceptance_checks.py` | `lake exe qualify acceptance GROUP --evidence PATH` | Surface/evidence/fence packet mutations, source request binding, worker failure and timeout, with positive restoration. Groups: `surface`, `evidence`, `fences`, `sources`, `process`. |
+| `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies` and `lake exe qualify acceptance-snapshots history` | Ignored Git/non-Git dependency input coverage and mutation; SL3001 fresh/incremental/build-lint history refusal and restoration. `all` runs both under one deadline. |
+| `documentation_dependency_checks.py` | `lake exe qualify documentation-dependencies` | Both documentation commands retain pre-build dependency observations; combined project/documentation positive remains distinct. |
+| `input_inventory_checks.py` | `lake exe qualify input-inventory` | Root additions and Markdown edit/removal during prerequisite build; actual new-module build and restored fresh controls. |
 
 The producer command retains `--evidence PATH`. `scripts/verify.sh` runs registry and native
 controls; `scripts/verify.sh diagnostics producers` and `scripts/verify.sh diagnostics history`
@@ -145,6 +150,12 @@ to `qualify` so it does not detach a nested timer/group. That private flag is no
 standalone invocation or an alternative acceptance command. `TimeoutControl.lean` separately
 exercises positive, descendant timeout, terminated-descendant and restored controls.
 These observations are not an OS scheduling theorem.
+
+The acceptance `process` group additionally terminates a single native sleeper
+inside a surface worker using a foreground timer. It checks actual worker
+termination and the coordinator's incomplete/no-acceptance response. It does not
+establish whole-coordinator cancellation; `TimeoutControl` retains the separate
+process-group descendant controls. No nested timer creates an escaping group.
 
 The operator approved a narrow exception for the existing CI bootstrap to install pinned
 Elan/Lean and required system tools before Lean is available, expose their paths, and
