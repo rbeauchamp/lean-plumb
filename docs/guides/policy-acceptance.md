@@ -112,6 +112,11 @@ Configuration, discovery and build jobs occur once. Local jobs carry an
 `EnvironmentKey` and local subject; admission, declaration policy, execution,
 transcript, history, origin and documentation-presence observations resolve only
 inside that environment. `CensusRoles` supplies roles indexed by that same inventory.
+`freezeEnvironment` retains the role receipt computed by `Policy.admitScope`;
+`frozenEnvironmentRoles` selects it at the exact environment index.
+`Roles.eq_authorize` and `frozenEnvironmentRoles_eq` prove exact equality to
+recomputation, including both ordered role arrays. This avoids repeated role
+authorization per job without caching an acceptance verdict or trusting a worker flag.
 All execution requests for a root come from registrations in its bound environment.
 The existing collector and `finalize` still require exact input occurrence coverage
 and every policy obligation. File and graph paths use one environment; document

@@ -1,14 +1,14 @@
 # Lean qualification tooling
 
 Project-owned implementation follows the Lean 4 policy in `AGENTS.md`, not
-in the universal standard. The twelve former Python entrypoints listed below have Lean
+in the universal standard. The sixteen former Python entrypoints listed below have Lean
 replacements; ordinary acceptance, the producer/history/corpus CI campaigns, and the
-prototype do not need a Python interpreter. The branch's four additional diagnostics
-(`acceptance_checks.py`, `acceptance_snapshot_checks.py`, `documentation_dependency_checks.py`,
-and `input_inventory_checks.py`) remain preserved migration debt under `scripts/`.
-Native ports are present in this repair; retirement awaits their compiler and
-runtime qualification in the [repair receipt](../../session/evidence/ci-environment-census.md).
-Use the Lean commands below; do not execute the historical Python artifacts.
+prototype do not need a Python interpreter. The four remaining acceptance, snapshot,
+documentation-dependency and input-inventory drivers were retired after their native
+controls passed. The [earlier receipt](../../session/evidence/ci-environment-census.md)
+and [completion receipt](../../session/evidence/ci-role-retention.md) retain the
+control mapping, runtime results, failed attempts and evidence-reuse boundaries.
+Historical implementations remain in Git history; use the Lean commands below.
 The prototype's project-owned JavaScript widget was also removed. External Lean, Lake,
 Verso, runtime libraries and generated browser assets remain external dependencies, not
 claims of a wholly Lean or formally verified toolchain.
@@ -52,6 +52,20 @@ upstream corpus selection; optional `--rules RULE ...` follows `--evidence PATH`
 standalone command and never claims full-corpus coverage. The corpus runner retains at
 most two disjoint detector processes, consumes records in fixed order, and drains launched
 tasks before ordinary/exceptional scratch cleanup. Partial exports remain `INCOMPLETE`.
+Corpus records use a qualification-only view: top-level `acceptance` and
+`documentationAcceptance` payloads become null, while every key, required nested value
+and raw-tree shape remains unchanged. Exact detector bytes remain in
+`PATH.raw/ATTEMPT/RULE/PHASE/result.json`, with registered command/request/snapshots,
+stream files, terminal metadata and the compact original record. Derived admission
+mutations retain their exact submitted record, origin path and mutation label before
+admission under the original phase's `controls/` directory. During production the
+INCOMPLETE receipt points to these sidecars; the full aggregate is written once all
+records and controls are ready. The runner verifies the retained files,
+SHA256/length binding and terminal checker sources before exporting PASS. Missing or
+changed sidecars refuse completion; kill paths retain INCOMPLETE and partial files.
+PASS is written only after successful scratch cleanup.
+Stream retention on kill covers completed lines already read; an unterminated line
+can remain buffered. Only terminal observations claim complete streams.
 The former launcher's separate 180-second diagnostic timer is replaced by the same
 single 420-second public qualification boundary; no timing result is a future bound.
 
@@ -119,6 +133,14 @@ by their source-level linkage. The proof is erased at execution.
   only entire matching string values change. Unmatched strings stay unchanged. Depth
   exhaustion explicitly refuses; the corpus uses a 64-level budget. Semantic module
   discovery for checker snapshots uses Lake's elaborated inventory, not a source glob.
+- `Checker.RuleExampleProjection.qualify_record` and its mutation/checker-source
+  variants prove exact `Except String Unit` equality for arbitrary producer JSON at
+  the adapter's canonical record constructor. `qualifyCorpus_records` extends this
+  to the unchanged full corpus qualifier, including ordered scans, completeness and
+  first refusals. `withoutSourceAccount_view` covers the existing missing-source
+  control. Structural raw-tree laws avoid assuming parser well-formedness. These
+  separately checked operational-module proofs do not authenticate parsing,
+  duplicate-key handling, serialization, hashes, filesystem custody or subprocesses.
 - `Website.hasFence_exact`: the fence guard detects exactly a contiguous triple backtick
   in the input character list. `checkedBlock` specifies refusal or exact LF-normalized
   text wrapping. `checkedPage` admits exactly fence-free SL1001 inputs and returns a

@@ -4,6 +4,24 @@ This receipt belongs to the assigned CI repair in run
 `01M2QNJRBW9M8WC4ZNZ3QQHG8G`. The outer executor retains pipeline, publication,
 remote issue and merge control. This file does not mark issue #7 complete.
 
+Current continuation: [corpus projection repair](ci-corpus-projection.md) retains
+the latest adapter repairs, independent reviews and required gate outcomes.
+The preceding [retained-role CI repair](ci-role-retention.md) supersedes
+the pending lists below. Those lists and the 5,237-declaration inventories describe
+their dated historical checkpoints, not the current source. Environment and fence
+qualification and process-group control passed; the four legacy drivers are retired
+with mapped native evidence. Final diagnostic, site, cold acceptance and exact
+coverage results are maintained in that continuation receipt. Hosted acceptance
+and delivery remain the outer executor's responsibility.
+The resumed producer/history diagnostics passed in 318.96/295.60 seconds;
+the required corpus diagnostic failed at 420.13 seconds after 29 qualified
+phases. This failure blocks local completion; historical cold passes do not
+discharge it.
+Final retained-role cold acceptance subsequently passed in 217.86 seconds;
+that checkpoint's exact coverage is 40 modules / 5,238 declarations in
+[ci-role-coverage.json](ci-role-coverage.json). Site qualification also passed.
+The discarded compact-writer attempt failed too; required corpus remains FAIL.
+
 ## Source and integration
 
 Starting clean head: `036edb93c51de5a374f85eac0e4ff82ef79d5edd`.
@@ -277,7 +295,7 @@ preserved at `tmp/ci-receipt-pre-cold-build`; `.lake/build` is absent at gate en
 The original warm backup and all failed attempts remain intact. Dependency artifacts
 remain provisioned. Hosted CI and remaining diagnostic campaigns are separate.
 
-### Current cold ordinary result
+### Historical cold ordinary result before retained-role repair
 
 `/usr/bin/time -p ./scripts/verify.sh` exited0 in **243.88 seconds**, inside the
 unchanged420 process-group deadline. Raw log: `tmp/ci-receipt-cold420.log`.
@@ -306,7 +324,7 @@ outer timeout-selection/spawn failure controls and from overall420 termination.
 `tmp/ci-receipt-coverage.json` is the compact projection of the current cold
 report's exact40 module names, surface declaration counts and observed axiom sets.
 
-### End-of-invocation checkpoint: CI phase INCOMPLETE
+### Historical end-of-invocation checkpoint: CI phase INCOMPLETE
 
 `lake exe qualify acceptance-snapshots history` exited0; all9 fresh,
 incremental and build-lint positive/refusal/restored phases passed in

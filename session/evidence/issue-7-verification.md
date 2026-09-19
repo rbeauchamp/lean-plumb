@@ -1,11 +1,28 @@
 # Issue7 accepted-result integration evidence
 
-Latest bounded CI repair: [candidate1 compiler dependency memoization](ci-candidate1-memoization.md).
-Targeted proofs/equivalence and focused review passed; history qualification timed out,
-and renewed compiler contention prevented the authorized cold420 from starting.
-This follow-up does not establish current CI acceptance or supersede failed receipts.
+Current bounded CI repair: [corpus projection receipt](ci-corpus-projection.md),
+based on `e19018e47b73ac732853ad90297bcc94d15854b3`, with proof-linked exact
+qualifier correspondence and retained raw observations. Final cold acceptance
+passed in 224.40 seconds; the required full corpus still fails at 420 seconds.
+[Current exact coverage](ci-corpus-coverage.json) and
+[source binding](ci-corpus-inputs.sha256) preserve the current 40-module,
+5,238-declaration inventory, including the updated 71-module excluded StrictLean
+surface. This is not a completed CI repair. The
+[retained-role receipt](ci-role-retention.md) records exact equality of retained
+roles to recomputation and the preceding scoped qualification. The
+[environment integration receipt](ci-environment-census.md) retains earlier
+integration/control evidence. The [compiler dependency memoization receipt](ci-candidate1-memoization.md)
+and its timeout remain historical; they are not the current completion status.
+Hosted acceptance, downstream issue handoffs and integrated delivery remain open.
+Earlier corpus qualification failed at its unchanged 420-second deadline
+after 29 qualified phases. Producer/history diagnostics passed; the continuation
+receipt keeps these scoped outcomes separate from ordinary acceptance and delivery.
+Final retained-role cold acceptance passed in 217.86 seconds and site qualification
+passed in 67.66 seconds. [Historical coverage](ci-role-coverage.json) contains all
+40 modules and 5,238 declaration/axiom entries. The unsuccessful corpus writer
+experiment is removed; its second timeout does not close required qualification.
 
-Status: implementation checkpoint on `codex/strict-lean-7-integration`, based on
+Historical implementation checkpoint below on `codex/strict-lean-7-integration`, based on
 `f9b54f7b7b2094f3b9063e2bf0d156eaefe4d9be` (tree
 `9310eef85ce8fbe9ee3ce961b62a7e9e45790d07`). This is not a completed delivery receipt.
 Native blockers6/13 were closed at intake; the current issue body, including the narrow

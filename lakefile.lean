@@ -68,7 +68,7 @@ lean_exe «ruleExamples» where
   supportInterpreter := true
 
 lean_exe «ruleExampleQualification» where
-  root := `StrictLean.Checker.RuleExampleQualification
+  root := `StrictLean.Checker.RuleExampleQualificationMain
 
 lean_exe «auditApp» where
   root := `Main

@@ -94,10 +94,27 @@ def buildObservation (process : ProcessResult) : BuildObservation :=
 These data do not carry an accepted flag or determine the required stage list. -/
 structure FrozenEnvironment where
   census : EnvironmentCensus
+  roles : Roles census.policy
   admission : AdmissionObservation
   moduleDocumentation : Array (Name × Bool)
   declarationDocumentation : Array ((Name × Name) × Option String)
   histories : Array HistoryObservation
+
+/-- Select the role receipt already computed during admission of this exact environment.
+The dependent result prevents selecting a receipt for another inventory. -/
+def frozenEnvironmentRoles (environments : Array FrozenEnvironment) :
+    (slot : Fin (environments.map FrozenEnvironment.census).size) →
+      Roles (environments.map FrozenEnvironment.census)[slot].policy :=
+  fun slot => by
+    simpa using (environments[slot.val]'(by simpa using slot.isLt)).roles
+
+/-- Retaining admitted receipts is exactly the former recomputation at every slot. -/
+theorem frozenEnvironmentRoles_eq (environments : Array FrozenEnvironment) :
+    frozenEnvironmentRoles environments =
+      (fun (slot : Fin (environments.map FrozenEnvironment.census).size) =>
+        authorize (environments.map FrozenEnvironment.census)[slot].policy) := by
+  funext slot
+  exact Roles.eq_authorize _
 
 /-- The complete project plan retains each environment's observations without merging
 declaration namespaces, root registrations, replay or role authority. -/
@@ -194,7 +211,7 @@ private def freezeEnvironment (claim : Claim) (request : EnvironmentRequest)
     admissionModules := replayModules, admissionDeclarations := required, declarations,
     roots := rootKeys, materialDeclarations := material }
   return {
-    census, admission := ⟨replayModules, required, admitted, #[]⟩,
+    census, roles := scope.roles, admission := ⟨replayModules, required, admitted, #[]⟩,
     moduleDocumentation := documentation.modules, declarationDocumentation := documentation.declarations, histories }
 
 /-- Requests are the coordinator's ordered module assignments. Responses cannot alter
@@ -221,7 +238,7 @@ def freeze (claim : Claim) (expected : Array (Array Name))
   let plan ← timedPhase "plan admission" do
     IO.ofExcept (← IO.lazyPure fun _ => buildPlan claim census)
   return {
-    census, plan, roles := fun slot => authorize census.environments[slot].policy, environments }
+    census, plan, roles := frozenEnvironmentRoles environments, environments }
 
 private def requireOne (what : String) (values : Array α) : Except String α :=
   match values.toList with

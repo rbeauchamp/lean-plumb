@@ -31,12 +31,16 @@ and its checker executables remain excluded from the conforming proof surface;
 every declaration's exact axiom set.
 
 Global integration has one owner: [#7](https://github.com/rbeauchamp/strict-lean/issues/7),
-with [PR #33](https://github.com/rbeauchamp/strict-lean/pull/33). At this baseline
-the PR was open at `036edb93c51de5a374f85eac0e4ff82ef79d5edd`; `verify` failed
-and both CodeQL checks succeeded. Its branch contains additional acceptance work
-not integrated into this baseline. Preserve that work and its complete acceptance
-criteria; refresh its head, custody, conflicts and checks before resuming. This
-guide neither certifies that branch nor replaces its implementation.
+with [PR #33](https://github.com/rbeauchamp/strict-lean/pull/33). The #38 baseline
+above remains historical. The current implementation below includes PR #33's
+environment-indexed integration at `e19018e47b73ac732853ad90297bcc94d15854b3`
+and the [retained-role repair](../../session/evidence/ci-role-retention.md).
+The [corpus projection receipt](../../session/evidence/ci-corpus-projection.md)
+records the subsequent exact qualifier correspondence, adapter reviews and
+current local qualification evidence, preserving earlier failed attempts.
+That checkpoint's hosted ordinary gate exceeded 420 seconds; local success does
+not establish hosted readiness. Implementation linkage is present, while final
+qualification, exact-head hosted CI and integrated delivery remain separate gates.
 
 ## Component and obligation inventory
 
@@ -53,14 +57,14 @@ that every helper needs a separately named theorem.
 | F02 | [`Inventory`, `admitInventory`, `admitExecution`](../../lean/StrictLeanPolicy/Admission.lean); [`Policy.admitScope`](../../lean/StrictLean/Checker/Policy.lean) is called by project/file/fence inspection. | Admitted values carry validity; exact admission retains input observations, and execution admission has a preservation theorem. The adapter first checks frontend coordinates, then admits inventory and computes roles. Select its exact success/data-retention and first-refusal relation, without interpreting supplied transcripts as authenticated reality. | Core **E**, adapter **R/T**; #39, #41. |
 | F03 | [`policyFor`, `foundationFor`, `declarationFailure`](../../lean/StrictLeanPolicy/Decision.lean); `Policy.ruleFor`, `reasonFor`, `labelOf` in project/file gates; [`Linter.Rules.declarations`](../../lean/StrictLean/Linter/Rules.lean) for local feedback. | Existing equivalences cover membership, policy, all six classification outcomes and ordered first failure. Select exact profile-to-request and failure-to-rule projections in the operational adapter; reuse these decisions rather than prove another classifier. Environment collection remains separate. | Core **E**, adapter **R/T**; #39, #41. |
 | F04 | [`executionFailureRecords`, `executionSummary`](../../lean/StrictLeanPolicy/Execution.lean); `Policy.executionFailureRecords`, `executionFailures` and gate rendering. | Empty pure failures iff `ExecutionOK` for every admitted finite inventory and mode. Select preservation of failure kind/root/detail/order in the operational mapping and exact summary-count equations. These are observations of a conservative account, not a minimal native call graph. | Decision **E**, projections/counts **R/T**; #39, #42. |
-| F05 | [`CensusOK`, `requiredJobs`, `Plan`, `admitPlan`](../../lean/StrictLeanPolicy/Plan.lean); [`accept`, `Accepted.report`](../../lean/StrictLeanPolicy/Acceptance.lean). | Plan fields require the independently derived jobs and exact claim; accepted evidence requires completeness and policy for those inputs. The baseline operational project/file/doc success branches do not require this capstone. Freeze the actual independent census and require evidence for that request, not a shorter worker-selected list. | Pure core **E**, global **L/T**; **#7 only**. |
-| F06 | [`ResultState.insertResult`](../../lean/StrictLeanPolicy/ResultState.lean); [`Common.admitIndexedWorkerResults`](../../lean/StrictLean/Checker/Common.lean), consumed by typed batch workers. | Insertion has exact success conditions, lookup/frame and refusal theorems. The adapter decodes occurrences, inserts into fixed required slots, then projects in slot order. Individual insertion proofs alone do not establish the adapter's complete sequence/projection contract. Reuse #7's collection/finalization work and bind successful output to every original slot. | Insertion **E**, batch **L/R/T**; #7, remaining adapter closure #39/#41. |
+| F05 | [`CensusOK`, `requiredJobs`, `Plan`, `admitPlan`](../../lean/StrictLeanPolicy/Plan.lean); [`accept`, `Accepted.report`](../../lean/StrictLeanPolicy/Acceptance.lean). | Coordinator-fixed requests retain the full claim and separate environment inventories. Plan fields require exact derived jobs and claim; accepted evidence requires completeness and policy for those inputs. The actual freeze/finish callers consume this evidence. Final delivery evidence remains open. | Core and linkage **E/T**; delivery **#7 only**. |
+| F06 | [`ResultState.insertResult`, `collect`](../../lean/StrictLeanPolicy/ResultState.lean); [`finalize`](../../lean/StrictLeanPolicy/Acceptance.lean); [`Common.admitIndexedWorkerResults`](../../lean/StrictLean/Checker/Common.lean). | Insertion and full-sequence collection retain unknown, duplicate and binding refusals. `finalize_iff` relates actual raw occurrences to exact required-slot policy coverage; split IO collection/acceptance carries equality to this finalizer. Extraction and any remaining operational projection relation remain distinct. | Collection/finalization **E**, remaining adapter **R/T**; #7 then #39/#41. |
 | F07 | [`evaluate`, `checkedEvaluation`](../../lean/StrictLeanQualification/Checks.lean); [`Qualification.requireChecks`](../../lean/StrictLean/Qualification/Support.lean) calls `checkedEvaluation.run`. | Exact success iff all supplied assertions hold, first false assertion, and append/bind composition are already proved and consumed. The empty list succeeds. The evaluator cannot establish that an adapter supplied all needed assertions or truthful IO observations. Retain the implementation and inspect changed callers; do not rebuild a generic assertion framework. | **E/T**; reuse #39/#40, boundary account #41. |
 | F08 | [`AuditApp.RequiredContracts`, `checkedExecutable`](../../lean/AuditApp/Limiter.lean); [`Main`](../../lean/Main.lean) invokes the contract with `requiredContracts`. | Admission, updates, frames, exact success/refusal and strict composition concern the actual runner. The intrinsic bound alone would not prove those relations. [`Refinement`](../../lean/AuditApp/Refinement.lean) relates that runner to finite abstract paths. Retain as the reference pattern; it is not a theorem about checker orchestration or OS effects. | **E/T**; reuse #39; no selected application rewrite. |
 | F09 | [`CanonicalSet` decisions and `ExactlyOne`](../../lean/StrictLeanPolicy/Collections.lean), used by admission/role/plan predicates; [`Economy.sumTo_csimp`](../../lean/Audit/Economy.lean) illustrates proved replacement. | Std supplies extensional collections and laws; adjacent-order and singleton-head equivalences already avoid redundant work. The arithmetic example proves one universal identity and an equality of executable definitions. Preserve duplicate-rejection versus set-normalization semantics and separate kernel reduction from compiler replacement. | **E/T**; bounded economy review #40. |
-| F10 | [`AxiomGate.auditSurfaceAt`, `auditSurface`, `auditFile`, `run`](../../lean/StrictLean/Checker/AxiomGate.lean); [`Documentation.auditBuiltProject`](../../lean/StrictLean/Checker/Documentation.lean), [`DocFenceAudit.run`](../../lean/StrictLean/Checker/DocFenceAudit.lean); sample [`policy` target](../../examples/build-lint/lakefile.lean). | Baseline project/file paths use failure collections; documentation uses structural/result failures; build-lint forwards incremental audit status. #7 must supply the theorem-to-success-call-site map, including project-with-docs composition. Help/configuration/transport completion and [`local feedback`](../../lean/StrictLean/Linter.lean) must not become fresh-project acceptance claims. | **L/T**; **#7 only**, truthful wording #42. |
-| F11 | [`Workspace.withRootWorkspace`](../../lean/StrictLean/Checker/Workspace.lean), `Lake.surfaceInventory`, [`SourceBinding`](../../lean/StrictLean/Checker/SourceBinding.lean), [`Admission.validate`](../../lean/StrictLean/Checker/Admission.lean), [`Frontend`](../../lean/StrictLean/Checker/Frontend.lean), [`ProducerReport`](../../lean/StrictLean/Checker/ProducerReport.lean). | These acquire and reconcile source/configuration, compiler and replay observations. Preserve exact source checks, ownership, import restrictions and missing/unknown refusals. Policy validity does not authenticate their observations, the filesystem, external processes or native code. No wholesale proof of these mechanisms is selected. | **T**, required integration **L**; #7, explicit adapter boundary #41. |
-| F12 | [`ResultProtocol`](../../lean/StrictLean/Checker/ResultProtocol.lean), [`RuleDiagnostics`](../../lean/StrictLean/Checker/RuleDiagnostics.lean), existing gate/fence renderers and [`rule coverage`](rule-coverage.md). | Typed diagnostics and identity fields are useful but do not themselves construct `Accepted`. Select one evidence-derived account of exact scope, checked relation, executable identity, foundation/execution boundaries and residual review. Preserve source attribution and positive/rejection/teaching/incomplete distinctions. | Global **L**, projection **R/T**; #7 then #42. |
+| F10 | [`AxiomGate.auditSurfaceAt`, `auditSurface`, `auditFile`, `run`](../../lean/StrictLean/Checker/AxiomGate.lean); [`Documentation.auditBuiltProject`](../../lean/StrictLean/Checker/Documentation.lean), [`DocFenceAudit.run`](../../lean/StrictLean/Checker/DocFenceAudit.lean); sample [`policy` target](../../examples/build-lint/lakefile.lean). | Actual project/file/fence/build-lint success consumes accepted evidence; project-with-docs consumes same-snapshot `CombinedAccepted`. The [success-call-site map](policy-acceptance.md) distinguishes workers/help/local feedback and incremental modes from fresh conformance. The private fence finalizer consumes unchanged admitted task output. | Linkage **E/T**; delivery **#7 only**, reporting #42. |
+| F11 | [`Workspace.withRootWorkspace`](../../lean/StrictLean/Checker/Workspace.lean), `Lake.surfaceInventory`, [`SourceBinding`](../../lean/StrictLean/Checker/SourceBinding.lean), [`Admission.validate`](../../lean/StrictLean/Checker/Admission.lean), [`Frontend`](../../lean/StrictLean/Checker/Frontend.lean), [`ProducerReport`](../../lean/StrictLean/Checker/ProducerReport.lean). | Existing source/configuration, complete inventory, compiler and replay observations are bound to the accepted request and terminally reconciled. Policy validity does not authenticate their observations, filesystem, external processes or native code. Qualification and the [boundary table](policy-acceptance.md) remain required; no wholesale proof of these mechanisms is selected. | Bound integration implemented; acquisition **T**; #7, explicit adapter boundary #41. |
+| F12 | [`ResultProtocol`](../../lean/StrictLean/Checker/ResultProtocol.lean), [`RuleDiagnostics`](../../lean/StrictLean/Checker/RuleDiagnostics.lean), existing gate/fence renderers and [`rule coverage`](rule-coverage.md). | Public accepted projections consume `AcceptedRun.report`; typed diagnostics or serialized success flags cannot reconstruct acceptance. Exact scope, executable identity, foundation/execution boundaries and residual-review presentation remain #42's selected reporting work. Positive/rejection/teaching/incomplete distinctions remain. | Global linkage **E**, projection **R/T**; #7 then #42. |
 
 ## Read-back of the essential relations
 
@@ -94,7 +98,7 @@ existential; implicit inputs and typeclass assumptions still matter.
   other lookup is unchanged. Public construction enforces subset/binding
   validity, not a history of insertions or latest-state/single-use discipline.
 - **Acceptance:** for `c : Claim`, `i : Census`, `p : Plan c i`,
-  `roles : Roles i.policy` and `s : ResultTable p`, `accept_iff` states
+  `roles : CensusRoles i` and `s : ResultTable p`, `accept_iff` states
   `(∃ a, accept p roles s = .ok a) ↔ CompleteFor p s ∧ AllPolicyOK p roles s`.
   `CompleteFor` includes `PlanOK` and a completed observation at every required
   slot; `AllPolicyOK` requires its exact stage policy. `accepted_report_identity`
@@ -172,9 +176,11 @@ delete its requirement. Semantic review still owns adequacy and caller coverage.
 Review these four candidates and either implement a justified simplification or
 record the specific reason to retain the current form:
 
-1. `CompleteFor`'s decision recomputes a `PlanOK` conjunct despite `p.valid`.
-   Investigate deriving that decision from carried evidence without changing the
-   proposition, mandatory jobs, or remaining input-dependent checks.
+1. `CompleteFor` already uses `p.valid` through `completeFor_iff_slots`, with
+   decision and finalizer correspondence proofs. The CI repair also retains
+   admitted role receipts instead of reauthorizing at each job, with exact
+   equality to recomputation. These are implemented; do not repeat them as
+   missing work. Keep runtime and hosted evidence scoped to their receipts.
 2. Repeated inventory membership in `policyFor`/`foundationFor` and their callers:
    investigate a reused lawful membership decision/index with proved equivalence,
    preserving invalid-inventory precedence and the fixed observed inventory.
@@ -268,7 +274,7 @@ BUILD-03, DOC-02 and DOGFOOD-03/04 at this guide's scope. No new mutation campai
 or optional serialized-graph claim follows from this planning delivery.
 The delivery PR records focused inspection, independent semantic review, exact
 head CI and merged-main evidence separately; an existing proof or green build
-does not complete F05/F10's missing global integration.
+does not complete F05/F10's remaining delivery gates.
 
 Successors update these same rows with exact integrated definitions, changed
 coverage, evidence and remaining boundaries. Keep the source baseline distinguishable

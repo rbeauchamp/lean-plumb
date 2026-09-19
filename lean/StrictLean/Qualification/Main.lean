@@ -23,9 +23,9 @@ private unsafe def dispatch (args : List String) (attempt : Option String := non
       StrictLean.Qualification.RegistryCli.check
       StrictLean.Qualification.NativeLinter.checkAll
   | ["native-launcher"] => StrictLean.Qualification.NativeLinter.paired
-  | ["rule-examples", "--evidence", path] => StrictLean.Qualification.RuleExamples.check ⟨path⟩ none
+  | ["rule-examples", "--evidence", path] => StrictLean.Qualification.RuleExamples.check ⟨path⟩ none attempt
   | "rule-examples" :: "--evidence" :: path :: "--rules" :: rules =>
-      StrictLean.Qualification.RuleExamples.check ⟨path⟩ (some rules.toArray)
+      StrictLean.Qualification.RuleExamples.check ⟨path⟩ (some rules.toArray) attempt
   | ["producers"] => StrictLean.Qualification.Producer.check none
   | ["producers", "--evidence", path] => StrictLean.Qualification.Producer.check (some ⟨path⟩)
   | ["producers-combined"] => do
@@ -69,6 +69,8 @@ unsafe def main (args : List String) : IO UInt32 := do
       let _ ← StrictLean.Qualification.Acceptance.beginAttempt group ⟨path⟩ attempt
     | "environments" :: "--evidence" :: path :: _ =>
       StrictLean.Qualification.EnvironmentCensus.beginAttempt ⟨path⟩ attempt
+    | "rule-examples" :: "--evidence" :: path :: _ =>
+      StrictLean.Qualification.RuleExamples.beginAttempt ⟨path⟩ attempt
     | _ => pure ()
     StrictLean.Qualification.runBounded (← IO.currentDir) 420 (← IO.appPath).toString
       (#["--under-deadline", "--attempt", attempt] ++ args.toArray)

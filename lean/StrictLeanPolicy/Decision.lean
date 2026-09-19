@@ -83,6 +83,15 @@ def authorize (i : Inventory) : Roles i :=
   ⟨authorizedNativeAxioms i.declarations i.transcripts,
    authorizedUnsafeRecHelpers i.declarations i.transcripts, rfl, rfl⟩
 
+/-- Any role receipt for this exact inventory equals recomputation of both validators.
+The equations in Roles determine the arrays; no producer verdict is assumed. -/
+theorem Roles.eq_authorize {i : Inventory} (roles : Roles i) : roles = authorize i := by
+  cases roles with
+  | mk native helpers native_exact helpers_exact =>
+    cases native_exact
+    cases helpers_exact
+    rfl
+
 /-- Public policy checks exact inventory membership before using role evidence. -/
 def policyFor (i : Inventory) (roles : Roles i) (d : Declaration)
     (request : InspectionRequest) : Option DeclarationFailure :=
