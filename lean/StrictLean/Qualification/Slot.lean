@@ -352,6 +352,54 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
       ("identity", .str file.identity)])).compress ++ "\n")
   return record
 
+/-- Bounded-concurrent preparation of owned slots, reusing the exact production
+`prepareSlot` per slot (all captured-byte, git and provenance checks retained
+verbatim). Constraints enforced (strict-concurrent-prep-assessment.md):
+atomic pool readiness — the helper completes or throws before any producer can
+start and callers run it before the pool (all-or-nothing); disjoint writes
+only (`prepareSlot` writes exclusively under each `slot.root`); shared-source
+stability assumption stated explicitly — `rootSources`/`rootConfigs`/`deps`
+are the immutable captures taken before the window and no writer to
+`originalRoot`/package sources exists during it (external mutation timing is
+outside equivalence, same class as the terminal validator's assumption);
+complete task/child drainage — every sibling prep task and its `cp`/git
+children drain before any failure surfaces and before cleanup; failure
+ordering — the smallest-slot-index failure is surfaced verbatim (original
+serial slot order), later outcomes discarded; per-slot verification semantics
+unchanged (`compareBytes` read-back and `SlotProvenance` construction exactly
+as serial; the returned aggregate keeps slot order); phase separation —
+preparation memory never overlaps detector heaps. No detector starts until all
+slots succeed. -/
+def prepareSlots (width : Nat) (slots : Array ProducerSlot) (originalRoot : FilePath)
+    (rootSources rootConfigs : Array (FilePath × ByteArray))
+    (deps : Array StrictLean.Checker.Snapshot.DependencyObservation) :
+    IO (Array SlotProvenance) := do
+  let mut outcomes : Array (Except IO.Error SlotProvenance) := #[]
+  let mut start := 0
+  while start < slots.size do
+    let stop := min (start + width) slots.size
+    let batch := slots.extract start stop
+    let tasks ← batch.mapM fun slot => IO.asTask (do
+      let started ← IO.monoMsNow
+      let provenance ← prepareSlot originalRoot slot rootSources rootConfigs deps
+      IO.println s!"prep span: slot preparation copy+authentication ({slot.root}): {(← IO.monoMsNow) - started}ms"
+      pure provenance)
+    let mut results : Array (Except IO.Error SlotProvenance) := #[]
+    for task in tasks do
+      results := results.push (← IO.wait task)
+    outcomes := outcomes ++ results
+    start := stop
+  -- Original serial failure order after complete sibling drainage: the
+  -- smallest slot index's failure surfaces verbatim.
+  match outcomes.findSome? (fun outcome => match outcome with
+    | .ok _ => none
+    | .error error => some error) with
+  | some error => throw error
+  | none => pure ()
+  outcomes.mapM fun outcome => match outcome with
+    | .ok provenance => pure provenance
+    | .error error => throw error
+
 /-- Slot-rooted project preparation: like `prepareProject`, but every `require`
 and manifest `dir` resolution lands inside the slot and no shared
 `.lake/packages` symlink is created. -/

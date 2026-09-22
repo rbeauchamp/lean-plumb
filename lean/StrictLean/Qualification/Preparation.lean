@@ -34,18 +34,18 @@ def check : IO Unit := do
         pure (path, ← IO.FS.readBinFile path))
       IO.println s!"prep phase: input capture: root sources={rootSources.size} configs={rootConfigs.size} deps={deps.size}"
       let totalStart ← IO.monoMsNow
-      for k in [0:3] do
+      let slots ← (#[0, 1, 2, 3, 4] : Array Nat).mapM fun k => do
         let slot : Slot.ProducerSlot := ⟨scratch / s!"slot-{k}"⟩
         IO.FS.createDirAll slot.root
-        let slotStart ← IO.monoMsNow
-        let _ ← Slot.prepareSlot root slot rootSources rootConfigs deps
-        IO.println s!"prep phase: slot-{k} prepareSlot (copy+authentication): {(← IO.monoMsNow) - slotStart}ms"
+        pure slot
+      let _ ← Slot.prepareSlots 3 slots root rootSources rootConfigs deps
+      for k in [:slots.size] do
         let projectStart ← IO.monoMsNow
         IO.FS.createDirAll (scratch / s!"project-{k}")
-        Slot.prepareSlotProject slot (scratch / s!"project-{k}")
+        Slot.prepareSlotProject slots[k]! (scratch / s!"project-{k}")
           "rule_examples" "kernel-only" "The fixture's exact mathematical claim and scope."
         IO.println s!"prep phase: slot-{k} prepareSlotProject: {(← IO.monoMsNow) - projectStart}ms"
-      IO.println s!"prep phase: TOTAL preparation (3 slots): {(← IO.monoMsNow) - totalStart}ms"
+      IO.println s!"prep phase: TOTAL preparation ({slots.size} slots): {(← IO.monoMsNow) - totalStart}ms"
   finally
     match ← scratchRef.get with
     | some scratch =>

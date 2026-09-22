@@ -431,8 +431,10 @@ def check (evidence : FilePath) (selection : Option (Array String))
     let rootSources ← modulePaths.mapM fun path => do
       pure (path, ← IO.FS.readBinFile path)
     let depObservations ← StrictLean.Checker.Snapshot.dependencies inventory
-    for slot in slots do
-      let _ ← Slot.prepareSlot root slot rootSources rootConfigs depObservations
+    -- Atomic pool readiness (CONSTRAINT-1): all slot preparations complete or
+    -- the run fails (smallest-slot-index failure verbatim) before any producer
+    -- task starts; every prep task/child drains first.
+    let _ ← Slot.prepareSlots 3 slots root rootSources rootConfigs depObservations
     let mut records : Array Json := #[]
     let mut controls : Array Json := #[]
     let jobs := selected.flatMap fun rule => #["Fixed", "Violation", "Restored"].map (rule, ·)
