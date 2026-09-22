@@ -68,25 +68,53 @@ def copyFile (source target : FilePath) : IO Unit := do
   if let some parent := target.parent then IO.FS.createDirAll parent
   IO.FS.writeBinFile target (← IO.FS.readBinFile source)
 
-/-- Recursively copy `source` into `target` as independent real byte copies,
-materializing every entry as a regular file or directory. The executed walk
-guard refuses if the walk crosses an excluded root (resolved, not merely
-lexical). Returns the relative file paths copied, in walk order. -/
+/-- Metadata-preserving subtree copy through the system `cp` (argv only; no
+shell interpolation of paths): `-R` recursive and `-p` permission/time
+preservation on POSIX/Linux. Clone/CoW (`-c`) is optional and attempted first;
+the real-copy `-p` path is the mandatory fallback (Linux CI has no clonefile).
+Failures throw (fail closed). Only used after the guarded enumeration proves
+the subtree has no excluded roots and no symlinks. -/
+def copySubtreeSystem (source target : FilePath) : IO Unit := do
+  let cloned ← run source "cp" #["-R", "-c", "-p", ".", target.toString]
+  if cloned.exitCode == 0 then return
+  let copied ← run source "cp" #["-R", "-p", ".", target.toString]
+  unless copied.exitCode == 0 do
+    throw <| IO.userError s!"slot subtree copy failed: {source} -> {target}\n{copied.stderr}"
+
+/-- Recursively copy `source` into `target`. The guarded enumeration runs first
+and is unchanged in semantics: the exact copy set with exclusion skipping,
+fail-closed unresolved containment, and symlink detection (a resolved path
+differing from its walked path marks the tree for fallback). When the tree is
+guarded-clean, one metadata-preserving system `cp` performs the copy
+(`copySubtreeSystem`; kernel-side per-file copies, no per-file user-space
+buffers or directory-creation syscalls); otherwise the per-file real byte
+copy fallback runs with identical exclusion/containment semantics. Returns
+the relative file paths copied, in walk order. -/
 def copyTree (source target : FilePath) : IO (Array String) := do
   let sourceRoot ← IO.FS.realPath source
   IO.FS.createDirAll target
   let mut copied : Array String := #[]
+  let mut files : Array (FilePath × String) := #[]
+  let mut guarded := true
   for path in (← source.walkDir) do
     let relative := (relativeOf source path).toString
-    if excluded relative then continue
+    if excluded relative then
+      guarded := false
+      continue
     unless (← contained sourceRoot path) do
       throw <| IO.userError s!"slot copy walk crossed owned root: {path}"
-    let destination := target / relative
     if ← path.isDir then
-      IO.FS.createDirAll destination
+      IO.FS.createDirAll (target / relative)
     else
-      copyFile path destination
+      if (← IO.FS.realPath path).toString != path.toString then
+        guarded := false
+      files := files.push (path, relative)
       copied := copied.push relative
+  if guarded then
+    copySubtreeSystem source target
+  else
+    for (path, relative) in files do
+      copyFile path (target / relative)
   return copied
 
 /-- Materialize one Git metadata tree into `target` so that `git` operating on
