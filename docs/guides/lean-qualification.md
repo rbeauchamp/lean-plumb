@@ -53,20 +53,19 @@ standalone command and never claims full-corpus coverage. The corpus runner reta
 most five concurrent producer detector invocations in disjoint slots. Each invocation may
 launch subprocesses. Each slot holds a private writable copy of the root package only;
 every slot manifest names the captured original Lake dependency roots, which the slots
-share. The runner removes user write permission from every non-symlink entry under the
-shared roots for the producer window, so a same-user write fails at the write boundary. It
-first records the entries that already lacked user write in an owned ledger,
-`tmp/rule-examples-shared-protection.json`. On every exit it restores exactly that state
-before parent cleanup and PASS; the next campaign recovers a ledger left by SIGKILL. Inside
-the window it records a content-level identity of every entry under every shared root
+share. The runner records a content-level identity of every entry under every shared root
 (path, `lstat` kind, exact length and a 64-bit native content hash; symlinks recorded by
 resolution, never followed) before any producer starts, and requires an equal identity
-after all producers have been joined. A difference refuses the run.
+after all producers have been joined. A difference refuses the run. This detects a write;
+it does not prevent one. The runner never changes shared dependency permissions, so a
+deadline SIGKILL cannot leave the dependency trees read-only.
 
-Dependency snapshots are captured once per run. The runner makes one complete
-`Snapshot.dependenciesCaptures` inside the protected window and exports only its Git facts
+Dependency snapshots are captured once per run. Before any producer starts, the runner
+makes one complete `Snapshot.dependenciesCaptures` and exports only its Git facts
 (revision and dirty bit), each keyed by the exact capture request: package, canonical root,
-and ordered source and configuration paths. Producers run through the internal
+and ordered source and configuration paths. The facts file is retained with the attempt's
+raw evidence as `injected-git-facts.json`, and every producer registration names that
+retained path. Producers run through the internal
 `ruleExamples --injected-git-facts FACTS [axiomGate] ARGS` entry. It runs the same
 `axiomGate` or `ruleExamples` body, reads every source and configuration byte itself, and
 uses an injected pair only for a request that matches exactly. The slot's private

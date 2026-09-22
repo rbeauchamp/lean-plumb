@@ -6,13 +6,11 @@ import StrictLeanQualification.Json
 independent writable copy of the ROOT package (real byte copies, never
 hardlinks) for the corpus producer window. Lake dependency packages are not
 copied: every slot manifest names the captured original dependency roots, which
-are shared and must have no writer during the window. That requirement is
-enforced twice. `protectShared` removes user write permission for the window
-(restored exactly by `unprotectShared` from a durable ledger, also after a
-SIGKILL by the next campaign), so a same-user write fails at the write boundary.
-`SharedIdentity` is the fail-closed backstop: a content-level identity of every
-entry under every shared root is captured before any producer starts and must be
-equal after every producer has been joined. Ownership boundary (bound by types and callers): slot
+are shared and must have no writer during the window. `SharedIdentity` decides
+that requirement fail-closed: a content-level identity of every entry under
+every shared root is captured before any producer starts and must be equal after
+every producer has been joined. Shared dependency permissions are never changed,
+so no campaign state can outlive the campaign. Ownership boundary (bound by types and callers): slot
 roots are written only inside producer tasks whose direct children are waited
 and stream holders closed before return (source-verified joined-worker
 discipline; no universal detached-grandchild termination is claimed); the
@@ -340,80 +338,6 @@ def SharedIdentity.difference (before after : SharedIdentity) : String := Id.run
     for (x, y) in b.2.zip a.2 do
       if x != y then return s!"{b.1}/{x.relative} vs {y.relative}"
   return "no difference"
-
-
-/-- Durable record of one shared-dependency write-protection window: the
-protected roots and every non-symlink entry under them that already lacked user
-write permission before protection, in root order, each root's entries sorted.
-It is written before any permission change and removed only after exact
-restoration, so a deadline SIGKILL leaves it for the next campaign's recovery. -/
-structure ProtectionLedger where
-  roots : Array String
-  exceptions : Array String
-  deriving ToJson, FromJson, BEq
-
-/-- Non-symlink entries under `root` without user write permission (POSIX
-`find`, argv only), sorted. -/
-private def withoutUserWrite (root : FilePath) : IO (Array String) := do
-  let listed ← run root "find" #[root.toString, "!", "-type", "l", "!", "-perm", "-u+w", "-print0"]
-  unless listed.exitCode == 0 do
-    throw <| IO.userError s!"shared dependency permission listing failed: {root}\n{listed.stderr}"
-  return (listed.stdout.splitOn "\x00").toArray.filter (!·.isEmpty) |>.qsort (· < ·)
-
-private def exceptionsOf (roots : Array FilePath) : IO (Array String) := do
-  let mut exceptions := #[]
-  for root in roots do
-    exceptions := exceptions ++ (← withoutUserWrite root)
-  return exceptions
-
-private def chmodChecked (root : FilePath) (args : Array String) : IO Unit := do
-  let changed ← run root "chmod" args
-  unless changed.exitCode == 0 do
-    throw <| IO.userError s!"shared dependency permission change failed: {args}\n{changed.stderr}"
-
-/-- Remove user write permission from every non-symlink entry under every shared
-root for the producer window, so a same-user write into a shared dependency fails
-at the write boundary. The ledger is saved first; afterwards no non-symlink
-entry may remain user-writable. Group/other bits are untouched: for the owning
-user only the user class applies. Root processes and other owners are outside
-this enforcement and remain covered only by `sharedIdentity`. -/
-def protectShared (roots : Array FilePath) (ledger : FilePath) : IO Unit := do
-  requireChecks [⟨"no active shared dependency protection ledger", !(← ledger.pathExists)⟩]
-  let record : ProtectionLedger := ⟨roots.map (·.toString), ← exceptionsOf roots⟩
-  let pending := FilePath.mk (ledger.toString ++ ".pending")
-  IO.FS.writeFile pending ((toJson record).compress ++ "\n")
-  IO.FS.rename pending ledger
-  for root in roots do
-    chmodChecked root #["-R", "u-w", root.toString]
-  for root in roots do
-    let writable ← run root "find" #[root.toString, "!", "-type", "l", "-perm", "-u+w", "-print"]
-    unless writable.exitCode == 0 && writable.stdout.isEmpty do
-      throw <| IO.userError s!"shared dependency root still user-writable: {root}\n{writable.stdout}"
-
-/-- Restore the exact pre-protection user-write state recorded in `ledger`
-(no-op when absent): user write is re-added under every root, then removed again
-from exactly the recorded exceptions in bounded argv batches. Restoration must
-reproduce the recorded exception set exactly before the ledger is removed. -/
-def unprotectShared (ledger : FilePath) : IO Unit := do
-  unless (← ledger.pathExists) do return
-  let record ← IO.ofExcept (fromJson? (← readJson ledger) : Except String ProtectionLedger)
-  let roots := record.roots.map FilePath.mk
-  for root in roots do
-    chmodChecked root #["-R", "u+w", root.toString]
-  let mut offset := 0
-  while offset < record.exceptions.size do
-    let mut stop := offset + 1
-    let mut bytes := record.exceptions[offset]!.utf8ByteSize + 1
-    while stop < record.exceptions.size && stop - offset < 512 do
-      let next := record.exceptions[stop]!.utf8ByteSize + 1
-      if bytes + next > 96 * 1024 then break
-      bytes := bytes + next
-      stop := stop + 1
-    chmodChecked (roots[0]?.getD ".") (#["u-w"] ++ record.exceptions.extract offset stop)
-    offset := stop
-  requireChecks [⟨"shared dependency permissions restored exactly",
-    (← exceptionsOf roots) == record.exceptions⟩]
-  IO.FS.removeFile ledger
 
 /-- Prepare one complete slot: the writable ROOT package copy. The ROOT copy's
 `lake-manifest.json` is truthfully relocated so that every package entry names

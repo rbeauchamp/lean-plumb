@@ -210,7 +210,7 @@ structure GitFacts where
   deriving ToJson, FromJson, BEq, Inhabited
 
 /-- Qualification-only table of Git facts captured once by the corpus runner
-under write-protected, identity-checked shared dependency roots. It is empty in
+under identity-checked shared dependency roots. It is empty in
 every process except one started through the internal qualification entry point
 (`ruleExamples --injected-git-facts`); no user-facing checker mode sets it. -/
 initialize injectedGitFacts : IO.Ref (Array GitFacts) ← IO.mkRef #[]
@@ -255,8 +255,8 @@ def assemble (project : FilePath) (package : String) (root : FilePath)
 injected Git-facts pair equal to the pair the process would observe itself
 yields the identical capture, hence (`stateOfCore_congruence`) identical request
 state and request/report bytes. The premise — equal Git facts — is the
-no-writer invariant of the qualification window (write protection, equal
-content identity and the runner's terminal recheck), not a theorem about Git. -/
+no-writer invariant of the qualification window (equal content identity and
+the runner's terminal recheck), not a theorem about Git. -/
 theorem assemble_facts_eq {project : FilePath} {package : String} {root : FilePath}
     {sourcePaths : Array (Name × FilePath)}
     {sourceCaptures : Array (Name × String × String × String)}

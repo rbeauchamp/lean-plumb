@@ -291,3 +291,31 @@ Both commands ran on the clean signed head, under the sole local compiler alloca
   - That points to external contention. It was observed, not established.
 
 These are observed local completions, not runtime guarantees or hosted evidence.
+
+## Review repair after `ff58fb4`: write protection removed
+
+The operator required that write protection never outlive a campaign, and that it be
+dropped if it could not be made simple and complete. It could not. The hard-420 SIGKILL
+comes from GNU `timeout`, run by `scripts/verify.sh`, and it kills the whole process
+group, so no Lean process survives to restore permissions. Restoring them there would
+need more shell in `verify.sh`, which needs operator approval. So this repair takes the
+fallback route:
+
+- **Removed:** `Slot.protectShared`, `Slot.unprotectShared`, the ledger and its
+  next-campaign recovery. The runner never changes shared dependency permissions.
+- **Kept:** the content identity before any producer starts and after every producer
+  has been joined, and the terminal `Snapshot.inputsUnchanged` recheck. Both fail
+  closed. They detect a write; they do not prevent one. The no-writer premise of
+  `assemble_facts_eq` now rests on these two checks alone.
+- **Retained facts:** the once-captured Git facts are saved to
+  `<rawDirectory>/injected-git-facts.json`, outside scratch, before any producer starts.
+  Every producer's `registered.json` command names that path.
+- **Prep harness:** `prep-measure` no longer takes the shared identity twice. The corpus
+  campaign owns the no-writer check, and the timing is recorded above.
+
+The earlier timings, protection probe and full results above describe `2f79634` and
+remain historical. The protection and restoration phases in them no longer exist.
+
+A ledger left by a SIGKILLed campaign that ran earlier code is no longer recovered
+automatically. To recover by hand, run `chmod -R u+w` on the roots it lists, reapply
+`chmod u-w` to its listed exceptions, then delete `tmp/rule-examples-shared-protection.json`.

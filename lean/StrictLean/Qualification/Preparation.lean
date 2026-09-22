@@ -46,13 +46,6 @@ def check : IO Unit := do
           "rule_examples" "kernel-only" "The fixture's exact mathematical claim and scope."
         IO.println s!"prep phase: slot-{k} prepareSlotProject: {(← IO.monoMsNow) - projectStart}ms"
       IO.println s!"prep phase: TOTAL preparation ({slots.size} slots): {(← IO.monoMsNow) - totalStart}ms"
-      -- The corpus campaign's shared-dependency identity, captured twice as the
-      -- campaign does around its producer window; no writer runs in between.
-      let identityStart ← IO.monoMsNow
-      let before ← Slot.sharedIdentity (deps.map (·.root))
-      IO.println s!"prep phase: shared dependency identity: {(← IO.monoMsNow) - identityStart}ms ({(before.roots.map (·.2.size)).foldl (· + ·) 0} entries)"
-      let after ← Slot.sharedIdentity (deps.map (·.root))
-      StrictLean.Qualification.requireChecks [⟨s!"shared dependency identity stable: {before.difference after}", after == before⟩]
   finally
     match ← scratchRef.get with
     | some scratch =>
