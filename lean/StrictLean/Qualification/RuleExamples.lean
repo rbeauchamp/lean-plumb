@@ -31,7 +31,7 @@ def snapshotOf (captured : Array (String × String)) : Json :=
 
 /-- Fresh exact capture of every requested path. No read is ever skipped. -/
 def capture (paths : Array FilePath) : IO (Array (String × String)) :=
-  paths.mapM fun path => pure (path.toString, ← IO.FS.readFile path)
+  paths.mapM fun path => do pure (path.toString, ← IO.FS.readFile path)
 
 /-- Constructed-value cache over exact captured sources. The `sound` field keeps
 the invariant `value = snapshotOf captured` by type. -/
@@ -58,12 +58,11 @@ theorem decideSnapshot_value (cache : SnapshotCache) (fresh : Array (String × S
     (decideSnapshot cache fresh).1 = snapshotOf fresh :=
   if hc : fresh = cache.captured then by
     unfold decideSnapshot
-    rw [dif_pos hc, hc]
+    rw [dite_eq_left hc, hc]
     exact cache.sound
   else by
     unfold decideSnapshot
-    rw [dif_neg hc]
-    rfl
+    rw [dite_eq_right hc]
 
 /-- Exact request-snapshot value from fresh reads of every path. -/
 def snapshot (paths : Array FilePath) : IO Json :=
