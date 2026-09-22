@@ -4,8 +4,9 @@ import StrictLeanQualification.Json
 
 /-! Corpus slot preparation. A `ProducerSlot` holds one physically independent copy
 of the ROOT package (real byte copies, never hardlinks), prepared before the corpus
-producer window and shared read-only by every producer; each producer writes only its
-own fresh workspace. Lake dependency packages are not copied: the slot manifest names
+producer window and shared by every producer, which must not write it (no permission
+enforces this; the `sharedIdentity` check detects a write rather than preventing it);
+each producer writes only its own fresh workspace. Lake dependency packages are not copied: the slot manifest names
 the captured original dependency roots. The ROOT copy and those dependency roots are
 shared and must have no writer during the window. `SharedIdentity` decides that
 requirement fail-closed: a content-level identity of every entry under every shared
@@ -412,8 +413,8 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
   return record
 
 /-- One producer's fresh workspace over the shared slot: like `prepareProject`, but
-`strict_lean` resolves to the slot-private ROOT copy (shared read-only by every
-producer), every other manifest `dir` is a captured shared dependency root, and no
+`strict_lean` resolves to the slot-private ROOT copy (shared by every producer,
+which must not write it; checked by `sharedIdentity`, not enforced), every other manifest `dir` is a captured shared dependency root, and no
 `.lake/packages` symlink is created. -/
 def prepareSlotProject (slot : ProducerSlot) (project : FilePath)
     (packageName claim rationale : String) : IO Unit := do

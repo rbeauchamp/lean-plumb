@@ -140,7 +140,8 @@ signal delivery are trusted mechanisms, not a hard real-time theorem.
 
 The first builds the acceptance executables and type-checks the diagnostic modules,
 checks every claimed declaration with fresh source elaboration and kernel admission, and
-records the content identity of the inputs it accepted. The second audits every
+records the content identity of its inputs: the inputs it accepted plus the `docs/`
+Markdown it only brackets, not accepts. The second audits every
 documentation example and refuses unless its own inputs have that identity. This exact
 two-step split is the only permitted division of acceptance. Diagnostic native binaries
 are built when those diagnostics are requested.

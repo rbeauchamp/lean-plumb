@@ -365,14 +365,50 @@ private def admitRecord (ctx : Context) (record : Json) (refusal : Option String
     | none => checked.exitCode == 0
     | some reason => checked.exitCode != 0 && (checked.stdout ++ checked.stderr).contains reason⟩]
 
+/-- Rules that must share a shard: SL5001 and SL5002 are validated together by the
+producer oracle, which requires one shared fresh-project theorem type. -/
+def shardTogether : Array (Array String) := #[#["SL5001", "SL5002"]]
+
+/-- The group of `shardTogether` containing `key`, if any. -/
+def shardGroup (key : String) : Option (Array String) :=
+  shardTogether.find? (·.contains key)
+
+theorem shardGroup_sl5001 : shardGroup "SL5001" = some #["SL5001", "SL5002"] := by simp [shardGroup, shardTogether]
+theorem shardGroup_sl5002 : shardGroup "SL5002" = some #["SL5001", "SL5002"] := by simp [shardGroup, shardTogether]
+
+/-- The rule whose corpus position decides `key`'s shard: the first member of its
+`shardTogether` group when that member is in the corpus, otherwise `key` itself. -/
+def shardAnchor (keys : Array String) (key : String) : String :=
+  match shardGroup key with
+  | some group => match group[0]? with
+    | some first => if keys.contains first then first else key
+    | none => key
+  | none => key
+
+/-- The 1-based shard of `key` among `count` shards: its anchor's corpus position
+modulo `count`. -/
+def shardOf (keys : Array String) (count : Nat) (key : String) : Option Nat :=
+  (keys.idxOf? (shardAnchor keys key)).map fun position => position % count + 1
+
 /-- Corpus rules selected for this run: the complete corpus, an explicit scoped list, or
-shard `index` of `count` (every rule whose corpus position is `index - 1` modulo `count`,
-so the `count` shards partition the corpus). -/
+shard `index` of `count` (every rule whose `shardOf` is `index`). -/
 def selectRules (keys : Array String) (selection : Option (Array String))
     (shard : Option (Nat × Nat)) : Array String :=
   match shard with
-  | some (index, count) => (keys.zipIdx.filter fun (_, position) => position % count + 1 == index).map (·.1)
+  | some (index, count) => keys.filter fun key => shardOf keys count key == some index
   | none => selection.getD keys
+
+/-- Shards partition the corpus: a rule is selected by shard `index` exactly when it is a
+corpus rule whose single `shardOf` value is `index`, so no rule is in two shards. -/
+theorem mem_selectRules_shard (keys : Array String) (index count : Nat) (key : String) :
+    key ∈ selectRules keys none (some (index, count)) ↔
+      key ∈ keys ∧ shardOf keys count key = some index := by
+  simp [selectRules]
+
+/-- SL5001 and SL5002 always land in the same shard while SL5001 is in the corpus. -/
+theorem sl5001_sl5002_same_shard (keys : Array String) (count : Nat) (h : "SL5001" ∈ keys) :
+    shardOf keys count "SL5002" = shardOf keys count "SL5001" := by
+  simp [shardOf, shardAnchor, shardGroup_sl5001, shardGroup_sl5002, h]
 
 /-- Full corpus, explicit scoped selection, or one corpus shard; all records and admission
 controls are exported. No partial export is labelled a successfully qualified complete

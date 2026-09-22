@@ -144,7 +144,7 @@ already-excluded `StrictLean` tooling library; no product module or detector is 
 from its applicable qualification.
 
 For development, append `--rules SL1001 SL1002` after `--evidence PATH` to produce
-explicitly scoped evidence. `--shard K/N` selects every rule at corpus position K modulo N;
+explicitly scoped evidence. `--shard K/N` selects every rule whose corpus position is K − 1 modulo N, except that SL5002 follows SL5001 into its shard so the shared fresh-project theorem-type check still runs (`mem_selectRules_shard`, `sl5001_sl5002_same_shard`);
 `./scripts/verify.sh diagnostics rule-examples 1/2` and `2/2` run the two CI shards. [Lean qualification](lean-qualification.md) specifies the
 proved template transformation, Lake-discovered source snapshot and trusted IO boundary. Ordinary
 acceptance (`./scripts/verify.sh`, then `./scripts/verify.sh docs`) remains separate.
