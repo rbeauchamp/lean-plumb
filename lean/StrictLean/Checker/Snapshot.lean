@@ -4,27 +4,89 @@ import StrictLeanPolicy.Claim
 
 /-! Exact request snapshots of Lake-resolved sources and configuration, with nominal
 Git revisions and input-scoped dirty status where available. These are IO observations,
-not kernel authentication of a filesystem or compiled artifact. -/
+not kernel authentication of a filesystem or compiled artifact. The request state is
+derived purely from the exact captures (`stateOf`), and the terminal comparison
+decides capture equality directly. -/
 namespace StrictLean.Checker.Snapshot
 open Lean System StrictLeanPolicy
 
-/-- An actual dependency observation, including dirty/path state, not only a lockfile pin. -/
+/-- An actual dependency observation, including dirty/path state, not only a
+lockfile pin. The capture fields hold the exact bytes/texts observed at this
+freeze point; `stateOf` derives the request state from those captures alone. -/
 structure DependencyObservation where
   project : FilePath
   package : String
   root : FilePath
   revision : Option String
   dirty : Bool
-  state : Json
   sourcePaths : Array (Name × FilePath)
+  sourceCaptures : Array (Name × String × String × String)
+  configurationCaptures : Array (String × Option (String × Array UInt8))
   deriving BEq
 
-private def fileBytes (path : FilePath) : IO Json := do
-  if !(← path.pathExists) then return Json.mkObj [("path", toJson path.toString), ("bytes", Json.null)]
+/-- Fresh exact configuration capture: original path, canonical path and raw
+bytes, with presence preserved. -/
+private def captureConfiguration (path : FilePath) :
+    IO (String × Option (String × Array UInt8)) := do
+  if !(← path.pathExists) then return (path.toString, none)
   let canonical ← IO.FS.realPath path
   let bytes ← IO.FS.readBinFile canonical
-  return Json.mkObj [("path", toJson path.toString), ("canonical", toJson canonical.toString),
-    ("bytes", toJson (bytes.toList.map UInt8.toNat))]
+  return (path.toString, some (canonical.toString, bytes))
+
+/-- Pure request-state derivation from exact captures. The `mkObj` shape and key
+order are exactly the state previously built inside `dependency`; request bytes
+are unchanged. -/
+def stateOfCore (root : String) (revision : Option String)
+    (sourceCaptures : Array (Name × String × String × String))
+    (configurationCaptures : Array (String × Option (String × Array UInt8))) : Json :=
+  Json.mkObj [("root", toJson root), ("revision", toJson revision),
+    ("sources", toJson (sourceCaptures.map fun (module, path, canonical, source) =>
+      Json.mkObj [("module", toJson module), ("path", toJson path),
+        ("canonical", toJson canonical), ("source", toJson source)])),
+    ("configuration", toJson (configurationCaptures.map fun (path, entry) =>
+      match entry with
+      | none => Json.mkObj [("path", toJson path), ("bytes", Json.null)]
+      | some (canonical, bytes) => Json.mkObj [("path", toJson path),
+        ("canonical", toJson canonical), ("bytes", toJson (bytes.toList.map UInt8.toNat))]))]
+
+/-- Request state of one observation, purely derived from its exact captures. -/
+def stateOf (dep : DependencyObservation) : Json :=
+  stateOfCore dep.root.toString dep.revision dep.sourceCaptures dep.configurationCaptures
+
+/-- Equal captures give equal request state (kernel-only congruence). -/
+theorem stateOfCore_congruence {root root' : String} {revision revision' : Option String}
+    {sourceCaptures sourceCaptures' : Array (Name × String × String × String)}
+    {configurationCaptures configurationCaptures' :
+      Array (String × Option (String × Array UInt8))}
+    (hr : root = root') (hv : revision = revision')
+    (hs : sourceCaptures = sourceCaptures')
+    (hc : configurationCaptures = configurationCaptures') :
+    stateOfCore root revision sourceCaptures configurationCaptures
+      = stateOfCore root' revision' sourceCaptures' configurationCaptures' := by
+  rw [hr, hv, hs, hc]; rfl
+
+/-- Any request-state difference implies a difference in the exact captures, so
+every input change visible to the request state still changes the terminal
+capture comparison. -/
+theorem captures_ne_of_stateOfCore_ne {root root' : String} {revision revision' : Option String}
+    {sourceCaptures sourceCaptures' : Array (Name × String × String × String)}
+    {configurationCaptures configurationCaptures' :
+      Array (String × Option (String × Array UInt8))}
+    (h : stateOfCore root revision sourceCaptures configurationCaptures
+      ≠ stateOfCore root' revision' sourceCaptures' configurationCaptures') :
+    ¬(root = root' ∧ revision = revision' ∧ sourceCaptures = sourceCaptures'
+      ∧ configurationCaptures = configurationCaptures') := by
+  intro he
+  rw [he.1, he.2.1, he.2.2.1, he.2.2.2] at h
+  exact h rfl
+
+/-- Equal observations give equal request state. -/
+theorem stateOf_congruence {a b : DependencyObservation}
+    (hr : a.root = b.root) (hv : a.revision = b.revision)
+    (hs : a.sourceCaptures = b.sourceCaptures)
+    (hc : a.configurationCaptures = b.configurationCaptures) :
+    stateOf a = stateOf b :=
+  stateOfCore_congruence hr hv hs hc
 
 private def inputsDirty (root : FilePath) (paths : Array FilePath) : IO Bool := do
   let mut offset := 0
@@ -50,14 +112,13 @@ private def inputsDirty (root : FilePath) (paths : Array FilePath) : IO Bool := 
 def dependency (project : FilePath) (package : String) (root : FilePath)
     (sourcePaths : Array (Name × FilePath)) (configurationPaths : Array FilePath) : IO DependencyObservation := do
   let root ← IO.FS.realPath root
-  let sources ← sourcePaths.mapM fun (name, path) => do
+  let sourceCaptures ← sourcePaths.mapM fun (name, path) => do
     let canonical ← IO.FS.realPath path
     let bytes ← IO.FS.readBinFile canonical
     let some text := String.fromUTF8? bytes
       | throw <| IO.userError s!"dependency source is not UTF-8: {path}"
-    pure <| Json.mkObj [("module", toJson name), ("path", toJson path.toString),
-      ("canonical", toJson canonical.toString), ("source", toJson text)]
-  let configuration ← configurationPaths.mapM fileBytes
+    pure (name, path.toString, canonical.toString, text)
+  let configurationCaptures ← configurationPaths.mapM captureConfiguration
   let head ← runProcess root "git" #["rev-parse", "HEAD"]
   let top ← runProcess root "git" #["rev-parse", "--show-toplevel"]
   let ownRepository ← if top.succeeded then
@@ -70,10 +131,8 @@ def dependency (project : FilePath) (package : String) (root : FilePath)
     else pure none
   let dirty ← if revision.isSome then inputsDirty root (sourcePaths.map (·.2) ++ configurationPaths)
     else pure true
-  return {
-    project, package, root, sourcePaths, revision, dirty,
-    state := Json.mkObj [("root", toJson root.toString), ("revision", toJson revision),
-      ("sources", toJson sources), ("configuration", toJson configuration)] }
+  return { project, package, root, sourcePaths, revision, dirty,
+    sourceCaptures, configurationCaptures }
 
 /-- Resolve dependency names/locations through the frozen Lake discovery. -/
 def dependencies (inventory : Lake.SurfaceInventory) : IO (Array DependencyObservation) :=
@@ -102,7 +161,7 @@ def make (root : FilePath) (configuration : Array (FilePath × Option String))
     configuration := ⟨root.toString, (Json.mkObj [
       ("configuration", toJson (configuration.map fun (path, text) => (path.toString, text))),
       ("dependencies", toJson (deps.map fun dep => Json.mkObj [
-        ("package", toJson dep.package), ("state", dep.state)]))]).compress⟩
+        ("package", toJson dep.package), ("state", stateOf dep)]))]).compress⟩
     toolchain := ⟨Lean.versionString, Lean.githash, Producer.identity.sourceRevision⟩
     dependencies := deps.map fun dep => {
       package := dep.package, nominalRevision := dep.revision, dirty := dep.dirty, files := #[] } }
