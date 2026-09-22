@@ -317,8 +317,9 @@ def check (evidence : FilePath) (selection : Option (Array String))
     let ctx : Context := ⟨root, scratch, specs, checkerPaths, checkerBefore, attempt, rawDirectory⟩
     let mut records : Array Json := #[]
     let jobs := selected.flatMap fun rule => #["Fixed", "Violation", "Restored"].map (rule, ·)
-    -- Two disjoint producers, consumed/refilled in fixed order as upstream. Drain
-    -- every launched task before scratch cleanup, including on admission failure.
+    -- Two disjoint producers, consumed in fixed order and refilled before each
+    -- admission. Drain every launched task before scratch cleanup, including on
+    -- admission failure.
     let pending ← IO.mkRef (#[] : Array (Task (Except IO.Error Json)))
     for (rule, phase) in jobs.extract 0 2 do
       let task ← IO.asTask (produce ctx rule phase)
@@ -330,15 +331,20 @@ def check (evidence : FilePath) (selection : Option (Array String))
           | .ok value => pure value
           | .error error => throw error
         records := records.push record
-        -- produce has already retained the exact record and raw observation outside
-        -- scratch. Keep the initial INCOMPLETE receipt until the full corpus is ready;
-        -- repeatedly serializing its growing prefix adds no admission evidence.
-        admitRecord ctx record
-        IO.println s!"{← string record "rule"}/{← string record "phase"}: qualified {← string record "kind"}"
-        (← IO.getStdout).flush
+        -- Refill before admission so two producers run during every admission and
+        -- admission is off the production critical path. Admission stays in fixed
+        -- order: an admission refusal throws before any later record is admitted,
+        -- every already-launched task is drained in `finally`, and one extra
+        -- completed producer may remain raw-retained but is never admitted while
+        -- the initial INCOMPLETE receipt stands. produce has already retained the
+        -- exact record and raw observation outside scratch; repeatedly serializing
+        -- its growing prefix adds no admission evidence.
         if let some (rule, phase) := jobs[index + 2]? then
           let task ← IO.asTask (produce ctx rule phase)
           pending.modify (·.push task)
+        admitRecord ctx record
+        IO.println s!"{← string record "rule"}/{← string record "phase"}: qualified {← string record "kind"}"
+        (← IO.getStdout).flush
     finally
       for task in ← pending.get do
         let _ ← IO.wait task
