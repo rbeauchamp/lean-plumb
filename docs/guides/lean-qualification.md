@@ -50,8 +50,9 @@ safely enforce descendant termination while sharing acceptance's outer process g
 The prototype never substitutes for acceptance. `diagnostics rule-examples` retains the
 upstream corpus selection; optional `--rules RULE ...` follows `--evidence PATH` on the
 standalone command and never claims full-corpus coverage. The corpus runner retains at
-most two disjoint detector processes, consumes records in fixed order, and drains launched
-tasks before ordinary/exceptional scratch cleanup. Partial exports remain `INCOMPLETE`.
+most five concurrent producer detector invocations in disjoint slots. Each invocation may
+launch subprocesses. The runner consumes records in fixed order and drains launched tasks
+before ordinary/exceptional scratch cleanup. Partial exports remain `INCOMPLETE`.
 Corpus records use a qualification-only view: top-level `acceptance` and
 `documentationAcceptance` payloads become null, while every key, required nested value
 and raw-tree shape remains unchanged. Exact detector bytes remain in
