@@ -129,8 +129,11 @@ private partial def drain (source target : IO.FS.Handle) : IO Unit := do
     drain source target
 
 /-- Observe one detector run. The returned observation is taken only after the
-direct child is waited and both stream drains reach EOF, so a producer task's
-return joins every descendant holding the streams (managed path). -/
+direct child is waited and both stream drains reach EOF: direct-child reaping
+and stream-holder closure at producer return. Universal detached-grandchild
+termination is not claimed; the joined-worker discipline is the stated basis
+(`Common.runProcess`, `runTypedWorker`, `observe` and `run` all wait their
+children). -/
 private def observe (project binary stdout stderr : FilePath) (command : Array String)
     (env : Array (String × Option String) := corpusEnv) : IO IO.Process.Output := do
   let out ← IO.FS.Handle.mk stdout .write
@@ -168,7 +171,8 @@ private structure Context where
   cache : IO.Ref SnapshotCache
 
 /-- Produce one record in the producer's own writable slot. Producer-only slot
-writes; every spawned child is joined before return (`observe`/`run`). -/
+writes; direct children are waited and stream holders closed before return
+(`observe`/`run`; joined-worker discipline, no universal grandchild claim). -/
 private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : String)
     (sourceText : Option String := none) (producerClaim : Option String := none) : IO Json := do
   let root := ctx.root
@@ -252,7 +256,7 @@ private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : Str
     ("resultPath", .str output.toString), ("stdoutPath", .str (raw / "stdout").toString),
     ("stderrPath", .str (raw / "stderr").toString),
     ("command", toJson (#[binary.toString] ++ command)), ("cwd", .str project.toString),
-    ("environment", toJson cleanEnv), ("request", request), ("before", before)]
+    ("environment", toJson corpusEnv), ("request", request), ("before", before)]
   save (raw / "registered.json") registration
   let started ← IO.monoMsNow
   let execution ← observe project binary (raw / "stdout") (raw / "stderr") command
@@ -403,10 +407,11 @@ def check (evidence : FilePath) (selection : Option (Array String))
       let slot : Slot.ProducerSlot := ⟨scratch / s!"slot-{k}"⟩
       IO.FS.createDirAll slot.root
       pure slot
-    let configNames ← #["lean-toolchain", "lakefile.lean", "lake-manifest.json",
-      "foundation_manifest.json"].filterM fun name => (root / name).pathExists
-    let rootConfigs ← configNames.mapM fun name => do
-      pure (root / name, ← IO.FS.readBinFile (root / name))
+    let configNames ← (#["lean-toolchain", "lakefile.lean", "lake-manifest.json",
+      "foundation_manifest.json"] : Array String).filterM
+        (fun (name : String) => (root / name).pathExists)
+    let rootConfigs ← configNames.mapM (fun (name : String) => do
+      pure (root / name, ← IO.FS.readBinFile (root / name)))
     let rootSources ← modulePaths.mapM fun path => do
       pure (path, ← IO.FS.readBinFile path)
     let depObservations ← StrictLean.Checker.Snapshot.dependencies inventory

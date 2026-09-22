@@ -5,12 +5,14 @@ import StrictLeanQualification.Json
 /-! Producer-only writable slot preparation. A `ProducerSlot` is a physically
 independent writable environment (real byte copies, never hardlinks) for the
 corpus producer window. Ownership boundary (bound by types and callers): slot
-roots are written only inside joined producer tasks; the consumer path —
-admission, raw validation and terminal qualification — consumes captured data
-and the real ROOT checkout and never dereferences a slot path. Preparation
-materializes self-contained Git metadata (worktree pointers, `commondir`,
-`objects/info/alternates`, `core.worktree`) so nothing escapes the slot,
-compares captured source/config inputs byte-exactly, records relocation
+roots are written only inside producer tasks whose direct children are waited
+and stream holders closed before return (source-verified joined-worker
+discipline; no universal detached-grandchild termination is claimed); the
+consumer path — admission, raw validation and terminal qualification — consumes
+captured data and the real ROOT checkout and never dereferences a slot path.
+Preparation materializes self-contained Git metadata (worktree pointers,
+`commondir`, `objects/info/alternates`, `core.worktree`) so nothing escapes the
+slot, compares captured source/config inputs byte-exactly, records relocation
 truthfully, and refuses on any containment violation. Filesystem, Git and
 process behavior remain trusted IO, as throughout. -/
 namespace StrictLean.Qualification.Slot
@@ -19,6 +21,7 @@ open Lean System StrictLeanQualification
 /-- Producer-only writable environment ownership. -/
 structure ProducerSlot where
   root : FilePath
+  deriving Inhabited
 
 /-- One prepared-file provenance record. `identity` is `"byte-identical"` when
 the prepared bytes were compared equal to the captured input bytes, and
@@ -39,27 +42,26 @@ structure SlotProvenance where
 
 /-- Lexical path suffix of `path` under `root`. -/
 def relativeOf (root path : FilePath) : FilePath :=
-  let prefix := root.toString ++ "/"
-  FilePath.mk (if path.toString.startsWith prefix then
-    path.toString.drop prefix.length else path.toString)
+  let stem := root.toString ++ "/"
+  FilePath.mk (if path.toString.startsWith stem then
+    (path.toString.drop stem.length).toString else path.toString)
 
 /-- Excluded copy-walk roots: scratch, tmp, nested slot directories and the
 shared package recursion. -/
 def excluded (relative : String) : Bool :=
-  relative.splitOn "/" |>.any (fun part =>
-    part == "tmp" || part == "scratch" || part.startsWith "slot-") ||
-  relative == ".lake/packages" || relative.startsWith ".lake/packages/"
+  (relative.splitOn "/" |>.any fun part => part == "tmp" || part == "scratch" || part.startsWith "slot-")
+    || relative == ".lake/packages" || relative.startsWith ".lake/packages/"
 
-/-- True when `path` resolves inside `root` (executed normalization check). -/
+/-- True when `path` resolves inside `root` (executed normalization check).
+Unresolvable paths are refused (fail closed): there is no lexical prefix
+fallback, so unresolved `..`/absolute joins cannot pass. -/
 def contained (root path : FilePath) : IO Bool := do
-  let resolved ←
-    try pure (← IO.FS.realPath path)
-    catch _ => pure path
-  let base ←
-    try IO.FS.realPath root
-    catch _ => pure root
-  return resolved.toString == base.toString ||
-    resolved.toString.startsWith (base.toString ++ "/")
+  try
+    let resolved ← IO.FS.realPath path
+    let base ← IO.FS.realPath root
+    return resolved.toString == base.toString ||
+      resolved.toString.startsWith (base.toString ++ "/")
+  catch _ => return false
 
 /-- Copy one file as an independent real byte copy (never a hardlink). -/
 def copyFile (source target : FilePath) : IO Unit := do
@@ -77,7 +79,7 @@ def copyTree (source target : FilePath) : IO (Array String) := do
   for path in (← source.walkDir) do
     let relative := (relativeOf source path).toString
     if excluded relative then continue
-    unless ← contained sourceRoot path do
+    unless (← contained sourceRoot path) do
       throw <| IO.userError s!"slot copy walk crossed owned root: {path}"
     let destination := target / relative
     if ← path.isDir then
@@ -97,61 +99,63 @@ def materializeGit (slotGit : FilePath) (sourceGit : FilePath) : IO Unit := do
   if !(← sourceGit.isDir) then
     -- Worktree pointer file: `gitdir: <path>`.
     let text ← IO.FS.readFile sourceGit
-    let target := FilePath.mk (text.replace "gitdir:" "").trim
-    unless ← target.pathExists then
+    let target := FilePath.mk ((text.replace "gitdir:" "").replace "\n" "")
+    unless (← target.pathExists) do
       throw <| IO.userError s!"slot git pointer target missing: {target}"
     directory := target
   let _ ← copyTree directory slotGit
   -- Materialize the common directory for linked worktrees.
-  if ← (slotGit / "commondir").pathExists then
-    let raw := (← IO.FS.readFile (slotGit / "commondir")).trim
-    let common := FilePath.mk raw
-    let common ←
-      if ← contained directory common then pure common
-      else if ← contained directory (directory / raw) then pure (directory / raw)
+  if (← (slotGit / "commondir").pathExists) then
+    let raw := (← IO.FS.readFile (slotGit / "commondir")).replace "\n" ""
+    let candidate := FilePath.mk raw
+    let resolved ←
+      if (← contained directory candidate) then pure candidate
+      else if (← contained directory (directory / raw)) then pure (directory / raw)
       else throw <| IO.userError s!"slot git commondir escapes: {raw}"
-    let _ ← copyTree common (slotGit / "common")
+    let _ ← copyTree resolved (slotGit / "common")
     IO.FS.writeFile (slotGit / "commondir") "common\n"
   -- Materialize alternates into contained object stores.
   let alternates := slotGit / "objects/info/alternates"
-  if ← alternates.pathExists then
+  if (← alternates.pathExists) then
     let mut rewritten : Array String := #[]
     let mut index := 0
     for line in (← IO.FS.readFile alternates).splitOn "\n" do
-      let entry := line.trim
+      let entry := line.replace "\r" ""
       if entry.isEmpty then continue
       let source := FilePath.mk entry
       let target := slotGit / s!"objects-alternated-{index}"
-      unless ← contained directory source do
+      unless (← contained directory source) do
         throw <| IO.userError s!"slot git alternate escapes before materialization: {source}"
       let _ ← copyTree source target
       rewritten := rewritten.push target.toString
       index := index + 1
     IO.FS.writeFile alternates (String.intercalate "\n" rewritten.toList ++ "\n")
-  -- Refuse `core.worktree` bindings rather than let them escape the slot.
-  let config := slotGit / "config"
-  if ← config.pathExists then
-    if (← IO.FS.readFile config).contains "worktree =" then
-      throw <| IO.userError "slot git config carries core.worktree; refused escaped worktree binding"
+  -- Refuse `core.worktree` bindings in worktree or common configuration rather
+  -- than let them escape the slot (`config.worktree` extension included).
+  for config in #[slotGit / "config", slotGit / "config.worktree",
+      slotGit / "common" / "config", slotGit / "common" / "config.worktree"] do
+    if (← config.pathExists) then
+      if (← IO.FS.readFile config).contains "worktree =" then
+        throw <| IO.userError s!"slot git config carries core.worktree: {config}"
 
 /-- Executed containment checks over one prepared package copy: Git identity
 resolution and every nested manifest `dir` resolution must land inside the
 slot. Refusal on any escape. -/
 def checkContainment (slot : ProducerSlot) (copy : FilePath) : IO Unit := do
-  unless ← contained slot.root copy do
+  unless (← contained slot.root copy) do
     throw <| IO.userError s!"slot package copy escapes slot: {copy}"
-  if ← (copy / ".git").pathExists then
+  if (← (copy / ".git").pathExists) then
     let git ← run copy "git" #["rev-parse", "--git-dir", "--git-common-dir", "--show-toplevel"]
     unless git.exitCode == 0 do
       throw <| IO.userError s!"slot git identity unavailable: {copy}\n{git.stdout}{git.stderr}"
     for line in git.stdout.splitOn "\n" do
-      let entry := line.trim
+      let entry := line.replace "\r" ""
       if entry.isEmpty then continue
       let resolved := if FilePath.isAbsolute (FilePath.mk entry) then FilePath.mk entry
         else copy / entry
-      unless ← contained slot.root resolved do
+      unless (← contained slot.root resolved) do
         throw <| IO.userError s!"slot git resolution escapes slot: {entry}"
-  if ← (copy / "lake-manifest.json").pathExists then
+  if (← (copy / "lake-manifest.json").pathExists) then
     let manifest ← readJson (copy / "lake-manifest.json")
     let packages ← IO.ofExcept (manifest.getObjValAs? (Array Json) "packages")
     for entry in packages do
@@ -159,7 +163,9 @@ def checkContainment (slot : ProducerSlot) (copy : FilePath) : IO Unit := do
       | .error _ => pure ()
       | .ok dir =>
         let relative ← IO.ofExcept dir.getStr?
-        unless ← contained slot.root (copy / relative) do
+        let resolved := if FilePath.isAbsolute (FilePath.mk relative) then FilePath.mk relative
+          else copy / relative
+        unless (← contained slot.root resolved) do
           throw <| IO.userError s!"slot manifest dir escapes slot: {relative}"
 
 /-- Exact comparison of one prepared file against supplied input bytes. -/
@@ -172,7 +178,8 @@ observation: sources and configuration are copied and compared byte-exactly
 against the captured inputs, the writable build tree and self-contained Git
 metadata are copied as independent real copies, and every containment check
 runs before return. -/
-def prepareDependency (slot : ProducerSlot) (before : Snapshot.DependencyObservation) :
+def prepareDependency (slot : ProducerSlot)
+    (before : StrictLean.Checker.Snapshot.DependencyObservation) :
     IO (Array FileProvenance) := do
   let name := before.package
   let copy := slot.root / "packages" / name
@@ -190,13 +197,13 @@ def prepareDependency (slot : ProducerSlot) (before : Snapshot.DependencyObserva
     | some (_, bytes) => compareBytes (copy / relative) bytes
     | none => pure ()
     provenance := provenance.push ⟨s!"{name}/{relative}", "config", "byte-identical"⟩
-  if ← (original / ".lake").pathExists then
-    let _ ← copyTree (original / ".lake") (copy / ".lake")
-    provenance := provenance.push ⟨s!"{name}/.lake", "build", "copy"⟩
-  if ← (original / "build").pathExists then
+  if (← (original / ".lake/build").pathExists) then
+    let _ ← copyTree (original / ".lake/build") (copy / ".lake/build")
+    provenance := provenance.push ⟨s!"{name}/.lake/build", "build", "copy"⟩
+  if (← (original / "build").pathExists) then
     let _ ← copyTree (original / "build") (copy / "build")
     provenance := provenance.push ⟨s!"{name}/build", "build", "copy"⟩
-  if ← (original / ".git").pathExists then
+  if (← (original / ".git").pathExists) then
     materializeGit (copy / ".git") (original / ".git")
     provenance := provenance.push ⟨s!"{name}/.git", "git", "copy"⟩
   checkContainment slot copy
@@ -209,7 +216,8 @@ Git identity is preserved through self-contained materialization while
 top-level path equivalence with the original ROOT is explicitly not claimed. -/
 def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
     (rootSources rootConfigs : Array (FilePath × ByteArray))
-    (deps : Array Snapshot.DependencyObservation) : IO SlotProvenance := do
+    (deps : Array StrictLean.Checker.Snapshot.DependencyObservation) :
+    IO SlotProvenance := do
   let copy := slot.root / "root"
   IO.FS.createDirAll copy
   let mut provenance : Array FileProvenance := #[]
@@ -220,10 +228,10 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
     provenance := provenance.push ⟨s!"root/{relative}", "source", "byte-identical"⟩
   -- Truthful relocation of the copied ROOT manifest to slot package paths.
   let manifestPath := copy / "lake-manifest.json"
-  if ← manifestPath.pathExists then
+  if (← manifestPath.pathExists) then
     let manifest ← readJson manifestPath
     let packages ← IO.ofExcept (manifest.getObjValAs? (Array Json) "packages")
-    let relocated ← packages.mapM fun entry =>
+    let relocated ← packages.mapM fun entry => do
       match entry.getObjVal? "name" with
       | .error _ => pure entry
       | .ok _ =>
@@ -232,27 +240,34 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
     IO.FS.writeFile manifestPath
       ((manifest.setObjVal! "packages" (toJson relocated)).compress ++ "\n")
     provenance := provenance.push ⟨"root/lake-manifest.json", "config", "relocated"⟩
-  if ← (originalRoot / ".lake").pathExists then
-    let _ ← copyTree (originalRoot / ".lake") (copy / ".lake")
-    provenance := provenance.push ⟨"root/.lake", "build", "copy"⟩
-  if ← (originalRoot / ".git").pathExists then
+  if (← (originalRoot / ".lake/build").pathExists) then
+    let _ ← copyTree (originalRoot / ".lake/build") (copy / ".lake/build")
+    provenance := provenance.push ⟨"root/.lake/build", "build", "copy"⟩
+  if (← (originalRoot / ".git").pathExists) then
     materializeGit (copy / ".git") (originalRoot / ".git")
     provenance := provenance.push ⟨"root/.git", "git", "copy"⟩
-  checkContainment slot copy
   for dep in deps do
     provenance := provenance ++ (← prepareDependency slot dep)
   for dep in deps do
     if let some expected := dep.revision then
       let git ← run (slot.root / "packages" / dep.package) "git" #["rev-parse", "HEAD"]
-      unless git.exitCode == 0 && git.stdout.trim == expected do
+      unless git.exitCode == 0 && git.stdout.replace "\n" "" == expected do
         throw <| IO.userError s!"slot git revision mismatch: {dep.package}"
+  -- Root revision equality against the captured original (refusal on mismatch).
+  let originalGit ← run originalRoot "git" #["rev-parse", "HEAD"]
+  unless originalGit.exitCode == 0 do
+    throw <| IO.userError "original root git revision unavailable"
   let rootGit ← run copy "git" #["rev-parse", "HEAD"]
-  unless rootGit.exitCode == 0 do
-    throw <| IO.userError "slot root git revision unavailable"
+  unless rootGit.exitCode == 0 &&
+      rootGit.stdout.replace "\n" "" == originalGit.stdout.replace "\n" "" do
+    throw <| IO.userError "slot root git revision mismatch"
+  -- Root containment runs last so relocated manifest dirs resolve to the
+  -- prepared dependency copies before the fail-closed containment check.
+  checkContainment slot copy
   let record : SlotProvenance := {
     originalRoot := (← IO.FS.realPath originalRoot).toString,
     slotRoot := (← IO.FS.realPath slot.root).toString,
-    revision := rootGit.stdout.trim,
+    revision := rootGit.stdout.replace "\n" "",
     files := provenance }
   IO.FS.writeFile (slot.root / "slot-provenance.json")
     ((toJson (record.files.map fun file => Json.mkObj [
