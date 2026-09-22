@@ -8,6 +8,7 @@ import StrictLean.Qualification.RuleExamples
 import StrictLean.Qualification.EnvironmentCensus
 import StrictLean.Qualification.Acceptance
 import StrictLean.Qualification.ReceiptBoundary
+import StrictLean.Qualification.Preparation
 
 /-! One Lake executable for operational qualification, with independently selectable
 campaigns. Each oracle is proved on the positive `StrictLeanQualification` surface;
@@ -35,6 +36,7 @@ private unsafe def dispatch (args : List String) (attempt : Option String := non
   | ["environments", "--evidence", path] => StrictLean.Qualification.EnvironmentCensus.check ⟨path⟩ attempt
   | ["acceptance", group, "--evidence", path] => StrictLean.Qualification.Acceptance.check group ⟨path⟩ attempt
   | ["acceptance-snapshots", group] => StrictLean.Qualification.DependencySnapshot.check group
+  | ["prep-measure"] => StrictLean.Qualification.Preparation.check
   | ["documentation-dependencies"] => StrictLean.Qualification.Acceptance.documentationDependencies
   | ["input-inventory"] => StrictLean.Qualification.InputInventory.check
   | ["receipt-boundaries"] => StrictLean.Qualification.ReceiptBoundary.check
