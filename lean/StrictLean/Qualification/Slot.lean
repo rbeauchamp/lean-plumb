@@ -96,10 +96,13 @@ private def resolveSafe (path : FilePath) : IO (Option FilePath) := do
 /-- Explicit scan-boundary traversal. Each directory scan carries the resolved
 locations of its descent chain; a directory whose resolved location is already
 on the chain is a cycle and is refused **at the scan boundary** (its entry is
-still enumerated by its parent). Aliases at distinct chain positions scan
-normally and materialize (alias output preserved). Finite acyclic inputs
-eumerate each path exactly once — the legacy unique set. Unresolvable entries
-are classified for the materializing fallback and fail closed at copy. -/
+still enumerated by its parent). Scans and recursion happen **at resolved
+paths**: alias entries are pushed by their parent exactly as the legacy walk
+did, but never produce alias-form children; where an alias re-scans a real
+subtree, duplicate pushes may remain — the preserved claim is the **unique
+legacy path-set** on finite acyclic inputs (not exactly-once). Unresolvable
+entries are classified for the materializing fallback and fail closed at
+copy. -/
 partial def scanTree (root : FilePath) (dir : FilePath) (chain : Array String) :
     IO (Array (FilePath × String × Bool)) := do
   let resolved ← IO.FS.realPath dir
@@ -107,11 +110,13 @@ partial def scanTree (root : FilePath) (dir : FilePath) (chain : Array String) :
     return #[]
   let chain := chain.push resolved.toString
   let mut entries := #[]
-  for d in (← dir.readDir) do
+  for d in (← resolved.readDir) do
     let isDir ← isDirSafe d.path
     entries := entries.push (d.path, (relativeOf root d.path).toString, isDir)
     if isDir then
-      entries := entries ++ (← scanTree root d.path chain)
+      match ← resolveSafe d.path with
+      | some target => entries := entries ++ (← scanTree root target chain)
+      | none => pure ()
   return entries
 
 /-- Recursively copy `source` into `target`. The guarded enumeration is the
@@ -131,7 +136,7 @@ def copyTree (source target : FilePath) : IO (Array String) := do
   let mut copied : Array String := #[]
   let mut files : Array (FilePath × String) := #[]
   let mut guarded := true
-  for (path, relative, isDirectory) in (← scanTree source source #[]) do
+  for (path, relative, isDirectory) in (← scanTree sourceRoot sourceRoot #[]) do
     if excluded relative then
       guarded := false
       continue
