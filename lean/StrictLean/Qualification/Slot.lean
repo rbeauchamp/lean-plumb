@@ -300,7 +300,17 @@ def prepareSlotProject (slot : ProducerSlot) (project : FilePath)
     ("excluded-executables", toJson (#[] : Array Json))])
   let manifest ← readJson (slot.root / "root" / "lake-manifest.json")
   let packages ← IO.ofExcept (manifest.getObjValAs? (Array Json) "packages")
-  let packages := packages.map (·.setObjVal! "inherited" (.bool true)) |>.push (Json.mkObj [
+  -- Genuine path-class entries at the prepared slot copies. Pinned Lake
+  -- (Load/Manifest.lean:123-153) decodes `type: "path"` (requiring
+  -- name/type/inherited/dir) to an in-place filesystem source and ignores
+  -- unknown keys; Load/Materialize.lean:180 then takes the `.path` branch with
+  -- no remote materialization. Pin fields (url/rev/inputRev) are retained as
+  -- inert provenance in the captured manifest bytes. This replaces the
+  -- inherited `type: "git"` entries, which materialize (clone/copy) into the
+  -- fixture's own `.lake/packages` on every fresh workspace
+  -- (Load/Resolve.lean:310/322/613 materializes every entry by class).
+  let packages := packages.map (fun entry =>
+    (entry.setObjVal! "inherited" (.bool true)).setObjVal! "type" (.str "path")) |>.push (Json.mkObj [
     ("name", .str "strict_lean"), ("scope", .str ""), ("type", .str "path"),
     ("dir", .str (slot.root / "root").toString), ("configFile", .str "lakefile.lean"),
     ("manifestFile", .str "lake-manifest.json"), ("inherited", .bool false)])
