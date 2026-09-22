@@ -405,6 +405,19 @@ def check (evidence : FilePath) (selection : Option (Array String))
   let rawDirectory := FilePath.mk (evidence.toString ++ ".raw/" ++ attempt)
   requireChecks [⟨"fresh raw observation attempt", !(← rawDirectory.pathExists)⟩]
   IO.FS.createDirAll rawDirectory
+  -- Attempt-scoped flushed phase diagnostics (msg 174): one serialized writer
+  -- (the consumer path) with per-mark open/append/flush/close; a diagnostic
+  -- failure never masks a primary error or breaks a join; marks are
+  -- diagnostics only — no acceptance interpretation from marks alone.
+  -- Qualifier-end is marked at its join (consumer-observed), erring toward
+  -- UNKNOWN at an abrupt kill.
+  let mark (name edge : String) : IO Unit := do
+    try
+      let handle ← IO.FS.Handle.mk (rawDirectory / "phase-marks.txt") .append
+      handle.putStrLn s!"phase mark: {name} {edge} {(← IO.monoMsNow)}"
+      handle.flush
+    catch _ => pure ()
+  mark "run" "start"
   let specs ← readJson (root / "examples/rules/corpus.json")
   let keys := (← IO.ofExcept specs.getObj?).toList.map Prod.fst |>.toArray
   let selected := selection.getD keys
@@ -544,20 +557,31 @@ def check (evidence : FilePath) (selection : Option (Array String))
       ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
       ("selected", toJson selected), ("checkerBefore", checkerBefore),
       ("checkerAfter", ← snapshotCached cache checkerPaths), ("admissionControls", toJson controls)]
+    mark "aggregate-save" "start"
     save evidence (StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "INCOMPLETE") :: finalFields) records)
-    let checked ← run root (root / ".lake/build/bin/ruleExampleQualification").toString #[evidence.toString] cleanEnv
-    requireChecks [⟨s!"corpus admission: {checked.stdout}{checked.stderr}", checked.exitCode == 0⟩]
+    mark "aggregate-save" "end"
+    -- Tail overlap (strict-tail-overlap-audit constraints 1-7): start barrier
+    -- is the frozen aggregate's atomic save above (the last owned write; the
+    -- aggregate, raw sidecars and checker sources are stable for the window —
+    -- no owned writer; external mutation timing outside equivalence). The
+    -- terminal qualifier (write-free, evidence-only, output captured
+    -- in-memory by `run`) and the read-only raw-validation region run
+    -- concurrently over disjoint inputs with no shared mutable cells (the
+    -- cache ref is touched only by the serial phases outside this window).
+    -- Both join completely before any error surfaces; failures are held
+    -- outcomes surfaced in the original serial order: the qualifier's failure
+    -- first (its timeout-class throw or the corpus-admission check error,
+    -- verbatim), then the validator's minimum-index verbatim error, then the
+    -- terminal checker-equality failure. Abandoned concurrent work after an
+    -- error is known stays read-only and unobservable. PASS save stays last.
+    mark "qualifier" "start"
+    let qualifierTask ← IO.asTask (do
+      let checked ← run root (root / ".lake/build/bin/ruleExampleQualification").toString
+        #[evidence.toString] cleanEnv
+      requireChecks [⟨s!"corpus admission: {checked.stdout}{checked.stderr}", checked.exitCode == 0⟩])
+    mark "raw-validation" "start"
     -- Terminal raw validation: the complete original validateRaw over every
     -- entry (records ++ controls), bounded to six concurrent read-only calls.
-    -- CONSTRAINT-1: this phase starts only after all producers drained and all
-    -- admissions and control-tail mutations completed (no writers remain).
-    -- CONSTRAINT-2: outcomes are collected and the minimum-index failure is
-    -- rethrown verbatim (original first-failure order and error text).
-    -- CONSTRAINT-3: abandoned calls retain nothing (read-only). CONSTRAINT-4:
-    -- this is the only parallel region; cross-phase failure order is
-    -- unchanged. CONSTRAINT-5: no new trust, no cache, no skipped reads.
-    -- Equivalence assumes stable retained files and no overlapping owned
-    -- writers; external mutation timing cannot be universally equivalent.
     let entries := records ++ controls
     let mut outcomes : Array (Option IO.Error) := #[]
     let mut start := 0
@@ -573,11 +597,24 @@ def check (evidence : FilePath) (selection : Option (Array String))
         | Except.ok _ => outcomes := outcomes.push none
         | Except.error error => outcomes := outcomes.push (some error)
       start := stop
-    match outcomes.findSome? (fun outcome => outcome) with
-    | some error => throw error
-    | none => pure ()
+    mark "raw-validation" "end"
+    let qualifierFailure ← IO.wait qualifierTask
+    mark "qualifier" "end"
+    -- Held-outcome priority join (constraint 5): qualifier first, then the
+    -- minimum-index validation failure, both verbatim.
+    match qualifierFailure with
+    | Except.error error => throw error
+    | Except.ok () =>
+      match outcomes.findSome? (fun outcome => outcome) with
+      | some error => throw error
+      | none => pure ()
+    mark "terminal-equality" "start"
     requireChecks [⟨"terminal checker sources changed", (← snapshotCached cache checkerPaths) == checkerBefore⟩]
+    mark "terminal-equality" "end"
     return StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "PASS") :: finalFields) records
+  mark "pass-save" "start"
   save evidence completed
+  mark "pass-save" "end"
+  mark "run" "end"
   IO.println s!"rule example campaign: PASS ({selected.size} selected rules; diagnostic evidence only)"
 end StrictLean.Qualification.RuleExamples
