@@ -102,19 +102,59 @@ def acceptedJson {claim : StrictLeanPolicy.Claim} (accepted : StrictLeanPolicy.A
     ("jobs", toJson (report.jobs.mapIdx fun slot key => Json.mkObj [
       ("slot", toJson slot), ("stage", toJson (reprStr key.stage)), ("subject", subjectJson key.subject)]))]
 
-/-- Public audit completion cannot be constructed from diagnostic counts or worker exits. -/
+/-- Public audit completion cannot be constructed from diagnostic counts or
+worker exits. The composed accepted result value (pure): the historical
+`writeAccepted` payload construction. -/
+def acceptedValue {claim : StrictLeanPolicy.Claim}
+    (accepted : StrictLeanPolicy.AcceptedRun claim) (scope : Json) : Json :=
+  (resultJson scope accepted.report.claim.val.mode .completed #[] #[]).setObjVal!
+    "acceptance" (acceptedJson accepted)
+
 def writeAccepted {claim : StrictLeanPolicy.Claim} (path : System.FilePath)
     (accepted : StrictLeanPolicy.AcceptedRun claim) (scope : Json) : IO Unit := do
-  let report := accepted.report
   let spanStart ← IO.monoMsNow
-  let value := (resultJson scope report.claim.val.mode .completed #[] #[]).setObjVal!
-    "acceptance" (acceptedJson accepted)
+  let value := acceptedValue accepted scope
   if let some parent := path.parent then IO.FS.createDirAll parent
   let encoded := Json.compress value ++ "\n"
   IO.println s!"diagnostic span: writeAccepted encode: {(← IO.monoMsNow) - spanStart}ms"
   let writeStart ← IO.monoMsNow
   IO.FS.writeFile path encoded
   IO.println s!"diagnostic span: writeAccepted write: {(← IO.monoMsNow) - writeStart}ms"
+
+/-- The historical parse/compress normalization hop, retained verbatim:
+roundtrip identity over arbitrary `Json`/`JsonNumber` is not assumed. The
+re-parse consumes exactly the bytes `writeJson` historically produced
+(`Json.compress` output plus the trailing newline) with the same
+`PolicyCodec.parse`. -/
+def normalize (value : Json) : Json :=
+  match StrictLean.Checker.PolicyCodec.parse (Json.compress value ++ "\n") with
+  | .ok parsed => parsed
+  | .error _ => value
+
+/-- Pure composition of the layered finalization in its executed order:
+`sourceAccount` retention, then the run wrapper's conditional account
+completion and `request`/`effective` additions, with both historical
+normalization hops retained in memory. -/
+def composedFinal (base account recovery request effective : Json) : Json :=
+  let retained := (normalize base).setObjVal! "sourceAccount" account
+  let readBack := normalize retained
+  let completed := if (readBack.getObjVal? "sourceAccount").isOk then readBack
+    else readBack.setObjVal! "sourceAccount" recovery
+  (completed.setObjVal! "request" request).setObjVal! "effective" effective
+
+/-- Definitional correspondence: `composedFinal` is exactly the historical
+layered chain in executed order — normalize the accepted value (the re-read of
+write 1), retain `sourceAccount` (write 2's transformation), normalize again
+(the re-read of write 2), the wrapper's conditional account completion and
+`request`/`effective` additions (write 3's transformation) — with both
+intervening parse/compress normalization hops retained. -/
+theorem composedFinal_eq (base account recovery request effective : Json) :
+    composedFinal base account recovery request effective =
+      let retained := (normalize base).setObjVal! "sourceAccount" account
+      let readBack := normalize retained
+      let completed := if (readBack.getObjVal? "sourceAccount").isOk then readBack
+        else readBack.setObjVal! "sourceAccount" recovery
+      (completed.setObjVal! "request" request).setObjVal! "effective" effective := rfl
 
 /-- Structural names are rendered only at this legacy display boundary. -/
 private def legacyName (value : Json) : Json :=

@@ -175,17 +175,22 @@ private def capturedSourceAccount (resultOut : Option FilePath)
   return toJson sources
 
 private def retainSourceAccount (resultOut : Option FilePath)
+    (composed : IO.Ref (Option Json))
     (sources : Array ProducerReport.SourceBinding) : IO Unit := do
-  if let some output := resultOut then
-    if ← output.pathExists then
-      let captured ← capturedSourceAccount resultOut sources
-      let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-      writeJson output (value.setObjVal! "sourceAccount" captured)
+  match ← composed.get with
+  | some _ => pure ()
+  | none =>
+    if let some output := resultOut then
+      if ← output.pathExists then
+        let captured ← capturedSourceAccount resultOut sources
+        let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+        writeJson output (value.setObjVal! "sourceAccount" captured)
 
 private def withRetainedSources (resultOut : Option FilePath)
+    (composed : IO.Ref (Option Json))
     (captured : IO.Ref (Array ProducerReport.SourceBinding)) (action : IO α) : IO α := do
   try action
-  finally retainSourceAccount resultOut (← captured.get)
+  finally retainSourceAccount resultOut composed (← captured.get)
 
 private def reportContextFailure (id : StrictLean.RuleId) (scope : String)
     (mode : StrictLean.EvidenceMode) (impact : StrictLean.Impact) (detail : String)
@@ -787,7 +792,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       return docsResult
 
 private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
-    (execution : ExecutionClaim) (manifest : Option FilePath) (jsonOut : Option FilePath) (resultOut : Option FilePath := none)
+    (execution : ExecutionClaim) (manifest : Option FilePath) (jsonOut : Option FilePath) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath := none)
     (observeConfiguration : FilePath → Array (FilePath × Option String) → IO Unit := fun _ _ => pure ())
     (observeSources : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ()) : IO UInt32 := do
   let manifestPath := manifest.getD (Manifest.defaultPath repo)
@@ -949,7 +954,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                   ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
                   ("completedStages", toJson #["incrementalDependencies", "freshFileCompilation", "ownedAdmission", "declarationPolicy", "executionInspection"])]
               if let some ⟨_, accepted⟩ := accepted then
-                ResultProtocol.writeAccepted output accepted resultScope
+                composed.set (some (ResultProtocol.acceptedValue accepted resultScope))
               else
                 ResultProtocol.write output resultScope .freshFile
                   (if findings.any (·.2.impact == .incomplete) then .incomplete
@@ -1028,7 +1033,8 @@ unsafe def run (args : List String) : IO UInt32 := do
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request : SurfaceWorkerRequest ← IO.ofExcept (fromJson? json)
     let captured ← IO.mkRef (#[] : Array ProducerReport.SourceBinding)
-    return ← withRetainedSources (request.resultOut.map FilePath.mk) captured <|
+    return ← withRetainedSources (request.resultOut.map FilePath.mk)
+      (← IO.mkRef (none : Option Json)) captured <|
       withSourceEvidence request.sourceBindings request.configuration request.reportRoot .freshProject
           (request.resultOut.map FilePath.mk) <|
         auditSurfaceAt request.project request.manifest true request.verbose
@@ -1091,6 +1097,7 @@ unsafe def run (args : List String) : IO UInt32 := do
   let capturedSources ← IO.mkRef (#[] : Array ProducerReport.SourceBinding)
   let observeSources := fun sources => capturedSources.set sources
   let effective ← IO.mkRef (none : Option Json)
+  let composed ← IO.mkRef (none : Option Json)
   let observeConfiguration := fun (root : FilePath) (configuration : Array (FilePath × Option String)) =>
     effective.set (some (Json.mkObj [("root", toJson root.toString), ("configuration", toJson configuration)]))
   let reportFailure : IO.Error → IO UInt32 := fun error => do
@@ -1112,7 +1119,7 @@ unsafe def run (args : List String) : IO UInt32 := do
       match options.file with
       | some path =>
           return ← auditFile repo (resolve repo path) options.claim options.execution
-            (options.manifest.map (resolve repo)) jsonOut resultOut observeConfiguration observeSources
+            (options.manifest.map (resolve repo)) jsonOut composed resultOut observeConfiguration observeSources
       | none =>
           if options.buildLint then
             IO.println "build policy linter: enforcing all manifested Lake modules (incremental elaboration; fresh policy inspection)"
@@ -1127,19 +1134,25 @@ unsafe def run (args : List String) : IO UInt32 := do
       SourceBinding.configuration repo
         ((options.manifest.map (resolve repo)).getD (Manifest.defaultPath repo))
     catch error =>
-      return ← withRetainedSources resultOut capturedSources (reportFailure error)
+      return ← withRetainedSources resultOut composed capturedSources (reportFailure error)
   let request := ResultProtocol.requestJson (if options.file.isSome then "file" else if options.withDocs then "projectWithDocs" else "project")
     repo.toString ((options.file.map (fun path => (resolve repo path).toString)).getD repo.toString)
     (options.claim.map Profile.toString)
     (if options.file.isSome then some options.execution.toString else none) configuration
-  let code ← withRetainedSources resultOut capturedSources <|
+  let code ← withRetainedSources resultOut composed capturedSources <|
     withSourceEvidence #[] configuration repo.toString mode resultOut action
   if let some output := resultOut then
-    let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-    let captured ← capturedSources.get
-    let value := if (value.getObjVal? "sourceAccount").isOk then value
-      else value.setObjVal! "sourceAccount" (toJson captured)
-    writeJson output ((value.setObjVal! "request" request).setObjVal! "effective" (toJson (← effective.get)))
+    match ← composed.get with
+    | some base =>
+      writeJson output (ResultProtocol.composedFinal base
+        (← capturedSourceAccount resultOut (← capturedSources.get))
+        (toJson (← capturedSources.get)) request (toJson (← effective.get)))
+    | none =>
+      let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+      let captured ← capturedSources.get
+      let value := if (value.getObjVal? "sourceAccount").isOk then value
+        else value.setObjVal! "sourceAccount" (toJson captured)
+      writeJson output ((value.setObjVal! "request" request).setObjVal! "effective" (toJson (← effective.get)))
   return code
 
 end StrictLean.Checker.AxiomGate
