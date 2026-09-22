@@ -237,7 +237,8 @@ def qualifyMutations (record : Json) : Except String Unit := do
     qualify record
 
 /-- Full-corpus coverage derives from the sole closed registry; every selected rule has
-one fixed, one intended diagnostic, and one independently restored record. -/
+one fixed and one intended diagnostic record, each produced in its own fresh workspace
+with no restored rerun (docs/standard/8 §8.8). -/
 def qualifyCorpus (json : Json) : Except String Unit := do
   unless (← field json "schemaVersion") == toJson (1 : Nat) do throw "unsupported corpus schema"
   let selected ← (← (← field json "selected").getArr?).mapM RegistryCodec.parseRule
@@ -252,9 +253,9 @@ def qualifyCorpus (json : Json) : Except String Unit := do
   unless !checkerFiles.isEmpty do throw "missing checker source state"
   let records := (← (← field json "records").getArr?).map
     (fun record => record.setObjVal! "checkerSources" checkerBefore)
-  unless records.size == selected.size * 3 do throw "missing or extra fixture phase"
+  unless records.size == selected.size * 2 do throw "missing or extra fixture phase"
   for rule in selected do
-    for phase in #["Fixed", "Violation", "Restored"] do
+    for phase in #["Fixed", "Violation"] do
       let matching ← records.filterM fun record => do
         return (← string record "rule") == rule.spelling && (← string record "phase") == phase
       unless matching.size == 1 do throw "missing or repeated fixture phase"

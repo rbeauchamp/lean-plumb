@@ -2,20 +2,20 @@ import StrictLean.Checker.Snapshot
 import StrictLean.Qualification.Support
 import StrictLeanQualification.Json
 
-/-! Producer-only writable slot preparation. A `ProducerSlot` holds a physically
-independent writable copy of the ROOT package (real byte copies, never
-hardlinks) for the corpus producer window. Lake dependency packages are not
-copied: every slot manifest names the captured original dependency roots, which
-are shared and must have no writer during the window. `SharedIdentity` decides
-that requirement fail-closed: a content-level identity of every entry under
-every shared root is captured before any producer starts and must be equal after
-every producer has been joined. Shared dependency permissions are never changed,
-so no campaign state can outlive the campaign. Ownership boundary (bound by types and callers): slot
-roots are written only inside producer tasks whose direct children are waited
-and stream holders closed before return (source-verified joined-worker
-discipline; no universal detached-grandchild termination is claimed); the
-consumer path — admission, raw validation and terminal qualification — consumes
-captured data and the real ROOT checkout and never dereferences a slot path.
+/-! Corpus slot preparation. A `ProducerSlot` holds one physically independent copy
+of the ROOT package (real byte copies, never hardlinks), prepared before the corpus
+producer window and shared read-only by every producer; each producer writes only its
+own fresh workspace. Lake dependency packages are not copied: the slot manifest names
+the captured original dependency roots. The ROOT copy and those dependency roots are
+shared and must have no writer during the window. `SharedIdentity` decides that
+requirement fail-closed: a content-level identity of every entry under every shared
+root is captured before any producer starts and must be equal after every producer
+has been joined. Shared permissions are never changed, so no campaign state can
+outlive the campaign. Producer children are waited and stream holders closed before
+return (source-verified joined-worker discipline; no universal detached-grandchild
+termination is claimed); the consumer path — control admission and terminal
+qualification — consumes captured data and the real ROOT checkout and never
+dereferences the slot path.
 Preparation materializes self-contained Git metadata (worktree pointers,
 `commondir`, `objects/info/alternates`, `core.worktree`) so the ROOT copy's Git
 stays inside the slot, points manifest dependencies only at captured shared
@@ -411,57 +411,10 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
       ("identity", .str file.identity)])).compress ++ "\n")
   return record
 
-/-- Bounded-concurrent preparation of owned slots, reusing the exact production
-`prepareSlot` per slot (all captured-byte, git and provenance checks retained
-verbatim). Constraints enforced (strict-concurrent-prep-assessment.md):
-atomic pool readiness — the helper completes or throws before any producer can
-start and callers run it before the pool (all-or-nothing); disjoint writes
-only (`prepareSlot` writes exclusively under each `slot.root`); shared-source
-stability assumption stated explicitly — `rootSources`/`rootConfigs`/`deps`
-are the immutable captures taken before the window and no writer to
-`originalRoot`/package sources exists during it (external mutation timing is
-outside equivalence, same class as the terminal validator's assumption);
-complete task/child drainage — every sibling prep task and its `cp`/git
-children drain before any failure surfaces and before cleanup; failure
-ordering — the smallest-slot-index failure is surfaced verbatim (original
-serial slot order), later outcomes discarded; per-slot verification semantics
-unchanged (`compareBytes` read-back and `SlotProvenance` construction exactly
-as serial; the returned aggregate keeps slot order); phase separation —
-preparation memory never overlaps detector heaps. No detector starts until all
-slots succeed. -/
-def prepareSlots (width : Nat) (slots : Array ProducerSlot) (originalRoot : FilePath)
-    (rootSources rootConfigs : Array (FilePath × ByteArray))
-    (deps : Array StrictLean.Checker.Snapshot.DependencyObservation) :
-    IO (Array SlotProvenance) := do
-  let mut outcomes : Array (Except IO.Error SlotProvenance) := #[]
-  let mut start := 0
-  while start < slots.size do
-    let stop := min (start + width) slots.size
-    let batch := slots.extract start stop
-    let tasks ← batch.mapM fun slot => IO.asTask (do
-      let started ← IO.monoMsNow
-      let provenance ← prepareSlot originalRoot slot rootSources rootConfigs deps
-      IO.println s!"prep span: slot preparation copy+authentication ({slot.root}): {(← IO.monoMsNow) - started}ms"
-      pure provenance)
-    let mut results : Array (Except IO.Error SlotProvenance) := #[]
-    for task in tasks do
-      results := results.push (← IO.wait task)
-    outcomes := outcomes ++ results
-    start := stop
-  -- Original serial failure order after complete sibling drainage: the
-  -- smallest slot index's failure surfaces verbatim.
-  match outcomes.findSome? (fun outcome => match outcome with
-    | .ok _ => none
-    | .error error => some error) with
-  | some error => throw error
-  | none => pure ()
-  outcomes.mapM fun outcome => match outcome with
-    | .ok provenance => pure provenance
-    | .error error => throw error
-
-/-- Slot-rooted project preparation: like `prepareProject`, but `strict_lean`
-resolves to the slot's private ROOT copy, every other manifest `dir` is a captured
-shared dependency root, and no `.lake/packages` symlink is created. -/
+/-- One producer's fresh workspace over the shared slot: like `prepareProject`, but
+`strict_lean` resolves to the slot-private ROOT copy (shared read-only by every
+producer), every other manifest `dir` is a captured shared dependency root, and no
+`.lake/packages` symlink is created. -/
 def prepareSlotProject (slot : ProducerSlot) (project : FilePath)
     (packageName claim rationale : String) : IO Unit := do
   IO.FS.writeBinFile (project / "lean-toolchain")
@@ -476,8 +429,9 @@ def prepareSlotProject (slot : ProducerSlot) (project : FilePath)
     ("excluded-executables", toJson (#[] : Array Json))])
   let manifest ← readJson (slot.root / "root" / "lake-manifest.json")
   let packages ← IO.ofExcept (manifest.getObjValAs? (Array Json) "packages")
-  -- Genuine path-class entries at the slot ROOT copy and the captured shared
-  -- dependency roots. Pinned Lake
+  -- Genuine path-class entries: `strict_lean` at the slot-private ROOT copy, and
+  -- each inherited entry at the `dir` that `prepareSlot` relocated to its captured
+  -- shared dependency root. Neither is copied per producer. Pinned Lake
   -- v4.34.0 (`Lake/Load/Manifest.lean`: `PackageEntry.fromJson?`,
   -- v4.34.0 :123-153) decodes `type: "path"` (requiring
   -- name/type/inherited/dir) to an in-place filesystem source and ignores
@@ -486,9 +440,9 @@ def prepareSlotProject (slot : ProducerSlot) (project : FilePath)
   -- is v4.34.0 :183). `Lake/Load/Resolve.lean` materializes every entry by
   -- class (v4.34.0 :310/:322/:613; `resolveDepsCore` at :625). Pin fields
   -- (url/rev/inputRev) are retained as inert provenance in the captured
-  -- manifest bytes. This replaces the inherited `type: "git"` entries, which
-  -- materialize (clone/copy) into the fixture's own `.lake/packages` on every
-  -- fresh workspace.
+  -- manifest bytes. Path entries replace the inherited `type: "git"` entries,
+  -- which would materialize (clone/copy) into each fresh workspace's own
+  -- `.lake/packages`.
   let packages := packages.map (fun entry =>
     (entry.setObjVal! "inherited" (.bool true)).setObjVal! "type" (.str "path")) |>.push (Json.mkObj [
     ("name", .str "strict_lean"), ("scope", .str ""), ("type", .str "path"),

@@ -4,17 +4,19 @@ import StrictLean.Checker.Snapshot
 import StrictLean.Qualification.Slot
 import StrictLeanQualification.Evidence
 import StrictLeanQualification.Template
+import StrictLeanQualification.Producer
 import StrictLean.Checker.RuleExampleCorpusProjection
 
 /-! Source-owned corpus orchestration. Actual detector receipts are admitted by the
 existing RuleExampleQualification executable and its proof-linked policy functions.
 This adapter does not infer policy from source text. Filesystem/process authenticity
-remains trusted. Independent phases use distinct root artifacts and at most five
-producer jobs, each writing only its own writable slot. The consumer path —
-admission, raw validation, terminal qualification — consumes captured data and the
-real ROOT checkout and never dereferences a slot path. The consumer thread reuses
-pure snapshot construction only at proved exact equality of fresh captures; no read
-is ever skipped and producer tasks stay uncached. -/
+remains trusted. At most five producer jobs run at once, each in its own fresh
+workspace over one shared private ROOT copy and the shared dependency roots; a
+content-level identity decides that no producer wrote any shared tree. The consumer
+path — control admission and terminal qualification — consumes captured data and the
+real ROOT checkout and never dereferences the slot path. The consumer thread reuses
+pure snapshot construction only at proved exact equality of fresh captures; producer
+tasks stay uncached. -/
 namespace StrictLean.Qualification.RuleExamples
 open Lean System StrictLeanQualification.Evidence
 
@@ -31,14 +33,6 @@ disabled Lake artifact cache (fail-closed), so producer children take no shared
 optional locks and restore no shared cache artifacts. -/
 def corpusEnv : Array (String × Option String) :=
   cleanEnv ++ #[("GIT_OPTIONAL_LOCKS", some "0"), ("LAKE_CACHE_DIR", some "")]
-
-/-- Derived slot nonoverlap at width five: any five consecutive job indices
-map to pairwise distinct slots under `index % 5`, so concurrent producers never
-share a slot (a slot is reassigned only after its prior task returned). -/
-theorem slots_distinct (j : Nat) :
-    ∀ (a b : Nat), 1 ≤ a → a < b → b ≤ 5 → (j + a) % 5 ≠ (j + b) % 5 := by
-  intro a b ha hab hb
-  omega
 
 /-- Pure snapshot entry construction; the exact `Json.mkObj` request shape. -/
 def snapshotEntry (uri source : String) : Json :=
@@ -166,8 +160,8 @@ private def addPackage (project : FilePath) (name : String) (dir : FilePath) (co
     ("type", .str "path"), ("name", .str name), ("dir", .str dir.toString),
     ("manifestFile", .str "lake-manifest.json"), ("inherited", .bool false), ("configFile", .str config)]))))
 
-/-- Consumer context: carries no slot paths. Admission, raw validation and
-terminal qualification consume captured data and the real ROOT checkout only. -/
+/-- Consumer context: carries no slot paths. Control admission and terminal
+qualification consume captured data and the real ROOT checkout only. -/
 private structure Context where
   root : FilePath
   scratch : FilePath
@@ -178,9 +172,9 @@ private structure Context where
   rawDirectory : FilePath
   cache : IO.Ref SnapshotCache
 
-/-- Produce one record in the producer's own writable slot. Producer-only slot
-writes; direct children are waited and stream holders closed before return
-(`observe`/`run`; joined-worker discipline, no universal grandchild claim). -/
+/-- Produce one record in its own fresh workspace over the shared ROOT copy. Direct
+children are waited and stream holders closed before return (`observe`/`run`;
+joined-worker discipline, no universal grandchild claim). -/
 private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : String)
     (sourceText : Option String := none) (producerClaim : Option String := none) : IO Json := do
   let root := ctx.root
@@ -371,46 +365,22 @@ private def admitRecord (ctx : Context) (record : Json) (refusal : Option String
     | none => checked.exitCode == 0
     | some reason => checked.exitCode != 0 && (checked.stdout ++ checked.stderr).contains reason⟩]
 
-private def validateRaw (ctx : Context) (record : Json) : IO Unit := do
-  let observation ← get record "rawObservation"
-  let registered ← get observation "registration"
-  let rule ← string registered "rule"
-  let phase ← string registered "phase"
-  let mutation ← optionalText record "mutation" ""
-  let raw := ctx.rawDirectory / rule / phase
-  let output := raw / "result.json"
-  let original ← readJson (raw / "record.json")
-  requireChecks [⟨"raw observation attempt", (← string registered "attempt") == ctx.attempt⟩,
-    ⟨"raw observation canonical record", mutation != "" || original == record⟩,
-    ⟨"raw observation control origin", (← get original "rawObservation") == observation⟩,
-    ⟨"raw observation original rule", (← string original "rule") == rule⟩,
-    ⟨"raw observation original phase", (← string original "phase") == phase⟩,
-    ⟨"raw observation original command", (← get original "command") == (← get registered "command")⟩,
-    ⟨"raw observation original exit", (← get original "exitCode") == (← get observation "exitCode")⟩,
-    ⟨"raw observation record rule", (← string record "rule") == rule ||
-      (mutation == "demonstration relabel" && (← string record "rule") == "SL1001")⟩,
-    ⟨"raw observation record phase", (← string record "phase") == phase⟩,
-    ⟨"raw observation command", (← get record "command") == (← get registered "command")⟩,
-    ⟨"raw observation request", (← get record "request") == (← get registered "request")⟩,
-    ⟨"raw observation process exit", (← get record "exitCode") == (← get observation "exitCode")⟩,
-    ⟨"raw observation process stdout", (← get record "stdout") == (← get observation "stdout")⟩,
-    ⟨"raw observation process stderr", (← get record "stderr") == (← get observation "stderr")⟩,
-    ⟨"raw observation rule", ((← IO.ofExcept ctx.specs.getObj?).toList.map Prod.fst).contains rule⟩,
-    ⟨"raw observation phase", #["Fixed", "Violation", "Restored", "WrongClaim", "ClaimRestored",
-      "TrustedControl", "NegativeControl", "ClassificationRestored"].contains phase⟩,
-    ⟨"raw observation result path", (← string registered "resultPath") == output.toString⟩,
-    ⟨"raw observation stdout path", (← string registered "stdoutPath") == (raw / "stdout").toString⟩,
-    ⟨"raw observation stderr path", (← string registered "stderrPath") == (raw / "stderr").toString⟩,
-    ⟨"raw registration unchanged", (← readJson (raw / "registered.json")) == registered⟩,
-    ⟨"raw terminal observation unchanged", (← readJson (raw / "terminal.json")) == observation⟩,
-    ⟨"raw detector bytes unchanged", (← digest ctx.root output) == (← get observation "resultIdentity")⟩,
-    ⟨"raw stdout unchanged", (← IO.FS.readFile (raw / "stdout")) == (← string observation "stdout")⟩,
-    ⟨"raw stderr unchanged", (← IO.FS.readFile (raw / "stderr")) == (← string observation "stderr")⟩]
+/-- Corpus rules selected for this run: the complete corpus, an explicit scoped list, or
+shard `index` of `count` (every rule whose corpus position is `index - 1` modulo `count`,
+so the `count` shards partition the corpus). -/
+def selectRules (keys : Array String) (selection : Option (Array String))
+    (shard : Option (Nat × Nat)) : Array String :=
+  match shard with
+  | some (index, count) => (keys.zipIdx.filter fun (_, position) => position % count + 1 == index).map (·.1)
+  | none => selection.getD keys
 
-/-- Full corpus or explicit scoped selection; all records and admission controls are
-exported. No partial export is labelled a successfully qualified corpus. -/
+/-- Full corpus, explicit scoped selection, or one corpus shard; all records and admission
+controls are exported. No partial export is labelled a successfully qualified complete
+corpus. Every canonical record is admitted exactly once, by the terminal corpus admission;
+the refusal controls are admitted individually. Each production runs in its own fresh
+workspace, so no restored rerun repeats an earlier production (docs/standard/8 §8.8). -/
 def check (evidence : FilePath) (selection : Option (Array String))
-    (suppliedAttempt : Option String := none) : IO Unit := do
+    (suppliedAttempt : Option String := none) (shard : Option (Nat × Nat) := none) : IO Unit := do
   let attempt ← match suppliedAttempt with
     | some attempt => pure attempt
     | none => freshAttempt
@@ -420,22 +390,9 @@ def check (evidence : FilePath) (selection : Option (Array String))
   let rawDirectory := FilePath.mk (evidence.toString ++ ".raw/" ++ attempt)
   requireChecks [⟨"fresh raw observation attempt", !(← rawDirectory.pathExists)⟩]
   IO.FS.createDirAll rawDirectory
-  -- Attempt-scoped flushed phase diagnostics (msg 174): one serialized writer
-  -- (the consumer path) with per-mark open/append/flush/close; a diagnostic
-  -- failure never masks a primary error or breaks a join; marks are
-  -- diagnostics only — no acceptance interpretation from marks alone.
-  -- Qualifier-end is marked at its join (consumer-observed), erring toward
-  -- UNKNOWN at an abrupt kill.
-  let mark (name edge : String) : IO Unit := do
-    try
-      let handle ← IO.FS.Handle.mk (rawDirectory / "phase-marks.txt") .append
-      handle.putStrLn s!"phase mark: {name} {edge} {(← IO.monoMsNow)}"
-      handle.flush
-    catch _ => pure ()
-  mark "run" "start"
   let specs ← readJson (root / "examples/rules/corpus.json")
   let keys := (← IO.ofExcept specs.getObj?).toList.map Prod.fst |>.toArray
-  let selected := selection.getD keys
+  let selected := selectRules keys selection shard
   requireChecks [⟨"nonempty known unique selected rules", !selected.isEmpty && selected.all keys.contains && selected.toList.eraseDups.length == selected.size⟩]
   let inventory ← StrictLean.Checker.Lake.surfaceInventory root
   let modulePaths := inventory.moduleSources.map Prod.snd
@@ -443,18 +400,18 @@ def check (evidence : FilePath) (selection : Option (Array String))
   let checkerPaths := (modulePaths ++ #[root / "lean-toolchain", root / "lakefile.lean", root / "lake-manifest.json"] ++ corpusPaths).toList.eraseDups.toArray
   let cache ← IO.mkRef SnapshotCache.empty
   let checkerBefore ← snapshotCached cache checkerPaths
+  let complete := selection.isNone && shard.isNone
+  let shardField := toJson (shard.map fun (index, count) => s!"{index}/{count}")
   save evidence (Json.mkObj [("outcome", .str "INCOMPLETE"),
-    ("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool selection.isNone),
+    ("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool complete), ("shard", shardField),
     ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
     ("selected", toJson selected), ("checkerBefore", checkerBefore)])
   let completed ← withScratch root "rule-examples" fun scratch => do
     let ctx : Context := ⟨root, scratch, specs, checkerPaths, checkerBefore, attempt, rawDirectory, cache⟩
-    -- Five producer slots with derived nonoverlap (`slots_distinct`). Slot roots
-    -- are producer-write-only; the consumer path never dereferences them.
-    let slots ← #[0, 1, 2, 3, 4].mapM fun k => do
-      let slot : Slot.ProducerSlot := ⟨scratch / s!"slot-{k}"⟩
-      IO.FS.createDirAll slot.root
-      pure slot
+    -- One private ROOT copy shared by every producer. Its only writers are this
+    -- preparation; the shared identity below decides that no producer wrote it.
+    let slot : Slot.ProducerSlot := ⟨scratch / "slot"⟩
+    IO.FS.createDirAll slot.root
     let configNames ← (#["lean-toolchain", "lakefile.lean", "lake-manifest.json",
       "foundation_manifest.json"] : Array String).filterM
         (fun (name : String) => (root / name).pathExists)
@@ -463,42 +420,34 @@ def check (evidence : FilePath) (selection : Option (Array String))
     let rootSources ← modulePaths.mapM fun path => do
       pure (path, ← IO.FS.readBinFile path)
     let depObservations ← StrictLean.Checker.Snapshot.dependencies inventory
-    -- Atomic pool readiness (CONSTRAINT-1): all slot preparations complete or
-    -- the run fails (smallest-slot-index failure verbatim) before any producer
-    -- task starts; every prep task/child drains first.
-    let _ ← Slot.prepareSlots 3 slots root rootSources rootConfigs depObservations
-    -- Shared dependency no-writer backstop: content-level identity of every
-    -- entry under every captured dependency root, taken before any producer
-    -- starts and required equal after every producer has been joined.
-    let sharedRoots := depObservations.map (·.root)
+    let _ ← Slot.prepareSlot root slot rootSources rootConfigs depObservations
+    let dependencyRoots := depObservations.map (·.root)
     -- Capture once before any producer starts: the runner's own complete
     -- dependency capture. Producers receive only its Git facts, keyed by the
     -- exact capture request, and still read every byte themselves.
     let onceCaptures ← StrictLean.Checker.Snapshot.dependenciesCaptures inventory
     requireChecks [⟨"capture-once roots match the captured dependencies",
-      onceCaptures.map (·.root) == sharedRoots⟩]
+      onceCaptures.map (·.root) == dependencyRoots⟩]
     save (rawDirectory / "injected-git-facts.json")
       (toJson (onceCaptures.map StrictLean.Checker.Snapshot.DependencyCaptures.gitFacts))
-    mark "shared-identity-before" "start"
+    -- No-writer backstop over every shared tree: content-level identity of the
+    -- captured dependency roots and the shared ROOT copy, taken before any producer
+    -- starts and required equal after every producer has been joined.
+    let sharedRoots := dependencyRoots.push (← IO.FS.realPath (slot.root / "root"))
     let sharedBefore ← Slot.sharedIdentity sharedRoots
-    mark "shared-identity-before" "end"
     let mut records : Array Json := #[]
     let mut controls : Array Json := #[]
-    let jobs := selected.flatMap fun rule => #["Fixed", "Violation", "Restored"].map (rule, ·)
-    -- Pooled productions: the 60 record jobs plus the five special productions
-    -- (jobs 60-64 in their original order). The single consumer path executes
-    -- each job's original ordered post-production actions in job order
-    -- (CONSTRAINT-6: each special's requireChecks stays between its produce and
-    -- its admitRecord; records/controls/pending mutation stays here).
+    let jobs := selected.flatMap fun rule => #["Fixed", "Violation"].map (rule, ·)
+    -- Pooled productions: the record jobs plus the selected special refusal controls,
+    -- consumed in this fixed order.
     let specials : Array String :=
-      (if selected.contains "SL1005" then #["SL1005/WrongClaim", "SL1005/ClaimRestored"] else #[]) ++
-      (if selected.contains "SL4004" then #["SL4004/TrustedControl", "SL4004/NegativeControl",
-        "SL4004/ClassificationRestored"] else #[])
+      (if selected.contains "SL1005" then #["SL1005/WrongClaim"] else #[]) ++
+      (if selected.contains "SL4004" then #["SL4004/TrustedControl", "SL4004/NegativeControl"] else #[])
     let total := jobs.size + specials.size
     -- Special source reads happen inside their own selected producer jobs
     -- (scoped selections never read unselected specials' sources); a captured
     -- IO error fails that job's task and is delivered at its original job order.
-    let produceJob (index : Nat) (slot : Slot.ProducerSlot) : IO Json := do
+    let produceJob (index : Nat) : IO Json := do
       if index < jobs.size then
         let (rule, phase) := jobs[index]!
         produce ctx slot rule phase
@@ -507,21 +456,19 @@ def check (evidence : FilePath) (selection : Option (Array String))
           produce ctx slot "SL1005" "WrongClaim"
             (some (← IO.FS.readFile (root / "examples/rules/SL1005/Violation.lean")))
             (some "standard-logical")
-        | "SL1005/ClaimRestored" => produce ctx slot "SL1005" "ClaimRestored"
         | "SL4004/TrustedControl" =>
           produce ctx slot "SL4004" "TrustedControl" (some ("<!-- lean-trusted-compiler -->\n```lean\n" ++
             (← IO.FS.readFile (root / "examples/rules/SL1004/Violation.lean")) ++ "```\n"))
-        | "SL4004/NegativeControl" =>
+        | _ =>
           produce ctx slot "SL4004" "NegativeControl"
             (some "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n")
-        | _ => produce ctx slot "SL4004" "ClassificationRestored"
-    -- Five disjoint producer slots (width-5 conservative default), consumed in
-    -- fixed order and refilled before each admission. Drain every launched task
-    -- before scratch cleanup, including on admission failure.
+    -- At most five concurrent producers, each in its own fresh workspace, consumed in
+    -- fixed order and refilled on consumption. Drain every launched task before
+    -- scratch cleanup, including on a refusal.
     let pending ← IO.mkRef (#[] : Array (Task (Except IO.Error Json)))
     for k in [0:5] do
       if k < total then
-        let task ← IO.asTask (produceJob k slots[k]!)
+        let task ← IO.asTask (produceJob k)
         pending.modify (·.push task)
     try
       for index in [:total] do
@@ -533,32 +480,22 @@ def check (evidence : FilePath) (selection : Option (Array String))
           records := records.push record
         else
           controls := controls.push record
-        -- Refill before admission so producers run during every admission and
-        -- admission is off the production critical path. Admission stays in
-        -- fixed order: an admission refusal throws before any later entry is
-        -- admitted, every already-launched task is drained in `finally` (slot
-        -- reassignment only after the prior task returned its record), and up
-        -- to five extra completed producers may remain raw-retained but are
-        -- never admitted while the initial INCOMPLETE receipt stands.
         if index + 5 < total then
-          let task ← IO.asTask (produceJob (index + 5) slots[(index + 5) % 5]!)
+          let task ← IO.asTask (produceJob (index + 5))
           pending.modify (·.push task)
         if index < jobs.size then
-          admitRecord ctx record
-          IO.println s!"{← string record "rule"}/{← string record "phase"}: qualified {← string record "kind"}"
+          IO.println s!"{← string record "rule"}/{← string record "phase"}: produced {← string record "kind"}"
           (← IO.getStdout).flush
         else
-          -- Original ordered special consumer actions (requireChecks between
-          -- produce and admitRecord; original refusals and restorations).
+          -- Special refusal controls: completed producer outcome, then the intended
+          -- admission refusal.
           match specials[index - jobs.size]! with
           | "SL1005/WrongClaim" =>
             requireChecks [⟨"Standard-Logical producer control completes", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "completed"⟩]
             admitRecord ctx record (some "producer request differs from frozen example request")
-          | "SL1005/ClaimRestored" => admitRecord ctx record
-          | "SL4004/TrustedControl" | "SL4004/NegativeControl" =>
+          | _ =>
             requireChecks [⟨"nonpositive documentation classifies", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "classified"⟩]
             admitRecord ctx record (some "documentation correction requires completed positive fences")
-          | _ => admitRecord ctx record
     finally
       for task in ← pending.get do
         let _ ← IO.wait task
@@ -567,7 +504,6 @@ def check (evidence : FilePath) (selection : Option (Array String))
       if (← string record "kind") == "diagnosticDemonstration" then
         let relabelled := (record.setObjVal! "rule" (.str "SL1001")).setObjVal! "mutation" (.str "demonstration relabel")
         admitRecord ctx relabelled (some "diagnostic demonstration mismatch")
-        admitRecord ctx record
         controls := controls.push relabelled
       if (← string record "phase") == "Violation" && #["SL2003", "SL2005"].contains (← string record "rule") then
         let fixed ← IO.FS.readFile (root / "examples/rules" / (← string record "rule") / "Fixed.lean")
@@ -579,121 +515,55 @@ def check (evidence : FilePath) (selection : Option (Array String))
             return if (← string s "source") == original then s.setObjVal! "source" (.str fixed) else s
           stale := stale.setObjVal! side (bound.setObjVal! "sources" (toJson sources))
         admitRecord ctx stale (some "missing or mismatched producer source account")
-        admitRecord ctx record
         controls := controls.push stale
         let result ← get record "result"
         let result ← IO.ofExcept (StrictLean.Checker.RuleExampleProjection.withoutSourceAccount result)
         let missing := (record.setObjVal! "result" result).setObjVal! "mutation" (.str "missing sourceAccount")
         admitRecord ctx missing (some "missing result source account")
-        admitRecord ctx record
         controls := controls.push missing
-    let finalFields := [("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool selection.isNone),
-      ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
+    -- The fresh-project producer controls: the corpus SL5001/SL5002 records are the
+    -- only fresh-project runs of those fixtures, so the producer oracle validates these
+    -- same observations (one shared elaborated theorem type, as in the producer campaign).
+    let mut theoremType : Option Json := none
+    for record in records do
+      let rule ← string record "rule"
+      unless #["SL5001", "SL5002"].contains rule do continue
+      let report ← get record "result"
+      let account ← IO.ofExcept (StrictLeanQualification.Producer.account report)
+      let declarations ← entries account "declarations"
+      let some declaration := declarations[0]? | throw <| IO.userError "missing theorem declaration"
+      let expectedType := theoremType.getD (← get declaration "type")
+      theoremType := some expectedType
+      let phase ← string record "phase"
+      IO.ofExcept (StrictLeanQualification.Producer.checkedValidation.run report
+        (← IO.ofExcept (← get record "exitCode").getNat?) rule "freshProject" (← string record "source")
+        (phase == "Fixed") expectedType)
+      IO.println s!"fresh project producer {rule}/{phase}: PASS"
+    let finalFields := [("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool complete),
+      ("shard", shardField), ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
       ("selected", toJson selected), ("checkerBefore", checkerBefore),
       ("checkerAfter", ← snapshotCached cache checkerPaths), ("admissionControls", toJson controls)]
-    mark "aggregate-save" "start"
     save evidence (StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "INCOMPLETE") :: finalFields) records)
-    mark "aggregate-save" "end"
-    -- Tail overlap (strict-tail-overlap-audit constraints 1-7): start barrier
-    -- is the frozen aggregate's atomic save above (the last owned write; the
-    -- aggregate, raw sidecars and checker sources are stable for the window —
-    -- no owned writer; external mutation timing outside equivalence). The
-    -- terminal qualifier (write-free, evidence-only, output captured
-    -- in-memory by `run`) and the read-only raw-validation region run
-    -- concurrently over disjoint inputs with no shared mutable cells (the
-    -- cache ref is touched only by the serial phases outside this window).
-    -- Both join completely before any error surfaces; failures are held
-    -- outcomes surfaced in the original serial order: the qualifier's failure
-    -- first (its timeout-class throw or the corpus-admission check error,
-    -- verbatim), then the validator's minimum-index verbatim error, then the
-    -- terminal checker-equality failure. Abandoned concurrent work after an
-    -- error is known stays read-only and unobservable. PASS save stays last.
-    mark "qualifier" "start"
-    let qualifierTask ← IO.asTask (do
-      let checked ← run root (root / ".lake/build/bin/ruleExampleQualification").toString
-        #[evidence.toString] cleanEnv
-      requireChecks [⟨s!"corpus admission: {checked.stdout}{checked.stderr}", checked.exitCode == 0⟩])
-    mark "raw-validation" "start"
-    -- Terminal raw validation: the complete original validateRaw over every
-    -- entry (records ++ controls), bounded to six concurrent read-only calls.
-    let entries := records ++ controls
-    let mut outcomes : Array (Option IO.Error) := #[]
-    let mut start := 0
-    while start < entries.size do
-      let stop := min (start + 6) entries.size
-      let batch := entries.extract start stop
-      let tasks ← batch.mapM fun record => IO.asTask (validateRaw ctx record)
-      let mut results : Array (Except IO.Error Unit) := #[]
-      for task in tasks do
-        results := results.push (← IO.wait task)
-      for result in results do
-        match result with
-        | Except.ok _ => outcomes := outcomes.push none
-        | Except.error error => outcomes := outcomes.push (some error)
-      start := stop
-    mark "raw-validation" "end"
-    let qualifierFailure ← IO.wait qualifierTask
-    mark "qualifier" "end"
-    -- Held-outcome priority join (constraint 5): qualifier first, then the
-    -- minimum-index validation failure, both verbatim.
-    match qualifierFailure with
-    | Except.error error => throw error
-    | Except.ok () =>
-      match outcomes.findSome? (fun outcome => outcome) with
-      | some error => throw error
-      | none => pure ()
-    mark "terminal-equality" "start"
+    -- The single admission of every canonical record: the terminal corpus qualifier.
+    let checked ← run root (root / ".lake/build/bin/ruleExampleQualification").toString
+      #[evidence.toString] cleanEnv
+    requireChecks [⟨s!"corpus admission: {checked.stdout}{checked.stderr}", checked.exitCode == 0⟩]
     requireChecks [⟨"terminal checker sources changed", (← snapshotCached cache checkerPaths) == checkerBefore⟩]
-    mark "terminal-equality" "end"
-    -- Run-end recheck of the once-captured value through the product's own
-    -- terminal decision (fresh Lake inventory, fresh reads and fresh Git).
-    mark "shared-terminal-recheck" "start"
+    -- The campaign's one dependency recheck: the product's own terminal decision on
+    -- the once-captured value (fresh Lake inventory, fresh reads and fresh Git).
     StrictLean.Checker.Snapshot.inputsUnchanged inventory
       (onceCaptures.map StrictLean.Checker.Snapshot.observe)
-    mark "shared-terminal-recheck" "end"
-    mark "shared-identity-after" "start"
     let sharedAfter ← Slot.sharedIdentity sharedRoots
-    requireChecks [⟨s!"shared dependency trees changed during the producer window: {sharedBefore.difference sharedAfter}",
+    requireChecks [⟨s!"shared trees changed during the producer window: {sharedBefore.difference sharedAfter}",
       sharedAfter == sharedBefore⟩]
-    mark "shared-identity-after" "end"
-    -- All producers (including child/stream joins), admission subprocesses,
-    -- terminal qualifier and raw readers have now finished. Only these five
-    -- owned slot roots are removed concurrently; retained evidence lives outside
-    -- scratch. Authenticate every immediate-child identity before any deletion.
-    -- No owned writer remains; external path replacement during this interval
-    -- is outside the stable-filesystem boundary, as for sequential cleanup.
-    mark "slot-cleanup" "start"
-    let scratchRoot ← IO.FS.realPath scratch
-    requireChecks [⟨"five owned cleanup slots", slots.size == 5⟩]
-    for index in [:slots.size] do
-      let path := slots[index]!.root
-      let expected := scratchRoot / s!"slot-{index}"
-      requireChecks [⟨"contained disjoint cleanup slot", path == expected &&
-        (← IO.FS.realPath path) == expected && (← path.symlinkMetadata).type == .dir⟩]
-    -- Reuse pinned removeDirAll: it never follows symlinks and specifies no
-    -- deletion order. Three independent roots at a time; capture and join all
-    -- five outcomes before propagating the first slot-index error verbatim.
-    -- The enclosing withScratch still removes the parent on success or failure;
-    -- its cleanup error retains precedence over an action error. SIGKILL cannot
-    -- promise user-space drainage or cleanup. Complete deletion still precedes PASS.
-    let mut cleanupOutcomes : Array (Except IO.Error Unit) := #[]
-    let mut cleanupStart := 0
-    while cleanupStart < slots.size do
-      let cleanupStop := min (cleanupStart + 3) slots.size
-      let tasks ← (slots.extract cleanupStart cleanupStop).mapM fun slot =>
-        IO.asTask (IO.FS.removeDirAll slot.root)
-      for task in tasks do
-        cleanupOutcomes := cleanupOutcomes.push (← IO.wait task)
-      cleanupStart := cleanupStop
-    for outcome in cleanupOutcomes do
-      IO.ofExcept outcome
-    mark "slot-cleanup" "end"
-    mark "parent-cleanup" "start"
+    -- Every producer (including child/stream joins), admission subprocess and the
+    -- terminal qualifier has finished. Authenticate the owned slot before deletion;
+    -- retained evidence lives outside scratch. Complete deletion precedes PASS.
+    let expected := (← IO.FS.realPath scratch) / "slot"
+    requireChecks [⟨"contained owned cleanup slot", (← IO.FS.realPath slot.root) == expected &&
+      (← slot.root.symlinkMetadata).type == .dir⟩]
+    IO.FS.removeDirAll slot.root
     return StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "PASS") :: finalFields) records
-  mark "parent-cleanup" "end"
-  mark "pass-save" "start"
   save evidence completed
-  mark "pass-save" "end"
-  mark "run" "end"
   IO.println s!"rule example campaign: PASS ({selected.size} selected rules; diagnostic evidence only)"
 end StrictLean.Qualification.RuleExamples

@@ -25,35 +25,37 @@ Conversely, passing these controls never proves arbitrary compiler or OS behavio
 | --- | --- | --- |
 | `registry_cli_checks.py` | `lake exe qualify registry` | Seven malformed CLI invocations must invalidate seeded stale output. |
 | `native_linter_checks.py` | `lake exe qualify native` | 36 real compiler controls: identity, multiplicity, severity, source ranges, documentation and metadata ownership. |
-| `producer_checks.py` | `lake exe qualify producers` | 18 source-owned documentation controls, eight existing transport mutations, three standalone-executable controls. |
-| `history_checks.py` | `lake exe qualify history` | Seventeen project/file invocations, private/imported roots, reached-closure/source accounts, and transport mutations. |
+| `producer_checks.py` | `lake exe qualify producers` | Eight source-owned documentation controls (incremental and build-lint), eight existing transport mutations, two standalone-executable controls; each in its own fresh workspace. The fresh-project SL5001/SL5002 observations are the rule-example corpus records, validated there by the same producer oracle. |
+| `history_checks.py` | `lake exe qualify history` | Ten project/file invocations, each in its own fresh workspace, private/imported roots, reached-closure/source accounts, and transport mutations. |
 | `closure_evidence_checks.py` | `lake exe qualify closure-evidence` | Reflexive candidate versus active cycle, retained recursive IR edges, and range refusals through four invocation paths. |
 | `configuration_capture_checks.py` | `lake exe qualify configuration-capture` | Initial configuration IO failure through project/file result protocols. |
 | `documentation_source_checks.py` | `lake exe qualify documentation-source` | Frozen dependency/configuration changes through both documentation commands; `--source-read-only` adds file/build read-failure controls. |
 | `fence_evidence_checks.py` | `lake exe qualify fence-evidence` | Independent range, admission, policy and compiler failures inside positive fences, plus restoration. |
 | `frozen_exit_checks.py` | `lake exe qualify frozen-exits` | Frozen-input rechecks after imports and failed build/compilation operations. |
 | `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 36 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
-| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Sixty source-owned phases for twenty rules, plus admission mutations and authentic wrong-claim/classification controls. |
+| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty source-owned phases for twenty rules (Fixed and Violation, each in its own fresh workspace), plus admission mutations and authentic wrong-claim/classification refusal controls: 43 productions and 10 individual control admissions, then one corpus admission of every record. `--shard K/N` selects every Nth rule. |
 | prototype `run.py` | `lake env lean --run examples/rule-reference-prototype/Run.lean` | Separately pinned Verso integration, native messages, Lake dependency dispatch and identical-output comparison. |
-| `acceptance_checks.py` | `lake exe qualify acceptance GROUP --evidence PATH` | Surface/evidence/fence packet mutations, source request binding, worker failure and timeout, with positive restoration. Groups: `surface`, `evidence`, `fences`, `sources`, `process`. |
+| `acceptance_checks.py` | `lake exe qualify acceptance GROUP --evidence PATH` | Fence-compilation packet mutations with positive restoration. Group: `fences`. The former `surface`, `evidence`, `sources` and `process` groups mutated the removed surface-worker packet; project and documentation acceptance now run in one process with nothing serialized between them. |
 | `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies` and `lake exe qualify acceptance-snapshots history` | Ignored Git/non-Git dependency input coverage and mutation; SL3001 fresh/incremental/build-lint history refusal and restoration. `all` runs both under one deadline. |
 | `documentation_dependency_checks.py` | `lake exe qualify documentation-dependencies` | Both documentation commands retain pre-build dependency observations; combined project/documentation positive remains distinct. |
 | `input_inventory_checks.py` | `lake exe qualify input-inventory` | Root additions and Markdown edit/removal during prerequisite build; actual new-module build and restored fresh controls. |
 
 The producer command retains `--evidence PATH`. `scripts/verify.sh` runs registry and native
-controls; `scripts/verify.sh diagnostics producers` and `scripts/verify.sh diagnostics history`
-run the producer and history campaigns separately and sequentially in CI.
-Each invocation retains its own hard 420-second deadline. Direct `lake exe qualify`
+controls; `scripts/verify.sh diagnostics producers`, `scripts/verify.sh diagnostics history`
+and the two `scripts/verify.sh diagnostics rule-examples K/2` shards run as parallel
+capability-triggered CI jobs. Each invocation retains its own hard 420-second deadline. Direct `lake exe qualify`
 campaigns have a single 420-second process-group deadline; the prototype has a single
 600-second process-group deadline. These replace the old per-child timers, which cannot
 safely enforce descendant termination while sharing acceptance's outer process group.
 The prototype never substitutes for acceptance. `diagnostics rule-examples` retains the
-upstream corpus selection; optional `--rules RULE ...` follows `--evidence PATH` on the
-standalone command and never claims full-corpus coverage. The corpus runner retains at
-most five concurrent producer detector invocations in disjoint slots. Each invocation may
-launch subprocesses. Each slot holds a private writable copy of the root package only;
-every slot manifest names the captured original Lake dependency roots, which the slots
-share. The runner records a content-level identity of every entry under every shared root
+upstream corpus selection; optional `--rules RULE ...` or `--shard K/N` follows
+`--evidence PATH` on the standalone command and never claims full-corpus coverage; the two
+CI shards together select every rule once. The corpus runner retains at most five
+concurrent producer detector invocations, each in its own fresh workspace. Each invocation
+may launch subprocesses. The runner prepares one private copy of the root package, shared
+read-only by every producer; its manifest names the captured original Lake dependency
+roots, which are shared too. The runner records a content-level identity of every entry
+under every shared root, including the root copy,
 (path, `lstat` kind, exact length and a 64-bit native content hash; symlinks recorded by
 resolution, never followed) before any producer starts, and requires an equal identity
 after all producers have been joined. A difference refuses the run. This detects a write;
@@ -68,12 +70,15 @@ raw evidence as `injected-git-facts.json`, and every producer registration names
 retained path. Producers run through the internal
 `ruleExamples --injected-git-facts FACTS [axiomGate] ARGS` entry. It runs the same
 `axiomGate` or `ruleExamples` body, reads every source and configuration byte itself, and
-uses an injected pair only for a request that matches exactly. The slot's private
+uses an injected pair only for a request that matches exactly. The private
 `strict_lean` copy and fixture dependencies are always observed fresh.
 `Snapshot.assemble_facts_eq` shows that equal Git facts give an identical capture, and so
 (`stateOfCore_congruence`) identical request and report bytes. That the facts are equal is
-the no-writer premise. At run end, `Snapshot.inputsUnchanged` rechecks the once-captured
-value with fresh reads and fresh Git. User-facing `axiomGate` rejects `--injected-git-facts`.
+the no-writer premise. Producers do not recheck an injected dependency at their own end; the campaign
+rechecks the shared trees once: at run end, `Snapshot.inputsUnchanged` rechecks the
+once-captured value with fresh reads and fresh Git, and the content identity must be equal.
+Every producer still rechecks each non-injected dependency and its own inputs. Results
+produced with injected facts carry `"gitFacts": "injected"`; admission ignores the field. User-facing `axiomGate` rejects `--injected-git-facts`.
 Root processes, other file owners, concurrent external writers, filesystem honesty and
 non-cryptographic hash collisions remain trusted assumptions.
 The runner consumes records in fixed order and drains launched tasks
@@ -86,9 +91,9 @@ stream files, terminal metadata and the compact original record. Derived admissi
 mutations retain their exact submitted record, origin path and mutation label before
 admission under the original phase's `controls/` directory. During production the
 INCOMPLETE receipt points to these sidecars; the full aggregate is written once all
-records and controls are ready. The runner verifies the retained files,
-SHA256/length binding and terminal checker sources before exporting PASS. Missing or
-changed sidecars refuse completion; kill paths retain INCOMPLETE and partial files.
+records and controls are ready, and one corpus admission then admits every record. The
+runner does not re-read its own just-written sidecars; it requires unchanged terminal
+checker sources before exporting PASS. Kill paths retain INCOMPLETE and partial files.
 PASS is written only after successful scratch cleanup.
 Stream retention on kill covers completed lines already read; an unterminated line
 can remain buffered. Only terminal observations claim complete streams.
@@ -198,12 +203,6 @@ to `qualify` so it does not detach a nested timer/group. That private flag is no
 standalone invocation or an alternative acceptance command. `TimeoutControl.lean` separately
 exercises positive, descendant timeout, terminated-descendant and restored controls.
 These observations are not an OS scheduling theorem.
-
-The acceptance `process` group additionally terminates a single native sleeper
-inside a surface worker using a foreground timer. It checks actual worker
-termination and the coordinator's incomplete/no-acceptance response. It does not
-establish whole-coordinator cancellation; `TimeoutControl` retains the separate
-process-group descendant controls. No nested timer creates an escaping group.
 
 `lake exe qualify receipt-boundaries` seeds completed evidence and exercises
 actual missing/unusable timeout selection and selected-timer spawn failures for

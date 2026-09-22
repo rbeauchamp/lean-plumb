@@ -26,15 +26,19 @@ last two tools. Verification runs offline against those pinned dependencies.
 
 ```sh
 lake build                         # incremental development check
-./scripts/verify.sh                 # complete local acceptance command
+./scripts/verify.sh                 # ordinary acceptance (project surfaces)
+./scripts/verify.sh docs            # documentation fences, linked to that acceptance
 ./scripts/verify.sh diagnostics fixtures # focused diagnostic qualification
 ```
 
-The acceptance command builds its checker executables, type-checks the diagnostic
-modules, audits the claimed Lean surfaces from fresh output, and checks every Lean
-example under `docs/`. It has a hard seven-minute limit;
-a timeout is an incomplete run, not acceptance. Provisioning happens before that limit.
-CI runs the same command after restoring or provisioning pinned dependency caches.
+Ordinary acceptance builds its checker executables, type-checks the diagnostic
+modules and audits the claimed Lean surfaces from fresh output. It records the content
+identity of the inputs it accepted in `tmp/acceptance-link.json`. `./scripts/verify.sh docs`
+then checks every Lean example under `docs/` and refuses unless its own freshly
+captured inputs have the same identity. Each command has its own hard seven-minute
+limit; a timeout is an incomplete run, not acceptance. Provisioning happens before
+that limit. CI runs both commands, in that order in one job, after restoring or
+provisioning pinned dependency caches.
 
 [AGENTS.md](../../AGENTS.md#changes-and-verification) owns verification and merge policy.
 The [CI workflow](../../.github/workflows/ci.yml) defines runner and cache configuration.
@@ -55,7 +59,7 @@ checker behavior:
 | `build-policy` | Enforcement through the example's ordinary Lake build. |
 | `producers` | [Project producer and documentation qualification](engine-producers.md). |
 | `history` | [Source-bound replacement history qualification](engine-producers.md). |
-| `rule-examples` | [Source-owned corpus and diagnostic demonstrations](rule-examples.md). |
+| `rule-examples`, `rule-examples 1/2`, `rule-examples 2/2` | [Source-owned corpus and diagnostic demonstrations](rule-examples.md); a shard runs half of the rules. |
 
 Omitting `PARTITION` requests the `checkerSelftest` campaign; the `producers`, `history` and
 `rule-examples` campaigns remain separate explicit selections. Each invocation uses the
@@ -64,11 +68,12 @@ prerequisite. Run `./scripts/verify.sh serialized-graph` only for the separate s
 claim. See the [verification sequence](../standard/9-compliance-audit.md#repository-verification-sequence)
 for evidence requirements. Diagnostics do not replace a failed acceptance run.
 
-CI requires `producers` followed by `history` as separate sequential invocations, each
-with its own hard420-second limit. This explicitly permits up to840 seconds for their
-combined diagnostics; it is not a pass under the former combined420 contract. Both
-suites retain their full controls and order. Ordinary cold420, corpus and site checks
-remain separate requirements.
+The [diagnostics workflow](../../.github/workflows/diagnostics.yml) runs `producers`,
+`history` and both `rule-examples` shards as parallel jobs, each with its own hard
+420-second limit. It runs when the checker, rules, rule examples, Lake configuration or
+manifests change, on every push to `main`, and nightly. These campaigns are
+capability-triggered diagnostics (standard §8.8), not a partition of ordinary
+acceptance.
 
 
 ## Implementation and qualification layout

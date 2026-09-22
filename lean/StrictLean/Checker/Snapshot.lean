@@ -314,10 +314,18 @@ completing each fresh capture with its request state derived from that capture. 
 def dependencies (inventory : Lake.SurfaceInventory) : IO (Array DependencyObservation) :=
   return (← dependenciesCaptures inventory).map observe
 
+/-- True when the qualification-only injected table answers this captured dependency. -/
+def injectedFor (table : Array GitFacts) (o : DependencyObservation) : Bool :=
+  table.any (·.answers o.package o.root o.sourcePaths
+    (o.configurationCaptures.map fun (path, _) => FilePath.mk path))
+
 /-- Reconcile the frozen Lake root and dependency inputs at the terminal boundary.
 Every fresh read and Git observation is retaken; the executed decision is the
 retired comparison on the completed values, with only the request-state
-construction reused at proved equal captures. -/
+construction reused at proved equal captures. Under the internal qualification entry
+only, a dependency answered by the injected table is instead rechecked once by the
+campaign runner that captured it (its terminal `inputsUnchanged` and content identity);
+the dependency inventory itself and every other dependency are still rechecked here. -/
 def inputsUnchanged (inventory : Lake.SurfaceInventory)
     (before : Array DependencyObservation) : IO Unit := do
   let current ← timedPhase "terminal Lake inventory" <| Lake.surfaceInventory inventory.root
@@ -325,7 +333,17 @@ def inputsUnchanged (inventory : Lake.SurfaceInventory)
       current.leanPath == inventory.leanPath && current.leanSrcPath == inventory.leanSrcPath &&
       current.libraries == inventory.libraries && current.executables == inventory.executables do
     throw <| IO.userError "root inventory changed: Lake modules, targets or source identities"
-  unless terminalBeq (← dependenciesCaptures current) before do
+  let table ← injectedGitFacts.get
+  let unchanged ← if table.isEmpty then do
+      pure (terminalBeq (← dependenciesCaptures current) before)
+    else do
+      let owned := (current.dependencies.zip before).filter fun (_, o) => !injectedFor table o
+      let fresh ← timedPhase "dependency snapshot capture" <| owned.mapM fun (entry, _) =>
+        captureDependency current.root entry.package entry.root
+          (entry.sources.map fun source => (source.module, source.source)) entry.configurationPaths
+      pure (current.dependencies == inventory.dependencies && current.dependencies.size == before.size &&
+        terminalBeq fresh (owned.map (·.2)))
+  unless unchanged do
     throw <| IO.userError "dependency snapshot changed: Lake inventory or source/configuration state"
 
 /-- Exact request bytes include configuration presence/absence and actual dependency state.

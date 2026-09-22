@@ -74,9 +74,9 @@ private def corpusBody (json : Json) : Except String Unit := do
   unless !checkerFiles.isEmpty do throw "missing checker source state"
   let records := (← (← field json "records").getArr?).map
     (fun record => record.setObjVal! "checkerSources" checkerBefore)
-  unless records.size == selected.size * 3 do throw "missing or extra fixture phase"
+  unless records.size == selected.size * 2 do throw "missing or extra fixture phase"
   for rule in selected do
-    let _ ← forIn #["Fixed", "Violation", "Restored"] PUnit.unit fun phase _ =>
+    let _ ← forIn #["Fixed", "Violation"] PUnit.unit fun phase _ =>
       phaseCheck records rule.spelling phase
     pure ()
 

@@ -69,6 +69,8 @@ all 21 producer invocations but only 2 of 17 history invocations. The aggregate 
 a producer PASS did not establish completed history qualification or green CI.
 The authorized repair uses two sequential hard420 diagnostic gates with full coverage.
 It does not change ordinary cold420 or prove a runtime upper bound.
+Superseded 2026-09-22 by the verification-slimming decision: these campaigns now run as
+parallel capability-triggered diagnostics jobs (see AGENTS.md), each under its own 420s.
 
 Separate fixture roots shared `.lake/packages`; a prior prebuild did not enforce
 read-only module outputs, trace/hash sidecars or artifact/Git metadata. At pinned

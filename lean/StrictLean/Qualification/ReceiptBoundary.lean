@@ -18,7 +18,7 @@ def check : IO Unit := do
   let root ← rootDirectory
   let executable ← IO.appPath
   withScratch root "receipt-boundary" fun scratch => do
-    for route in #[#["acceptance", "sources"], #["environments"]] do
+    for route in #[#["acceptance", "fences"], #["environments"]] do
       let evidence := scratch / "evidence.json"
       for fault in #["missing", "unusable", "spawn"] do
         let bin := scratch / s!"{route[0]!}-{fault}"

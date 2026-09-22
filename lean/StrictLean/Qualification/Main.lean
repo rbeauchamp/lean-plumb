@@ -27,6 +27,13 @@ private unsafe def dispatch (args : List String) (attempt : Option String := non
   | ["rule-examples", "--evidence", path] => StrictLean.Qualification.RuleExamples.check ⟨path⟩ none attempt
   | "rule-examples" :: "--evidence" :: path :: "--rules" :: rules =>
       StrictLean.Qualification.RuleExamples.check ⟨path⟩ (some rules.toArray) attempt
+  | ["rule-examples", "--evidence", path, "--shard", spec] => do
+      let shard ← match (spec.splitOn "/").map String.toNat? with
+        | [some index, some count] =>
+          if 1 ≤ index && index ≤ count then pure (index, count)
+          else throw <| IO.userError s!"invalid rule-example shard: {spec}"
+        | _ => throw <| IO.userError s!"invalid rule-example shard: {spec}"
+      StrictLean.Qualification.RuleExamples.check ⟨path⟩ none attempt (some shard)
   | ["producers"] => StrictLean.Qualification.Producer.check none
   | ["producers", "--evidence", path] => StrictLean.Qualification.Producer.check (some ⟨path⟩)
   | ["producers-combined"] => do
@@ -46,7 +53,7 @@ private unsafe def dispatch (args : List String) (attempt : Option String := non
   | ["frozen-exits"] => StrictLean.Qualification.FrozenExit.check
   | ["documentation-source"] => StrictLean.Qualification.DocumentationSource.check false
   | ["documentation-source", "--source-read-only"] => StrictLean.Qualification.DocumentationSource.check true
-  | _ => throw <| IO.userError "usage: lake exe qualify registry|native|combined|native-launcher|producers [--evidence PATH]|environments --evidence PATH|acceptance GROUP --evidence PATH|acceptance-snapshots dependencies|history|all|documentation-dependencies|input-inventory|history|closure-evidence|configuration-capture|fence-evidence|frozen-exits|documentation-source [--source-read-only]|rule-examples --evidence PATH [--rules RULE ...]"
+  | _ => throw <| IO.userError "usage: lake exe qualify registry|native|combined|native-launcher|producers [--evidence PATH]|environments --evidence PATH|acceptance GROUP --evidence PATH|acceptance-snapshots dependencies|history|all|documentation-dependencies|input-inventory|history|closure-evidence|configuration-capture|fence-evidence|frozen-exits|documentation-source [--source-read-only]|rule-examples --evidence PATH [--rules RULE ... | --shard K/N]"
 
 /-- Standalone commands get one group-wide 420-second bound. The private protocol flag
 is supplied by this wrapper or the already timed acceptance driver, never documented

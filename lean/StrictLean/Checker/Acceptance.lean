@@ -27,17 +27,6 @@ instance : FromJson RequestedInspection := ⟨fun value => do
     expectedModules := ← value.getObjValAs? _ "expectedModules",
     report := ← value.getObjValAs? _ "report", transcripts := ← value.getObjValAs? _ "transcripts" }⟩
 
-/-- Child transport contains raw production only. Parent discovery supplies coverage and
-recomputes all policy evidence after process completion. -/
-structure SurfaceProduction where
-  build : ProcessResult
-  inspections : Array RequestedInspection
-  deriving ToJson
-
-instance : FromJson SurfaceProduction := ⟨fun value => do
-  PolicyCodec.exactFields value ["build", "inspections"]
-  return { build := ← value.getObjValAs? _ "build", inspections := ← value.getObjValAs? _ "inspections" }⟩
-
 /-- Retain one exact source per URI; repeated identical file observations are shared,
 while conflicting bytes are refused. This normalizes source maps, never job results. -/
 def sourceSnapshots (sources : Array ProducerReport.SourceBinding)

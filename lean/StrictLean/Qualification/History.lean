@@ -1,25 +1,25 @@
 import StrictLean.Qualification.SourceEvidence
 import StrictLeanQualification.History
 
-/-! Actual project/file history qualification. Sources and output paths are isolated;
-positive/unsupported/restored controls all discard generated build artifacts. -/
+/-! Actual project/file history qualification. Every control runs in its own fresh
+workspace with its own output path, so no restored rerun repeats an earlier positive
+control (docs/standard/8 §8.8). -/
 namespace StrictLean.Qualification.History
 open Lean
 
 private def source := "import Lean\nimport StrictLean.Contract\n/-! Two callers preserve an earlier implementation overwritten after compilation. -/\ndef earlier (n : Nat) : Nat := n + 0\ndef target (n : Nat) : Nat := n\n@[implemented_by earlier] def reference (n : Nat) : Nat := n\ndef first (n : Nat) : Nat := reference n\nattribute [implemented_by target] reference\ndef second (n : Nat) : Nat := reference n\ndef recursiveSum : List Nat → Nat\n  | [] => 0\n  | x :: xs => x + recursiveSum xs\nprivate def unused (xs : List Nat) : Nat := recursiveSum xs\nprivate def unregistered (xs : List Nat) : Nat := recursiveSum xs\ntheorem privateContract : StrictLean.ExecutableContract unused\n    (fun f => ∀ xs, f xs = recursiveSum xs) := ⟨by intro xs; rfl⟩\ntheorem importedContract : StrictLean.ExecutableContract Nat.add\n    (fun f => ∀ n m, f n m = n + m) := ⟨by intros; rfl⟩\n-- evaluator control\n"
 
-/-- Seventeen real public invocations retain exact requests, source binding, outcomes and
-both replacement targets. The transport mutation campaign consumes a real restored report. -/
+/-- Ten real public invocations retain exact requests, source binding, outcomes and
+both replacement targets. The transport mutation campaign consumes the real positive
+project report. -/
 def check : IO Unit := do
   let root ← rootDirectory
-  withScratch root "history-controls" fun project => do
-    prepareProject root project "history_adopter" "standard-logical"
-      "All three implementations compute the identity."
+  withScratch root "history-controls" fun scratch => do
     for (invocation, flags, mode) in #[
         ("project", #[], "freshProject"), ("incremental", #["--incremental"], "incrementalProject"),
         ("file", #["--file", "Example.lean", "--claim", "standard-logical", "--execution", "checked"], "freshFile")] do
-      let phases := #["positive", "unsupported", "restored"] ++
-        (if invocation == "incremental" then #[] else #["admission", "restored", "source-change", "restored"])
+      let phases := #["positive", "unsupported"] ++
+        (if invocation == "incremental" then #[] else #["admission", "source-change"])
       for index in [:phases.size] do
         let phase := phases[index]!
         let mutation := if phase == "unsupported" then "run_cmd pure ()"
@@ -27,8 +27,11 @@ def check : IO Unit := do
           else if phase == "source-change" then "run_cmd do\n  let path ← Lean.getFileName\n  let content ← IO.FS.readFile path\n  IO.FS.writeFile path (content ++ \"\\n\")\n"
           else "-- evaluator control"
         let source := source.replace "-- evaluator control" mutation
+        let project := scratch / s!"{invocation}-{phase}"
+        IO.FS.createDir project
+        prepareProject root project "history_adopter" "standard-logical"
+          "All three implementations compute the identity."
         IO.FS.writeFile (project / "Example.lean") source
-        clearBuild project
         let output := project / s!"{invocation}-{index}-{phase}.json"
         let (result, report) ← observeProject root project output flags
         if phase == "admission" || phase == "source-change" then
@@ -91,7 +94,7 @@ def check : IO Unit := do
               mode source (invocation == "file") true)
             IO.println s!"history oracle {invocation}/{label}: intended refusal + restored control PASS"
         requireChecks [⟨"history source unchanged", (← IO.FS.readFile (project / "Example.lean")) == source⟩]
-        if invocation == "project" && index == 2 then
+        if invocation == "project" && phase == "positive" then
           transportControl root "lean/StrictLean/Checker/HistoryQualification.lean" output
         IO.println s!"history {invocation}/{phase}: exact requests/source/outcome PASS"
 

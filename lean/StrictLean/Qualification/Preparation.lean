@@ -4,7 +4,7 @@ import StrictLean.Qualification.Slot
 import StrictLean.Qualification.Support
 
 /-! Preparation-only qualification (harness): the full normal
-copy/authentication/preparation path for all three producer slots on fresh
+copy/authentication/preparation path for the shared producer slot on fresh
 owned scratch, with per-phase wall timings. No detector, no corpus and no
 shared writes (callers run this with `GIT_OPTIONAL_LOCKS=0`). Scratch cleanup
 is verified after the owned scratch is removed. This exercises exactly the
@@ -34,18 +34,15 @@ def check : IO Unit := do
         pure (path, ← IO.FS.readBinFile path))
       IO.println s!"prep phase: input capture: root sources={rootSources.size} configs={rootConfigs.size} deps={deps.size}"
       let totalStart ← IO.monoMsNow
-      let slots ← (#[0, 1, 2, 3, 4] : Array Nat).mapM fun k => do
-        let slot : Slot.ProducerSlot := ⟨scratch / s!"slot-{k}"⟩
-        IO.FS.createDirAll slot.root
-        pure slot
-      let _ ← Slot.prepareSlots 3 slots root rootSources rootConfigs deps
-      for k in [:slots.size] do
-        let projectStart ← IO.monoMsNow
-        IO.FS.createDirAll (scratch / s!"project-{k}")
-        Slot.prepareSlotProject slots[k]! (scratch / s!"project-{k}")
-          "rule_examples" "kernel-only" "The fixture's exact mathematical claim and scope."
-        IO.println s!"prep phase: slot-{k} prepareSlotProject: {(← IO.monoMsNow) - projectStart}ms"
-      IO.println s!"prep phase: TOTAL preparation ({slots.size} slots): {(← IO.monoMsNow) - totalStart}ms"
+      let slot : Slot.ProducerSlot := ⟨scratch / "slot"⟩
+      IO.FS.createDirAll slot.root
+      let _ ← Slot.prepareSlot root slot rootSources rootConfigs deps
+      let projectStart ← IO.monoMsNow
+      IO.FS.createDirAll (scratch / "project")
+      Slot.prepareSlotProject slot (scratch / "project")
+        "rule_examples" "kernel-only" "The fixture's exact mathematical claim and scope."
+      IO.println s!"prep phase: prepareSlotProject: {(← IO.monoMsNow) - projectStart}ms"
+      IO.println s!"prep phase: TOTAL preparation (shared slot): {(← IO.monoMsNow) - totalStart}ms"
   finally
     match ← scratchRef.get with
     | some scratch =>

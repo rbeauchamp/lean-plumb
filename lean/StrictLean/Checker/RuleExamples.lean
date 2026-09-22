@@ -138,7 +138,8 @@ corpus-producer entry: it installs the runner's once-captured shared-dependency
 Git facts (`Snapshot.GitFacts`), then runs either the exact `axiomGate` body
 (`AxiomGate.entry`) or this binary's own modes. Facts only replace the Git part
 of a capture whose exact request they answer; every source and configuration
-byte is still read fresh. The user-facing `axiomGate` never accepts them. -/
+byte is still read fresh, and the result is marked `"gitFacts": "injected"`. The
+user-facing `axiomGate` never accepts them. -/
 unsafe def main (args : List String) : IO UInt32 := do
   match args with
   | "--injected-git-facts" :: facts :: rest =>
@@ -154,10 +155,23 @@ unsafe def main (args : List String) : IO UInt32 := do
         IO.eprintln "rule example production incomplete: empty injected git facts"
         return 2
       StrictLean.Checker.Snapshot.injectedGitFacts.set table
-      match rest with
-      | "axiomGate" :: gateArgs => StrictLean.Checker.AxiomGate.entry gateArgs
-      | "--injected-git-facts" :: _ =>
-        IO.eprintln "rule example production incomplete: repeated injected git facts"
-        return 2
-      | _ => ruleExamplesEntry rest
+      let (code, output) ← match rest with
+        | "axiomGate" :: gateArgs =>
+          pure (← StrictLean.Checker.AxiomGate.entry gateArgs,
+            (gateArgs.dropWhile (· != "--json-out")).drop 1 |>.head?)
+        | "--injected-git-facts" :: _ =>
+          IO.eprintln "rule example production incomplete: repeated injected git facts"
+          return 2
+        | _ => pure (← ruleExamplesEntry rest, rest.getLast?)
+      -- Mark the result so it cannot be mistaken for Git-observed output. The
+      -- qualification-only result view keeps this field and admission ignores it.
+      if let some path := output.filter (· != "") then
+        unless ← System.FilePath.pathExists path do return code
+        let marked ← (do
+          let value ← IO.ofExcept (Lean.Json.parse (← IO.FS.readFile path))
+          IO.FS.writeFile path ((value.setObjVal! "gitFacts" (.str "injected")).compress ++ "\n")).toBaseIO
+        if let .error error := marked then
+          IO.eprintln s!"rule example production incomplete: injected-facts marker: {error}"
+          return 2
+      return code
   | _ => ruleExamplesEntry args
