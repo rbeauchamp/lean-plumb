@@ -99,19 +99,21 @@ def materializeGit (slotGit : FilePath) (sourceGit : FilePath) : IO Unit := do
   if !(← sourceGit.isDir) then
     -- Worktree pointer file: `gitdir: <path>`.
     let text ← IO.FS.readFile sourceGit
-    let target := FilePath.mk ((text.replace "gitdir:" "").replace "\n" "")
+    let target := FilePath.mk ((text.replace "gitdir:" "").trimAscii.toString)
     unless (← target.pathExists) do
       throw <| IO.userError s!"slot git pointer target missing: {target}"
     directory := target
   let _ ← copyTree directory slotGit
-  -- Materialize the common directory for linked worktrees.
+  -- Materialize the common directory for linked worktrees. Source indirections
+  -- may point outside the source tree (that is their normal shape); they must
+  -- resolve to existing metadata, which is then materialized inside the slot.
   if (← (slotGit / "commondir").pathExists) then
-    let raw := (← IO.FS.readFile (slotGit / "commondir")).replace "\n" ""
+    let raw := ((← IO.FS.readFile (slotGit / "commondir")).trimAscii.toString)
     let candidate := FilePath.mk raw
     let resolved ←
-      if (← contained directory candidate) then pure candidate
-      else if (← contained directory (directory / raw)) then pure (directory / raw)
-      else throw <| IO.userError s!"slot git commondir escapes: {raw}"
+      if (← (directory / raw).pathExists) then pure (directory / raw)
+      else if (← candidate.pathExists) then pure candidate
+      else throw <| IO.userError s!"slot git commondir unresolvable: {raw}"
     let _ ← copyTree resolved (slotGit / "common")
     IO.FS.writeFile (slotGit / "commondir") "common\n"
   -- Materialize alternates into contained object stores.
@@ -122,10 +124,13 @@ def materializeGit (slotGit : FilePath) (sourceGit : FilePath) : IO Unit := do
     for line in (← IO.FS.readFile alternates).splitOn "\n" do
       let entry := line.replace "\r" ""
       if entry.isEmpty then continue
-      let source := FilePath.mk entry
+      let source ←
+        if (← (directory / entry).pathExists) then pure (directory / entry)
+        else if (← (directory / "objects" / entry).pathExists) then
+          pure (directory / "objects" / entry)
+        else if (← (FilePath.mk entry).pathExists) then pure (FilePath.mk entry)
+        else throw <| IO.userError s!"slot git alternate unresolvable: {entry}"
       let target := slotGit / s!"objects-alternated-{index}"
-      unless (← contained directory source) do
-        throw <| IO.userError s!"slot git alternate escapes before materialization: {source}"
       let _ ← copyTree source target
       rewritten := rewritten.push target.toString
       index := index + 1
@@ -192,11 +197,14 @@ def prepareDependency (slot : ProducerSlot)
     provenance := provenance.push ⟨s!"{name}/{relative}", s!"source/{module}", "byte-identical"⟩
   for (path, entry) in before.configurationCaptures do
     let relative := (relativeOf original (FilePath.mk path)).toString
-    copyFile (FilePath.mk path) (copy / relative)
     match entry with
-    | some (_, bytes) => compareBytes (copy / relative) bytes
-    | none => pure ()
-    provenance := provenance.push ⟨s!"{name}/{relative}", "config", "byte-identical"⟩
+    | some (canonical, bytes) =>
+      copyFile (FilePath.mk canonical) (copy / relative)
+      compareBytes (copy / relative) bytes
+      provenance := provenance.push ⟨s!"{name}/{relative}", "config", "byte-identical"⟩
+    | none =>
+      -- Presence semantics: absent inputs stay absent in the copy.
+      provenance := provenance.push ⟨s!"{name}/{relative}", "config", "absent"⟩
   if (← (original / ".lake/build").pathExists) then
     let _ ← copyTree (original / ".lake/build") (copy / ".lake/build")
     provenance := provenance.push ⟨s!"{name}/.lake/build", "build", "copy"⟩
