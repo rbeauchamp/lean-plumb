@@ -9,7 +9,10 @@ The [session context](session-context.md#active-plan-and-resume-point) and
 boundary, scoped pilot results and remaining gates. Inspect live pipeline custody;
 coordinate full/cold/expensive verification with Firstmate before acting.
 
-Complete issue7 before advancing serially to14,15,10. Preserve all twenty rules, four
+Complete issue7, then follow the owner's foundation sequence38→7→39→40→41→42→43.
+Publish the integrated issue7 API/evidence handoff to39 and
+`docs/guides/foundation-status.md`; Project8 features14/15/10 remain deferred until43.
+Do not implement successors in this branch. Preserve all twenty rules, four
 accepted-example kinds and separate INCOMPLETE diagnostic demonstrations, exact
 source/ownership/replay/provenance guards, and local/global mode distinctions. Optional8/9
 do not gate core delivery. An empty failure array, worker/help exit or diagnostic result

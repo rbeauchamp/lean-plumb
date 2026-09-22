@@ -1,7 +1,11 @@
-# Issue7 successor contract for14 and10
+# Issue7 successor contract for39 and foundation status
 
-Publication preparation only. Firstmate publishes this substance after reviewed issue7
-integration; this does not advance14/15/10 or claim issue7 delivery complete.
+Publication preparation only. Firstmate publishes this substance into issue39 and
+`docs/guides/foundation-status.md` after reviewed issue7 integration. The owner's
+2026-09-18 issue7 comment establishes38→7→39→40→41→42→43, then deferred Project8
+features. This does not begin successor implementation or claim issue7 delivery
+complete. Preserve the existing issue7 criteria and eventual14/15/10 handoffs;
+their publication/feature work follows the foundation scheduling disposition in43.
 
 ## Accepted API and executed ownership
 
@@ -61,7 +65,8 @@ Use pinned lean-toolchain/lake-manifest.json; `lake build` is the development lo
 The complete ordinary acceptance remains `./scripts/verify.sh`, cold root and hard420s,
 without grace/override or composing separate inner runs. Setup may provision pinned
 dependency artifacts first. Selected packet diagnostics use
-`python3 scripts/acceptance_checks.py --group surface|evidence|fences|process --evidence PATH`;
+`lake exe qualify acceptance GROUP --evidence PATH`, with GROUP selected from
+`surface`, `evidence`, `fences`, or `process`;
 these are execution-linkage fault controls supplementing universal proofs, not acceptance.
 Required CI diagnostics now run `./scripts/verify.sh diagnostics producers`, then
 `./scripts/verify.sh diagnostics history`, sequentially with independent hard420 limits.
@@ -86,5 +91,6 @@ R-* account and local/global distinction. No whole IO-checker verification claim
 
 Con-leche CheckedRecord/collectChecks/FullyChecked/checkDeclsIO architecture is credited
 to its authors/contributors, maintained by Joachim Breitner at Lean FRO. No con-leche
-imports. Optional8/9 do not gate core10; delivery order remains7,14,15,10. No release,
-visibility change, second parser/typechecker/server or plugin marketplace.
+imports. Optional8/9 do not gate core10. Current delivery order is
+38→7→39→40→41→42→43; Project8 features14/15/10 remain deferred until43.
+No release, visibility change, second parser/typechecker/server or plugin marketplace.

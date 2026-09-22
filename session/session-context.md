@@ -42,10 +42,10 @@ disjoint exact reporter/codec/conditional-collector identities and preserves ful
 Implement complete request-indexed accepted-result integration, then finish qualification,
 reports/guides, independent proof/integration review, signed full no-mistakes delivery
 and exact-head CI. Inspect pipeline custody before editing and coordinate expensive
-checks with Firstmate. Do not advance14/15/10 in this branch; prepare successor API/mode/
-command/evidence handoffs for Firstmate publication. The live issue's foundation
-sequence also requires final APIs/evidence in39 and the foundation-status guide;
-further Project8 feature work waits for43. This worker still implements only issue7.
+checks with Firstmate. Prepare the final API/mode/command/evidence handoff for39 and
+the foundation-status guide. The owner's live sequence is38→7→39→40→41→42→43;
+Project8 features14/15/10 remain deferred until43. Do not implement any successor
+in this branch. This worker still implements only issue7.
 
 The CI repair's actual merged-main workflow
 [35153780758](https://github.com/rbeauchamp/strict-lean/actions/runs/35153780758)
@@ -201,7 +201,8 @@ external extraction, serialized source claims, runtime behavior or complete oper
    and affected normative modules govern implementation and acceptance.
 3. Finish issue7's affected qualification, cold-root420, independent proof/integration
    review and signed full no-mistakes delivery. Firstmate owns exact-head integration,
-   actual merged-main checks, successor14/10 publication and issue reconciliation.
-   Continue serially to14/15/10 only after issue7 is integrated.
+   actual merged-main checks, publication of the successor39/foundation-status
+   handoff and issue reconciliation. After issue7 integration follow39→40→41→42→43;
+   Project8 features14/15/10 remain deferred until43.
 
 **Mission-leverage card / active goal object:** N/A; neither is used by this project.
