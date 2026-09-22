@@ -351,7 +351,7 @@ private def admitRecord (ctx : Context) (record : Json) (refusal : Option String
     let label ← IO.ofExcept mutation.getStr?
     save (controls / (label ++ ".json")) (Json.mkObj [
       ("origin", .str (origin / "record.json").toString), ("mutation", mutation), ("record", record)])
-  let current := ctx.scratch / "current.json"
+  let current := ctx.rawDirectory / "current.json"
   let currentStart ← IO.monoMsNow
   save current (Json.mkObj [("checkerBefore", ctx.checkerBefore), ("checkerAfter", ← snapshotCached ctx.cache ctx.checkerPaths), ("records", toJson #[record])])
   IO.println s!"driver span: save current transport: {(← IO.monoMsNow) - currentStart}ms"
@@ -434,6 +434,10 @@ def check (evidence : FilePath) (selection : Option (Array String))
   let checkerPaths := (modulePaths ++ #[root / "lean-toolchain", root / "lakefile.lean", root / "lake-manifest.json"] ++ corpusPaths).toList.eraseDups.toArray
   let cache ← IO.mkRef SnapshotCache.empty
   let checkerBefore ← snapshotCached cache checkerPaths
+  save evidence (Json.mkObj [("outcome", .str "INCOMPLETE"),
+    ("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool selection.isNone),
+    ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
+    ("selected", toJson selected), ("checkerBefore", checkerBefore)])
   let completed ← withScratch root "rule-examples" fun scratch => do
     let ctx : Context := ⟨root, scratch, specs, checkerPaths, checkerBefore, attempt, rawDirectory, cache⟩
     -- Five producer slots with derived nonoverlap (`slots_distinct`). Slot roots
