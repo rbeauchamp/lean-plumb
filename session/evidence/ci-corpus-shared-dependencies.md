@@ -235,3 +235,59 @@ item (stale slot comments). The captain chose "capture once".
     page-cache residency are unmeasured, and cold reads could add tens of seconds.
   - If 4 vCPU means 2 SMT cores, effective capacity is about 1090 and the bound fails.
 - These are paper estimates from retained receipts, not hosted evidence.
+
+## Full local results at signed `2f79634609b6afe7c68137b0a362367c4daffc73`
+
+Both commands ran on the clean signed head, under the sole local compiler allocation.
+
+### Complete corpus
+
+- **Command:** `./scripts/verify.sh diagnostics rule-examples`.
+- **Result: PASS in 264.30 s, exit 0**, from about 21:00 to 21:04:46Z. That includes
+  prerequisite builds.
+  - User 407.30 s, sys 514.32 s, so about 921 CPU-s. At `1c7304b` it was 391.55 s and
+    1443 CPU-s.
+- **Receipt:** `outcome=PASS`, `completeCorpus=true`, 20 rules, 60 primary records.
+- **Raw attempt:** 65 registrations, 65 terminal sidecars and 7 mutation controls. The
+  65/79/72 construction is unchanged.
+- **Injection:** every one of the 131 dependency captures reused the facts for the 9
+  shared dependencies. It observed Git itself only for the private `strict_lean` copy
+  (131) and the vendored `example_dependency` (9).
+- **Restoration:** the ledger was removed after exact restoration, and the exception set
+  is the original 102 entries.
+- **Phase marks (ms from run start):**
+
+  | Phase | Time |
+  | --- | --- |
+  | Protection | 6.9 s |
+  | Identity before | 4.7 s |
+  | Primary phase to aggregate save | 236.8 s from run start |
+  | Raw validation and qualifier | 3.5 s |
+  | Terminal recheck | 7.5 s |
+  | Identity after | 5.3 s |
+  | Slot cleanup | 0.36 s |
+  | Parent cleanup, including restoration | 5.5 s |
+  | PASS save | 0.6 s |
+
+- **Artifacts:** receipt `tmp/corpus-captureonce-2f79634.receipt`, log
+  `tmp/corpus-captureonce-2f79634.log` (SHA256
+  `e0493641135271069e44acd717d39b544cc0c5a5dc705d43b81430b7489fc694`), and receipt copy
+  `tmp/corpus-captureonce-2f79634-pass.json` (SHA256
+  `48272a80a63c8397c091607ca175df23c4db698cceea766e3d96c6fcca7d90aa`).
+
+### Cold ordinary acceptance
+
+- **Command:** `./scripts/verify.sh`, with the entire root `.lake/build` first moved to
+  `tmp/cold-2f79634-root-build-preserved`. Only pinned dependency artifacts stayed
+  provisioned.
+- **Result: PASS in 302.43 s, exit 0**, ending 21:10:05Z.
+  - 7278 project and 97 documentation jobs accepted.
+  - All tracked inputs had identical SHA256 before and after
+    (`tmp/cold-2f79634-inputs.sha256`).
+- **Timing note:** this is slower than the 237.84 s at `1c7304b`. Every audit phase was
+  uniformly 20–30% slower, including declaration inspection, which this change does not
+  touch (the injection table is empty on ordinary paths).
+  - The host load average was about 14 during the run, from unrelated processes.
+  - That points to external contention. It was observed, not established.
+
+These are observed local completions, not runtime guarantees or hosted evidence.
