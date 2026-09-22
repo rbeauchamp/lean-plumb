@@ -53,12 +53,30 @@ standalone command and never claims full-corpus coverage. The corpus runner reta
 most five concurrent producer detector invocations in disjoint slots. Each invocation may
 launch subprocesses. Each slot holds a private writable copy of the root package only;
 every slot manifest names the captured original Lake dependency roots, which the slots
-share. Their no-writer requirement is checked, not prevented: before any producer starts
-the runner records a content-level identity of every entry under every shared root (path,
-`lstat` kind, exact length and a 64-bit native content hash; symlinks recorded by
-resolution, never followed) and requires an equal identity after all producers have been
-joined, before cleanup and PASS. A difference refuses the run. Concurrent external writers,
-filesystem honesty and non-cryptographic hash collisions remain trusted assumptions.
+share. The runner removes user write permission from every non-symlink entry under the
+shared roots for the producer window, so a same-user write fails at the write boundary. It
+first records the entries that already lacked user write in an owned ledger,
+`tmp/rule-examples-shared-protection.json`. On every exit it restores exactly that state
+before parent cleanup and PASS; the next campaign recovers a ledger left by SIGKILL. Inside
+the window it records a content-level identity of every entry under every shared root
+(path, `lstat` kind, exact length and a 64-bit native content hash; symlinks recorded by
+resolution, never followed) before any producer starts, and requires an equal identity
+after all producers have been joined. A difference refuses the run.
+
+Dependency snapshots are captured once per run. The runner makes one complete
+`Snapshot.dependenciesCaptures` inside the protected window and exports only its Git facts
+(revision and dirty bit), each keyed by the exact capture request: package, canonical root,
+and ordered source and configuration paths. Producers run through the internal
+`ruleExamples --injected-git-facts FACTS [axiomGate] ARGS` entry. It runs the same
+`axiomGate` or `ruleExamples` body, reads every source and configuration byte itself, and
+uses an injected pair only for a request that matches exactly. The slot's private
+`strict_lean` copy and fixture dependencies are always observed fresh.
+`Snapshot.assemble_facts_eq` shows that equal Git facts give an identical capture, and so
+(`stateOfCore_congruence`) identical request and report bytes. That the facts are equal is
+the no-writer premise. At run end, `Snapshot.inputsUnchanged` rechecks the once-captured
+value with fresh reads and fresh Git. User-facing `axiomGate` rejects `--injected-git-facts`.
+Root processes, other file owners, concurrent external writers, filesystem honesty and
+non-cryptographic hash collisions remain trusted assumptions.
 The runner consumes records in fixed order and drains launched tasks
 before ordinary/exceptional scratch cleanup. Partial exports remain `INCOMPLETE`.
 Corpus records use a qualification-only view: top-level `acceptance` and

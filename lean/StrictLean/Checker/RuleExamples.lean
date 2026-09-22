@@ -1,4 +1,5 @@
 import StrictLean.Checker.Documentation
+import StrictLean.Checker.AxiomGate
 import StrictLean.Checker.ResultProtocol
 import StrictLean.Website
 
@@ -124,10 +125,39 @@ unsafe def run (args : List String) : IO UInt32 := do
   | _ => throw <| IO.userError "usage: ruleExamples (--policy-negative PROJECT SOURCE | --documentation PROJECT DOCS) OUTPUT"
 end StrictLean.Checker.RuleExamples
 
-unsafe def main (args : List String) : IO UInt32 := do
+private unsafe def ruleExamplesEntry (args : List String) : IO UInt32 := do
   try
     StrictLean.Checker.initializeLeanSearchPath
     StrictLean.Checker.RuleExamples.run args
   catch error =>
     IO.eprintln s!"rule example production incomplete: {error}"
     return 2
+
+/-- Qualification-only binary. `--injected-git-facts FACTS` is the internal
+corpus-producer entry: it installs the runner's once-captured shared-dependency
+Git facts (`Snapshot.GitFacts`), then runs either the exact `axiomGate` body
+(`AxiomGate.entry`) or this binary's own modes. Facts only replace the Git part
+of a capture whose exact request they answer; every source and configuration
+byte is still read fresh. The user-facing `axiomGate` never accepts them. -/
+unsafe def main (args : List String) : IO UInt32 := do
+  match args with
+  | "--injected-git-facts" :: facts :: rest =>
+    let loaded ← (do
+      let json ← IO.ofExcept (Lean.Json.parse (← IO.FS.readFile facts))
+      IO.ofExcept (Lean.fromJson? (α := Array StrictLean.Checker.Snapshot.GitFacts) json)).toBaseIO
+    match loaded with
+    | .error error =>
+      IO.eprintln s!"rule example production incomplete: injected git facts: {error}"
+      return 2
+    | .ok table =>
+      if table.isEmpty then
+        IO.eprintln "rule example production incomplete: empty injected git facts"
+        return 2
+      StrictLean.Checker.Snapshot.injectedGitFacts.set table
+      match rest with
+      | "axiomGate" :: gateArgs => StrictLean.Checker.AxiomGate.entry gateArgs
+      | "--injected-git-facts" :: _ =>
+        IO.eprintln "rule example production incomplete: repeated injected git facts"
+        return 2
+      | _ => ruleExamplesEntry rest
+  | _ => ruleExamplesEntry args

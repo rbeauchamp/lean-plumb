@@ -246,6 +246,15 @@ private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : Str
       binary := root / ".lake/build/bin/ruleExamples"
       command := #["--policy-negative", project.toString, sourcePath.toString, output.toString]
     else command := command ++ #["--json-out", output.toString]
+  -- Internal qualification-only entry (`ruleExamples --injected-git-facts`): the
+  -- same detector body, given the runner's once-captured shared-dependency Git
+  -- facts. The user-facing `axiomGate` is never given injected facts.
+  let facts := (ctx.scratch / "injected-git-facts.json").toString
+  if binary == root / ".lake/build/bin/axiomGate" then
+    binary := root / ".lake/build/bin/ruleExamples"
+    command := #["--injected-git-facts", facts, "axiomGate"] ++ command
+  else
+    command := #["--injected-git-facts", facts] ++ command
   let configPaths := #["foundation_manifest.json", "lakefile.lean", "lakefile.toml", "lean-toolchain", "lake-manifest.json", ".lake/package-overrides.json"].map (fun (name : String) => project / name)
   let configurationBefore ← configuration configPaths
   let frozen := Json.mkObj [("uri", .str project.toString), ("source", .str configurationBefore.compress)]
@@ -408,6 +417,11 @@ def check (evidence : FilePath) (selection : Option (Array String))
   beginAttempt evidence attempt
   let root ← rootDirectory
   let evidence ← IO.FS.realPath evidence
+  -- Restore any shared-dependency protection left by a killed earlier campaign.
+  let protectionLedger := root / "tmp" / "rule-examples-shared-protection.json"
+  if (← protectionLedger.pathExists) then
+    IO.println "recovering shared dependency protection from an earlier campaign"
+    Slot.unprotectShared protectionLedger
   let rawDirectory := FilePath.mk (evidence.toString ++ ".raw/" ++ attempt)
   requireChecks [⟨"fresh raw observation attempt", !(← rawDirectory.pathExists)⟩]
   IO.FS.createDirAll rawDirectory
@@ -458,215 +472,238 @@ def check (evidence : FilePath) (selection : Option (Array String))
     -- the run fails (smallest-slot-index failure verbatim) before any producer
     -- task starts; every prep task/child drains first.
     let _ ← Slot.prepareSlots 3 slots root rootSources rootConfigs depObservations
-    -- Shared dependency no-writer backstop: content-level identity of every
-    -- entry under every captured dependency root, taken before any producer
-    -- starts and required equal after every producer has been joined.
-    let sharedRoots := depObservations.map (·.root)
-    mark "shared-identity-before" "start"
-    let sharedBefore ← Slot.sharedIdentity sharedRoots
-    mark "shared-identity-before" "end"
-    let mut records : Array Json := #[]
-    let mut controls : Array Json := #[]
-    let jobs := selected.flatMap fun rule => #["Fixed", "Violation", "Restored"].map (rule, ·)
-    -- Pooled productions: the 60 record jobs plus the five special productions
-    -- (jobs 60-64 in their original order). The single consumer path executes
-    -- each job's original ordered post-production actions in job order
-    -- (CONSTRAINT-6: each special's requireChecks stays between its produce and
-    -- its admitRecord; records/controls/pending mutation stays here).
-    let specials : Array String :=
-      (if selected.contains "SL1005" then #["SL1005/WrongClaim", "SL1005/ClaimRestored"] else #[]) ++
-      (if selected.contains "SL4004" then #["SL4004/TrustedControl", "SL4004/NegativeControl",
-        "SL4004/ClassificationRestored"] else #[])
-    let total := jobs.size + specials.size
-    -- Special source reads happen inside their own selected producer jobs
-    -- (scoped selections never read unselected specials' sources); a captured
-    -- IO error fails that job's task and is delivered at its original job order.
-    let produceJob (index : Nat) (slot : Slot.ProducerSlot) : IO Json := do
-      if index < jobs.size then
-        let (rule, phase) := jobs[index]!
-        produce ctx slot rule phase
-      else match specials[index - jobs.size]! with
-        | "SL1005/WrongClaim" =>
-          produce ctx slot "SL1005" "WrongClaim"
-            (some (← IO.FS.readFile (root / "examples/rules/SL1005/Violation.lean")))
-            (some "standard-logical")
-        | "SL1005/ClaimRestored" => produce ctx slot "SL1005" "ClaimRestored"
-        | "SL4004/TrustedControl" =>
-          produce ctx slot "SL4004" "TrustedControl" (some ("<!-- lean-trusted-compiler -->\n```lean\n" ++
-            (← IO.FS.readFile (root / "examples/rules/SL1004/Violation.lean")) ++ "```\n"))
-        | "SL4004/NegativeControl" =>
-          produce ctx slot "SL4004" "NegativeControl"
-            (some "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n")
-        | _ => produce ctx slot "SL4004" "ClassificationRestored"
-    -- Five disjoint producer slots (width-5 conservative default), consumed in
-    -- fixed order and refilled before each admission. Drain every launched task
-    -- before scratch cleanup, including on admission failure.
-    let pending ← IO.mkRef (#[] : Array (Task (Except IO.Error Json)))
-    for k in [0:5] do
-      if k < total then
-        let task ← IO.asTask (produceJob k slots[k]!)
-        pending.modify (·.push task)
+    -- Write-protected capture-once window (owned ledger survives SIGKILL for
+    -- recovery). Restoration runs on every exit of this action, after slot
+    -- cleanup and before parent cleanup and PASS.
     try
-      for index in [:total] do
-        let task := (← pending.get)[index]!
-        let record ← match (← IO.wait task) with
-          | .ok value => pure value
-          | .error error => throw error
+      -- Shared dependency no-writer backstop: content-level identity of every
+      -- entry under every captured dependency root, taken before any producer
+      -- starts and required equal after every producer has been joined.
+      let sharedRoots := depObservations.map (·.root)
+      mark "shared-protection" "start"
+      Slot.protectShared sharedRoots protectionLedger
+      mark "shared-protection" "end"
+      -- Capture once inside the protected window: the runner's own complete
+      -- dependency capture. Producers receive only its Git facts, keyed by the
+      -- exact capture request, and still read every byte themselves.
+      let onceCaptures ← StrictLean.Checker.Snapshot.dependenciesCaptures inventory
+      requireChecks [⟨"capture-once roots match the captured dependencies",
+        onceCaptures.map (·.root) == sharedRoots⟩]
+      save (scratch / "injected-git-facts.json")
+        (toJson (onceCaptures.map StrictLean.Checker.Snapshot.DependencyCaptures.gitFacts))
+      mark "shared-identity-before" "start"
+      let sharedBefore ← Slot.sharedIdentity sharedRoots
+      mark "shared-identity-before" "end"
+      let mut records : Array Json := #[]
+      let mut controls : Array Json := #[]
+      let jobs := selected.flatMap fun rule => #["Fixed", "Violation", "Restored"].map (rule, ·)
+      -- Pooled productions: the 60 record jobs plus the five special productions
+      -- (jobs 60-64 in their original order). The single consumer path executes
+      -- each job's original ordered post-production actions in job order
+      -- (CONSTRAINT-6: each special's requireChecks stays between its produce and
+      -- its admitRecord; records/controls/pending mutation stays here).
+      let specials : Array String :=
+        (if selected.contains "SL1005" then #["SL1005/WrongClaim", "SL1005/ClaimRestored"] else #[]) ++
+        (if selected.contains "SL4004" then #["SL4004/TrustedControl", "SL4004/NegativeControl",
+          "SL4004/ClassificationRestored"] else #[])
+      let total := jobs.size + specials.size
+      -- Special source reads happen inside their own selected producer jobs
+      -- (scoped selections never read unselected specials' sources); a captured
+      -- IO error fails that job's task and is delivered at its original job order.
+      let produceJob (index : Nat) (slot : Slot.ProducerSlot) : IO Json := do
         if index < jobs.size then
-          records := records.push record
-        else
-          controls := controls.push record
-        -- Refill before admission so producers run during every admission and
-        -- admission is off the production critical path. Admission stays in
-        -- fixed order: an admission refusal throws before any later entry is
-        -- admitted, every already-launched task is drained in `finally` (slot
-        -- reassignment only after the prior task returned its record), and up
-        -- to five extra completed producers may remain raw-retained but are
-        -- never admitted while the initial INCOMPLETE receipt stands.
-        if index + 5 < total then
-          let task ← IO.asTask (produceJob (index + 5) slots[(index + 5) % 5]!)
-          pending.modify (·.push task)
-        if index < jobs.size then
-          admitRecord ctx record
-          IO.println s!"{← string record "rule"}/{← string record "phase"}: qualified {← string record "kind"}"
-          (← IO.getStdout).flush
-        else
-          -- Original ordered special consumer actions (requireChecks between
-          -- produce and admitRecord; original refusals and restorations).
-          match specials[index - jobs.size]! with
+          let (rule, phase) := jobs[index]!
+          produce ctx slot rule phase
+        else match specials[index - jobs.size]! with
           | "SL1005/WrongClaim" =>
-            requireChecks [⟨"Standard-Logical producer control completes", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "completed"⟩]
-            admitRecord ctx record (some "producer request differs from frozen example request")
-          | "SL1005/ClaimRestored" => admitRecord ctx record
-          | "SL4004/TrustedControl" | "SL4004/NegativeControl" =>
-            requireChecks [⟨"nonpositive documentation classifies", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "classified"⟩]
-            admitRecord ctx record (some "documentation correction requires completed positive fences")
-          | _ => admitRecord ctx record
+            produce ctx slot "SL1005" "WrongClaim"
+              (some (← IO.FS.readFile (root / "examples/rules/SL1005/Violation.lean")))
+              (some "standard-logical")
+          | "SL1005/ClaimRestored" => produce ctx slot "SL1005" "ClaimRestored"
+          | "SL4004/TrustedControl" =>
+            produce ctx slot "SL4004" "TrustedControl" (some ("<!-- lean-trusted-compiler -->\n```lean\n" ++
+              (← IO.FS.readFile (root / "examples/rules/SL1004/Violation.lean")) ++ "```\n"))
+          | "SL4004/NegativeControl" =>
+            produce ctx slot "SL4004" "NegativeControl"
+              (some "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n")
+          | _ => produce ctx slot "SL4004" "ClassificationRestored"
+      -- Five disjoint producer slots (width-5 conservative default), consumed in
+      -- fixed order and refilled before each admission. Drain every launched task
+      -- before scratch cleanup, including on admission failure.
+      let pending ← IO.mkRef (#[] : Array (Task (Except IO.Error Json)))
+      for k in [0:5] do
+        if k < total then
+          let task ← IO.asTask (produceJob k slots[k]!)
+          pending.modify (·.push task)
+      try
+        for index in [:total] do
+          let task := (← pending.get)[index]!
+          let record ← match (← IO.wait task) with
+            | .ok value => pure value
+            | .error error => throw error
+          if index < jobs.size then
+            records := records.push record
+          else
+            controls := controls.push record
+          -- Refill before admission so producers run during every admission and
+          -- admission is off the production critical path. Admission stays in
+          -- fixed order: an admission refusal throws before any later entry is
+          -- admitted, every already-launched task is drained in `finally` (slot
+          -- reassignment only after the prior task returned its record), and up
+          -- to five extra completed producers may remain raw-retained but are
+          -- never admitted while the initial INCOMPLETE receipt stands.
+          if index + 5 < total then
+            let task ← IO.asTask (produceJob (index + 5) slots[(index + 5) % 5]!)
+            pending.modify (·.push task)
+          if index < jobs.size then
+            admitRecord ctx record
+            IO.println s!"{← string record "rule"}/{← string record "phase"}: qualified {← string record "kind"}"
+            (← IO.getStdout).flush
+          else
+            -- Original ordered special consumer actions (requireChecks between
+            -- produce and admitRecord; original refusals and restorations).
+            match specials[index - jobs.size]! with
+            | "SL1005/WrongClaim" =>
+              requireChecks [⟨"Standard-Logical producer control completes", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "completed"⟩]
+              admitRecord ctx record (some "producer request differs from frozen example request")
+            | "SL1005/ClaimRestored" => admitRecord ctx record
+            | "SL4004/TrustedControl" | "SL4004/NegativeControl" =>
+              requireChecks [⟨"nonpositive documentation classifies", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "classified"⟩]
+              admitRecord ctx record (some "documentation correction requires completed positive fences")
+            | _ => admitRecord ctx record
+      finally
+        for task in ← pending.get do
+          let _ ← IO.wait task
+          pure ()
+      for record in records do
+        if (← string record "kind") == "diagnosticDemonstration" then
+          let relabelled := (record.setObjVal! "rule" (.str "SL1001")).setObjVal! "mutation" (.str "demonstration relabel")
+          admitRecord ctx relabelled (some "diagnostic demonstration mismatch")
+          admitRecord ctx record
+          controls := controls.push relabelled
+        if (← string record "phase") == "Violation" && #["SL2003", "SL2005"].contains (← string record "rule") then
+          let fixed ← IO.FS.readFile (root / "examples/rules" / (← string record "rule") / "Fixed.lean")
+          let original ← string record "source"
+          let mut stale := (record.setObjVal! "source" (.str fixed)).setObjVal! "mutation" (.str "displayed source and binding")
+          for side in #["before", "after"] do
+            let bound ← get stale side
+            let sources ← (← entries bound "sources").mapM fun s => do
+              return if (← string s "source") == original then s.setObjVal! "source" (.str fixed) else s
+            stale := stale.setObjVal! side (bound.setObjVal! "sources" (toJson sources))
+          admitRecord ctx stale (some "missing or mismatched producer source account")
+          admitRecord ctx record
+          controls := controls.push stale
+          let result ← get record "result"
+          let result ← IO.ofExcept (StrictLean.Checker.RuleExampleProjection.withoutSourceAccount result)
+          let missing := (record.setObjVal! "result" result).setObjVal! "mutation" (.str "missing sourceAccount")
+          admitRecord ctx missing (some "missing result source account")
+          admitRecord ctx record
+          controls := controls.push missing
+      let finalFields := [("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool selection.isNone),
+        ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
+        ("selected", toJson selected), ("checkerBefore", checkerBefore),
+        ("checkerAfter", ← snapshotCached cache checkerPaths), ("admissionControls", toJson controls)]
+      mark "aggregate-save" "start"
+      save evidence (StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "INCOMPLETE") :: finalFields) records)
+      mark "aggregate-save" "end"
+      -- Tail overlap (strict-tail-overlap-audit constraints 1-7): start barrier
+      -- is the frozen aggregate's atomic save above (the last owned write; the
+      -- aggregate, raw sidecars and checker sources are stable for the window —
+      -- no owned writer; external mutation timing outside equivalence). The
+      -- terminal qualifier (write-free, evidence-only, output captured
+      -- in-memory by `run`) and the read-only raw-validation region run
+      -- concurrently over disjoint inputs with no shared mutable cells (the
+      -- cache ref is touched only by the serial phases outside this window).
+      -- Both join completely before any error surfaces; failures are held
+      -- outcomes surfaced in the original serial order: the qualifier's failure
+      -- first (its timeout-class throw or the corpus-admission check error,
+      -- verbatim), then the validator's minimum-index verbatim error, then the
+      -- terminal checker-equality failure. Abandoned concurrent work after an
+      -- error is known stays read-only and unobservable. PASS save stays last.
+      mark "qualifier" "start"
+      let qualifierTask ← IO.asTask (do
+        let checked ← run root (root / ".lake/build/bin/ruleExampleQualification").toString
+          #[evidence.toString] cleanEnv
+        requireChecks [⟨s!"corpus admission: {checked.stdout}{checked.stderr}", checked.exitCode == 0⟩])
+      mark "raw-validation" "start"
+      -- Terminal raw validation: the complete original validateRaw over every
+      -- entry (records ++ controls), bounded to six concurrent read-only calls.
+      let entries := records ++ controls
+      let mut outcomes : Array (Option IO.Error) := #[]
+      let mut start := 0
+      while start < entries.size do
+        let stop := min (start + 6) entries.size
+        let batch := entries.extract start stop
+        let tasks ← batch.mapM fun record => IO.asTask (validateRaw ctx record)
+        let mut results : Array (Except IO.Error Unit) := #[]
+        for task in tasks do
+          results := results.push (← IO.wait task)
+        for result in results do
+          match result with
+          | Except.ok _ => outcomes := outcomes.push none
+          | Except.error error => outcomes := outcomes.push (some error)
+        start := stop
+      mark "raw-validation" "end"
+      let qualifierFailure ← IO.wait qualifierTask
+      mark "qualifier" "end"
+      -- Held-outcome priority join (constraint 5): qualifier first, then the
+      -- minimum-index validation failure, both verbatim.
+      match qualifierFailure with
+      | Except.error error => throw error
+      | Except.ok () =>
+        match outcomes.findSome? (fun outcome => outcome) with
+        | some error => throw error
+        | none => pure ()
+      mark "terminal-equality" "start"
+      requireChecks [⟨"terminal checker sources changed", (← snapshotCached cache checkerPaths) == checkerBefore⟩]
+      mark "terminal-equality" "end"
+      -- Run-end recheck of the once-captured value through the product's own
+      -- terminal decision (fresh Lake inventory, fresh reads and fresh Git).
+      mark "shared-terminal-recheck" "start"
+      StrictLean.Checker.Snapshot.inputsUnchanged inventory
+        (onceCaptures.map StrictLean.Checker.Snapshot.observe)
+      mark "shared-terminal-recheck" "end"
+      mark "shared-identity-after" "start"
+      let sharedAfter ← Slot.sharedIdentity sharedRoots
+      requireChecks [⟨s!"shared dependency trees changed during the producer window: {sharedBefore.difference sharedAfter}",
+        sharedAfter == sharedBefore⟩]
+      mark "shared-identity-after" "end"
+      -- All producers (including child/stream joins), admission subprocesses,
+      -- terminal qualifier and raw readers have now finished. Only these five
+      -- owned slot roots are removed concurrently; retained evidence lives outside
+      -- scratch. Authenticate every immediate-child identity before any deletion.
+      -- No owned writer remains; external path replacement during this interval
+      -- is outside the stable-filesystem boundary, as for sequential cleanup.
+      mark "slot-cleanup" "start"
+      let scratchRoot ← IO.FS.realPath scratch
+      requireChecks [⟨"five owned cleanup slots", slots.size == 5⟩]
+      for index in [:slots.size] do
+        let path := slots[index]!.root
+        let expected := scratchRoot / s!"slot-{index}"
+        requireChecks [⟨"contained disjoint cleanup slot", path == expected &&
+          (← IO.FS.realPath path) == expected && (← path.symlinkMetadata).type == .dir⟩]
+      -- Reuse pinned removeDirAll: it never follows symlinks and specifies no
+      -- deletion order. Three independent roots at a time; capture and join all
+      -- five outcomes before propagating the first slot-index error verbatim.
+      -- The enclosing withScratch still removes the parent on success or failure;
+      -- its cleanup error retains precedence over an action error. SIGKILL cannot
+      -- promise user-space drainage or cleanup. Complete deletion still precedes PASS.
+      let mut cleanupOutcomes : Array (Except IO.Error Unit) := #[]
+      let mut cleanupStart := 0
+      while cleanupStart < slots.size do
+        let cleanupStop := min (cleanupStart + 3) slots.size
+        let tasks ← (slots.extract cleanupStart cleanupStop).mapM fun slot =>
+          IO.asTask (IO.FS.removeDirAll slot.root)
+        for task in tasks do
+          cleanupOutcomes := cleanupOutcomes.push (← IO.wait task)
+        cleanupStart := cleanupStop
+      for outcome in cleanupOutcomes do
+        IO.ofExcept outcome
+      mark "slot-cleanup" "end"
+      mark "parent-cleanup" "start"
+      return StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "PASS") :: finalFields) records
     finally
-      for task in ← pending.get do
-        let _ ← IO.wait task
-        pure ()
-    for record in records do
-      if (← string record "kind") == "diagnosticDemonstration" then
-        let relabelled := (record.setObjVal! "rule" (.str "SL1001")).setObjVal! "mutation" (.str "demonstration relabel")
-        admitRecord ctx relabelled (some "diagnostic demonstration mismatch")
-        admitRecord ctx record
-        controls := controls.push relabelled
-      if (← string record "phase") == "Violation" && #["SL2003", "SL2005"].contains (← string record "rule") then
-        let fixed ← IO.FS.readFile (root / "examples/rules" / (← string record "rule") / "Fixed.lean")
-        let original ← string record "source"
-        let mut stale := (record.setObjVal! "source" (.str fixed)).setObjVal! "mutation" (.str "displayed source and binding")
-        for side in #["before", "after"] do
-          let bound ← get stale side
-          let sources ← (← entries bound "sources").mapM fun s => do
-            return if (← string s "source") == original then s.setObjVal! "source" (.str fixed) else s
-          stale := stale.setObjVal! side (bound.setObjVal! "sources" (toJson sources))
-        admitRecord ctx stale (some "missing or mismatched producer source account")
-        admitRecord ctx record
-        controls := controls.push stale
-        let result ← get record "result"
-        let result ← IO.ofExcept (StrictLean.Checker.RuleExampleProjection.withoutSourceAccount result)
-        let missing := (record.setObjVal! "result" result).setObjVal! "mutation" (.str "missing sourceAccount")
-        admitRecord ctx missing (some "missing result source account")
-        admitRecord ctx record
-        controls := controls.push missing
-    let finalFields := [("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool selection.isNone),
-      ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
-      ("selected", toJson selected), ("checkerBefore", checkerBefore),
-      ("checkerAfter", ← snapshotCached cache checkerPaths), ("admissionControls", toJson controls)]
-    mark "aggregate-save" "start"
-    save evidence (StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "INCOMPLETE") :: finalFields) records)
-    mark "aggregate-save" "end"
-    -- Tail overlap (strict-tail-overlap-audit constraints 1-7): start barrier
-    -- is the frozen aggregate's atomic save above (the last owned write; the
-    -- aggregate, raw sidecars and checker sources are stable for the window —
-    -- no owned writer; external mutation timing outside equivalence). The
-    -- terminal qualifier (write-free, evidence-only, output captured
-    -- in-memory by `run`) and the read-only raw-validation region run
-    -- concurrently over disjoint inputs with no shared mutable cells (the
-    -- cache ref is touched only by the serial phases outside this window).
-    -- Both join completely before any error surfaces; failures are held
-    -- outcomes surfaced in the original serial order: the qualifier's failure
-    -- first (its timeout-class throw or the corpus-admission check error,
-    -- verbatim), then the validator's minimum-index verbatim error, then the
-    -- terminal checker-equality failure. Abandoned concurrent work after an
-    -- error is known stays read-only and unobservable. PASS save stays last.
-    mark "qualifier" "start"
-    let qualifierTask ← IO.asTask (do
-      let checked ← run root (root / ".lake/build/bin/ruleExampleQualification").toString
-        #[evidence.toString] cleanEnv
-      requireChecks [⟨s!"corpus admission: {checked.stdout}{checked.stderr}", checked.exitCode == 0⟩])
-    mark "raw-validation" "start"
-    -- Terminal raw validation: the complete original validateRaw over every
-    -- entry (records ++ controls), bounded to six concurrent read-only calls.
-    let entries := records ++ controls
-    let mut outcomes : Array (Option IO.Error) := #[]
-    let mut start := 0
-    while start < entries.size do
-      let stop := min (start + 6) entries.size
-      let batch := entries.extract start stop
-      let tasks ← batch.mapM fun record => IO.asTask (validateRaw ctx record)
-      let mut results : Array (Except IO.Error Unit) := #[]
-      for task in tasks do
-        results := results.push (← IO.wait task)
-      for result in results do
-        match result with
-        | Except.ok _ => outcomes := outcomes.push none
-        | Except.error error => outcomes := outcomes.push (some error)
-      start := stop
-    mark "raw-validation" "end"
-    let qualifierFailure ← IO.wait qualifierTask
-    mark "qualifier" "end"
-    -- Held-outcome priority join (constraint 5): qualifier first, then the
-    -- minimum-index validation failure, both verbatim.
-    match qualifierFailure with
-    | Except.error error => throw error
-    | Except.ok () =>
-      match outcomes.findSome? (fun outcome => outcome) with
-      | some error => throw error
-      | none => pure ()
-    mark "terminal-equality" "start"
-    requireChecks [⟨"terminal checker sources changed", (← snapshotCached cache checkerPaths) == checkerBefore⟩]
-    mark "terminal-equality" "end"
-    mark "shared-identity-after" "start"
-    let sharedAfter ← Slot.sharedIdentity sharedRoots
-    requireChecks [⟨s!"shared dependency trees changed during the producer window: {sharedBefore.difference sharedAfter}",
-      sharedAfter == sharedBefore⟩]
-    mark "shared-identity-after" "end"
-    -- All producers (including child/stream joins), admission subprocesses,
-    -- terminal qualifier and raw readers have now finished. Only these five
-    -- owned slot roots are removed concurrently; retained evidence lives outside
-    -- scratch. Authenticate every immediate-child identity before any deletion.
-    -- No owned writer remains; external path replacement during this interval
-    -- is outside the stable-filesystem boundary, as for sequential cleanup.
-    mark "slot-cleanup" "start"
-    let scratchRoot ← IO.FS.realPath scratch
-    requireChecks [⟨"five owned cleanup slots", slots.size == 5⟩]
-    for index in [:slots.size] do
-      let path := slots[index]!.root
-      let expected := scratchRoot / s!"slot-{index}"
-      requireChecks [⟨"contained disjoint cleanup slot", path == expected &&
-        (← IO.FS.realPath path) == expected && (← path.symlinkMetadata).type == .dir⟩]
-    -- Reuse pinned removeDirAll: it never follows symlinks and specifies no
-    -- deletion order. Three independent roots at a time; capture and join all
-    -- five outcomes before propagating the first slot-index error verbatim.
-    -- The enclosing withScratch still removes the parent on success or failure;
-    -- its cleanup error retains precedence over an action error. SIGKILL cannot
-    -- promise user-space drainage or cleanup. Complete deletion still precedes PASS.
-    let mut cleanupOutcomes : Array (Except IO.Error Unit) := #[]
-    let mut cleanupStart := 0
-    while cleanupStart < slots.size do
-      let cleanupStop := min (cleanupStart + 3) slots.size
-      let tasks ← (slots.extract cleanupStart cleanupStop).mapM fun slot =>
-        IO.asTask (IO.FS.removeDirAll slot.root)
-      for task in tasks do
-        cleanupOutcomes := cleanupOutcomes.push (← IO.wait task)
-      cleanupStart := cleanupStop
-    for outcome in cleanupOutcomes do
-      IO.ofExcept outcome
-    mark "slot-cleanup" "end"
-    mark "parent-cleanup" "start"
-    return StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "PASS") :: finalFields) records
+      Slot.unprotectShared protectionLedger
   mark "parent-cleanup" "end"
   mark "pass-save" "start"
   save evidence completed

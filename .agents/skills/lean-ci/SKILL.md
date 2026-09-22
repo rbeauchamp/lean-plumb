@@ -112,6 +112,13 @@ equality after every worker has been joined. State what remains trusted: concurr
 writers, filesystem honesty and digest strength. Size private copies against hosted disk,
 memory and vCPU before relying on local copy-on-write or page-cache behavior.
 
+Before optimizing a repeated observation, split its measured cost by part (for example
+file reads against Git subprocesses). Under an enforced and checked no-writer window, an
+expensive observation may be captured once. Inject it only through an internal entry,
+never the user-facing command. Key each injected value by the exact request it answers,
+keep the cheap exact reads fresh, prove that equal injected facts give identical results,
+and recheck the once-captured value with a fresh observation at window end.
+
 Keep ownership, standalone roots, source freshness, warning handling, admission and exact
 negative reasons intact. Qualification observations complement implementation-linked
 proofs; samples do not replace them. Retain controls until their purpose and replacement

@@ -197,17 +197,29 @@ private def inputsDirty (root : FilePath) (paths : Array FilePath) : IO Bool := 
     offset := stop
   return false
 
-def captureDependency (project : FilePath) (package : String) (root : FilePath)
+/-- The Git-derived part of one dependency capture, together with the exact
+capture request it answers: package, canonical root, and the ordered source and
+configuration path strings. -/
+structure GitFacts where
+  package : String
+  root : String
+  sourcePaths : Array String
+  configurationPaths : Array String
+  revision : Option String
+  dirty : Bool
+  deriving ToJson, FromJson, BEq, Inhabited
+
+/-- Qualification-only table of Git facts captured once by the corpus runner
+under write-protected, identity-checked shared dependency roots. It is empty in
+every process except one started through the internal qualification entry point
+(`ruleExamples --injected-git-facts`); no user-facing checker mode sets it. -/
+initialize injectedGitFacts : IO.Ref (Array GitFacts) ← IO.mkRef #[]
+
+/-- The Git facts for one exact capture request: the nominal revision (only for
+a dependency that is its own repository) and input-scoped dirty status. -/
+def observeGitFacts (package : String) (root : FilePath)
     (sourcePaths : Array (Name × FilePath)) (configurationPaths : Array FilePath) :
-    IO DependencyCaptures := do
-  let root ← IO.FS.realPath root
-  let sourceCaptures ← sourcePaths.mapM fun (name, path) => do
-    let canonical ← IO.FS.realPath path
-    let bytes ← IO.FS.readBinFile canonical
-    let some text := String.fromUTF8? bytes
-      | throw <| IO.userError s!"dependency source is not UTF-8: {path}"
-    pure (name, path.toString, canonical.toString, text)
-  let configurationCaptures ← configurationPaths.mapM captureConfiguration
+    IO (Option String × Bool) := do
   let head ← runProcess root "git" #["rev-parse", "HEAD"]
   let top ← runProcess root "git" #["rev-parse", "--show-toplevel"]
   let ownRepository ← if top.succeeded then
@@ -220,10 +232,73 @@ def captureDependency (project : FilePath) (package : String) (root : FilePath)
     else pure none
   let dirty ← if revision.isSome then inputsDirty root (sourcePaths.map (·.2) ++ configurationPaths)
     else pure true
-  return {
-    project := project, package := package, root := root, sourcePaths := sourcePaths,
-    revision := revision, dirty := dirty,
+  return (revision, dirty)
+
+/-- The exact request key an injected entry must match. -/
+def GitFacts.answers (facts : GitFacts) (package : String) (root : FilePath)
+    (sourcePaths : Array (Name × FilePath)) (configurationPaths : Array FilePath) : Bool :=
+  facts.package == package && facts.root == root.toString &&
+    facts.sourcePaths == sourcePaths.map (·.2.toString) &&
+    facts.configurationPaths == configurationPaths.map (·.toString)
+
+/-- Pure assembly of one capture from its fresh reads and its Git facts. -/
+def assemble (project : FilePath) (package : String) (root : FilePath)
+    (sourcePaths : Array (Name × FilePath))
+    (sourceCaptures : Array (Name × String × String × String))
+    (configurationCaptures : Array (String × Option (String × ByteArray)))
+    (facts : Option String × Bool) : DependencyCaptures :=
+  { project := project, package := package, root := root, sourcePaths := sourcePaths,
+    revision := facts.1, dirty := facts.2,
     sourceCaptures := sourceCaptures, configurationCaptures := configurationCaptures }
+
+/-- Capture-once equality: with the same request and the same fresh reads, an
+injected Git-facts pair equal to the pair the process would observe itself
+yields the identical capture, hence (`stateOfCore_congruence`) identical request
+state and request/report bytes. The premise — equal Git facts — is the
+no-writer invariant of the qualification window (write protection, equal
+content identity and the runner's terminal recheck), not a theorem about Git. -/
+theorem assemble_facts_eq {project : FilePath} {package : String} {root : FilePath}
+    {sourcePaths : Array (Name × FilePath)}
+    {sourceCaptures : Array (Name × String × String × String)}
+    {configurationCaptures : Array (String × Option (String × ByteArray))}
+    {injected observed : Option String × Bool} (h : injected = observed) :
+    assemble project package root sourcePaths sourceCaptures configurationCaptures injected
+      = assemble project package root sourcePaths sourceCaptures configurationCaptures observed := by
+  rw [h]
+
+/-- Fresh capture of one dependency. Source and configuration bytes are always
+read here. The Git facts are observed here too, unless the internal
+qualification table holds an entry answering exactly this request, in which case
+that once-captured pair is used (`assemble_facts_eq`). -/
+def captureDependency (project : FilePath) (package : String) (root : FilePath)
+    (sourcePaths : Array (Name × FilePath)) (configurationPaths : Array FilePath) :
+    IO DependencyCaptures := do
+  let root ← IO.FS.realPath root
+  let sourceCaptures ← sourcePaths.mapM fun (name, path) => do
+    let canonical ← IO.FS.realPath path
+    let bytes ← IO.FS.readBinFile canonical
+    let some text := String.fromUTF8? bytes
+      | throw <| IO.userError s!"dependency source is not UTF-8: {path}"
+    pure (name, path.toString, canonical.toString, text)
+  let configurationCaptures ← configurationPaths.mapM captureConfiguration
+  let table ← injectedGitFacts.get
+  let facts ← match table.find? (·.answers package root sourcePaths configurationPaths) with
+    | some injected =>
+      IO.println s!"injected git facts: {package} reused"
+      pure (injected.revision, injected.dirty)
+    | none =>
+      unless table.isEmpty do IO.println s!"injected git facts: {package} observed"
+      observeGitFacts package root sourcePaths configurationPaths
+  return assemble project package root sourcePaths sourceCaptures configurationCaptures facts
+
+/-- The Git facts a completed capture answers, for export by the corpus runner. -/
+def DependencyCaptures.gitFacts (c : DependencyCaptures) : GitFacts where
+  package := c.package
+  root := c.root.toString
+  sourcePaths := c.sourcePaths.map (·.2.toString)
+  configurationPaths := c.configurationCaptures.map (·.1)
+  revision := c.revision
+  dirty := c.dirty
 
 /-- Fresh captures of every dependency input, resolved through the frozen Lake
 discovery. Every read and Git observation is taken here on every call. -/

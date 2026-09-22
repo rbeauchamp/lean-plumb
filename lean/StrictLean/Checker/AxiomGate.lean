@@ -1159,12 +1159,16 @@ unsafe def run (args : List String) : IO UInt32 := do
       writeJson output ((value.setObjVal! "request" request).setObjVal! "effective" (toJson (← effective.get)))
   return code
 
-end StrictLean.Checker.AxiomGate
-
-unsafe def main (args : List String) : IO UInt32 := do
+/-- The `axiomGate` executable body: search-path initialization, then `run`, with
+any escaping error reported as `FAIL` and exit 1. `AxiomGateMain` is the
+user-facing entry; the qualification-only `ruleExamples --injected-git-facts`
+entry reuses this exact body. -/
+unsafe def entry (args : List String) : IO UInt32 := do
   try
     StrictLean.Checker.initializeLeanSearchPath
-    StrictLean.Checker.AxiomGate.run args
+    run args
   catch error =>
     IO.eprintln s!"FAIL: {error}"
     return 1
+
+end StrictLean.Checker.AxiomGate
