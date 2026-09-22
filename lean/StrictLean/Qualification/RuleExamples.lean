@@ -9,7 +9,7 @@ import StrictLean.Checker.RuleExampleCorpusProjection
 /-! Source-owned corpus orchestration. Actual detector receipts are admitted by the
 existing RuleExampleQualification executable and its proof-linked policy functions.
 This adapter does not infer policy from source text. Filesystem/process authenticity
-remains trusted. Independent phases use distinct root artifacts and at most three
+remains trusted. Independent phases use distinct root artifacts and at most five
 producer jobs, each writing only its own writable slot. The consumer path —
 admission, raw validation, terminal qualification — consumes captured data and the
 real ROOT checkout and never dereferences a slot path. The consumer thread reuses
@@ -32,10 +32,12 @@ optional locks and restore no shared cache artifacts. -/
 def corpusEnv : Array (String × Option String) :=
   cleanEnv ++ #[("GIT_OPTIONAL_LOCKS", some "0"), ("LAKE_CACHE_DIR", some "")]
 
-/-- Derived slot nonoverlap: any three consecutive job indices map to pairwise
-distinct slots under `index % 3`, so concurrent producers never share a slot. -/
+/-- Derived slot nonoverlap at width five: any five consecutive job indices
+map to pairwise distinct slots under `index % 5`, so concurrent producers never
+share a slot (a slot is reassigned only after its prior task returned). -/
 theorem slots_distinct (j : Nat) :
-    (j + 1) % 3 ≠ (j + 2) % 3 ∧ (j + 1) % 3 ≠ (j + 3) % 3 ∧ (j + 2) % 3 ≠ (j + 3) % 3 := by
+    ∀ (a b : Nat), 1 ≤ a → a < b → b ≤ 5 → (j + a) % 5 ≠ (j + b) % 5 := by
+  intro a b ha hab hb
   omega
 
 /-- Pure snapshot entry construction; the exact `Json.mkObj` request shape. -/
@@ -415,9 +417,9 @@ def check (evidence : FilePath) (selection : Option (Array String))
   let checkerBefore ← snapshotCached cache checkerPaths
   let completed ← withScratch root "rule-examples" fun scratch => do
     let ctx : Context := ⟨root, scratch, specs, checkerPaths, checkerBefore, attempt, rawDirectory, cache⟩
-    -- Three producer slots with derived nonoverlap (`slots_distinct`). Slot roots
+    -- Five producer slots with derived nonoverlap (`slots_distinct`). Slot roots
     -- are producer-write-only; the consumer path never dereferences them.
-    let slots ← #[0, 1, 2].mapM fun k => do
+    let slots ← #[0, 1, 2, 3, 4].mapM fun k => do
       let slot : Slot.ProducerSlot := ⟨scratch / s!"slot-{k}"⟩
       IO.FS.createDirAll slot.root
       pure slot
@@ -432,58 +434,80 @@ def check (evidence : FilePath) (selection : Option (Array String))
     for slot in slots do
       let _ ← Slot.prepareSlot root slot rootSources rootConfigs depObservations
     let mut records : Array Json := #[]
+    let mut controls : Array Json := #[]
     let jobs := selected.flatMap fun rule => #["Fixed", "Violation", "Restored"].map (rule, ·)
-    -- Three disjoint producer slots, consumed in fixed order and refilled before
-    -- each admission. Drain every launched task before scratch cleanup, including
-    -- on admission failure.
+    -- Pooled productions: the 60 record jobs plus the five special productions
+    -- (jobs 60-64 in their original order). The single consumer path executes
+    -- each job's original ordered post-production actions in job order
+    -- (CONSTRAINT-6: each special's requireChecks stays between its produce and
+    -- its admitRecord; records/controls/pending mutation stays here).
+    let sl1005Source ← IO.FS.readFile (root / "examples/rules/SL1005/Violation.lean")
+    let teaching := "<!-- lean-trusted-compiler -->\n```lean\n" ++ (← IO.FS.readFile (root / "examples/rules/SL1004/Violation.lean")) ++ "```\n"
+    let negative := "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n"
+    let specials : Array String :=
+      (if selected.contains "SL1005" then #["SL1005/WrongClaim", "SL1005/ClaimRestored"] else #[]) ++
+      (if selected.contains "SL4004" then #["SL4004/TrustedControl", "SL4004/NegativeControl",
+        "SL4004/ClassificationRestored"] else #[])
+    let total := jobs.size + specials.size
+    let produceJob (index : Nat) (slot : Slot.ProducerSlot) : IO Json :=
+      if index < jobs.size then
+        let (rule, phase) := jobs[index]!
+        produce ctx slot rule phase
+      else match specials[index - jobs.size]! with
+        | "SL1005/WrongClaim" =>
+          produce ctx slot "SL1005" "WrongClaim" (some sl1005Source) (some "standard-logical")
+        | "SL1005/ClaimRestored" => produce ctx slot "SL1005" "ClaimRestored"
+        | "SL4004/TrustedControl" => produce ctx slot "SL4004" "TrustedControl" (some teaching)
+        | "SL4004/NegativeControl" => produce ctx slot "SL4004" "NegativeControl" (some negative)
+        | _ => produce ctx slot "SL4004" "ClassificationRestored"
+    -- Five disjoint producer slots (width-5 conservative default), consumed in
+    -- fixed order and refilled before each admission. Drain every launched task
+    -- before scratch cleanup, including on admission failure.
     let pending ← IO.mkRef (#[] : Array (Task (Except IO.Error Json)))
-    for (slot, (rule, phase)) in slots.zip (jobs.extract 0 3) do
-      let task ← IO.asTask (produce ctx slot rule phase)
-      pending.modify (·.push task)
+    for k in [0:5] do
+      if k < total then
+        let task ← IO.asTask (produceJob k slots[k]!)
+        pending.modify (·.push task)
     try
-      for index in [:jobs.size] do
+      for index in [:total] do
         let task := (← pending.get)[index]!
         let record ← match (← IO.wait task) with
           | .ok value => pure value
           | .error error => throw error
-        records := records.push record
-        -- Refill before admission so three producers run during every admission
-        -- and admission is off the production critical path. Admission stays in
-        -- fixed order: an admission refusal throws before any later record is
-        -- admitted, every already-launched task is drained in `finally`, and up
-        -- to two extra completed producers may remain raw-retained but are never
-        -- admitted while the initial INCOMPLETE receipt stands. produce has
-        -- already retained the exact record and raw observation outside scratch;
-        -- repeatedly serializing its growing prefix adds no admission evidence.
-        if let some (rule, phase) := jobs[index + 3]? then
-          let task ← IO.asTask (produce ctx slots[(index + 3) % 3]! rule phase)
+        if index < jobs.size then
+          records := records.push record
+        else
+          controls := controls.push record
+        -- Refill before admission so producers run during every admission and
+        -- admission is off the production critical path. Admission stays in
+        -- fixed order: an admission refusal throws before any later entry is
+        -- admitted, every already-launched task is drained in `finally` (slot
+        -- reassignment only after the prior task returned its record), and up
+        -- to five extra completed producers may remain raw-retained but are
+        -- never admitted while the initial INCOMPLETE receipt stands.
+        if index + 5 < total then
+          let task ← IO.asTask (produceJob (index + 5) slots[(index + 5) % 5]!)
           pending.modify (·.push task)
-        admitRecord ctx record
-        IO.println s!"{← string record "rule"}/{← string record "phase"}: qualified {← string record "kind"}"
-        (← IO.getStdout).flush
+        if index < jobs.size then
+          admitRecord ctx record
+          IO.println s!"{← string record "rule"}/{← string record "phase"}: qualified {← string record "kind"}"
+          (← IO.getStdout).flush
+        else
+          -- Original ordered special consumer actions (requireChecks between
+          -- produce and admitRecord; original refusals and restorations).
+          match specials[index - jobs.size]! with
+          | "SL1005/WrongClaim" =>
+            requireChecks [⟨"Standard-Logical producer control completes", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "completed"⟩]
+            admitRecord ctx record (some "producer request differs from frozen example request")
+          | "SL1005/ClaimRestored" => admitRecord ctx record
+          | "SL4004/TrustedControl" | "SL4004/NegativeControl" =>
+            requireChecks [⟨"nonpositive documentation classifies", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "classified"⟩]
+            admitRecord ctx record (some "documentation correction requires completed positive fences")
+          | _ => admitRecord ctx record
     finally
       for task in ← pending.get do
         let _ ← IO.wait task
         pure ()
-    let mut controls := #[]
-    if selected.contains "SL1005" then
-      let wrong ← produce ctx slots[0]! "SL1005" "WrongClaim" (some (← IO.FS.readFile (root / "examples/rules/SL1005/Violation.lean"))) (some "standard-logical")
-      requireChecks [⟨"Standard-Logical producer control completes", (← get wrong "exitCode") == toJson (0 : Nat) && (← string (← get wrong "result") "status") == "completed"⟩]
-      admitRecord ctx wrong (some "producer request differs from frozen example request")
-      let restored ← produce ctx slots[0]! "SL1005" "ClaimRestored"
-      admitRecord ctx restored
-      controls := controls ++ #[wrong, restored]
-    if selected.contains "SL4004" then
-      let teaching := "<!-- lean-trusted-compiler -->\n```lean\n" ++ (← IO.FS.readFile (root / "examples/rules/SL1004/Violation.lean")) ++ "```\n"
-      let negative := "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n"
-      for (phase, source) in #[("TrustedControl", teaching), ("NegativeControl", negative)] do
-        let record ← produce ctx slots[0]! "SL4004" phase (some source)
-        requireChecks [⟨"nonpositive documentation classifies", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "classified"⟩]
-        admitRecord ctx record (some "documentation correction requires completed positive fences")
-        controls := controls.push record
-      let restored ← produce ctx slots[0]! "SL4004" "ClassificationRestored"
-      admitRecord ctx restored
-      controls := controls.push restored
     for record in records do
       if (← string record "kind") == "diagnosticDemonstration" then
         let relabelled := (record.setObjVal! "rule" (.str "SL1001")).setObjVal! "mutation" (.str "demonstration relabel")
@@ -515,9 +539,35 @@ def check (evidence : FilePath) (selection : Option (Array String))
     save evidence (StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "INCOMPLETE") :: finalFields) records)
     let checked ← run root (root / ".lake/build/bin/ruleExampleQualification").toString #[evidence.toString] cleanEnv
     requireChecks [⟨s!"corpus admission: {checked.stdout}{checked.stderr}", checked.exitCode == 0⟩]
-    for record in records ++ controls do
-      -- Validate each record's origin binding, including derived mutation controls.
-      validateRaw ctx record
+    -- Terminal raw validation: the complete original validateRaw over every
+    -- entry (records ++ controls), bounded to six concurrent read-only calls.
+    -- CONSTRAINT-1: this phase starts only after all producers drained and all
+    -- admissions and control-tail mutations completed (no writers remain).
+    -- CONSTRAINT-2: outcomes are collected and the minimum-index failure is
+    -- rethrown verbatim (original first-failure order and error text).
+    -- CONSTRAINT-3: abandoned calls retain nothing (read-only). CONSTRAINT-4:
+    -- this is the only parallel region; cross-phase failure order is
+    -- unchanged. CONSTRAINT-5: no new trust, no cache, no skipped reads.
+    -- Equivalence assumes stable retained files and no overlapping owned
+    -- writers; external mutation timing cannot be universally equivalent.
+    let entries := records ++ controls
+    let mut outcomes : Array (Option IO.Error) := #[]
+    let mut start := 0
+    while start < entries.size do
+      let stop := min (start + 6) entries.size
+      let batch := entries.extract start stop
+      let tasks ← batch.mapM fun record => IO.asTask (validateRaw ctx record)
+      let mut results : Array (Except IO.Error Unit) := #[]
+      for task in tasks do
+        results := results.push (← IO.wait task)
+      for result in results do
+        match result with
+        | Except.ok _ => outcomes := outcomes.push none
+        | Except.error error => outcomes := outcomes.push (some error)
+      start := stop
+    match outcomes.findSome? (fun outcome => outcome) with
+    | some error => throw error
+    | none => pure ()
     requireChecks [⟨"terminal checker sources changed", (← snapshotCached cache checkerPaths) == checkerBefore⟩]
     return StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "PASS") :: finalFields) records
   save evidence completed
