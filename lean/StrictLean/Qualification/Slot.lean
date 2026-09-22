@@ -96,18 +96,29 @@ def copyTree (source target : FilePath) : IO (Array String) := do
   let mut copied : Array String := #[]
   let mut files : Array (FilePath × String) := #[]
   let mut guarded := true
-  for path in (← source.walkDir) do
+  let paths ← source.walkDir fun entry => do
+    -- Cycle refusal: never descend into a directory whose resolved location
+    -- contains its own entry path (a symlink cycle re-enters an ancestor).
+    -- Distinct in-root linked directories still descend and materialize as in
+    -- the contract.
+    let resolved ← IO.FS.realPath entry
+    return !(entry.toString.startsWith (resolved.toString ++ "/"))
+  for path in paths do
     let relative := (relativeOf source path).toString
     if excluded relative then
       guarded := false
       continue
     unless (← contained sourceRoot path) do
       throw <| IO.userError s!"slot copy walk crossed owned root: {path}"
+    -- Symlink classification covers directories and files alike: any entry
+    -- whose resolved location differs from its walked path (including
+    -- symlinked and empty/directories-only subtrees) forces the materializing
+    -- per-file fallback, so `cp` never copies a link.
+    if (← IO.FS.realPath path).toString != path.toString then
+      guarded := false
     if ← path.isDir then
       IO.FS.createDirAll (target / relative)
     else
-      if (← IO.FS.realPath path).toString != path.toString then
-        guarded := false
       files := files.push (path, relative)
       copied := copied.push relative
   if guarded then
