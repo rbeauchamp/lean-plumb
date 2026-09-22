@@ -1,28 +1,39 @@
 # Session context: Strict Lean Project 8
 
-**Date:** 2026-09-17
+**Date:** 2026-09-22
 **Active branch:** `codex/strict-lean-7-integration` in a disposable verified worktree.
-**Integration base:** `f9b54f7b7b2094f3b9063e2bf0d156eaefe4d9be`, tree
-`9310eef85ce8fbe9ee3ce961b62a7e9e45790d07`; refresh live state before resuming.
+**Refreshed main:** `ce929840a6128e83b2a8eb90d492110d19f2d1ba`, verified as an
+ancestor of the preserved branch; refresh live state before resuming.
 **Current delivery state:** issue13 and its [corpus delivery](https://github.com/rbeauchamp/strict-lean/pull/31)
 are integrated. The [priority CI repair](https://github.com/rbeauchamp/strict-lean/pull/32)
-is integrated at the base above. Issue7 remains open with blockers6/13 closed.
+and foundation baseline38 are integrated. Issue7 remains open with native
+blockers6/13/38 closed, verified on 2026-09-22.
 The [issue7 evidence](evidence/issue-7-verification.md) owns implementation checkpoints,
 repair and qualification results, failed attempts and pending delivery gates. Consult
 that record before reusing evidence; no previous code's tests are current-change evidence.
 
 ## Active plan and resume point
 
-The preserved issue7 head `0d2d6142192967f4873305cbf1ec5d8227607a36` is the base of the
-approved sequential producer420/history420 follow-up. The previous no-mistakes run
-terminated during restart with `daemon shutting down`; live reconciliation found a clean
-caller equal to the pipeline's pushed head and live remote, requiring no synchronization.
-The old gate is terminal, not resumable. Preserve all prior commits and scoped evidence;
-validate the signed follow-up through a fresh full pipeline. See the
-[diagnostic budget record](evidence/issue-7-diagnostic-budget.md). Ordinary cold420 remains
-unchanged. Local final-head acceptance, independent delta review and required hosted
-checks remain pending; issue7 and its [delivery](https://github.com/rbeauchamp/strict-lean/pull/33)
-are not ready for integration.
+The preserved implementation predecessor is
+`5d7b5fade002a783943474c5a74c691be66e39e8`. Its reboot-interrupted corpus attempt
+was replaced once; the replacement failed at 420.02 seconds during cleanup after
+terminal qualification, raw validation and source equality. The
+[recovery and cleanup receipt](evidence/ci-corpus-cleanup.md) records the full
+failure, exact artifacts, bounded stream-join/slot-cleanup repair and focused
+build. Independent delta review and authorization precede further full validation.
+Do not retry the failed head unchanged or claim acceptance from terminal marks.
+
+Previous no-mistakes run `01M2QNJRBW9M8WC4ZNZ3QQHG8G` is terminal failed with
+`daemon shutting down`. Live `axi sync --check` found a clean local-ahead caller,
+with pipeline/live remote at `90a38885fc111bb2aa51172503743e6c9d8beb28`; all
+pipeline commits remain ancestors. Its supported next action is a new full
+`axi run --intent ...`, once current review/verification dispositions permit it.
+The daemon is running and must not be restarted by this worker. Preserve all
+commits, prior receipts and failure artifacts. Ordinary cold420 and required
+sequential producer420/history420 remain unchanged; see the
+[diagnostic budget record](evidence/issue-7-diagnostic-budget.md). Final-head local
+and hosted gates remain pending; issue7 and its
+[delivery](https://github.com/rbeauchamp/strict-lean/pull/33) are not ready for integration.
 
 [Project8](https://github.com/users/rbeauchamp/projects/8), the complete
 [live issue7](https://github.com/rbeauchamp/strict-lean/issues/7) and its native
@@ -32,7 +43,9 @@ Implement complete request-indexed accepted-result integration, then finish qual
 reports/guides, independent proof/integration review, signed full no-mistakes delivery
 and exact-head CI. Inspect pipeline custody before editing and coordinate expensive
 checks with Firstmate. Do not advance14/15/10 in this branch; prepare successor API/mode/
-command/evidence handoffs for Firstmate publication.
+command/evidence handoffs for Firstmate publication. The live issue's foundation
+sequence also requires final APIs/evidence in39 and the foundation-status guide;
+further Project8 feature work waits for43. This worker still implements only issue7.
 
 The CI repair's actual merged-main workflow
 [35153780758](https://github.com/rbeauchamp/strict-lean/actions/runs/35153780758)

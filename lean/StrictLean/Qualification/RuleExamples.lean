@@ -145,11 +145,17 @@ private def observe (project binary stdout stderr : FilePath) (command : Array S
     env, stdin := .null, stdout := .piped, stderr := .piped }
   let outTask ← IO.asTask (drain child.stdout out) Task.Priority.dedicated
   let errTask ← IO.asTask (drain child.stderr err) Task.Priority.dedicated
-  let code ← child.wait
-  for task in #[outTask, errTask] do
-    match ← IO.wait task with
-    | .ok () => pure ()
-    | .error error => throw error
+  -- Hold every managed outcome until both launched drains have joined. A failed
+  -- wait is not successful reaping; it still owes the stream joins before
+  -- unwinding. Preserve the original error order and exact error values.
+  let waited : Except IO.Error UInt32 ← try
+    pure (.ok (← child.wait))
+  catch error => pure (.error error)
+  let drainedOut ← IO.wait outTask
+  let drainedErr ← IO.wait errTask
+  let code ← IO.ofExcept waited
+  IO.ofExcept drainedOut
+  IO.ofExcept drainedErr
   return ⟨code, ← IO.FS.readFile stdout, ← IO.FS.readFile stderr⟩
 
 private def addPackage (project : FilePath) (name : String) (dir : FilePath) (config : String) : IO Unit := do
@@ -611,7 +617,41 @@ def check (evidence : FilePath) (selection : Option (Array String))
     mark "terminal-equality" "start"
     requireChecks [⟨"terminal checker sources changed", (← snapshotCached cache checkerPaths) == checkerBefore⟩]
     mark "terminal-equality" "end"
+    -- All producers (including child/stream joins), admission subprocesses,
+    -- terminal qualifier and raw readers have now finished. Only these five
+    -- owned slot roots are removed concurrently; retained evidence lives outside
+    -- scratch. Authenticate every immediate-child identity before any deletion.
+    -- No owned writer remains; external path replacement during this interval
+    -- is outside the stable-filesystem boundary, as for sequential cleanup.
+    mark "slot-cleanup" "start"
+    let scratchRoot ← IO.FS.realPath scratch
+    requireChecks [⟨"five owned cleanup slots", slots.size == 5⟩]
+    for index in [:slots.size] do
+      let path := slots[index]!.root
+      let expected := scratchRoot / s!"slot-{index}"
+      requireChecks [⟨"contained disjoint cleanup slot", path == expected &&
+        (← IO.FS.realPath path) == expected && (← path.symlinkMetadata).type == .dir⟩]
+    -- Reuse pinned removeDirAll: it never follows symlinks and specifies no
+    -- deletion order. Three independent roots at a time; capture and join all
+    -- five outcomes before propagating the first slot-index error verbatim.
+    -- The enclosing withScratch still removes the parent on success or failure;
+    -- its cleanup error retains precedence over an action error. SIGKILL cannot
+    -- promise user-space drainage or cleanup. Complete deletion still precedes PASS.
+    let mut cleanupOutcomes : Array (Except IO.Error Unit) := #[]
+    let mut cleanupStart := 0
+    while cleanupStart < slots.size do
+      let cleanupStop := min (cleanupStart + 3) slots.size
+      let tasks ← (slots.extract cleanupStart cleanupStop).mapM fun slot =>
+        IO.asTask (IO.FS.removeDirAll slot.root)
+      for task in tasks do
+        cleanupOutcomes := cleanupOutcomes.push (← IO.wait task)
+      cleanupStart := cleanupStop
+    for outcome in cleanupOutcomes do
+      IO.ofExcept outcome
+    mark "slot-cleanup" "end"
+    mark "parent-cleanup" "start"
     return StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "PASS") :: finalFields) records
+  mark "parent-cleanup" "end"
   mark "pass-save" "start"
   save evidence completed
   mark "pass-save" "end"

@@ -1,11 +1,18 @@
 # Issue7 accepted-result integration evidence
 
-Current bounded CI repair: [corpus projection receipt](ci-corpus-projection.md),
+Current bounded CI repair: [recovery and cleanup receipt](ci-corpus-cleanup.md).
+The full corpus at `5d7b5fade002a783943474c5a74c691be66e39e8` reached terminal
+equality but failed at 420.02 seconds during cleanup. The managed stream-join and
+bounded slot-cleanup repair has a focused build only; independent review, complete
+final-head acceptance and delivery remain pending. Historical substages and new
+phase marks do not replace those gates.
+
+Historical [corpus projection receipt](ci-corpus-projection.md),
 based on `e19018e47b73ac732853ad90297bcc94d15854b3`, with proof-linked exact
 qualifier correspondence and retained raw observations. Final cold acceptance
 passed in 224.40 seconds; the required full corpus still fails at 420 seconds.
-[Current exact coverage](ci-corpus-coverage.json) and
-[source binding](ci-corpus-inputs.sha256) preserve the current 40-module,
+[Checkpoint coverage](ci-corpus-coverage.json) and
+[source binding](ci-corpus-inputs.sha256) preserve that 40-module,
 5,238-declaration inventory, including the updated 71-module excluded StrictLean
 surface. This is not a completed CI repair. The
 [retained-role receipt](ci-role-retention.md) records exact equality of retained
