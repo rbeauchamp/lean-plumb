@@ -121,13 +121,14 @@ These rows apply when the §8.12 build-enforcement claim is made. The other appl
 
 ## Repository Verification Sequence
 
-For this repository's ordinary settled-snapshot conformance check, use [the local verification entrypoint](../../scripts/verify.sh):
+For this repository's ordinary settled-snapshot conformance check, use [the local verification entrypoint](../../scripts/verify.sh) twice:
 
 ```sh
 ./scripts/verify.sh
+./scripts/verify.sh docs
 ```
 
-It builds the checker tools, runs the fresh declaration gate over every claimed surface, and audits the complete documentation tree. Its repository-specific deadline and provisioning requirements live in [the contributor guide](../guides/contributing.md). The declaration gate performs Lake-semantic discovery and a clean, warning-free build before inspection; a redundant preliminary clean build is unnecessary. `lake build` remains the development command.
+The first builds the checker tools, runs the fresh declaration gate over every claimed surface and records the content identity of the inputs it accepted. The second audits the complete documentation tree and refuses unless its own freshly captured inputs have that identity; `DOC-*` rows need both. Their repository-specific deadlines and provisioning requirements live in [the contributor guide](../guides/contributing.md). The declaration gate performs Lake-semantic discovery and a clean, warning-free build before inspection; a redundant preliminary clean build is unnecessary. `lake build` remains the development command.
 
 Checker changes require focused verification of affected capabilities and public invocation paths under §8.8. The complete `checkerSelftest --build-bound` campaign remains available when broad diagnostic qualification is requested or justified by affected mechanisms; it is not the ordinary per-change conformance gate. A selected diagnostic that fails remains a defect; an unrun broader campaign is not reported as passed. Repository diagnostics use the same bounded entrypoint, for example:
 

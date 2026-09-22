@@ -26,11 +26,11 @@ run_cmd do
 namespace StrictLean.Checker.RuleExampleQualification
 open Lean StrictLean StrictLean.Website
 
-private def field (j : Json) (key : String) : Except String Json := j.getObjVal? key
-private def string (j : Json) (key : String) : Except String String := do
+def field (j : Json) (key : String) : Except String Json := j.getObjVal? key
+def string (j : Json) (key : String) : Except String String := do
   (← field j key).getStr?
 
-private def sources (j : Json) : Except String (Array StrictLeanPolicy.SourceSnapshot) := do
+def sources (j : Json) : Except String (Array StrictLeanPolicy.SourceSnapshot) := do
   (← j.getArr?).mapM fun source => do
     PolicyCodec.exactFields source ["uri", "source"]
     return ⟨← string source "uri", ← string source "source"⟩
@@ -42,7 +42,7 @@ private def parseRequest (json : Json) : Except String ExampleRequest := do
   unless toJson (request : ExampleRequest) == json do throw "invalid example request account"
   return request
 
-private def binding (record : Json) (mode : EvidenceMode) : Except String ExampleBinding := do
+def binding (record : Json) (mode : EvidenceMode) : Except String ExampleBinding := do
   let input ← field record "before"
   let after ← field record "after"
   unless input == after do throw "example source/configuration changed"
@@ -67,7 +67,7 @@ private def binding (record : Json) (mode : EvidenceMode) : Except String Exampl
     throw "request configuration differs from frozen snapshot"
   return ⟨snapshot, mode, request⟩
 
-private def sourceAccount (result : Json) (bound : ExampleBinding) (displayed : String) :
+def sourceAccount (result : Json) (bound : ExampleBinding) (displayed : String) :
     Except String Unit := do
   let scope ← field result "scope"
   let observed ← if let .ok raw := field result "sourceAccount" then do
@@ -89,7 +89,7 @@ private def configurationAccount (root : String) (configuration : Array (String 
     unless path.startsWith (root ++ "/") do throw "configuration outside captured project"
     return ((path.drop (root.length + 1)).toString, source)
 
-private def requestAccount (result : Json) (bound : ExampleBinding) : Except String ExampleRequest := do
+def requestAccount (result : Json) (bound : ExampleBinding) : Except String ExampleRequest := do
   let observed ← parseRequest (← field result "request")
   let admitted ← admitExampleRequest bound.request observed
   let requested ← configurationAccount admitted.val.project admitted.val.configuration
@@ -237,7 +237,8 @@ def qualifyMutations (record : Json) : Except String Unit := do
     qualify record
 
 /-- Full-corpus coverage derives from the sole closed registry; every selected rule has
-one fixed, one intended diagnostic, and one independently restored record. -/
+one fixed and one intended diagnostic record, each produced in its own fresh workspace
+with no restored rerun (docs/standard/8 §8.8). -/
 def qualifyCorpus (json : Json) : Except String Unit := do
   unless (← field json "schemaVersion") == toJson (1 : Nat) do throw "unsupported corpus schema"
   let selected ← (← (← field json "selected").getArr?).mapM RegistryCodec.parseRule
@@ -252,9 +253,9 @@ def qualifyCorpus (json : Json) : Except String Unit := do
   unless !checkerFiles.isEmpty do throw "missing checker source state"
   let records := (← (← field json "records").getArr?).map
     (fun record => record.setObjVal! "checkerSources" checkerBefore)
-  unless records.size == selected.size * 3 do throw "missing or extra fixture phase"
+  unless records.size == selected.size * 2 do throw "missing or extra fixture phase"
   for rule in selected do
-    for phase in #["Fixed", "Violation", "Restored"] do
+    for phase in #["Fixed", "Violation"] do
       let matching ← records.filterM fun record => do
         return (← string record "rule") == rule.spelling && (← string record "phase") == phase
       unless matching.size == 1 do throw "missing or repeated fixture phase"
@@ -264,19 +265,3 @@ def qualifyCorpus (json : Json) : Except String Unit := do
       qualifyMutations record
 
 end StrictLean.Checker.RuleExampleQualification
-
-/-- Validate a whole exported corpus, or one in-progress record without a corpus claim. -/
-def main (args : List String) : IO Unit := do
-  let (path, single) ← match args with
-    | ["--record", path] => pure (path, true)
-    | [path] => pure (path, false)
-    | _ => throw <| IO.userError "usage: RuleExampleQualification [--record] EVIDENCE.json"
-  let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile path)
-  if single then
-    let before ← IO.ofExcept (json.getObjVal? "checkerBefore")
-    let after ← IO.ofExcept (json.getObjVal? "checkerAfter")
-    unless before == after do throw <| IO.userError "checker sources changed"
-    for record in ← IO.ofExcept ((json.getObjVal? "records").bind Lean.Json.getArr?) do
-      IO.ofExcept (StrictLean.Checker.RuleExampleQualification.qualify (record.setObjVal! "checkerSources" before))
-  else IO.ofExcept (StrictLean.Checker.RuleExampleQualification.qualifyCorpus json)
-  IO.println "rule example evidence: PASS (scoped diagnostic qualification; no Accepted claim)"

@@ -16,15 +16,15 @@ against `b43553693f16c061e2e9214116339304c7f93ae0` on 2026-09-15. The
 The concrete precedents are [PropWhen][propwhen] and [Installed][installed], pinned at
 `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0`. Their universe-zero representation and
 checker-specific environment are specialized implementations, not generic linter components
-to import. Strict Lean's existing closed `RuleId`/indexed descriptors and future policy
-assembly apply related ideas to different predicates. Ordinary dependent types, canonical
-forms and complete indexing are broader techniques; con-leche is a documented example,
+to import. Strict Lean's existing closed `RuleId`/indexed descriptors and [policy
+assembly](policy-acceptance.md) apply related ideas to different predicates. Ordinary
+dependent types, canonical forms and complete indexing are broader techniques; con-leche is a documented example,
 not their origin or an exclusive source. Prefer matching Core/Std/Lean definitions and laws
 before writing a new implementation.
 
-The policy assembly remains implementation work in #5–#7. Existing registry laws concern
-Strict Lean's own definitions. Neither inspiration nor those laws establish extraction fidelity,
-whole-checker correctness or native runtime behavior. No source copy or imported con-leche
+The [policy acceptance guide](policy-acceptance.md) owns the implemented assembly and
+its delivery evidence. Registry laws concern Strict Lean's own definitions. Neither
+inspiration nor those laws establish extraction fidelity, whole-checker correctness or native runtime behavior. No source copy or imported con-leche
 proof was found in the inspected linter surfaces.
 
 ## Keep attribution proportionate

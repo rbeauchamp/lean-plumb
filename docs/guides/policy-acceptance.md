@@ -1,12 +1,10 @@
 # Policy acceptance and implementation linkage
 
-POLICY-01 (#4), inspected baseline `afdc67fe343cbb244fbd788af36173614ca6fa87`.
-This is the design contract for #5–#7, coordinated with #12–#15.
-The [typed policy domain guide](policy-domain.md) identifies implemented domain,
-admission and representation guarantees. The [policy proofs guide](policy-proofs.md)
-records implemented semantic relations, their executable equivalence and concrete
-data-level acceptance. Operational census acquisition and every-success-boundary
-`Accepted` integration remain **planned** under #7.
+The POLICY-01 design is implemented by the pure `StrictLeanPolicy` contracts and
+operational adapters described below. The [domain guide](policy-domain.md) identifies
+admitted data; the [proof guide](policy-proofs.md) gives theorem hypotheses and caller
+linkage. [Issue 7 evidence](../../session/evidence/issue-7-verification.md) distinguishes
+implemented boundaries, scoped observations and delivery gates still pending.
 The [architecture](linter-architecture.md) owns the product and the
 [coverage map](rule-coverage.md) owns the twenty rules and nine residual accounts.
 Normative meaning remains [chapter 8](../standard/8-tooling-and-machine-audit.md)
@@ -15,47 +13,168 @@ and the [chapter 9 checklist](../standard/9-compliance-audit.md).
 Con-leche and its authors/contributors, maintained by Joachim Breitner at Lean FRO,
 are credited for [complete indexed result assembly][installed] and
 [canonical representations with semantic equality][propwhen]. These are design
-influences, not imported proofs or copied code. The proposed Strict Lean guarantee
+influences, not imported proofs or copied code. The Strict Lean guarantee
 is conditional on observations; it is not con-leche's kernel/model theorem.
 
 ## 1. Observed call flow and every success boundary
 
-Paths in this table are relative to `lean/StrictLean/`; names identify actual
-baseline functions, including private functions. This inventory is source inspection,
-not a reproduced end-to-end bypass or a universal proof of the running checker.
-The [producer guide](engine-producers.md) owns the current census, closure and
-source-binding account; the baseline observations below are not a current implementation inventory.
+Paths below start at `lean/StrictLean/`. This source inventory covers actual audit
+successes and the intentional non-audit routes. It is not a proof that external
+acquisition or the compiled executable is correct. `Checker/Acceptance` is now the
+operational bridge, re-exporting the pure API without duplicating policy decisions.
 
-| Stage / producer | Baseline facts and consumer | Migration enforcement site |
-| --- | --- | --- |
-| `Checker/Workspace`, `Checker/Lake.surfaceInventory` | Lake loader, `getModuleArray`, exact sources, root executables, output/search paths. Nonempty libraries, unique modules per library and unique executable roots required. | Freeze configuration and module inventory before dispatch; retain semantic discovery and source/path checks. |
-| `Checker/Manifest.load`, `AxiomGate.auditSurfaceAt` | Schema 2, exactly classified library/executable targets, positive profiles, standalone-root conflicts; build explicit positive targets. `sameStringSet` is not declaration completeness. | Admit manifest and disjoint surface ownership; derive required scope from Lake, never returned reports. |
-| `Common.copyProject`, `Lake.buildChecked` | Fresh root output for ordinary project mode; shared dependency artifacts; zero build exit **and** no emitted warnings. Incremental mode reuses Lake artifacts. | `BuildReceipt` bound to scope, source/configuration snapshot and mode; retain warning checks and isolated copies. |
-| `Environment.loadReportCoreAtSearchPath` | Requires unique nonempty requested modules; resolves imports, rejects unclassified root-owned imports, calls `Admission.validate` **before** `Probe.environmentReport`. Replay ownership also includes configured module sources; reported declarations cover requested modules. | Explicitly distinguish admission dependency scope from declaration-report scope in the census and receipt. |
-| `Admission.validate` | `Probe.ownedConstants`; excludes owned modules from replay base, rejects unowned imports back into owned scope; replays logical declarations, checks safe/non-partial coverage. Imported dependencies remain trusted. | Preserve this call and its completed coverage; return an operational receipt bound to the exact census. A pure policy proof cannot replace replay. |
-| `Probe.ownedConstants`, `declEntry`, `environmentReport` | Kernel module-index attribution, every owned constant, transitive axioms, executable-contract metadata. Current report has no independent declaration-key census carried to its consumer. | Freeze complete key census from the completed environment **before** mapping policy observations. Check exact key equality after construction/transport. |
-| `Probe.executableRoots`, `environmentReport`, `executionWalk` | Ordinary executable roots plus valid registered private/imported roots; conservative closure, retained compiler edges, equality candidates and source history remain distinct. | Freeze required roots from declaration/registration census, then account for every root and required closure node/edge; do not infer roots from successful execution results. |
-| `Probe.environmentReport` native-module recognition | For `Init` roots, compares real resolved `.olean` path with real expected path under pinned toolchain library. `executionWalk` labels extern native only from that set. | Preserve canonical path check in IO; bind its receipt to module/artifact/toolchain. No `Init.*` name or caller Boolean authorizes an exception. |
-| `Probe.replacementCorrespondence`, `checkCorrespondenceProof` | Exact dependent-domain/universe equality obligation and kernel admission; unsupported comparison unresolved, absent equality evidence trusted. Opaque checked-body evidence has a different meaning. | Distinct typed evidence variants for replacement equality and admitted opaque body; retain reached external/native boundaries. |
-| `Frontend.buildCore`, `buildIsolated`, `Environment.replacementHistory` | Exact-source before/after comparison; pinned version/commit, imports, ranges, added constants, evaluator/binder attribution; history refusals. | Source snapshot binding and completed transcript/history jobs. Data-level role validation is pure; authenticity of extraction remains operational. |
-| `Policy.authorizedNativeAxioms`, `authorizedUnsafeRecHelpers` | Full relational guards over reports and transcripts; names alone insufficient. | Proof-bearing role evidence derived by the same validators over exact input records; see §4. |
-| `Policy.reasonFor`, `executionFailures` | Actual declaration/execution decisions. Raw string categories remain inside records; `claim = none` omits a profile upper bound. | Typed domain, independently specified predicates, and proved actual executable decisions. |
-| `Common.runTypedWorker`, `SourceAudit.compileBatch`, `inspectGroupCurrentSearchPath` | Wait for child completion and decode JSON; batch checks size; group inspection/transcripts handled separately. `mapWorkQueue` joins all workers and restores input order with nonempty result slots. | Versioned request-bound packets, key equality and duplicate rejection before slot insertion; no deserialization into accepted evidence. Retain joins and cleanup. |
-| `AxiomGate.auditSurfaceAt` final return | After build, scope/origin/attribution, frontend, declaration and execution checks, returns 0 iff failure array empty. Optional JSON is written **before** failure decision. | Accepted scope value required before success rendering. JSON always explicitly identifies rejected/incomplete/accepted status. |
-| `AxiomGate.auditSurface`, `auditSurfaceWorker` | Fresh copy; `--with-docs` waits for surface success, then audits fences in same copy. Child exit alone currently carries surface completion to parent. | Aggregate accepted surface and documentation values with the same snapshot; surface-child packet validated by parent. |
-| `AxiomGate.auditFile` | Fresh temporary file compilation with incrementally built dependencies, declarations/roles/execution. `SourceSpec` defaults do **not** reject ordinary warnings here. A no-profile run may print PASS. | Classification-only result for `claim = none`; explicit positive file acceptance must additionally reject warnings. Never claim fresh whole-project coverage from a file. |
-| `Documentation.scan`, `auditBuiltProject` | Recursive Markdown inventory, structural failures, one task per fence; missing directory/no Markdown fails. No-fence Markdown can pass. | Freeze exact file bytes and fence spans before compilation; structural scan completion remains required even with no fences. |
-| `Documentation.auditTasks`, `assessPositive`, `auditNegative` | Compile indexed tasks; compatible groups have equal imports/disjoint constants. Positive/trusted logical admission and policy; negatives require a completed effective-error match. Results require every slot. Execution inspection is disabled here. | Keyed exact task results; positive, negative and trusted evidence are distinct. No execution or narrower-profile evidence inferred from ordinary fence success. |
-| `DocFenceAudit.run` | Fresh dependency build then documentation audit; does not perform the entire project policy audit. Help returns 0. | Documentation-only accepted claim, not accepted project policy. |
-| `AxiomGate.run` worker branches | Declaration-report, frontend, compile-batch, inspection-group, diagnostic and replacement-history branches return 0 after writing data. Surface-worker delegates audit. Help also returns 0. `main` exceptions return 1. | Distinguish `WorkerCompleted`/`HelpCompleted` from audit acceptance in types and exit adapter; worker failure cannot count as intended source rejection. |
-| `--incremental`, `--build-lint`, sample `policy` target | Current policy on completed cached modules; build-lint summary follows surface success. | `incrementalProject` result only; keep uncached verdict and exact target dispatch. Future `strictLint` uses this same admission/acceptance path. |
-| `FreshChecker.run`, `scripts/verify.sh` | `--plan-only` skips build/checker execution and returns 0 as `PlanCompleted`; help is also non-accepting. Separate serialized-graph driver; ordinary script builds tools and runs `axiomGate --with-docs`; prints success only after command success. | Preserve plan-only CLI behavior but forbid `PlanCompleted` from constructing accepted serializedGraph evidence. Keep graph acceptance separate; ordinary acceptance requires completed fresh project plus docs. Help/worker exit must never enter the ordinary success adapter. |
+| Invocation / success owner | Required evidence and external boundary |
+| --- | --- |
+| `AxiomGate.auditSurfaceAt`: fresh project | `Acceptance.freeze` reconciles coordinator-selected Lake modules, source/configuration/dependency state, completed report/replay inventories and origins. `Acceptance.finish` times collection and acceptance separately, carrying checked equality of every outcome to `finalize` through `finalize_collection_error` and `finalize_of_collected`; success text and `ResultProtocol.writeAccepted` consume its `AcceptedRun.report`. Fresh isolated source build and all existing warning, ownership, exclusion, source and replay guards remain. |
+| Same function: `--incremental`, `--build-lint` | The same full policy plan uses `incrementalProject`; cached Lake build artifacts do not cache policy decisions. Build-lint has no second exit-code-only PASS branch. |
+| `AxiomGate.auditSurface`: `--with-docs` | One process: `auditSurfaceAt` accepts the project plan over a snapshot that includes the copied Markdown, then `auditBuiltProject` accepts the documentation plan over that same snapshot and build, and `combineAccepted` joins them. No evidence crosses a process boundary between the two stages. `CombinedAccepted` is required before combined success. |
+| `AxiomGate.auditSurface`: `--acceptance-link PATH` | Fresh project success only (no `--with-docs`). After `AcceptedRun`, records the SHA-256 of the copy-relative accepted sources, configuration, dependency captures and `docs/` Markdown in PATH; the path is invalidated before the audit starts. |
+| `DocFenceAudit.run`: `--acceptance-link PATH` | Before building, computes the same identity from its own fresh captures and refuses unless PATH records an accepted ordinary result with an equal identity. Equality establishes identical captured inputs; `shasum` and the filesystem remain trusted. |
+| `AxiomGate.auditFile`: explicit conforming profile | Actual compilation and full source/replay/execution observations yield a `freshFile` plan and `AcceptedRun`. `FileSourceBinding` retains both the requested URI and the temporary compiled URI with exact byte equality. Producer/transcript paths are not rewritten. Dependencies remain incremental; this is no whole-project claim. |
+| Same function: no profile / compiler-trusting | `CLASSIFIED`, with no conforming `Claim` or accepted-positive receipt. Teaching does not supply logical conformance. |
+| `Documentation.auditBuiltProject` and `DocFenceAudit.run` | Freeze all Markdown bytes, original fence spans and task identities before compiling. Group observations retain every unit and authenticate roles against the whole reconciled inventory; policy selection is per original fence. `finishDocuments` calls `finalize`; zero-fence documents still need discovery/build/scan jobs. Terminal inventory/source/configuration/dependency checks remain. |
+| `RuleExamples.documentation` | Retains the documentation driver's dependent accepted package. Canonical positive completion additionally requires a nonempty all-positive fence inventory; negative/teaching expectations remain classified. The adapter verifies the original requested documents before emitting accepted metadata. |
+| `RuleExamples.inspectNegative`, `RuleExampleQualification`, `Website` | Diagnostic production and exact source/configuration/mode/registry/location qualification retain their separate proof-bearing example APIs. A rejected policy example or an INCOMPLETE diagnostic demonstration is not an audit-success certificate. The four example kinds remain distinct; demonstrations discharge none of them. |
+| `FreshChecker.run` | Separate `serializedGraph` claim. `GraphPlanOK` freezes selected roots and supplied import coverage before checker processes; `finishGraph` finalizes actual checked roots against that inventory. External `leanchecker` success remains an observed process result, not a kernel proof of its semantics. |
+| `FreshChecker --plan-only`; all help branches | Planning/help completion only, explicitly no audit certificate. |
+| `AxiomGate.run`: `--declaration-report-worker`, `--frontend-worker`, `--replacement-history-worker`, `--compile-batch-worker`, `--inspection-group-worker`, `--diagnostic-worker` | Completed raw production only. Strict request/schema/producer/source binding, indexed collection and joins remain. No decoder constructs `Accepted`. |
+| Native editor hooks, registry export/validation, site validation, selftests and qualifiers | Existing local observations or scoped diagnostics; no fresh/incremental whole-project certificate. Editor snapshot results are not promoted to global acceptance. |
+| `scripts/verify.sh`, `scripts/verify.sh docs` | Ordinary: fixed public `axiomGate --acceptance-link tmp/acceptance-link.json` follows builds and other required checks. Docs: `docFenceAudit --acceptance-link tmp/acceptance-link.json`, every `docs/` fence. The shell's zero exit records completed execution of those commands, not a separate Lean proof. Each keeps its own hard 420-second deadline; cold-root acceptance stays in the ordinary run. |
 
-The apparent permissiveness of arbitrary report strings is a **data-boundary design
-problem**, not evidence that normal extraction emits them. For example,
-`executionFailures` explicitly recognizes `unresolved`; this alone cannot show a
-user can insert an unknown correspondence string into an ordinary audited source.
-No speculative exploit or performance experiment is needed for this design decision.
+Source capture retains each prefix for failure reporting; a prefix is not a completed
+inventory. Terminal source/configuration guards remain separate.
+Its evidence destination is initialized as a new incomplete attempt before timeout
+discovery/spawn and binary/setup reads. The timed child carries that same attempt.
+Raw result/trace sidecars and their partial-file locations are retained before parsing;
+completed case commands retain both executable and argv. The receipt retains obtained
+records on failure, and becomes completed only after every case
+and restoration. A killed process cannot promote the current incomplete receipt. Graph
+invocations likewise invalidate recognizable absolute result destinations before argument
+parsing or root discovery, and relative destinations once their project root is resolved.
+
+Dependency snapshots use Lake's buildable library domains and existing executable roots to retain
+module identities, canonical source paths and exact bytes independently of Git ignore
+rules. Unused dependency executables need not ship source files; root-package targets
+remain required, and terminal rediscovery detects executable source additions/removals.
+Library roots whose globs admit their submodules include those submodules even
+when the configured target array selects only the root. Nominal Git revision and dirty
+status are observed only for the declared inputs. Configuration paths come from Lake's
+actual package configuration/manifest plus toolchain and default-config presence checks.
+No Git diff, untracked-file content list or directory-wide bytes are retained; unrelated
+files and build outputs are not inputs merely because they share a dependency directory. Terminal checks rediscover the Lake domain and reread
+these same inputs, refusing newly added or removed sources; filesystem acquisition and change-and-restore races remain trusted
+boundaries. No whole-workspace file scan substitutes for this Lake source inventory.
+
+Standalone documentation and rule-example documentation callers capture dependencies
+before their prerequisite build and pass that observation into `auditBuiltProject`.
+The combined project/documentation route passes its existing pre-build observation
+alongside its shared snapshot. The documentation adapter performs no replacement
+capture; it rechecks the supplied dependency observation before finalization.
+
+Project census construction retains failures until the existing policy diagnostic pass
+has completed. Unavailable history still prevents acceptance, while its producer-linked
+execution findings retain SL3001, `execution-unresolved` and root locations in fresh,
+incremental and build-lint modes. A stored census error is raised if no typed policy
+failure already refuses the run; it is never replaced by an empty census.
+
+The focused `lake exe qualify acceptance-snapshots all` diagnostic exercises ignored
+Git-backed dependency source/configuration mutations with restoration, and the SL3001
+project control through fresh, incremental and build-lint invocations. It checks typed
+root/source attribution and absence of acceptance on unavailable history. These are
+scoped operational controls, not a proof of IO extraction or a full acceptance run.
+
+`Common.mapWorkQueue`, `admitIndexedWorkerResults` and documentation's task collector
+execute `ResultState.collect`; no result slot is overwritten. Group reconciliation
+preserves each requested environment separately and never deduplicates job
+responses, replay occurrences or positive owned declarations. The full admission module/required/admitted
+inventories survive the infrastructure partition.
+
+### Environment-indexed project census
+
+The original project `Claim` remains the index of `AcceptedRun` and of the project
+component of `CombinedAccepted`. `Census.requests` is the coordinator's ordered
+environment request array; each request contains its snapshot, ordinal and exact
+positive module assignment. `CensusOK` requires the returned environment requests
+to equal that array, its ordinals to match their positions, and its positive module
+partition to equal the full original claim. Target discovery and classification
+remain global, including excluded and unclassified imports.
+
+Each `EnvironmentCensus` retains its complete admitted policy inventory, transcripts,
+execution roots, replay arrays, sources and origins. `InventoryValid` still requires
+bare-name uniqueness within each Lean environment. Distinct environments may contain
+different declarations named `main`; concatenating their inventories is not a Lean
+environment. No entrypoint is renamed, filtered or exempted.
+
+Configuration, discovery and build jobs occur once. Local jobs carry an
+`EnvironmentKey` and local subject; admission, declaration policy, execution,
+transcript, history, origin and documentation-presence observations resolve only
+inside that environment. `CensusRoles` supplies roles indexed by that same inventory.
+`freezeEnvironment` retains the role receipt computed by `Policy.admitScope`;
+`frozenEnvironmentRoles` selects it at the exact environment index.
+`Roles.eq_authorize` and `frozenEnvironmentRoles_eq` prove exact equality to
+recomputation, including both ordered role arrays. This avoids repeated role
+authorization per job without caching an acceptance verdict or trusting a worker flag.
+All execution requests for a root come from registrations in its bound environment.
+The existing collector and `finalize` still require exact input occurrence coverage
+and every policy obligation. File and graph paths use one environment; document
+plans use no project environment and retain their exact fence inventory and modes.
+
+The current executed guarantee uses this full census, environment-local roles/jobs,
+actual result collection and `finalize_iff`, including checked equality for split
+collection/finalization. Conditional legacy transfer lemmas are not used by the
+acceptance path. Their coherence hypotheses have not been instantiated to establish
+operational equivalence with the former flattened IO collector; no such equivalence
+is claimed. The private `finishDocuments` helper consumes unchanged `auditTasks`
+output, whose collector has already refused unknown, duplicate and missing task
+occurrences. The helper alone is not an arbitrary raw-occurrence admission API.
+
+This establishes relations among supplied observations. Lean/Lake extraction,
+compiler admission, source reads, process completion, and compiled execution retain
+their existing trusted boundaries. Current compilation and qualification results
+belong in the CI repair evidence, not in the historical baseline receipts.
+
+`InfrastructureOrigin` is limited to exact reporter, codec and conditional collector
+identities. The IO adapter compares canonical actual artifacts with the running
+checker's artifacts; `InfrastructureOK` binds receipts, disjoint ownership and all
+observed incoming imports. Public Contract/Diagnostic/StructuralName interfaces do
+not imply a whole-library exemption. Ordinary excluded imports remain forbidden.
+
+The pure `Accepted`, `Finalized`, `AcceptedRun` and `CombinedAccepted` constructors
+require their stated proofs. Operational raw records, `AcceptedReport`, renderer
+strings and generic diagnostic JSON remain data APIs; they do not authorize success.
+The success owners above consume the dependent package, and typed
+`ResultProtocol.writeAccepted` cannot take a raw report. Constructor visibility is
+an ergonomic boundary, not hostile in-process unforgeability. `acceptance` JSON is
+rendered metadata only: a parent decodes raw production and recomputes evidence.
+
+### Frozen input coverage at operational entry points
+
+Each row concerns the effective workspace actually consumed. Fresh project audits own
+an isolated copy; incremental/file/graph modes consume their selected workspace.
+`Lake.surfaceInventory` fixes target/module/source identities, with canonical source
+paths; `SourceBinding.capture` fixes root bytes. `Snapshot.inputsUnchanged` rediscovers
+root targets/modules/paths and dependencies even when the dependency array is empty.
+It compares against the original records; it never replaces the accepted request.
+Configuration observations retain presence and exact bytes for the selected manifest,
+Lake configuration, lock and toolchain. These checks are IO observations, not filesystem
+or compiler proofs; changes restored between observations remain outside the guarantee.
+
+| Entry point / claim | Frozen before consuming build/import/replay | Carried to success | Terminal inventory and byte checks |
+| --- | --- | --- | --- |
+| `AxiomGate.auditSurfaceAt`, fresh/incremental/build-lint | Lake root inventory, root bytes, configuration, dependency source/configuration (one capture); copied docs when combined | Existing inventory/source/configuration/dependency records and raw inspections feed the same claim and frozen census | `SourceBinding` checks bytes/configuration; one terminal `Snapshot.inputsUnchanged` checks root and dependency inventories/canonical paths/bytes before `Acceptance.finish` (combined: after documentation, below). |
+| `AxiomGate.auditSurface --with-docs` | The project stage freezes copied root inventory/bytes/configuration, dependency inputs and complete copied Markdown | `auditBuiltProject` receives the same inventory, sources, configuration, dependencies, documents, build and snapshot in process | Documentation inventory/bytes before document finalization; the run's one terminal dependency recheck after the fences, before combined success |
+| `DocFenceAudit.run` | Original requested Markdown inventory/bytes before the prerequisite build; copied root/configuration/dependencies before that build | Required `documents` and `dependencies` arguments plus existing inventory/source/configuration/build records | `checkMarkdown` compares inventory/bytes before fence work and before `finishDocuments`; root/dependency and source/configuration checks remain |
+| `RuleExamples.documentation` | Original Markdown inventory/bytes before copying/building; copied root/configuration/dependencies before build | Same required documentation arguments; original requested documents also retained for result binding | Same adapter checks; original Markdown inventory/bytes rechecked before emitting the bound result |
+| `AxiomGate.auditFile`, accepted fresh-file claim | Selected file bytes, root inventory/bytes/configuration and dependencies before prerequisite build and temporary compilation | Existing source bindings and dependency observations feed file claim/finalizer | Root/dependency inventory and bytes plus selected/root file/configuration checks before acceptance; no project-wide documentation claim |
+| `FreshChecker.run`, optional serialized-graph claim | Root inventory/bytes/configuration and dependencies before build/checker processes | Existing frozen graph plan and snapshot | Same root/dependency inventory and root/configuration byte checks before `finishGraph`; plan-only has no certificate |
+| `ruleExamples --injected-git-facts FACTS [axiomGate] ARGS`, internal corpus-producer entry only | The same frozen inputs as the wrapped row above, except that for a dependency whose exact capture request (package, canonical root, ordered source and configuration paths) matches an entry in FACTS, the Git revision and dirty bit come from the corpus runner's single capture instead of this process. Every source and configuration byte is still read here. | Same carried records as the wrapped row | Same terminal checks, except that an injected dependency is rechecked once per campaign by the runner instead: it captures once, requires equal content identity of the shared trees before any producer and after all are joined, and reruns `Snapshot.inputsUnchanged` on that capture at run end. Results carry `"gitFacts": "injected"`. User-facing `axiomGate` rejects the flag. |
+| SourceAudit workers, `Documentation.auditTasks`, policy-negative examples, help, native editor | Parent requests / mode-local observations | Raw completion, diagnostic classification or explicitly partial editor observations | No standalone whole-audit success claim; acceptance-owning parents above retain the relevant input checks |
+
+Zero declarations or executable roots do not skip root input reconciliation. Projects
+still require a nonempty library surface. No Markdown files is a refusal; Markdown with
+zero fences can be accepted only after its inventory/bytes and scan/build evidence are
+checked. Negative and teaching fences retain their existing classified meanings and
+cannot stand in for conforming positive evidence.
 
 ## 2. Claim, identity and completeness
 
@@ -72,8 +191,8 @@ neither constructs a conforming claim.
 `EvidenceMode` retains architecture spellings `editorSnapshot`, `incrementalProject`,
 `freshProject`, `documentationExample`, `serializedGraph` and adds **`freshFile`**.
 `Scope` distinguishes project, file, documentation set and editor module snapshot.
-A fresh single-file audit shares positive-fence stage requirements but retains its
-own scope, mode and renderer. #12 adds `freshFile` before freezing schema 1.
+A fresh single-file audit retains its own mandatory stages, scope, mode and renderer.
+Registry/result schema1 already includes `freshFile`.
 Unsupported scope/mode/stage combinations are rejected by `admitClaim`, not coerced.
 
 Project policy, documentation results and semantic review are separate components.
@@ -97,11 +216,11 @@ as an IO observation. Full filesystem/process authenticity is outside the pure t
 | Key | Equality / multiplicity |
 | --- | --- |
 | Module | Snapshot identity + exact module `Name`; source mapping must be functional. Same module in two claimed surfaces is refused as ambiguous ownership, even with equal profiles. Excluded/excluded overlap may be deduplicated only for the module inventory; target classifications remain distinct. |
-| Declaration | Snapshot + owning module + exact constant `Name`; one canonical record. Names shared across independent fence environments remain distinct by snapshot/unit. |
-| Executable root | Snapshot + root module/name. Multiple valid registrations for one root share closure work but each registration remains a required declaration/contract obligation. |
+| Declaration | Requested environment + snapshot + owning module + exact constant `Name`; one record within that environment. Equal names across independent environments remain distinct. |
+| Executable root | Requested environment + snapshot + root module/name. Multiple valid registrations within that environment share closure work but each registration remains a required declaration/contract obligation. |
 | Boundary | Root key + reached declaration + kind + optional replacement target + evidence occurrence. Multiple candidates/history observations are legitimate; preserve their distinct occurrence identities. |
 | Fence | Document snapshot + opening/body/closing byte spans + marker kind and expected pattern. Synthesized `DocFence_N` names are temporary transport names, never permanent identity. |
-| Job | Claim identity + stage tag + exact subject key; group transport contains individual job keys. Attempts are transport metadata, not new required jobs. |
+| Job | Claim identity + stage tag + exact subject key, including the requested environment for local stages; group transport contains individual job keys. Attempts are transport metadata, not new required jobs. |
 
 Required-key sets use canonical duplicate-free sorted collections backed by existing
 Std ordered structures, with proved lookup/membership laws. The semantic specification
@@ -287,9 +406,9 @@ A tree-codec theorem is not a theorem about JSON text parsing. No Environment, M
 Frontend, IO execution, native evaluation, partial/unsafe, Report, RuleDescriptor or
 Mathlib import belongs in the pure policy library.
 
-`Checker/PolicyDomain.lean` and `Checker/Acceptance.lean` remain the architecture's public
-compatibility imports/re-exports of the pure definitions; do not implement duplicate
-policy there. Operational `Checker/Policy.lean` becomes the adapter/legacy renderer;
+`Checker/PolicyDomain.lean` remains a compatibility import. `Checker/Acceptance.lean`
+re-exports the pure definitions and assembles observations through them; it defines no
+duplicate policy. Operational `Checker/Policy.lean` is the adapter/legacy renderer;
 `Checker/PolicyCodec.lean` handles worker/report JSON. Move transcript **data** shapes
 into the pure domain (including source/range/evaluator keys); `Frontend` imports them,
 never vice versa. `Report` can serialize typed domain observations; pretty strings are
@@ -297,12 +416,12 @@ non-authoritative. Registry ID/payload/rendering stays owned by #12; it maps typ
 failures to the existing twenty IDs and preserves subreasons. The pure core does not
 import the registry, so no cycle forms when diagnostics import policy types.
 
-Add a `lean_lib StrictLeanPolicy` with `.andSubmodules` discovery, a positive
+The `lean_lib StrictLeanPolicy` has `.andSubmodules` discovery, a positive
 Standard-Logical manifest entry as an initial upper bound, and explicit ordinary
 acceptance build coverage. Report every declaration's **actual** least label and exact
 axioms; reduce the upper bound only after checking the complete import/proof closure.
-This new root avoids both the excluded `StrictLean` glob and `Environment.loadReportCore`'s
-whole-`StrictLean` trusted overlay, which would otherwise mask fresh proof modules.
+This root is separate from the excluded `StrictLean` glob. The narrow operational
+infrastructure partition and its authentication obligations are described in §1.
 Audit, AuditApp/Main and the operational StrictLean exclusion remain. Teach tooling and
 guides the new library via Lake discovery, not hardcoded declaration/file lists.
 
@@ -351,19 +470,18 @@ not freely variable candidate data. Con-leche's [parameterized pin/check pattern
 is a reference for separating these roles, not a reason to make our trust pins optional.
 No speculative scheduling or fast/reference implementation is proposed.
 
-This delivery is a source-grounded design. It changes no Lean implementation or checked Lean
-example, and claims no new compiler result, axiom coverage, performance or full compliance.
-The root pins inspected for that design were Lean 4.33.1 (`819816b2e0a3bf405af45ae5c7af2491d8f5bee6`),
-Mathlib `0df444a360eaa60ab8c11dca51a86af692955474`. Earlier PRODUCT-01 runtime results are
-historical, scoped evidence; they do not prove these new contracts. Full implementation
-acceptance remains one **unpartitioned `./scripts/verify.sh` with a hard 420-second deadline**
-including cold root builds after pinned dependency/coreutils/ShellCheck setup.
+The [issue7 evidence](../../session/evidence/issue-7-verification.md) owns the
+implementation's compiler results, axiom coverage, qualification and pending delivery
+gates. Earlier PRODUCT-01 runtime results remain historical, scoped evidence; they do
+not validate later implementation changes. Use the [contributor guide](contributing.md)
+for the complete acceptance command and setup requirements.
 
-Applicable design review rows: SCOPE-01–05, TYPE-01–03/06, THEOREM-01/03/06/07,
-FOUND-01–05, DECL-01–04, COMP-01–04, BUILD-01–04, DOC-01–05 and DOGFOOD-03/05,
-for the proposed contracts and their linkage only. This is not a PASS claim for those
-rows over all repository surfaces. TYPE-04/05 and remaining theorem/doc/dogfood rows
-are unchanged; all residual accounts still apply to eventual full conformance.
+The original POLICY-01 design review covered SCOPE-01–05, TYPE-01–03/06,
+THEOREM-01/03/06/07, FOUND-01–05, DECL-01–04, COMP-01–04, BUILD-01–04,
+DOC-01–05 and DOGFOOD-03/05 for the proposed contracts and linkage only. That historical
+scope is not a PASS claim for the implementation or all repository surfaces. Current
+review must account for changed inputs and dependencies under the chapter 9 checklist;
+all residual accounts still apply to full conformance.
 
 #5–#7 must retain §8.8 positive/intended-reason/restored controls for profiles,
 holes/axioms, generated-role forgeries, owned-module attribution, replay bypass,
@@ -375,17 +493,17 @@ coverage requires a fresh imported-client control and exact Lake inventory check
 Use `./scripts/verify.sh diagnostics` with an applicable existing partition
 (`fixtures`, `structural`, `cli`, `environments`, `build-policy`) and add focused
 controls where absent; do not report an unrun campaign PASS. `serialized-graph`
-remains separate. No timing experiment is necessary for this design; if implementation
-cost becomes decision-bearing, define its measurement and resource budget then.
+remains separate. If implementation cost becomes decision-bearing, define the
+measurement and resource budget before evaluating it.
 
 Implemented proof coverage is recorded in the [domain](policy-domain.md) and
 [proof](policy-proofs.md) guides, with exact axiom evidence in their delivery records.
-Remaining **implementation obligations** are assigned rather than silently assumed:
-#7/#13 establish collector/worker linkage and acceptance at all call sites;
-#12/#14/#15 qualify schema/editor/site consumers.
-Unsupported compiler versions, incomplete census/admission, ambiguous role origin and
-unresolved execution are decided refusals. No unresolved design choice blocks starting #5;
-any failed proof or pin capability blocks its specific guarantee and must be reported.
+The success map in §1 owns implemented collector/worker linkage and acceptance routes;
+[issue7 evidence](../../session/evidence/issue-7-verification.md#pending-delivery-gates)
+owns remaining delivery obligations. Editor/adopter and website integration remain their
+separate product deliverables. Unsupported compiler versions, incomplete census/admission,
+ambiguous role origin and unresolved execution are refusals. Any failed proof or pin
+capability blocks its specific guarantee and must be reported.
 
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean

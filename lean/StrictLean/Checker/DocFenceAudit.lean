@@ -1,5 +1,6 @@
 import StrictLean.Checker.Documentation
 import StrictLean.Checker.Lake
+import StrictLean.Checker.AcceptanceLink
 
 /-! Public Lean executable for normative Markdown fence auditing. -/
 
@@ -14,12 +15,13 @@ structure Options where
   docsRoot : Option FilePath := none
   manifest : Option FilePath := none
   project : Option FilePath := none
+  acceptanceLink : Option FilePath := none
   verbose : Bool := false
   help : Bool := false
 
 private def usage : String :=
   "usage: lake exe docFenceAudit -- [--jobs N] [--verbose] [--docs-root PATH] " ++
-  "[--project DIR] [--manifest PATH]"
+  "[--project DIR] [--manifest PATH] [--acceptance-link PATH]"
 
 private partial def parseArgs : List String → Options → IO Options
   | [], options => return options
@@ -33,6 +35,8 @@ private partial def parseArgs : List String → Options → IO Options
       parseArgs rest { options with manifest := some (FilePath.mk value) }
   | "--project" :: value :: rest, options =>
       parseArgs rest { options with project := some (FilePath.mk value) }
+  | "--acceptance-link" :: value :: rest, options =>
+      parseArgs rest { options with acceptanceLink := some (FilePath.mk value) }
   | "--verbose" :: rest, options => parseArgs rest { options with verbose := true }
   | "--help" :: rest, options | "-h" :: rest, options =>
       parseArgs rest { options with help := true }
@@ -49,6 +53,7 @@ unsafe def run (args : List String) : IO UInt32 := do
     | some dir => findRepoRoot dir
     | none => repoRoot
   let docsRoot := options.docsRoot.map (resolve repo) |>.getD (repo / "docs")
+  let documents ← Documentation.captureMarkdown docsRoot
   withScratch repo "doc-fence-audit" fun scratch => do
     let copy := scratch / "project"
     copyProject repo copy scratch
@@ -58,9 +63,15 @@ unsafe def run (args : List String) : IO UInt32 := do
       let manifest ← Manifest.load manifestPath
       let inventory ← Lake.surfaceInventory copy
       let sources ← SourceBinding.capture inventory.moduleSources
+      let dependencies ← Snapshot.dependencies inventory
+      -- A linked run audits only the inputs ordinary acceptance already accepted.
+      if let some link := options.acceptanceLink.map (resolve repo) then
+        let digest ← AcceptanceLink.identity scratch copy docsRoot sources configuration dependencies documents
+        AcceptanceLink.require link digest
+        IO.println s!"acceptance link: documentation inputs equal the accepted ordinary inputs ({digest})"
       SourceBinding.withUnchanged sources configuration do
         SourceBinding.configurationUnchanged configuration
-        let buildResult ← Lake.buildChecked copy (Manifest.positiveTargets manifest) "fresh"
+        let (buildProcess, buildResult) ← Lake.buildCheckedObservation copy (Manifest.positiveTargets manifest) "fresh"
         SourceBinding.unchanged sources
         SourceBinding.configurationUnchanged configuration
         if let some lines := buildResult then
@@ -68,7 +79,7 @@ unsafe def run (args : List String) : IO UInt32 := do
           return 1
         IO.println "claimed surface built fresh; compiling fences"
         (← IO.getStdout).flush
-        Documentation.auditBuiltProject copy docsRoot inventory sources configuration options.jobs options.verbose
+        Documentation.auditBuiltProject copy docsRoot inventory sources configuration dependencies documents (Acceptance.buildObservation buildProcess) options.jobs options.verbose
     let outcome := outcome.bind id
     match outcome with
     | .ok result => return result

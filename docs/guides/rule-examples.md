@@ -58,13 +58,14 @@ All six named new guarantees
 `demonstration_not_accepted`) currently depend exactly on
 `propext`, `Classical.choice` and `Quot.sound`: Standard-Logical, not Kernel-only.
 `demonstration_selected_rule` exposes the selected-rule obligation directly. Documentation
-receipts retain each actual fence classification. The shared `PositiveClassifications` guard
-requires a nonempty list with every fence positive, passing and complete, both when the adapter
-emits `completed` and when the qualifier admits a positive correction. Successful compiler
-negatives and trusted teaching remain `classified`; failed and incomplete checks retain their
+receipts retain each actual fence classification. The documentation adapter derives
+`completed` from its accepted report with a nonempty, all-positive fence inventory.
+The qualifier separately applies `PositiveClassifications` to require a nonempty list
+with every fence positive, passing and complete before admitting a positive correction.
+Successful compiler negatives and trusted teaching remain `classified`; failed and incomplete checks retain their
 own outcomes. `positiveClassifications_sound` states the exact admitted relation.
-Global policy acceptance remains
-issue #7; a corpus PASS is not full-standard conformance.
+The [acceptance guide](policy-acceptance.md) owns global policy assembly; a corpus PASS
+is not full-standard conformance.
 
 ## Exact source and remediation map
 
@@ -105,21 +106,24 @@ The adapters reuse `SourceBinding.withUnchanged`, typed `SourceAudit` outcomes a
 documentation driver’s frozen project snapshots. They serialize only after snapshot
 checks complete; a typed refusal or process exception cannot become a qualifying example.
 
-The runner starts fixed, violation and restored phases with separate empty root build output,
-uses unique result paths and checks source/configuration readback. At most two independent
-detector processes run concurrently; evidence consumption stays in registry/phase order.
+The runner starts the fixed and violation phases, each in its own fresh workspace with
+empty root build output, uses unique result paths and checks source/configuration readback.
+A separate fresh workspace per phase replaces a restored rerun (standard §8.8). At most
+five independent detector invocations run concurrently; evidence consumption stays in
+registry/phase order.
 File fixtures are separate from the warning-free positive library used to prepare dependencies. Its export embeds exact
 sources, commands, original compiler output, canonical schema-1 results, expected locations,
 mode and checker build identity, plus exact checker source bytes before and after the campaign.
 The campaign additionally exercises authentic Standard-Logical output against a Kernel-only
 request and actual successful negative/trusted documentation against a positive correction
-expectation, then restores fresh positives. Relabelling a demonstration's selected rule is
+expectation; the fixed phases are the fresh positives. Relabelling a demonstration's selected rule is
 refused while retaining its complete findings. Authentic early SL2003/SL2005 results are also
 refused against corrected caller snapshots or after removal of producer source evidence.
 These controls qualify the adapters; the
 universal data predicates and their proofs remain distinct from observed process behavior.
 The Lean qualifier checks selected coverage against the
-closed registry and requires all three phases once. Unrun selected rules cannot be called
+closed registry and requires both phases once. It is the single admission of every
+canonical record; each refusal control is admitted individually. Unrun selected rules cannot be called
 full-corpus PASS. Version fields alone do not authenticate whole binaries; the producer and
 filesystem remain the existing trusted operational boundary.
 
@@ -140,9 +144,10 @@ already-excluded `StrictLean` tooling library; no product module or detector is 
 from its applicable qualification.
 
 For development, append `--rules SL1001 SL1002` after `--evidence PATH` to produce
-explicitly scoped evidence. [Lean qualification](lean-qualification.md) specifies the
+explicitly scoped evidence. `--shard K/N` selects every rule at corpus position K modulo N;
+`./scripts/verify.sh diagnostics rule-examples 1/2` and `2/2` run the two CI shards. [Lean qualification](lean-qualification.md) specifies the
 proved template transformation, Lake-discovered source snapshot and trusted IO boundary. Ordinary
-`./scripts/verify.sh` remains the separate unpartitioned 420-second acceptance command.
+acceptance (`./scripts/verify.sh`, then `./scripts/verify.sh docs`) remains separate.
 Do not substitute the corpus campaign for that command. No website, editor-interaction,
 serialized-graph or full-project completion claim follows from the corpus alone.
 

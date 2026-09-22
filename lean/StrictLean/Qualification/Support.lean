@@ -10,6 +10,10 @@ all commands inherit `scripts/verify.sh`'s process group; no inner timer detache
 namespace StrictLean.Qualification
 open Lean System StrictLeanQualification
 
+/-- Operational attempt identity, carried unchanged across the deadline wrapper. -/
+def freshAttempt : IO String := do
+  return (← IO.getRandomBytes 16).foldl (fun s b => s ++ s!"{b.toNat}-") ""
+
 /-- Fail with the first unsatisfied assertion from the proved evaluator. -/
 def requireChecks (checks : List Check) : IO Unit :=
   IO.ofExcept (checkedEvaluation.run checks)

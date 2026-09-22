@@ -29,20 +29,6 @@ instance : FromJson SourceSpec := ⟨fun j => do
     captureRejection := ← j.getObjValAs? _ "captureRejection"
   }⟩
 
-private instance : ToJson ProcessResult where
-  toJson value := Json.mkObj [
-    ("exitCode", toJson value.exitCode.toNat),
-    ("stdout", toJson value.stdout), ("stderr", toJson value.stderr)]
-
-private instance : FromJson ProcessResult where
-  fromJson? value := do
-    StrictLean.Checker.PolicyCodec.exactFields value ["exitCode", "stdout", "stderr"]
-    let code : Nat ← value.getObjValAs? Nat "exitCode"
-    if code >= 2^32 then throw "invalid process exit code"
-    let stdout ← value.getObjValAs? String "stdout"
-    let stderr ← value.getObjValAs? String "stderr"
-    return { exitCode := UInt32.ofNat code, stdout, stderr }
-
 structure Compilation where
   spec : SourceSpec
   sourcePath : FilePath
@@ -93,6 +79,7 @@ instance : FromJson GroupRequest := ⟨fun j => do
 structure GroupReport where
   report : StrictLean.Checker.ProducerReport.Environment
   transcripts : Array Frontend.Transcript
+  deriving Repr
 
 unsafe def inspectGroupWorker (request : GroupRequest) : IO ProducerReport.Outcome := do
   let outcome ← SourceBinding.withUnchanged request.sourceBindings #[] do
@@ -183,8 +170,10 @@ private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
         | throw <| IO.userError "checker library directory unavailable"
       let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
       let output := scratch / s!"{spec.«module»}.diagnostics.json"
+      let workerStart ← IO.monoMsNow
       let process ← spawn binary.toString
         #["--diagnostic-worker", (StrictLean.RegistryCodec.nameJson spec.module.toName).compress, sourcePath.toString, output.toString]
+      IO.println s!"diagnostic span: compileIn diagnostic-worker: {(← IO.monoMsNow) - workerStart}ms"
       let errors ← if process.succeeded then
           try
             let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
@@ -208,7 +197,9 @@ private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
           throw <| IO.userError "Lake batch LEAN executable must be absolute"
         pure path
       else pure "lean"
+    let compileStart ← IO.monoMsNow
     let process ← spawn compiler args
+    IO.println s!"diagnostic span: compileIn compile: {(← IO.monoMsNow) - compileStart}ms"
     return { spec, sourcePath, oleanPath, ileanPath, process }
 
 /-- Standalone compilation still obtains its environment through Lake. -/

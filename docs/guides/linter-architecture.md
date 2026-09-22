@@ -30,7 +30,7 @@ not subdivisions or substitutes for that acceptance command.
 
 The [policy acceptance contract](policy-acceptance.md) refines the pure-core module
 boundary, adds the explicit `freshFile` evidence mode, and owns complete-result semantics.
-Its definitions and proofs remain implementation work for POLICY-02–04.
+Its success-owner map records the implemented POLICY-02–04 boundary and remaining trust assumptions.
 
 ## Canonical data and package boundaries
 
@@ -42,7 +42,7 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | `lean/StrictLean/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
 | `lean/StrictLean/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
 | `lean/StrictLean/Checker/PolicyDomain.lean` | Canonical decoded inputs and typed failures; POLICY-02 (#5). |
-| `lean/StrictLean/Checker/Acceptance.lean` | Pure acceptance semantics and proof-bearing results; POLICY-01/03/04 (#4/#6/#7). |
+| `lean/StrictLean/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
 | `lean/StrictLean/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
 | `lean/StrictLean/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps. |
 | `lean/StrictLean/Checker/Lint.lean` | Whole-project `strictLint` executable using the same registry/policy, not another checker. |
@@ -294,4 +294,4 @@ is [issue #3](https://github.com/rbeauchamp/strict-lean/issues/3); its con-ron d
 
 The CATALOG-01 implementation and schema migration are documented in
 [Rule registry and diagnostics](rule-registry.md). Its scoped `completed` observations
-are distinct from the future policy acceptance evidence in POLICY-02–04.
+are distinct from the [proof-bearing policy acceptance evidence](policy-acceptance.md).

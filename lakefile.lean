@@ -44,7 +44,7 @@ lean_lib «StrictLean» where
   globs := #[.submodules `StrictLean]
 
 lean_exe «axiomGate» where
-  root := `StrictLean.Checker.AxiomGate
+  root := `StrictLean.Checker.AxiomGateMain
   supportInterpreter := true
 
 lean_exe «docFenceAudit» where
@@ -68,7 +68,7 @@ lean_exe «ruleExamples» where
   supportInterpreter := true
 
 lean_exe «ruleExampleQualification» where
-  root := `StrictLean.Checker.RuleExampleQualification
+  root := `StrictLean.Checker.RuleExampleQualificationMain
 
 lean_exe «auditApp» where
   root := `Main

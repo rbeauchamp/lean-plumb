@@ -23,6 +23,7 @@ mechanical contributions and residual obligations.
 | `admitBoundaryEvidence` | Successful admission preserves correspondence, detail and native origin; incompatible extra evidence is refused. Every representable value round-trips. | Canonical path acquisition remains an operational check. |
 | `Inventory`, `admitInventory` | Declaration and transcript identities are unique, references are structural, set fields are canonical, safety fields agree, and transcripts bind source bytes, supported compiler identity and valid coordinates. | An inventory is not an independently complete declaration census. |
 | `Roles inventory`, `authorize` | Role arrays equal the actual validators' results for this exact admitted inventory. Declaration decisions require membership in the same inventory. | Validator success is proved equivalent to the named role predicates; observation authenticity remains external. |
+| `EnvironmentRequest`, `EnvironmentCensus`, `CensusRoles` | The complete claim fixes the ordered environment/module partition. Local inventories and roles remain separate; local jobs carry that environment's snapshot and ordinal. | Equal names in different environments do not identify the same declaration or root. Extraction and source authenticity remain external. |
 | `ExecutionInventory`, `admitExecution` | Root identities and boundary occurrences are unique; references and native-origin module bindings are valid. | Closure completeness still depends on the operational collector. |
 | `Claim`, `admitClaim`, typed keys | Scope/mode combinations, positive profiles, exact source/configuration/dependency observations and key bindings are explicit. | A requested claim is not an accepted result. Teaching and no-profile inspection remain separate. |
 | `ResultState`, `insertResult` | Each occupied key belongs to the fixed required set and satisfies its binding relation. Insertion rejects an occupied slot, including an identical repeat. | Insertion success/refusal and frame laws are proved. Whole-table acceptance additionally requires the fixed plan and every stage relation. |
@@ -32,7 +33,8 @@ reporter, frontend, registry, Mathlib or IO execution. `Specification` states
 independent declaration predicates; `Plan` and `Observation`
 define the concrete census, derived jobs and stage relations; `Acceptance` proves
 soundness, completeness and report identity for those fixed inputs.
-`Checker.PolicyDomain` and `Checker.Acceptance` are compatibility re-exports.
+`Checker.PolicyDomain` is a compatibility re-export. `Checker.Acceptance` re-exports
+the pure API and builds the operational census/observations without duplicating policy.
 
 ## Connection to execution
 
@@ -51,11 +53,19 @@ batches use `ResultState` to admit indexed payloads against their requested sour
 and artifact paths, then require all requested slots. Source workers additionally
 bind their exact input text.
 
-This local request/result validation does not yet populate the proved whole-project
-census/plan or make every success boundary consume `Accepted`. POLICY-04 (#7)
-owns that integration and project/documentation composition. The core expectation
+The project/file/documentation/optional-graph adapters populate the fixed census and
+plan, execute `ResultState.collect` plus `finalize`, and retain `AcceptedRun` through
+success rendering. Combined project/documentation uses `CombinedAccepted` with one
+exact snapshot. The [success-owner map](policy-acceptance.md) separates these audit
+routes from help, internal raw workers and local diagnostics. The core expectation
 record retains exact diagnostic identities, optional subreasons and locations; the
 registry adapter must validate its vocabulary and authenticate its observations.
+
+The rendered `acceptance.environments` array retains each environment's ordinal,
+module assignment, declaration/root/replay inventory and optional file binding.
+Local job subjects contain that ordinal and their local subject; the common exact
+snapshot is rendered once. These fields are projections of accepted evidence,
+not a wire format from which a caller can reconstruct proof authority.
 
 ## Compatibility and evidence
 
@@ -92,8 +102,8 @@ require IR. Public controls include both an authored tagged lookalike and a
 runtime-modified genuine helper.
 
 The universal results cover the actual category/name codecs, structural ordering,
-canonical set projections, evidence admission, inventory/claim admission and result
-insertion, least-foundation classification, role/declaration/execution decisions,
+canonical set projections, evidence admission, inventory/claim admission and full result
+collection/finalization, least-foundation classification, role/declaration/execution decisions,
 and concrete acceptance. See the [theorem and caller map](policy-proofs.md) for exact
 hypotheses and limits. JSON text parsing and filesystem/process authenticity remain
 operational boundaries.

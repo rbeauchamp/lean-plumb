@@ -60,6 +60,28 @@ functional results. Consult the repair record for platform qualification and rem
 delivery gates. Follow the actual post-merge main workflow:
 identical trees and green synthetic-merge checks did not establish main CI success.
 
+## Strict Lean: sequential diagnostic budgets and shared writes
+
+The [issue7 diagnostic budget record](../../../../session/evidence/issue-7-diagnostic-budget.md)
+records the changed resource contract. At `0d2d6142192967f4873305cbf1ec5d8227607a36`,
+ordinary hosted verification passed, while the combined producer/history420 run finished
+all 21 producer invocations but only 2 of 17 history invocations. The aggregate failed;
+a producer PASS did not establish completed history qualification or green CI.
+The authorized repair uses two sequential hard420 diagnostic gates with full coverage.
+It does not change ordinary cold420 or prove a runtime upper bound.
+Superseded 2026-09-22 by the verification-slimming decision: these campaigns now run as
+parallel capability-triggered diagnostics jobs (see AGENTS.md), each under its own 420s.
+
+Separate fixture roots shared `.lake/packages`; a prior prebuild did not enforce
+read-only module outputs, trace/hash sidecars or artifact/Git metadata. At pinned
+Lean4.33.1, workspace configuration caches are workspace-local: different dependency
+package indices alone did not establish a shared configuration-cache collision.
+No race was demonstrated and no physical timeout cause was established. Sequential
+execution avoids requiring a new shared-write or descendant-containment argument.
+A Python timeout that kills/waits its direct checker child alone does not establish
+that nested Lake/compiler descendants have stopped before scratch cleanup; an outer
+SIGKILL cannot execute user-space cleanup. The OS remains a trusted boundary.
+
 ## Public Acorn: reusable work still needs exact ownership
 
 Public source: [delivered change](https://github.com/rbeauchamp/acorn/pull/4), integrated

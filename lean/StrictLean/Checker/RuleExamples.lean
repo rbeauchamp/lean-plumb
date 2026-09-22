@@ -1,4 +1,5 @@
 import StrictLean.Checker.Documentation
+import StrictLean.Checker.AxiomGate
 import StrictLean.Checker.ResultProtocol
 import StrictLean.Website
 
@@ -61,10 +62,9 @@ unsafe def inspectNegative (repo path output : FilePath) : IO UInt32 := do
 result envelope used by project/file consumers. The fresh copy owns build and fence artifacts. -/
 unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
   let requestedConfiguration ← SourceBinding.configuration repo (Manifest.defaultPath repo)
-  let paths := ((← docsRoot.walkDir).filter (·.extension == some "md")).qsort
-    (fun a b => a.toString < b.toString)
-  if paths.isEmpty then throw <| IO.userError "empty example documentation tree"
-  let sources ← paths.mapM fun path => do return (path, ← IO.FS.readFile path)
+  let documents ← Documentation.captureMarkdown docsRoot
+  if documents.isEmpty then throw <| IO.userError "empty example documentation tree"
+  let sources := documents.map fun document => (FilePath.mk document.uri, document.source)
   let outcome ← (stable #[] requestedConfiguration <| withScratch repo "rule-document-example" fun scratch => do
     let copy := scratch / "project"
     copyProject repo copy scratch
@@ -73,32 +73,44 @@ unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
       let manifest ← Manifest.load (Manifest.defaultPath copy)
       let inventory ← Lake.surfaceInventory copy
       let projectSources ← SourceBinding.capture inventory.moduleSources
+      let dependencies ← Snapshot.dependencies inventory
       stable projectSources configuration do
-        if let some lines ← Lake.buildChecked copy (Manifest.positiveTargets manifest) "fresh" then
+        let (buildProcess, buildResult) ← Lake.buildCheckedObservation copy (Manifest.positiveTargets manifest) "fresh"
+        if let some lines := buildResult then
           throw <| IO.userError ("example dependency build failed: " ++ "\n".intercalate lines.toList)
         let findings ← IO.mkRef (#[] : Array Finding)
         let classifications ← IO.mkRef (#[] : Array Documentation.Classification)
-        let code ← Documentation.auditBuiltProject copy docsRoot inventory projectSources configuration 1 true
+        let certificate ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
+        let code ← Documentation.auditBuiltProject copy docsRoot inventory projectSources configuration dependencies documents (Acceptance.buildObservation buildProcess) 1 true
           (fun finding => findings.modify (·.push finding))
           (fun results => classifications.set (results.map Documentation.classification))
+          (fun claim accepted => certificate.set (some ⟨claim, accepted⟩))
         let actual ← findings.get
         unless (code == 0) == actual.isEmpty do
           throw <| IO.userError "documentation completion/findings mismatch"
-        return (code, actual, ← classifications.get, copy.toString, configuration)).toBaseIO
+        return (code, actual, ← classifications.get, copy.toString, configuration, ← certificate.get)).toBaseIO
   -- Markdown is not a Lean module map. Preserve its own exact snapshots even on errors.
-  for (path, source) in sources do
-    unless (← IO.FS.readFile path) == source do throw <| IO.userError "documentation source changed"
-  let (code, actual, classifications, configurationRoot, configuration) ← IO.ofExcept <| outcome.mapError (fun error => toString error)
+  Documentation.checkMarkdown docsRoot documents
+  let (code, actual, classifications, configurationRoot, configuration, certificate) ← IO.ofExcept <| outcome.mapError (fun error => toString error)
+  let completion ← if code == 0 then do
+      let some ⟨_, accepted⟩ := certificate
+        | throw <| IO.userError "documentation adapter lacks accepted evidence"
+      let report := accepted.report
+      unless report.claim.val.scope == .documentation (sources.map fun (path, source) => ⟨path.toString, source⟩) do
+        throw <| IO.userError "documentation adapter request mismatch"
+      pure (if report.census.fences.size > 0 && report.census.fences.all
+        (fun fence => decide (fence.expectation = .positive)) then ResultProtocol.Status.completed else .classified)
+    else pure (if actual.any (·.2.impact == .incomplete) then .incomplete else .rejected)
   ResultProtocol.write output (Json.mkObj [
     ("configuration", toJson configuration), ("configurationRoot", toJson configurationRoot),
     ("fences", toJson classifications),
     ("documents", toJson (sources.map fun (path, source) => Json.mkObj [
       ("uri", toJson path.toString), ("source", toJson source)]))])
-    .documentationExample (if actual.any (·.2.impact == .incomplete) then .incomplete
-      else if code != 0 then .rejected
-      else if (Documentation.admitPositiveClassifications classifications).toOption.isSome then .completed
-      else .classified) actual
+    .documentationExample completion actual
   let value ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile output)
+  let value := match certificate with
+    | some ⟨_, accepted⟩ => value.setObjVal! "acceptance" (ResultProtocol.acceptedJson accepted)
+    | none => value
   let request := ResultProtocol.requestJson "documentation" repo.toString docsRoot.toString none none requestedConfiguration
   writeJson output ((value.setObjVal! "request" request).setObjVal! "effective"
     (Json.mkObj [("root", toJson configurationRoot), ("configuration", toJson configuration)]))
@@ -113,10 +125,53 @@ unsafe def run (args : List String) : IO UInt32 := do
   | _ => throw <| IO.userError "usage: ruleExamples (--policy-negative PROJECT SOURCE | --documentation PROJECT DOCS) OUTPUT"
 end StrictLean.Checker.RuleExamples
 
-unsafe def main (args : List String) : IO UInt32 := do
+private unsafe def ruleExamplesEntry (args : List String) : IO UInt32 := do
   try
     StrictLean.Checker.initializeLeanSearchPath
     StrictLean.Checker.RuleExamples.run args
   catch error =>
     IO.eprintln s!"rule example production incomplete: {error}"
     return 2
+
+/-- Qualification-only binary. `--injected-git-facts FACTS` is the internal
+corpus-producer entry: it installs the runner's once-captured shared-dependency
+Git facts (`Snapshot.GitFacts`), then runs either the exact `axiomGate` body
+(`AxiomGate.entry`) or this binary's own modes. Facts only replace the Git part
+of a capture whose exact request they answer; every source and configuration
+byte is still read fresh, and the result is marked `"gitFacts": "injected"`. The
+user-facing `axiomGate` never accepts them. -/
+unsafe def main (args : List String) : IO UInt32 := do
+  match args with
+  | "--injected-git-facts" :: facts :: rest =>
+    let loaded ← (do
+      let json ← IO.ofExcept (Lean.Json.parse (← IO.FS.readFile facts))
+      IO.ofExcept (Lean.fromJson? (α := Array StrictLean.Checker.Snapshot.GitFacts) json)).toBaseIO
+    match loaded with
+    | .error error =>
+      IO.eprintln s!"rule example production incomplete: injected git facts: {error}"
+      return 2
+    | .ok table =>
+      if table.isEmpty then
+        IO.eprintln "rule example production incomplete: empty injected git facts"
+        return 2
+      StrictLean.Checker.Snapshot.injectedGitFacts.set table
+      let (code, output) ← match rest with
+        | "axiomGate" :: gateArgs =>
+          pure (← StrictLean.Checker.AxiomGate.entry gateArgs,
+            (gateArgs.dropWhile (· != "--json-out")).drop 1 |>.head?)
+        | "--injected-git-facts" :: _ =>
+          IO.eprintln "rule example production incomplete: repeated injected git facts"
+          return 2
+        | _ => pure (← ruleExamplesEntry rest, rest.getLast?)
+      -- Mark the result so it cannot be mistaken for Git-observed output. The
+      -- qualification-only result view keeps this field and admission ignores it.
+      if let some path := output.filter (· != "") then
+        unless ← System.FilePath.pathExists path do return code
+        let marked ← (do
+          let value ← IO.ofExcept (Lean.Json.parse (← IO.FS.readFile path))
+          IO.FS.writeFile path ((value.setObjVal! "gitFacts" (.str "injected")).compress ++ "\n")).toBaseIO
+        if let .error error := marked then
+          IO.eprintln s!"rule example production incomplete: injected-facts marker: {error}"
+          return 2
+      return code
+  | _ => ruleExamplesEntry args

@@ -17,6 +17,19 @@ structure ProcessResult where
   stderr : String
   deriving Repr
 
+instance : ToJson ProcessResult where
+  toJson value := Json.mkObj [
+    ("exitCode", toJson value.exitCode.toNat),
+    ("stdout", toJson value.stdout), ("stderr", toJson value.stderr)]
+
+instance : FromJson ProcessResult := ⟨fun value => do
+  PolicyCodec.exactFields value ["exitCode", "stdout", "stderr"]
+  let code : Nat ← value.getObjValAs? Nat "exitCode"
+  if code >= 2^32 then throw "invalid process exit code"
+  return {
+    exitCode := UInt32.ofNat code,
+    stdout := ← value.getObjValAs? String "stdout", stderr := ← value.getObjValAs? String "stderr" }⟩
+
 namespace ProcessResult
 
 def output (result : ProcessResult) : String :=
@@ -221,7 +234,12 @@ def readJson (path : FilePath) : IO Json := do
 
 def writeJson (path : FilePath) (value : Json) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
-  IO.FS.writeFile path (Json.pretty value ++ "\n")
+  let encodeStart ← IO.monoMsNow
+  let encoded := Json.compress value ++ "\n"
+  IO.println s!"diagnostic span: writeJson encode {path}: {(← IO.monoMsNow) - encodeStart}ms"
+  let writeStart ← IO.monoMsNow
+  IO.FS.writeFile path encoded
+  IO.println s!"diagnostic span: writeJson write {path}: {(← IO.monoMsNow) - writeStart}ms"
 
 def parseJsonOutput (what : String) (result : ProcessResult) : IO Json := do
   if !result.succeeded then
@@ -273,11 +291,14 @@ def mapWorkQueue (jobs : Nat) (items : Array α)
         results := results.push (index, ← action item)
       return results)
   let outcomes := workers.map (·.get)
-  let mut ordered : Array (Option β) := Array.replicate items.size none
+  let mut responses := #[]
   for outcome in outcomes do
-    for (index, value) in ← IO.ofExcept outcome do
-      ordered := ordered.set! index (some value)
-  ordered.mapM fun value => match value with
+    responses := responses ++ (← IO.ofExcept outcome)
+  let required := StrictLeanPolicy.CanonicalSet.normalize (List.range items.size)
+  let initial : StrictLeanPolicy.ResultState required (fun (_ : Nat) (_ : β) => True) := .empty
+  let state ← IO.ofExcept <| (initial.collect responses.toList).mapError fun failure =>
+    s!"internal error: work queue result admission: {repr failure}"
+  (Array.range items.size).mapM fun index => match state.entries[index]? with
     | some value => pure value
     | none => throw <| IO.userError "internal error: missing work queue result"
 
@@ -342,11 +363,9 @@ def admitIndexedWorkerResults [FromJson α] (count : Nat) (binding : Nat → α 
   let responses : Array (Nat × α) ← fromJson? payload
   let required := StrictLeanPolicy.CanonicalSet.normalize (List.range count)
   let bound := fun key value => binding key value = true
-  let mut state : StrictLeanPolicy.ResultState required bound := .empty
-  for (key, value) in responses do
-    match state.insertResult key value with
-    | .error e => throw s!"invalid worker result admission: {repr e}"
-    | .ok next => state := next
+  let initial : StrictLeanPolicy.ResultState required bound := .empty
+  let state ← (initial.collect responses.toList).mapError fun failure =>
+    s!"invalid worker result admission: {repr failure}"
   let mut ordered := #[]
   for key in [:count] do
     let some value := state.entries[key]? | throw "worker result missing required key"

@@ -12,32 +12,41 @@ open StrictLean.Checker
 structure RootInventory where
   libraries : Array String
   leanLibDir : FilePath
-  deriving Repr
+  deriving Repr, BEq
 
 structure SourceEntry where
   «module» : Name
   source : FilePath
-  deriving Repr
+  deriving Repr, BEq
 
 structure LibraryInventory where
   library : String
   modules : Array Name
   sources : Array SourceEntry
-  deriving Repr
+  deriving Repr, BEq
 
 structure ExecutableInventory where
   executable : String
   root : Name
   source : FilePath
-  deriving Repr
+  deriving Repr, BEq
+
+structure DependencyInventory where
+  package : String
+  root : FilePath
+  configurationPaths : Array FilePath
+  sources : Array SourceEntry
+  deriving Repr, BEq
 
 structure SurfaceInventory where
+  root : FilePath
   leanLibDir : FilePath
   leanPath : Array FilePath
   leanSrcPath : Array FilePath
   libraries : Array LibraryInventory
   executables : Array ExecutableInventory
-  deriving Repr
+  dependencies : Array DependencyInventory
+  deriving Repr, BEq
 
 /-- Exact source locations already discovered through Lake for root-package
 modules. Reuse these for frontend history instead of a module-prefix search. -/
@@ -55,7 +64,7 @@ private def checkSource (repo : FilePath) (what : String)
     invalidSource := !(← pathWithin source repo)
   if invalidSource then
     throw <| IO.userError s!"lake-query-malformed: {what} has invalid source"
-  return source
+  return ← IO.FS.realPath source
 
 /-- Obtain every root-package Lean library and executable, exact module, and
 exact source from Lake's own elaborated package model. This loads the checked
@@ -96,7 +105,41 @@ def surfaceInventory (repo : FilePath) : IO SurfaceInventory :=
       executables := executables.push { executable, root, source }
     let leanPath := #[leanLibDir] ++ ws.leanPath.toArray
     let leanSrcPath := ws.leanSrcPath.toArray
-    return { leanLibDir, leanPath, leanSrcPath, libraries, executables }
+    let dependencies ← (ws.packages.extract 1 ws.packages.size).mapM fun package => do
+      let names ← IO.mkRef ({} : NameSet)
+      for library in package.leanLibs do
+        let mut globs := library.config.globs
+        for root in library.roots do
+          if library.config.globs.any (·.matches root) &&
+              (← (Lean.modToFilePath library.srcDir root "").isDir) then
+            globs := globs.push (.submodules root)
+        for glob in globs do
+          glob.forEachModuleIn library.srcDir fun name => do
+            names.modify (·.insert name)
+      let mut sources := #[]
+      for name in (← names.get).toArray.qsort Name.quickLt do
+        let some resolved := ws.findModule? name
+          | throw <| IO.userError s!"lake-query-malformed: dependency module {name} is unresolved"
+        if resolved.pkg.keyName != package.keyName then continue
+        let source ← checkSource package.dir s!"dependency module {name}"
+          name.toString resolved.leanFile.toString
+        sources := sources.push { «module» := name, source }
+      for exe in package.leanExes do
+        if sources.any (·.module == exe.root.name) then continue
+        -- Dependencies may declare unused executables without shipping their
+        -- sources. Capture existing roots; terminal rediscovery still detects
+        -- their addition/removal. Claimed root-package targets remain required.
+        if !(← exe.root.leanFile.pathExists) then continue
+        let source ← checkSource package.dir s!"dependency executable {exe.name}"
+          exe.root.name.toString exe.root.leanFile.toString
+        sources := sources.push { «module» := exe.root.name, source }
+      let root ← IO.FS.realPath package.dir
+      let configurationPaths := #[package.configFile, package.manifestFile,
+        package.dir / "lean-toolchain", package.dir / "lakefile.lean", package.dir / "lakefile.toml"]
+        |>.toList.eraseDups.toArray
+      pure ({ package := package.baseName.toString, root, sources, configurationPaths } : DependencyInventory)
+    let root ← IO.FS.realPath repo
+    return { root, leanLibDir, leanPath, leanSrcPath, libraries, executables, dependencies }
 
 /-- Build the targets with the inherited Lean search paths removed, so the
 build resolves modules only through the workspace being built. -/
@@ -105,10 +148,10 @@ def buildTargets (repo : FilePath) (targets : Array String) : IO ProcessResult :
 
 /-- Build the claimed Lake targets and require success with no warnings.
 Returns the diagnostic lines to report on failure. -/
-def buildChecked (repo : FilePath) (targets : Array String)
-    (mode : String) : IO (Option (Array String)) := do
+def buildCheckedObservation (repo : FilePath) (targets : Array String)
+    (mode : String) : IO (ProcessResult × Option (Array String)) := do
   let build ← buildTargets repo targets
-  if build.succeeded && (warningLines build.output).isEmpty then return none
+  if build.succeeded && (warningLines build.output).isEmpty then return (build, none)
   let diagnostics :=
     -- A warning's payload (the unused simp argument, the hint) sits on the
     -- continuation lines after its head; report the whole block.
@@ -117,8 +160,13 @@ def buildChecked (repo : FilePath) (targets : Array String)
     -- that context so public-gate qualification can identify the obligation.
     else if !(errorLines build.output).isEmpty then outputLines build.output
     else takeLast 20 (outputLines build.output)
-  return some (#[s!"FAIL[build-failed]: positive surface did not build {mode} and warning-free"]
-    ++ diagnostics)
+  return (build, some (#[s!"FAIL[build-failed]: positive surface did not build {mode} and warning-free"]
+    ++ diagnostics))
+
+/-- Compatibility diagnostic projection. Acceptance callers retain the process observation. -/
+def buildChecked (repo : FilePath) (targets : Array String)
+    (mode : String) : IO (Option (Array String)) := do
+  return (← buildCheckedObservation repo targets mode).2
 
 def transitiveImports (repo : FilePath) (moduleName : String) : IO (Array String) := do
   jsonStringArray s!"transitive imports for {moduleName}" <|

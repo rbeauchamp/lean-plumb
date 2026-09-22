@@ -1,3 +1,5 @@
+import StrictLean.Checker.Acceptance
+import StrictLean.Checker.AcceptanceLink
 import StrictLean.Checker.PolicyCodec
 import StrictLean.Checker.Lake
 import StrictLean.Checker.SourceAudit
@@ -26,6 +28,7 @@ structure Options where
   project : Option FilePath := none
   jsonOut : Option FilePath := none
   resultOut : Option FilePath := none
+  acceptanceLink : Option FilePath := none
   withDocs : Bool := false
   incremental : Bool := false
   buildLint : Bool := false
@@ -33,7 +36,7 @@ structure Options where
   help : Bool := false
 
 private def usage : String :=
-  "usage: lake exe axiomGate -- [--verbose] [--project DIR] [--manifest PATH] [--json-out PATH] [--with-docs]\n" ++
+  "usage: lake exe axiomGate -- [--verbose] [--project DIR] [--manifest PATH] [--json-out PATH] [--with-docs] [--acceptance-link PATH]\n" ++
   "       lake exe axiomGate -- --file FILE [--claim PROFILE] [--execution MODE] [--json-out PATH]\n" ++
   "profiles: kernel-only, choice-free, standard-logical, compiler-trusting\n" ++
   "execution modes: report (default), checked"
@@ -59,6 +62,8 @@ private partial def parseArgs : List String → Options → IO Options
       parseArgs rest { options with resultOut := some (FilePath.mk value) }
   | "--legacy-json-out" :: value :: rest, options =>
       parseArgs rest { options with jsonOut := some (FilePath.mk value) }
+  | "--acceptance-link" :: value :: rest, options =>
+      parseArgs rest { options with acceptanceLink := some (FilePath.mk value) }
   | "--with-docs" :: rest, options =>
       parseArgs rest { options with withDocs := true }
   | "--incremental" :: rest, options =>
@@ -77,8 +82,9 @@ private def resolve (repo path : FilePath) : FilePath :=
 /-- Write the audit report JSON, translating paths of an isolated disposable
 copy back to the checked project's own root. -/
 private def writeRemappedJson (path : FilePath) (value : Json)
-    (sourceRoot targetRoot : FilePath) : IO Unit := do
-  let text := Json.pretty (ResultProtocol.legacyJson value sourceRoot.toString targetRoot.toString)
+    (sourceRoot targetRoot : FilePath) : IO Unit := timedPhase "legacy report output" do
+  let text ← IO.lazyPure fun _ =>
+    Json.compress (ResultProtocol.legacyJson value sourceRoot.toString targetRoot.toString)
   if let some parent := path.parent then IO.FS.createDirAll parent
   IO.FS.writeFile path (text ++ "\n")
 
@@ -173,21 +179,28 @@ private def capturedSourceAccount (resultOut : Option FilePath)
   return toJson sources
 
 private def retainSourceAccount (resultOut : Option FilePath)
+    (composed : IO.Ref (Option Json))
     (sources : Array ProducerReport.SourceBinding) : IO Unit := do
-  if let some output := resultOut then
-    if ← output.pathExists then
-      let captured ← capturedSourceAccount resultOut sources
-      let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-      writeJson output (value.setObjVal! "sourceAccount" captured)
+  match ← composed.get with
+  | some _ => pure ()
+  | none =>
+    if let some output := resultOut then
+      if ← output.pathExists then
+        let captured ← capturedSourceAccount resultOut sources
+        let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+        writeJson output (value.setObjVal! "sourceAccount" captured)
 
 private def withRetainedSources (resultOut : Option FilePath)
+    (composed : IO.Ref (Option Json))
     (captured : IO.Ref (Array ProducerReport.SourceBinding)) (action : IO α) : IO α := do
   try action
-  finally retainSourceAccount resultOut (← captured.get)
+  finally retainSourceAccount resultOut composed (← captured.get)
 
 private def reportContextFailure (id : StrictLean.RuleId) (scope : String)
     (mode : StrictLean.EvidenceMode) (impact : StrictLean.Impact) (detail : String)
-    (resultOut : Option FilePath) (sources : Array ProducerReport.SourceBinding := #[]) : IO Unit := do
+    (composed : IO.Ref (Option Json)) (resultOut : Option FilePath)
+    (sources : Array ProducerReport.SourceBinding := #[]) : IO Unit := do
+  composed.set none
   let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding id scope detail mode impact
   IO.println finding.2.text
   if let some output := resultOut then
@@ -198,23 +211,43 @@ private def reportContextFailure (id : StrictLean.RuleId) (scope : String)
 
 private def withSourceEvidence (sources : Array ProducerReport.SourceBinding)
     (configuration : Array (FilePath × Option String)) (scope : String)
-    (mode : StrictLean.EvidenceMode) (resultOut : Option FilePath) (action : IO UInt32) : IO UInt32 := do
+    (mode : StrictLean.EvidenceMode) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath) (action : IO UInt32) : IO UInt32 := do
   match ← SourceBinding.withUnchanged sources configuration action with
   | .ok result => return result
   | .error failure =>
-      reportContextFailure .admission scope mode .incomplete failure.detail resultOut sources
+      reportContextFailure .admission scope mode .incomplete failure.detail composed resultOut sources
       return 1
 
+/-- Accepted project evidence handed, in the same process, to the same-snapshot
+documentation stage and to the ordinary acceptance link. Nothing is serialized. -/
+private structure ProjectEvidence where
+  inventory : Lake.SurfaceInventory
+  sources : Array ProducerReport.SourceBinding
+  configuration : Array (FilePath × Option String)
+  dependencies : Array Snapshot.DependencyObservation
+  snapshot : StrictLeanPolicy.AdmittedSnapshot
+  build : StrictLeanPolicy.BuildObservation
+  claim : StrictLeanPolicy.Claim
+  accepted : StrictLeanPolicy.AcceptedRun claim
+
+/-- One freshness bracket: dependency inputs are captured once at the start and
+rechecked once at the end. With `documentationPending`, the documentation stage that
+follows in this process owns that terminal recheck and the final success. -/
 private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
     (fresh verbose : Bool) (reportRoot : FilePath)
-    (jsonOut : Option FilePath) (resultOut : Option FilePath := none)
-    (observeSources : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ()) : IO UInt32 := do
+    (jsonOut : Option FilePath) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath := none)
+    (observeSources : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ())
+    (documents : Array StrictLeanPolicy.SourceSnapshot := #[])
+    (observeProject : ProjectEvidence → IO Unit := fun _ => pure ())
+    (documentationPending : Bool := false) (buildLint : Bool := false) : IO UInt32 := do
   let configuration ← SourceBinding.configuration repo manifestPath
   withSourceEvidence #[] configuration reportRoot.toString
-      (if fresh then .freshProject else .incrementalProject) resultOut do
+      (if fresh then .freshProject else .incrementalProject) composed resultOut do
     let inventory ← Lake.surfaceInventory repo
     let sourceBindings ← SourceBinding.capture inventory.moduleSources observeSources
     let manifest ← Manifest.load manifestPath
+    let assignments ← IO.ofExcept <| Acceptance.surfaceAssignments manifest inventory
+    let dependencies ← Snapshot.dependencies inventory
     let rootInventory : Lake.RootInventory := {
       libraries := inventory.libraries.map (·.library)
       leanLibDir := inventory.leanLibDir
@@ -277,18 +310,18 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       surfaces := surfaces.push { name := surface.library, modules, sources }
 
     withSourceEvidence sourceBindings configuration reportRoot.toString
-        (if fresh then .freshProject else .incrementalProject) resultOut do
+        (if fresh then .freshProject else .incrementalProject) composed resultOut do
       let snapshotFor (name : Name) : Option StrictLean.SourceSnapshot :=
         (sourceBindings.find? (·.moduleName == name)).map fun s => ⟨s.path, s.content⟩
       SourceBinding.configurationUnchanged configuration
       let positiveTargets := Manifest.positiveTargets manifest
-      let buildResult ← timedPhase "claimed-source build" <| Lake.buildChecked repo positiveTargets (if fresh then "fresh" else "incrementally")
+      let (buildProcess, buildResult) ← timedPhase "claimed-source build" <| Lake.buildCheckedObservation repo positiveTargets (if fresh then "fresh" else "incrementally")
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
       if let some lines := buildResult then
         reportContextFailure .sourceBuild reportRoot.toString
           (if fresh then .freshProject else .incrementalProject) .incomplete
-          ("\n".intercalate lines.toList) resultOut sourceBindings
+          ("\n".intercalate lines.toList) composed resultOut sourceBindings
         return 1
 
       SourceBinding.unchanged sourceBindings
@@ -305,7 +338,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         result
       let configuredModules := libraries.foldl (fun result info => result ++ info.modules) #[]
         ++ inventory.executables.map (·.root)
-      -- At most two surface inspections read the completed common build at once.
+      -- At most three surface inspections read the completed common build at once.
       -- Each owns its report and sequential frontend subprocesses. A report may
       -- retain its environment while awaiting an existing replacement-history helper.
       let inspectSurface (surface : Manifest.Surface) : IO (Except ProducerReport.AdmissionFailure SurfaceInspection) := do
@@ -337,12 +370,42 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         if let .error failure := SourceBinding.transcriptsMatch sourceBindings transcripts then
           return .error failure
         return .ok { info, report, transcripts, frontendFailures }
-      let inspections ← mapWorkQueue 2 manifest.surfaces fun surface => do
+      let inspections ← mapWorkQueue 3 manifest.surfaces fun surface => do
         -- Capture failures as values so every started worker is joined, then choose
         -- fatal errors in manifest order instead of worker-completion order.
         return (surface, ← (inspectSurface surface).toBaseIO)
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
+
+      -- Freeze the complete discovery domain before the per-declaration policy loop.
+      -- Expected modules are the coordinator's Lake assignments, never response fields.
+      for (_, outcome) in inspections do
+        let response ← IO.ofExcept outcome
+        if let .error failure := response then
+          reportContextFailure .admission reportRoot.toString
+            (if fresh then .freshProject else .incrementalProject) .incomplete
+            failure.detail composed resultOut sourceBindings
+          return 1
+      let rawInspections ← inspections.mapM fun (surface, outcome) => do
+        let info ← infoFor surfaces surface.library
+        let response ← IO.ofExcept outcome
+        let inspected ← IO.ofExcept <| response.mapError (·.detail)
+        pure ({
+          expectedModules := info.modules, report := inspected.report,
+          transcripts := inspected.transcripts } : Acceptance.RequestedInspection)
+      let freezeRequest : IO (StrictLeanPolicy.AdmittedSnapshot ×
+          ((c : StrictLeanPolicy.Claim) × Acceptance.Frozen c)) := do
+        let histories ← IO.ofExcept <| Acceptance.historyObservations rawInspections
+        let snapshotSources ← Acceptance.sourceSnapshots sourceBindings histories documents
+        let snapshot ← IO.ofExcept <| Snapshot.make repo configuration snapshotSources dependencies
+        let request ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
+          scope := .project, mode := if fresh then .freshProject else .incrementalProject,
+          snapshot := snapshot.val, surfaces := assignments }
+        let frozen ← Acceptance.freeze request (surfaces.map (·.modules))
+          (Acceptance.configuredTargets manifest) (Acceptance.discoveredTargets inventory)
+          sourceBindings inventory.leanLibDir rawInspections
+        pure (snapshot, ⟨request, frozen⟩)
+      let frozenResult ← (timedPhase "project request freeze" freezeRequest).toBaseIO
 
       let mut failures : Array String := #[]
       let mut findings : Array StrictLean.Finding := #[]
@@ -353,7 +416,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         if let .error failure := inspection then
           reportContextFailure .admission reportRoot.toString
             (if fresh then .freshProject else .incrementalProject) .incomplete
-            failure.detail resultOut sourceBindings
+            failure.detail composed resultOut sourceBindings
           return 1
         let .ok inspected := inspection
           | throw <| IO.userError "unreachable admission outcome"
@@ -471,13 +534,15 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         IO.println <| s!"execution coverage for {surface.library} [claim: {surface.execution}]: " ++
           s!"{rootCount} root(s), {boundaryCount} boundary(ies) " ++
           s!"({checkedCount} checked, {trustedCount} trusted), {unresolvedCount} unresolved"
-        for root in report.execution do
-          if !root.boundaries.isEmpty || !root.unresolved.isEmpty then
-            IO.println s!"  execution root {root.name}"
-            for boundary in root.boundaries do
-              IO.println s!"    {Policy.describeBoundary boundary}"
-            for item in root.unresolved do
-              IO.println s!"    unresolved {item}"
+        -- Every root and boundary is always in `--json-out`; text lists them only on request.
+        if verbose then
+          for root in report.execution do
+            if !root.boundaries.isEmpty || !root.unresolved.isEmpty then
+              IO.println s!"  execution root {root.name}"
+              for boundary in root.boundaries do
+                IO.println s!"    {Policy.describeBoundary boundary}"
+              for item in root.unresolved do
+                IO.println s!"    unresolved {item}"
         surfaceReports := surfaceReports.push <| Json.mkObj [
           ("library", Json.str surface.library),
           ("claim", Json.str surface.claim.toString),
@@ -509,6 +574,19 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
 
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
+      unless documentationPending do Snapshot.inputsUnchanged inventory dependencies
+      for document in documents do
+        unless (← IO.FS.readFile document.uri) == document.source do
+          throw <| IO.userError s!"documentation snapshot changed: {document.uri}"
+      let build := Acceptance.buildObservation buildProcess
+      let accepted : Option (StrictLeanPolicy.AdmittedSnapshot ×
+          ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c)) ←
+        if failures.isEmpty then do
+          let (snapshot, ⟨request, frozen⟩) ← IO.ofExcept frozenResult
+          let accepted ← timedPhase "project acceptance finalization" do
+            Acceptance.finish frozen build
+          pure (some (snapshot, ⟨request, accepted⟩))
+        else pure none
       if let some output := jsonOut then
         writeRemappedJson output (Json.mkObj [
           ("manifest", manifestJson manifest),
@@ -529,16 +607,21 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           #["additional checker failures: " ++ "\n".intercalate failures.toList]
         let sources := (sourceBindings.filter (fun s => (surfaces.flatMap (·.modules)).contains s.moduleName)).map fun s =>
           Json.mkObj [("module", toJson s.moduleName), ("path", toJson s.path), ("source", toJson s.content)]
-        ResultProtocol.write output
-          (Json.mkObj [("project", toJson reportRoot.toString), ("manifest", manifestJson manifest),
+        let resultScope := Json.mkObj [("project", toJson reportRoot.toString), ("manifest", manifestJson manifest),
             ("modules", toJson (surfaces.flatMap (·.modules))), ("declarations", toJson totalDeclarations),
             ("sources", toJson sources), ("surfaces", toJson surfaceReports),
             ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
             ("libraries", toJson (libraries.map libraryInfoJson)),
-            ("completedStages", toJson #["claimedSourceBuild", "ownedAdmission", "declarationPolicy", "executionInspection"])])
-          (if fresh then .freshProject else .incrementalProject)
-          (if !unresolved.isEmpty || findings.any (·.2.impact == .incomplete) then .incomplete else if failures.isEmpty then .completed else .rejected)
-          findings unresolved
+            ("completedStages", toJson #["claimedSourceBuild", "ownedAdmission", "declarationPolicy", "executionInspection"])]
+        if let some (_, ⟨_, accepted⟩) := accepted then
+          if documentationPending then
+            ResultProtocol.write output resultScope (if fresh then .freshProject else .incrementalProject)
+              .incomplete #[] #["documentation audit has not completed"]
+          else ResultProtocol.writeAccepted output accepted resultScope
+        else
+          ResultProtocol.write output resultScope (if fresh then .freshProject else .incrementalProject)
+            (if !unresolved.isEmpty || findings.any (·.2.impact == .incomplete) then .incomplete else .rejected)
+            findings unresolved
       for finding in findings do IO.println finding.2.text
       if !failures.isEmpty then
         IO.println s!"\nFAIL: {failures.size} violation(s)"
@@ -546,121 +629,101 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           let reason := (failure.splitOn ":").head?.getD "violation"
           IO.println s!"  [{reason}] {failure}"
         return 1
+      let some (snapshot, ⟨claim, accepted⟩) := accepted
+        | throw <| IO.userError "missing accepted evidence for project success"
+      observeProject ⟨inventory, sourceBindings, configuration, dependencies, snapshot, build,
+        claim, accepted⟩
+      if documentationPending then return 0
+      let acceptedReport := accepted.report
+      IO.println s!"accepted {acceptedReport.jobs.size} policy jobs for {acceptedReport.claim.val.mode.spelling}"
       IO.println "Explicit proof requirements are checked by elaboration; contract adequacy and completeness require semantic review."
-      IO.println <| if fresh then
+      IO.println <| if acceptedReport.claim.val.mode == .freshProject then
         "\naxiom gate: PASS — exact Lake surfaces conform"
       else "\naxiom gate: PASS — incremental elaboration and current policy inspection"
+      if buildLint then
+        IO.println s!"build policy linter: PASS ({acceptedReport.jobs.size} accepted policy jobs; {acceptedReport.claim.val.mode.spelling})"
       return 0
 
-/-- Internal transport for auditing the parent's already-isolated source copy. -/
-private structure SurfaceWorkerRequest where
-  project : String
-  manifest : String
-  reportRoot : String
-  jsonOut : Option String
-  resultOut : Option String
-  verbose : Bool
-  deriving ToJson
-
-instance : FromJson SurfaceWorkerRequest := ⟨fun j => do
-  StrictLean.Checker.PolicyCodec.exactFields j ["project", "manifest", "reportRoot", "jsonOut", "resultOut", "verbose"]
-  return {
-    project := ← j.getObjValAs? _ "project"
-    manifest := ← j.getObjValAs? _ "manifest"
-    reportRoot := ← j.getObjValAs? _ "reportRoot"
-    jsonOut := ← j.getObjValAs? _ "jsonOut"
-    resultOut := ← j.getObjValAs? _ "resultOut"
-    verbose := ← j.getObjValAs? _ "verbose"
-  }⟩
-
-/-- Frontend attribution uses persistent imported environments. End that process
-before compiling fences, retaining the same freshly built source copy on disk. -/
-private def auditSurfaceWorker (request : SurfaceWorkerRequest) (scratch : FilePath) : IO UInt32 := do
-  let input := scratch / "surface-request.json"
-  writeJson input (toJson request)
-  let some selfLib ← checkerPackageLibDir
-    | throw <| IO.userError "checker library directory unavailable"
-  let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
-  let child ← IO.Process.spawn {
-    cmd := binary.toString
-    args := #["--surface-worker", input.toString]
-    stdin := .null
-    stdout := .inherit
-    stderr := .inherit
-    setsid := false
-  }
-  child.wait
-
+/-- Fresh audits copy the project into an owned isolated workspace. With `--with-docs`,
+the documentation stage runs afterwards in this same process against the same frozen
+snapshot and build; project and documentation acceptance are then combined. -/
 private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
-    (incremental verbose : Bool) (jsonOut : Option FilePath) (withDocs : Bool) (resultOut : Option FilePath := none)
+    (incremental verbose : Bool) (jsonOut : Option FilePath) (withDocs : Bool) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath := none)
     (observeConfiguration : FilePath → Array (FilePath × Option String) → IO Unit := fun _ _ => pure ())
-    (observeSources : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ()) : IO UInt32 :=
+    (observeSources : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ())
+    (buildLint : Bool := false) (acceptanceLink : Option FilePath := none) : IO UInt32 :=
   if incremental then do
     let configuration ← SourceBinding.configuration repo (manifest.getD (Manifest.defaultPath repo))
     observeConfiguration repo configuration
-    withSourceEvidence #[] configuration repo.toString .incrementalProject resultOut <|
-      auditSurfaceAt repo (manifest.getD (Manifest.defaultPath repo)) false verbose repo jsonOut resultOut observeSources
+    withSourceEvidence #[] configuration repo.toString .incrementalProject composed resultOut <|
+      auditSurfaceAt repo (manifest.getD (Manifest.defaultPath repo)) false verbose repo jsonOut composed resultOut observeSources (buildLint := buildLint)
   else withScratch repo "axiom-gate" fun scratch => do
     let copy := scratch / "project"
     timedPhase "isolated source copy" <| copyProject repo copy scratch
-    let effectiveConfiguration ← SourceBinding.configuration copy (manifest.getD (Manifest.defaultPath copy))
-    observeConfiguration copy effectiveConfiguration
+    let manifestPath := manifest.getD (Manifest.defaultPath copy)
+    observeConfiguration copy (← SourceBinding.configuration copy manifestPath)
     if withDocs then Documentation.snapshotMarkdown (repo / "docs") (copy / "docs")
-    let docsInputs ← if withDocs then do
-        let configuration ← SourceBinding.configuration copy (manifest.getD (Manifest.defaultPath copy))
-        let captured ← SourceBinding.withUnchanged #[] configuration do
-          let inventory ← Lake.surfaceInventory copy
-          let sources ← SourceBinding.capture inventory.moduleSources observeSources
-          pure (inventory, sources, configuration)
-        pure (some captured)
+    let documents ← if withDocs then Documentation.captureMarkdown (copy / "docs") else pure #[]
+    -- The link covers the Markdown the separate documentation step will audit.
+    let linkedDocuments ← if acceptanceLink.isSome then Documentation.captureMarkdown (repo / "docs")
+      else pure #[]
+    let project ← IO.mkRef (none : Option ProjectEvidence)
+    -- The link is recorded after acceptance and before the success line, so a link
+    -- failure can never follow a printed PASS.
+    let observe (evidence : ProjectEvidence) : IO Unit := do
+      project.set (some evidence)
+      if let some path := acceptanceLink then
+        Documentation.checkMarkdown (repo / "docs") linkedDocuments
+        let digest ← AcceptanceLink.identity scratch copy (repo / "docs") evidence.sources
+          evidence.configuration evidence.dependencies linkedDocuments
+        AcceptanceLink.record path digest evidence.accepted.report.jobs.size
+        IO.println s!"acceptance link: recorded {digest}"
+    let result ← timedPhase "complete declaration audit" <|
+      auditSurfaceAt copy manifestPath true verbose repo jsonOut composed resultOut observeSources
+        documents observe withDocs
+    if result != 0 then return result
+    let some evidence ← project.get
+      | throw <| IO.userError "missing accepted project evidence"
+    if !withDocs then return 0
+    let docFindings ← IO.mkRef (#[] : Array StrictLean.Finding)
+    let documentAccepted ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
+    -- The documentation stage performs the run's terminal freshness recheck.
+    let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") evidence.inventory
+      evidence.sources evidence.configuration evidence.dependencies documents evidence.build 4 verbose
+      (fun finding => docFindings.modify (·.push finding)) (fun _ => pure ())
+      (fun claim accepted => documentAccepted.set (some ⟨claim, accepted⟩)) (some evidence.snapshot)
+    let combined ← if docsResult == 0 then do
+        let some ⟨docClaim, accepted⟩ ← documentAccepted.get
+          | throw <| IO.userError "missing accepted documentation evidence"
+        let receipt ← IO.ofExcept <| StrictLeanPolicy.combineAccepted documents evidence.accepted accepted
+        pure (some (⟨docClaim, receipt⟩ : (dc : StrictLeanPolicy.Claim) ×
+          StrictLeanPolicy.CombinedAccepted evidence.claim dc documents))
       else pure none
-    if let some (.error failure) := docsInputs then
-      reportContextFailure .admission repo.toString .freshProject .incomplete failure.detail resultOut
-      return 1
-    let docsInputs := docsInputs.bind fun value => value.toOption
-    let sources := docsInputs.map (·.2.1) |>.getD #[]
-    let configuration := effectiveConfiguration
-    withSourceEvidence sources configuration repo.toString .freshProject resultOut do
-      let result ← timedPhase "complete declaration audit" <|
-        if withDocs then auditSurfaceWorker {
-          project := copy.toString
-          manifest := (manifest.getD (Manifest.defaultPath copy)).toString
-          reportRoot := repo.toString
-          jsonOut := jsonOut.map (·.toString)
-          resultOut := resultOut.map (·.toString)
-          verbose
-        } scratch
-        else auditSurfaceAt copy (manifest.getD (Manifest.defaultPath copy)) true verbose repo jsonOut resultOut observeSources
-      if let some (_, sources, configuration) := docsInputs then
-        SourceBinding.unchanged sources
-        SourceBinding.configurationUnchanged configuration
-      if result != 0 || !withDocs then return result
-      if let some output := resultOut then
-        let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-        writeJson output <| (value.setObjVal! "status" (.str "incomplete")).setObjVal!
-          "unresolved" (toJson #["documentation audit has not completed"])
-      let some (inventory, sources, configuration) := docsInputs
-        | throw <| IO.userError "producer-source: missing documentation build snapshots"
-      let docFindings ← IO.mkRef (#[] : Array StrictLean.Finding)
-      let docsResult ← Documentation.auditBuiltProject copy (copy / "docs") inventory sources configuration 4 verbose
-        (fun finding => docFindings.modify (·.push finding))
-      if let some output := resultOut then
-        let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-        let scope ← IO.ofExcept (value.getObjVal? "scope")
-        let docs ← docFindings.get
-        let previous ← IO.ofExcept <| (← IO.ofExcept (value.getObjVal? "diagnostics")).getArr?
-        let value := value.setObjVal! "diagnostics" (toJson (previous ++ docs.map StrictLean.RegistryCodec.diagnosticJson))
-        let status := if docsResult == 0 then "completed" else if docs.isEmpty || docs.any (·.2.impact == .incomplete)
-          then "incomplete" else "rejected"
-        let value := value.setObjVal! "status" (.str status)
-        let value := value.setObjVal! "scope" (scope.setObjVal! "documentation" (.str (repo / "docs").toString))
-        let value := value.setObjVal! "unresolved" (toJson (if docsResult == 0 then (#[] : Array String)
-          else #["documentation requirements failed; see emitted diagnostics"]))
-        writeJson output value
-      return docsResult
+    if let some output := resultOut then
+      let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+      let scope ← IO.ofExcept (value.getObjVal? "scope")
+      let docs ← docFindings.get
+      let previous ← IO.ofExcept <| (← IO.ofExcept (value.getObjVal? "diagnostics")).getArr?
+      let value := value.setObjVal! "diagnostics" (toJson (previous ++ docs.map StrictLean.RegistryCodec.diagnosticJson))
+      let status := if combined.isSome then "completed" else if docs.isEmpty || docs.any (·.2.impact == .incomplete)
+        then "incomplete" else "rejected"
+      let value := value.setObjVal! "status" (.str status)
+      let value := value.setObjVal! "scope" (scope.setObjVal! "documentation" (.str (repo / "docs").toString))
+      let value := value.setObjVal! "unresolved" (toJson (if combined.isSome then (#[] : Array String)
+        else #["documentation requirements failed; see emitted diagnostics"]))
+      let value := match combined with
+        | some ⟨_, receipt⟩ =>
+            (value.setObjVal! "acceptance" (ResultProtocol.acceptedJson receipt.project)).setObjVal!
+              "documentationAcceptance" (ResultProtocol.acceptedJson receipt.documentation)
+        | none => value
+      writeJson output value
+    if let some ⟨_, receipt⟩ := combined then
+      IO.println s!"combined audit: accepted {receipt.project.report.jobs.size} project and {receipt.documentation.report.jobs.size} documentation jobs"
+      return 0
+    return docsResult
 
 private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
-    (execution : ExecutionClaim) (manifest : Option FilePath) (jsonOut : Option FilePath) (resultOut : Option FilePath := none)
+    (execution : ExecutionClaim) (manifest : Option FilePath) (jsonOut : Option FilePath) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath := none)
     (observeConfiguration : FilePath → Array (FilePath × Option String) → IO Unit := fun _ _ => pure ())
     (observeSources : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ()) : IO UInt32 := do
   let manifestPath := manifest.getD (Manifest.defaultPath repo)
@@ -668,19 +731,20 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
   observeConfiguration repo configuration
   if !(← path.pathExists) then
     reportContextFailure .environment path.toString .freshFile .incomplete
-      s!"missing source file {path}" resultOut
+      s!"missing source file {path}" composed resultOut
     return 1
-  withSourceEvidence #[] configuration path.toString .freshFile resultOut do
+  withSourceEvidence #[] configuration path.toString .freshFile composed resultOut do
     let source ← IO.FS.readFile path
     let moduleName := s!"AuditFile_{← IO.monoNanosNow}"
     let fileSource : ProducerReport.SourceBinding := {
       moduleName := moduleName.toName, path := path.toString, content := source }
     observeSources #[fileSource]
     let inventory ← Lake.surfaceInventory repo
+    let dependencies ← Snapshot.dependencies inventory
     let dependencySources ← SourceBinding.capture inventory.moduleSources fun captured =>
       observeSources (captured.push fileSource)
     let sources := dependencySources.push fileSource
-    withSourceEvidence sources configuration path.toString .freshFile resultOut do
+    withSourceEvidence sources configuration path.toString .freshFile composed resultOut do
       if manifest.isSome || (← manifestPath.pathExists) then
         let claimed ← Manifest.load manifestPath
         let buildResult ← Lake.buildChecked repo (Manifest.positiveTargets claimed) "incrementally"
@@ -688,14 +752,14 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
         SourceBinding.configurationUnchanged configuration
         if let some lines := buildResult then
           reportContextFailure .sourceBuild repo.toString .freshFile .incomplete
-            ("\n".intercalate lines.toList) resultOut sources
+            ("\n".intercalate lines.toList) composed resultOut sources
           return 1
       SourceBinding.unchanged dependencySources
       SourceBinding.configurationUnchanged configuration
       withScratch repo "file-audit" fun scratch => do
         let compilationOutcome ← SourceAudit.compile repo scratch { «module» := moduleName, source, rejectWarnings := claim.isSome }
         if let .error failure := compilationOutcome then
-          reportContextFailure .admission path.toString .freshFile .incomplete failure.detail resultOut sources
+          reportContextFailure .admission path.toString .freshFile .incomplete failure.detail composed resultOut sources
           return 1
         let .ok compilation := compilationOutcome
           | throw <| IO.userError "unreachable compilation outcome"
@@ -717,10 +781,10 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
               else takeLast 10 (outputLines output)
             reportContextFailure .sourceBuild path.toString .freshFile
               (if sourceRejected then .violation else .incomplete)
-              ("\n".intercalate diagnostics.toList) resultOut sources
+              ("\n".intercalate diagnostics.toList) composed resultOut sources
             return 1
         | .ok (.error failure) =>
-            reportContextFailure .admission path.toString .freshFile .incomplete failure.detail resultOut sources
+            reportContextFailure .admission path.toString .freshFile .incomplete failure.detail composed resultOut sources
             return 1
         | .ok (.ok inspected) =>
             let declarations := inspected.report.declarations.qsort fun left right =>
@@ -771,6 +835,38 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
               let reason := (violation.splitOn ":").head?.getD "execution-unresolved"
               IO.println s!"[VIOLATION[{reason}]] {violation}"
               reasons := reasons.push reason
+            let accepted ← if reasons.isEmpty then
+                match claim with
+                | some .kernelOnly | some .choiceFree | some .standardLogical => do
+                    let some selected := claim | throw <| IO.userError "missing requested profile"
+                    let profile ← IO.ofExcept <| Acceptance.conformingProfile selected
+                    let compiledSource : ProducerReport.SourceBinding := {
+                      moduleName := moduleName.toName, path := compilation.sourcePath.toString,
+                      content := compilation.spec.source }
+                    let bindings := dependencySources.push compiledSource
+                    SourceBinding.unchanged bindings
+                    SourceBinding.unchanged #[fileSource]
+                    SourceBinding.configurationUnchanged configuration
+                    Snapshot.inputsUnchanged inventory dependencies
+                    let inspection : Acceptance.RequestedInspection := {
+                      expectedModules := #[moduleName.toName], report := inspected.report,
+                      transcripts := inspected.transcripts }
+                    let histories ← IO.ofExcept <| Acceptance.historyObservations #[inspection]
+                    let requested : StrictLeanPolicy.SourceSnapshot := ⟨path.toString, source⟩
+                    let actual : StrictLeanPolicy.SourceSnapshot := ⟨compiledSource.path, compiledSource.content⟩
+                    let binding ← IO.ofExcept <| StrictLeanPolicy.admitFileSourceBinding requested actual
+                    let snapshots ← Acceptance.sourceSnapshots bindings histories #[requested]
+                    let snapshot ← IO.ofExcept <| Snapshot.make repo configuration snapshots dependencies
+                    let request ← IO.ofExcept <| StrictLeanPolicy.admitClaim {
+                      scope := .file requested profile execution, mode := .freshFile,
+                      snapshot := snapshot.val, surfaces := #[] }
+                    let frozen ← Acceptance.freeze request #[#[moduleName.toName]] #[] #[] bindings
+                      inventory.leanLibDir #[inspection] (some binding)
+                    let accepted ← Acceptance.finish frozen
+                      (Acceptance.buildObservation compilation.process)
+                    pure (some (⟨request, accepted⟩ : (c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
+                | _ => pure none
+              else pure none
             if let some output := jsonOut then
               writeJson output <| ResultProtocol.legacyJson <| Json.mkObj [
                 ("claim", (claim.map (Json.str ∘ Profile.toString)).getD Json.null),
@@ -781,25 +877,32 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                 ("report", toJson inspected.report)
               ]
             if let some output := resultOut then
-              ResultProtocol.write output
-                (Json.mkObj [("file", toJson path.toString), ("source", toJson source),
+              let resultScope := Json.mkObj [("file", toJson path.toString), ("source", toJson source),
                   ("execution", toJson execution.toString), ("claim", toJson (claim.map Profile.toString)),
                   ("declarations", toJson declarations.size), ("report", toJson inspected.report),
                   ("authorizedNativeAxioms", toJson native), ("authorizedUnsafeRecHelpers", toJson unsafeHelpers),
                   ("frontendTranscripts", toJson inspected.transcripts),
                   ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
-                  ("completedStages", toJson #["incrementalDependencies", "freshFileCompilation", "ownedAdmission", "declarationPolicy", "executionInspection"])])
-                .freshFile
-                (if findings.any (·.2.impact == .incomplete) then .incomplete
-                  else if !reasons.isEmpty then .rejected else if claim.isNone || claim == some .compilerTrusting
-                  then .classified else .completed)
-                findings #[]
+                  ("completedStages", toJson #["incrementalDependencies", "freshFileCompilation", "ownedAdmission", "declarationPolicy", "executionInspection"])]
+              if let some ⟨_, accepted⟩ := accepted then
+                composed.set (some (ResultProtocol.acceptedValue accepted resultScope))
+              else
+                ResultProtocol.write output resultScope .freshFile
+                  (if findings.any (·.2.impact == .incomplete) then .incomplete
+                    else if !reasons.isEmpty then .rejected else if claim.isNone || claim == some .compilerTrusting
+                    then .classified else .incomplete)
+                  findings #[]
             if !reasons.isEmpty then
               IO.println <| s!"\nfile audit: FAIL ({reasons.size} violation(s))" ++
                 (claim.map (fun profile => s!" against claim '{profile}'")).getD ""
               return 1
-            IO.println <| s!"\nfile audit: PASS ({declarations.size} declaration(s)" ++
-              (claim.map (fun profile => s!", claim '{profile}'")).getD "" ++ ")"
+            if claim.isNone || claim == some .compilerTrusting then
+              IO.println s!"\nfile inspection: CLASSIFIED ({declarations.size} declaration(s)); no conforming claim"
+              return 0
+            let some ⟨_, accepted⟩ := accepted
+              | throw <| IO.userError "missing accepted evidence for file success"
+            let report := accepted.report
+            IO.println s!"\nfile audit: PASS ({report.jobs.size} accepted policy jobs, {report.claim.val.mode.spelling})"
             return 0
 
 private def optionValues (flag : String) : List String → List String
@@ -857,14 +960,6 @@ unsafe def run (args : List String) : IO UInt32 := do
       (request.searchRoots.map FilePath.mk)
     writeJson out (workerPacket json (toJson transcript))
     return 0
-  if let ["--surface-worker", input] := args then
-    let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
-    let request : SurfaceWorkerRequest ← IO.ofExcept (fromJson? json)
-    let captured ← IO.mkRef (#[] : Array ProducerReport.SourceBinding)
-    return ← withRetainedSources (request.resultOut.map FilePath.mk) captured <|
-      auditSurfaceAt request.project request.manifest true request.verbose
-        request.reportRoot (request.jsonOut.map FilePath.mk) (request.resultOut.map FilePath.mk)
-        captured.set
   if let ["--compile-batch-worker", input, out] := args then
     let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile input)
     let request ← IO.ofExcept (fromJson? json)
@@ -890,7 +985,7 @@ unsafe def run (args : List String) : IO UInt32 := do
     writeJson out (workerPacket (sourceWorkerRequest "history" moduleName source transcript.sourceContent)
       (toJson transcript.runtimeReplacements))
     return 0
-  for flag in #["--json-out", "--legacy-json-out", "--project", "--file", "--manifest", "--claim", "--execution"] do
+  for flag in #["--json-out", "--legacy-json-out", "--acceptance-link", "--project", "--file", "--manifest", "--claim", "--execution"] do
     if (optionValues flag args).length > 1 then
       throw <| IO.userError s!"duplicate {flag} option"
   let options ← parseArgs args {}
@@ -903,6 +998,8 @@ unsafe def run (args : List String) : IO UInt32 := do
     throw <| IO.userError "--incremental applies only to surface mode"
   if options.withDocs && (options.file.isSome || options.incremental) then
     throw <| IO.userError "--with-docs requires fresh surface mode"
+  if options.acceptanceLink.isSome && (options.file.isSome || options.incremental || options.withDocs) then
+    throw <| IO.userError "--acceptance-link requires fresh surface mode without --with-docs"
   let repo ← match options.project with
     | some dir => findRepoRoot dir
     | none => repoRoot
@@ -910,6 +1007,8 @@ unsafe def run (args : List String) : IO UInt32 := do
     throw <| IO.userError "--json-out and --legacy-json-out are mutually exclusive"
   let jsonOut := options.jsonOut.map (resolve repo)
   let resultOut := options.resultOut.map (resolve repo)
+  let acceptanceLink := options.acceptanceLink.map (resolve repo)
+  if let some path := acceptanceLink then AcceptanceLink.invalidate path
   if let some output := resultOut then
     ResultProtocol.write output (Json.str repo.toString)
       (if options.file.isSome then .freshFile else if options.incremental then .incrementalProject else .freshProject)
@@ -917,9 +1016,11 @@ unsafe def run (args : List String) : IO UInt32 := do
   let capturedSources ← IO.mkRef (#[] : Array ProducerReport.SourceBinding)
   let observeSources := fun sources => capturedSources.set sources
   let effective ← IO.mkRef (none : Option Json)
+  let composed ← IO.mkRef (none : Option Json)
   let observeConfiguration := fun (root : FilePath) (configuration : Array (FilePath × Option String)) =>
     effective.set (some (Json.mkObj [("root", toJson root.toString), ("configuration", toJson configuration)]))
   let reportFailure : IO.Error → IO UInt32 := fun error => do
+    composed.set none
     let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
       else if options.incremental then .incrementalProject else .freshProject
     let configError := error.toString.startsWith "manifest-"
@@ -938,14 +1039,13 @@ unsafe def run (args : List String) : IO UInt32 := do
       match options.file with
       | some path =>
           return ← auditFile repo (resolve repo path) options.claim options.execution
-            (options.manifest.map (resolve repo)) jsonOut resultOut observeConfiguration observeSources
+            (options.manifest.map (resolve repo)) jsonOut composed resultOut observeConfiguration observeSources
       | none =>
           if options.buildLint then
             IO.println "build policy linter: enforcing all manifested Lake modules (incremental elaboration; fresh policy inspection)"
           let result ← auditSurface repo (options.manifest.map (resolve repo))
-            options.incremental options.verbose jsonOut options.withDocs resultOut observeConfiguration observeSources
-          if options.buildLint && result == 0 then
-            IO.println "build policy linter: PASS (declared requirements only; not fresh-source conformance)"
+            options.incremental options.verbose jsonOut options.withDocs composed resultOut observeConfiguration observeSources
+            (buildLint := options.buildLint) (acceptanceLink := acceptanceLink)
           return result
     catch error => reportFailure error
   let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
@@ -954,27 +1054,37 @@ unsafe def run (args : List String) : IO UInt32 := do
       SourceBinding.configuration repo
         ((options.manifest.map (resolve repo)).getD (Manifest.defaultPath repo))
     catch error =>
-      return ← withRetainedSources resultOut capturedSources (reportFailure error)
+      return ← withRetainedSources resultOut composed capturedSources (reportFailure error)
   let request := ResultProtocol.requestJson (if options.file.isSome then "file" else if options.withDocs then "projectWithDocs" else "project")
     repo.toString ((options.file.map (fun path => (resolve repo path).toString)).getD repo.toString)
     (options.claim.map Profile.toString)
     (if options.file.isSome then some options.execution.toString else none) configuration
-  let code ← withRetainedSources resultOut capturedSources <|
-    withSourceEvidence #[] configuration repo.toString mode resultOut action
+  let code ← withRetainedSources resultOut composed capturedSources <|
+    withSourceEvidence #[] configuration repo.toString mode composed resultOut action
   if let some output := resultOut then
-    let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
-    let captured ← capturedSources.get
-    let value := if (value.getObjVal? "sourceAccount").isOk then value
-      else value.setObjVal! "sourceAccount" (toJson captured)
-    writeJson output ((value.setObjVal! "request" request).setObjVal! "effective" (toJson (← effective.get)))
+    match ResultProtocol.composeDecision code (← composed.get) with
+    | some base =>
+      writeJson output (ResultProtocol.composedFinal base
+        (← capturedSourceAccount resultOut (← capturedSources.get))
+        (toJson (← capturedSources.get)) request (toJson (← effective.get)))
+    | none =>
+      let value ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+      let captured ← capturedSources.get
+      let value := if (value.getObjVal? "sourceAccount").isOk then value
+        else value.setObjVal! "sourceAccount" (toJson captured)
+      writeJson output ((value.setObjVal! "request" request).setObjVal! "effective" (toJson (← effective.get)))
   return code
 
-end StrictLean.Checker.AxiomGate
-
-unsafe def main (args : List String) : IO UInt32 := do
+/-- The `axiomGate` executable body: search-path initialization, then `run`, with
+any escaping error reported as `FAIL` and exit 1. `AxiomGateMain` is the
+user-facing entry; the qualification-only `ruleExamples --injected-git-facts`
+entry reuses this exact body. -/
+unsafe def entry (args : List String) : IO UInt32 := do
   try
     StrictLean.Checker.initializeLeanSearchPath
-    StrictLean.Checker.AxiomGate.run args
+    run args
   catch error =>
     IO.eprintln s!"FAIL: {error}"
     return 1
+
+end StrictLean.Checker.AxiomGate

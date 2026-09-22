@@ -1,0 +1,57 @@
+name: Diagnostics
+
+# Capability-triggered qualification campaigns (docs/standard/8 §8.8): they run when
+# the checker, rules, rule examples, Lake configuration or manifests change, always on
+# main, and nightly. They are diagnostics, not a partition of ordinary acceptance.
+on:
+  pull_request:
+    paths:
+      - lean/StrictLean/**
+      - lean/StrictLeanPolicy/**
+      - lean/StrictLeanPolicy.lean
+      - lean/StrictLeanQualification/**
+      - lean/StrictLeanVerification.lean
+      - examples/rules/**
+      - lakefile.lean
+      - lake-manifest.json
+      - lean-toolchain
+      - foundation_manifest.json
+      - scripts/verify.sh
+      - .github/workflows/diagnostics.yml
+      - .github/actions/provision/**
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  campaign:
+    name: ${{ matrix.campaign }}
+    runs-on: ubuntu-24.04
+    # Provisioning has its own allowance; verify.sh enforces exactly 420 seconds.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        campaign:
+          - diagnostics producers
+          - diagnostics history
+          - diagnostics rule-examples 1/2
+          - diagnostics rule-examples 2/2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
+      - name: Qualify (same command and seven-minute limit as local)
+        run: ./scripts/verify.sh ${{ matrix.campaign }}

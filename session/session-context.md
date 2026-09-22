@@ -1,42 +1,64 @@
 # Session context: Strict Lean Project 8
 
-**Date:** 2026-09-16
-**Current corpus branch:** `fm/strict-lean-13-examples`.
-**Verified code/evidence checkpoint:** `117ec9fe0b77aea9bd1bb5ae011b3719217f1193`.
-The engine change [is merged](https://github.com/rbeauchamp/strict-lean/pull/30) at
-`0df758a92856b6a268882eada641773af5684d80`; refresh live `origin/main` before resuming.
-**Working checkout:** a disposable task worktree; read these files from your own checkout.
-**Current delivery state:** the [corpus change](https://github.com/rbeauchamp/strict-lean/pull/31)
-passed local cold ordinary420 and all hosted checks at the checkpoint above. The branch now
-also contains the Lean CI skill, documentation follow-up and subsequent
-[R7 configuration-capture repair](evidence/issue-13-configuration-capture-repair.md).
-That record owns the repair's focused evidence and remaining gates; the checkpoint results
-do not validate the later operational change. Final-head delivery checks remain pending.
-Firstmate still owns protected integration, whole-issue reconciliation and successor updates.
-**Active focus:** issue #13 only. No merge, issue completion, global Accepted or successor
-unblocking follows from the green candidate. Preserve all pipeline repairs and unrelated work;
-inspect current no-mistakes custody before editing. Coordinate expensive verification with Firstmate.
+**Date:** 2026-09-22
+**Active branch:** `codex/strict-lean-7-integration` in a disposable verified worktree.
+**Refreshed main:** `ce929840a6128e83b2a8eb90d492110d19f2d1ba`, verified as an
+ancestor of the preserved branch; refresh live state before resuming.
+**Current delivery state:** issue13 and its [corpus delivery](https://github.com/rbeauchamp/strict-lean/pull/31)
+are integrated. The [priority CI repair](https://github.com/rbeauchamp/strict-lean/pull/32)
+and foundation baseline38 are integrated. Issue7 remains open with native
+blockers6/13/38 closed, verified on 2026-09-22.
+The [issue7 evidence](evidence/issue-7-verification.md) owns implementation checkpoints,
+repair and qualification results, failed attempts and pending delivery gates. Consult
+that record before reusing evidence; no previous code's tests are current-change evidence.
 
 ## Active plan and resume point
 
-[Project 8's overview and execution plan](https://github.com/users/rbeauchamp/projects/8),
-the [full live #13](https://github.com/rbeauchamp/strict-lean/issues/13) and native dependencies
-are authoritative. There is no separate local `plans/` system. The overview now includes
-an **Immediate execution plan**; use it rather than resurrecting the old #5 handoff.
+Reviewed signed `1c7304b40267e2343d65b3b94251b6e9424548f1` passed the complete
+full corpus in391.55s and cold ordinary acceptance in237.84s under their unchanged
+420-second limits. The [recovery and cleanup receipt](evidence/ci-corpus-cleanup.md)
+records exact inputs, full65/79/72 corpus coverage, completed slot/parent cleanup,
+40-module/5,238-declaration coverage and all prior failure artifacts. The previous
+`5d7b5fade002a783943474c5a74c691be66e39e8` attempt failed at420.02s; the material
+stream-join/cleanup repair and independent source review justified the new run.
+Neither terminal marks nor the old failed run supply acceptance evidence.
 
-#13 remains **In Progress**; prerequisites #5/#12/#25 were verified closed. The concrete
-resume point is completing the follow-up and R7 repair through the active no-mistakes run,
-then Firstmate's integration and acceptance-criterion reconciliation. Read the
-[corpus CI and responsiveness record](evidence/issue-13-corpus-ci-responsiveness.md)
-for exact checked revisions, failed attempts, proof/runtime limits and bounded native-server
-observations. Refresh live issue bodies, comments, blockers and pipeline state before acting.
-The producer guide retains the engine's precise proof and trust boundaries. Do not advance
-to #7 because a partial #13 change passed or merged.
+Previous no-mistakes run `01M2QNJRBW9M8WC4ZNZ3QQHG8G` is terminal failed with
+`daemon shutting down`. Live `axi sync --check` found a clean local-ahead caller,
+with pipeline/live remote at `90a38885fc111bb2aa51172503743e6c9d8beb28`; all
+pipeline commits remain ancestors. Its supported next action is a new full
+`axi run --intent ...`; Firstmate authorized it following the current local passes.
+The daemon is running and must not be restarted by this worker. Preserve all
+commits, prior receipts and failure artifacts. Ordinary cold420 and required
+sequential producer420/history420 remain unchanged; see the
+[diagnostic budget record](evidence/issue-7-diagnostic-budget.md). Final-head local
+pipeline and hosted gates remain pending; issue7 and its
+[delivery](https://github.com/rbeauchamp/strict-lean/pull/33) are not ready for integration.
 
-## Accomplished and reusable evidence
+[Project8](https://github.com/users/rbeauchamp/projects/8), the complete
+[live issue7](https://github.com/rbeauchamp/strict-lean/issues/7) and its native
+blockers govern. The published infrastructure refinement permits only authenticated,
+disjoint exact reporter/codec/conditional-collector identities and preserves full replay.
+Implement complete request-indexed accepted-result integration, then finish qualification,
+reports/guides, independent proof/integration review, signed full no-mistakes delivery
+and exact-head CI. Inspect pipeline custody before editing and coordinate expensive
+checks with Firstmate. Prepare the final API/mode/command/evidence handoff for39 and
+the foundation-status guide. The owner's live sequence is38→7→39→40→41→42→43;
+Project8 features14/15/10 remain deferred until43. Do not implement any successor
+in this branch. This worker still implements only issue7.
+
+The CI repair's actual merged-main workflow
+[35153780758](https://github.com/rbeauchamp/strict-lean/actions/runs/35153780758)
+passed ordinary368s, producers381s, corpus370s and site155s; separate
+[CodeQL35153779941](https://github.com/rbeauchamp/strict-lean/actions/runs/35153779941)
+passed. These are historical observations of the repair, not universal runtime margins
+or qualification of issue7. Physical variation remains UNKNOWN. The local repair's
+cold198.995s and hosted candidate outcomes likewise retain their own input identities.
+
+## Accomplished and reusable evidence (historical checkpoints)
 
 The engine repair entries below are historical checkpoints, including their then-pending
-gates. Current corpus evidence at `117ec9fe` is local cold ordinary **PASS254.812s**,
+gates. Historical corpus evidence at `117ec9fe` is local cold ordinary **PASS254.812s**,
 29 owned modules / 4,177 declarations, all 94 fences, and
 [all hosted stages passing](https://github.com/rbeauchamp/strict-lean/actions/runs/35113512538).
 The linked current record distinguishes ordinary acceptance, separate producer/corpus
@@ -100,7 +122,7 @@ qualification and the one-rule site prototype; none establishes full Project 8 c
 - Fresh independent production and evidence reviews were clean after repairing the new
   mutation assertions to require each exact diagnostic. That delivery's local/remote branch and
   owned scratch were removed. The original ignored `tmp/axiom-report.json` was restored.
-- #7/#10/#13/#14/#15 contain verified producer handoffs and remain open. #7 retains global
+#13 is now closed; #7/#10/#14/#15 retain the delivered producer handoffs and remain open. #7 retains global
   jobs/Accepted; #14 actual Lake/editor journeys; #15 the complete website. The plan specifies
   serial delivery and disposition of optional #8/#9 under their existing criteria.
 
@@ -129,8 +151,8 @@ external extraction, serialized source claims, runtime behavior or complete oper
   The checker Producer revision identifies its last elaboration, not authenticated whole-binary
   source identity. #7 still owns claim-indexed global jobs and Accepted construction.
 - The corpus branch now has all twenty source-owned rule pairs under `examples/rules/`
-  and exact policy-example outcome qualification at the checkpoint above. Integration and
-  whole-issue reconciliation remain pending; refresh main before claiming delivery. The user chose
+  and exact policy-example outcome qualification at the checkpoint above. That delivery is integrated and issue13 is closed; its observations do not
+  validate new issue7 inputs. The user chose
   separate diagnostic demonstrations for intentional INCOMPLETE rules SL2001/SL2005/SL3001.
   Keep all four accepted-example kinds. Match the complete expected finding set (possibly
   multiple findings), exact ID/subreason, real location, source/configuration/toolchain/mode
@@ -171,19 +193,16 @@ external extraction, serialized source claims, runtime behavior or complete oper
 
 ## Key files and immediate action
 
-1. Refresh the resulting main and read AGENTS.md, Project 8's **Immediate execution plan**, full
-   #13 and its live blockers. Inspect `lean/StrictLean/Probe.lean` (`executionWalk`),
-   `lean/StrictLean/Checker/{Environment,ProducerReport}.lean`, and
-   `lean/StrictLeanPolicy/{Plan,Observation,Execution}.lean` against that plan.
-2. Read the [producer contract](../docs/guides/engine-producers.md),
-   [policy acceptance](../docs/guides/policy-acceptance.md),
-   [policy proofs](../docs/guides/policy-proofs.md), [coverage map](../docs/guides/rule-coverage.md)
-   and complete affected normative modules before implementation. Architecture, ecosystem-design,
-   developer-experience and design-influences guides retain settled product decisions.
-3. Complete the skill/documentation follow-up through no-mistakes with the repository
-   [review skill](../.agents/skills/pr-review-toolkit/SKILL.md)'s independent semantic and
-   implementation lenses, ordinary420 and exact-head CI. Firstmate owns integration.
-   Reconcile the corpus increment and copy the settled interface and final evidence
-   record into successor issues before declaring #13 complete; then follow the serial plan.
+1. Verify worktree, current head and pipeline custody, then refresh live issue7 and
+   Project8's immediate execution plan. Issue13 is closed; do not redo its delivered work.
+2. Read the [accepted-result call map](../docs/guides/policy-acceptance.md),
+   [proof linkage](../docs/guides/policy-proofs.md), [producer contract](../docs/guides/engine-producers.md)
+   and [current evidence](evidence/issue-7-verification.md). The complete live issue7 body
+   and affected normative modules govern implementation and acceptance.
+3. Finish issue7's affected qualification, cold-root420, independent proof/integration
+   review and signed full no-mistakes delivery. Firstmate owns exact-head integration,
+   actual merged-main checks, publication of the successor39/foundation-status
+   handoff and issue reconciliation. After issue7 integration follow39→40→41→42→43;
+   Project8 features14/15/10 remain deferred until43.
 
 **Mission-leverage card / active goal object:** N/A; neither is used by this project.

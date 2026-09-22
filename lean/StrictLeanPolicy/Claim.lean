@@ -26,6 +26,13 @@ structure Snapshot where
   dependencies : Array DependencyState
   deriving Repr, DecidableEq
 
+/- Repeated jobs share one immutable snapshot. Lean's established pointer-equality
+shortcut decides the same equality and otherwise runs full structural comparison;
+no digest, identity token or assumed equality replaces source bytes. -/
+attribute [-instance] instDecidableEqSnapshot
+instance snapshotDecidableEq : DecidableEq Snapshot := fun left right =>
+  withPtrEqDecEq left right (fun _ => instDecidableEqSnapshot left right)
+
 /-- Structural validity of exact content maps; truthful acquisition stays operational. -/
 def Snapshot.Valid (s : Snapshot) : Prop :=
   s.sources.toList.Pairwise (fun a b => a.uri ≠ b.uri) ∧
@@ -136,6 +143,11 @@ structure ClaimCandidate where
   surfaces : Array SurfaceAssignment
   deriving Repr, DecidableEq
 
+attribute [-instance] instDecidableEqClaimCandidate
+/-- Preserve exact structural fallback when requests are not shared at runtime. -/
+instance claimCandidateDecidableEq : DecidableEq ClaimCandidate := fun left right =>
+  withPtrEqDecEq left right (fun _ => instDecidableEqClaimCandidate left right)
+
 /-- Supported scope/mode combinations. Fresh files never acquire whole-project scope. -/
 def ScopeModeCompatible : Scope → EvidenceMode → Bool
   | .project, .freshProject | .project, .incrementalProject | .project, .serializedGraph => true
@@ -186,22 +198,55 @@ def requiredStages (c : Claim) : List Stage :=
   | .editorSnapshot => [.discovery, .admission, .declarationPolicy, .execution,
       .transcript, .history, .origin, .documentationPresence]
 
-inductive JobSubject where
+structure EnvironmentKey where
+  snapshot : AdmittedSnapshot
+  index : Nat
+  deriving Repr, DecidableEq
+
+/-- Coordinator-selected identity and complete positive module assignment. -/
+structure EnvironmentRequest where
+  key : EnvironmentKey
+  modules : Array ModuleKey
+  deriving Repr, DecidableEq
+
+inductive LocalJobSubject where
   | scope | module (key : ModuleKey) | declaration (key : DeclarationKey)
-  | root (key : RootKey) | boundary (key : BoundaryKey) | fence (key : FenceKey)
+  | root (key : RootKey) | boundary (key : BoundaryKey)
+  deriving Repr, DecidableEq
+
+inductive JobSubject where
+  | scope | environment (key : EnvironmentKey) (subject : LocalJobSubject) | fence (key : FenceKey)
   deriving Repr, DecidableEq
 
 /-- Stage tags restrict the kind of evidence subject they can request. -/
 def StageSubjectCompatible : Stage → JobSubject → Bool
   | .configuration, .scope | .discovery, .scope | .build, .scope
-  | .admission, .scope | .documentationPresence, .scope | .documentScan, .scope
+  | .documentScan, .scope
   | .graph, .scope => true
-  | .build, .module _ | .admission, .module _ | .transcript, .module _
-  | .history, .module _ | .origin, .module _ | .documentationPresence, .module _ => true
-  | .declarationPolicy, .declaration _ | .documentationPresence, .declaration _ => true
-  | .execution, .root _ | .execution, .boundary _ | .graph, .root _ => true
+  | .admission, .environment _ .scope => true
+  | .transcript, .environment _ (.module _) | .history, .environment _ (.module _)
+  | .origin, .environment _ (.module _) | .documentationPresence, .environment _ (.module _) => true
+  | .declarationPolicy, .environment _ (.declaration _)
+  | .documentationPresence, .environment _ (.declaration _) => true
+  | .execution, .environment _ (.root _) | .execution, .environment _ (.boundary _) => true
   | .example, .fence _ => true
   | _, _ => false
+
+/-- Every subject retains the exact snapshot of its requested claim. -/
+def LocalSubjectSnapshotOK (claim : Claim) : LocalJobSubject → Prop
+  | .scope => True
+  | .module k => k.snapshot.val = claim.val.snapshot
+  | .declaration k | .root k => k.moduleKey.snapshot.val = claim.val.snapshot
+  | .boundary k => k.root.moduleKey.snapshot.val = claim.val.snapshot
+instance (claim : Claim) (subject : LocalJobSubject) : Decidable (LocalSubjectSnapshotOK claim subject) := by
+  cases subject <;> unfold LocalSubjectSnapshotOK <;> infer_instance
+
+def SubjectSnapshotOK (claim : Claim) : JobSubject → Prop
+  | .scope => True
+  | .environment key subject => key.snapshot.val = claim.val.snapshot ∧ LocalSubjectSnapshotOK claim subject
+  | .fence k => k.document ∈ claim.val.snapshot.sources
+instance (claim : Claim) (subject : JobSubject) : Decidable (SubjectSnapshotOK claim subject) := by
+  cases subject <;> unfold SubjectSnapshotOK <;> infer_instance
 
 /-- An attempt identifier is transport metadata, never part of a required job key. -/
 structure JobKey where
@@ -210,11 +255,22 @@ structure JobKey where
   subject : JobSubject
   requiredStage : stage ∈ requiredStages claim
   compatibleSubject : StageSubjectCompatible stage subject = true
-  subjectSnapshot : match subject with
-    | .scope => True
-    | .module k => k.snapshot.val = claim.val.snapshot
-    | .declaration k | .root k => k.moduleKey.snapshot.val = claim.val.snapshot
-    | .boundary k => k.root.moduleKey.snapshot.val = claim.val.snapshot
-    | .fence k => k.document ∈ claim.val.snapshot.sources
+  subjectSnapshot : SubjectSnapshotOK claim subject
   deriving Repr, DecidableEq
+/-- Admit a requested stage/subject without inventing a compatible replacement. -/
+def admitJobKey (claim : Claim) (stage : Stage) (subject : JobSubject) : Except String JobKey :=
+  if hr : stage ∈ requiredStages claim then
+    if hc : StageSubjectCompatible stage subject = true then
+      if hs : SubjectSnapshotOK claim subject then
+        .ok ⟨claim, stage, subject, hr, hc, hs⟩
+      else .error "job subject snapshot differs from requested claim"
+    else .error "job stage and subject are incompatible"
+  else .error "job stage is not required by requested mode"
+
+/-- Every valid exact job is reconstructed, with no default stage or subject. -/
+theorem admitJobKey_exact (key : JobKey) :
+    admitJobKey key.claim key.stage key.subject = .ok key := by
+  unfold admitJobKey
+  rw [dite_eq_left key.requiredStage, dite_eq_left key.compatibleSubject, dite_eq_left key.subjectSnapshot]
+
 end StrictLeanPolicy

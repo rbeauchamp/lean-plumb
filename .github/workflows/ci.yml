@@ -16,73 +16,25 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    # Provisioning has its own allowance; verify.sh enforces exactly 420 seconds.
+    # Provisioning has its own allowance; each verify.sh step enforces exactly 420 seconds.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Restore pinned toolchain
-        id: toolchain
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.elan/toolchains
-          key: lean-toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}
+      - uses: ./.github/actions/provision
 
-      - name: Install Elan and pinned Lean
-        shell: bash
-        run: |
-          curl --fail --location --retry 3 \
-            https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
-            -o "$RUNNER_TEMP/elan.tar.gz"
-          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP"
-          "$RUNNER_TEMP/elan-init" -y --default-toolchain none
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-          "$HOME/.elan/bin/lean" --version
-          if ! command -v timeout >/dev/null || ! command -v shellcheck >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install --yes coreutils shellcheck
-          fi
-          timeout --version
-          shellcheck --version
-
-      - name: Save pinned toolchain
-        if: steps.toolchain.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.elan/toolchains
-          key: ${{ steps.toolchain.outputs.cache-primary-key }}
-
-      - name: Restore pinned dependencies
-        id: dependencies
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          # Cache dependency checkouts and unpacked artifacts, never root builds
-          # or duplicate Mathlib download archives. No cross-pin restore fallback.
-          path: .lake/packages
-          key: lean-dependencies-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.lean') }}
-
-      - name: Provision Mathlib artifacts on cache miss
-        if: steps.dependencies.outputs.cache-hit != 'true'
-        run: lake exe cache get
-
-      # Save provisioned dependencies before verification, even if it later fails.
-      - name: Save pinned dependencies
-        if: steps.dependencies.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .lake/packages
-          key: ${{ steps.dependencies.outputs.cache-primary-key }}
-
+      # Includes StrictLeanPolicy collection/finalization proofs and all acceptance
+      # adapters through the existing executable and diagnostic-owner build targets.
+      # Records the accepted input identity for the documentation step below.
       - name: Verify (same command and seven-minute limit as local)
         run: ./scripts/verify.sh
 
-      - name: Qualify project producer receipts and documentation diagnostics
-        run: ./scripts/verify.sh diagnostics producers
-
-      - name: Qualify source-owned rules and diagnostic demonstrations
-        run: ./scripts/verify.sh diagnostics rule-examples
+      # Second required step with its own 420 seconds: every docs/ Lean fence, admitted
+      # only when its inputs equal the accepted ordinary inputs at this same commit.
+      - name: Verify documentation fences (same command and seven-minute limit as local)
+        run: ./scripts/verify.sh docs
 
       # PRODUCT-01 integration; canonical metadata design credits con-leche.
       # Separate from, and never a partition of, 420-second acceptance.

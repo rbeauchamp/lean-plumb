@@ -1,8 +1,9 @@
 # Project producer evidence
 
-ENGINE-01's producer increments add independent extraction keys, replay receipts,
-completed documentation observations, closure witnesses and source bindings. They do **not** complete ENGINE-01 or
-POLICY-04's global `Accepted` construction. The [coverage map](rule-coverage.md) and
+The completed ENGINE-01 producer delivery supplies independent extraction keys, replay
+receipts, completed documentation observations, closure witnesses and source bindings.
+These operational observations are inputs to POLICY-04's separate global acceptance
+boundary; producer correctness is not inferred from a pure data-level proof. The [coverage map](rule-coverage.md) and
 [policy acceptance contract](policy-acceptance.md) retain the remaining obligations.
 
 ## Implemented paths
@@ -37,7 +38,8 @@ docstring on a selected declaration, in both fresh and incremental project modes
 not depend on whether native feedback was imported or enabled. SL5001 uses module attribution;
 SL5002 uses authenticated declaration ranges when available, otherwise module attribution.
 Neither detector imposes headings, lengths, or a universal all-public-declarations rule.
-File/fence results retain their existing scoped enforcement; global mode/job composition is #7.
+File/fence results retain their scoped enforcement; the [acceptance guide](policy-acceptance.md)
+owns global mode/job composition.
 
 ## Transport and consumer boundary
 
@@ -71,12 +73,11 @@ complete source coverage; [example admission](rule-examples.md) checks its requi
 against this producer evidence before constructing an observation.
 
 These guards reconcile supplied data. They do not prove truthful external extraction, source
-identity, a complete execution-edge/history census, or complete claim-indexed jobs. #7 must
-bind these raw keys to the exact claim/snapshot and construct the existing pure `Census` and
-`AdmissionObservation`; no serialized flag substitutes for that work. The
-[source-owned corpus](rule-examples.md) supplies the example integration; #13 still requires
-integrated delivery evidence. These producer increments do not close the issue. An empty
-diagnostic list is not `Accepted` or full semantic conformance.
+identity, a complete execution-edge/history census, or complete claim-indexed jobs. The
+[acceptance guide](policy-acceptance.md) owns the implemented claim/snapshot binding and
+success boundary; no serialized flag substitutes for that work. The
+[source-owned corpus](rule-examples.md) owns example integration. An empty diagnostic
+list is not `Accepted` or full semantic conformance.
 
 ## Source-bound replacement histories
 
@@ -99,12 +100,15 @@ trust boundary. They do not authenticate arbitrary serialized source claims or e
 complete extraction of reached nodes/edges, source authenticity, or global `Accepted`.
 The closure/source account below extends the supplied observations and their binding. A
 temporarily changed source restored between observations remains outside what before/after
-byte equality establishes. #7 retains global claim/job composition.
+byte equality establishes. Global claim/job composition is described in the
+[acceptance guide](policy-acceptance.md).
 
-The `producers` diagnostic also runs `StrictLean.Qualification.History`: real fresh/incremental
+The separate `history` diagnostic runs `StrictLean.Qualification.History`: real fresh/incremental
 project and file invocations check overwritten history, an unsupported source evaluator, and
 fresh restoration. Actual returned records are mutated through the Lean decoder to qualify
 missing requests/receipts/edges, changed bytes, missing paths and concealed unavailability.
+See the [contributor guide](contributing.md#develop-and-verify) for diagnostic commands,
+required CI ordering and budgets.
 The existing structural campaign remains separately scoped; this does not report it PASS.
 
 ## Source-owned examples and qualification
@@ -210,7 +214,8 @@ remains unresolved (SL3001); an inactive reflexive candidate does not create an 
 cycle. Ordinary recursive IR self-edges remain a separate channel.
 
 The existing pure execution/Plan/Observation interfaces consume this strengthened admitted
-inventory; global required jobs and construction of `Accepted` remain #7.
+inventory; the [acceptance adapter](policy-acceptance.md) freezes global required jobs
+and constructs `AcceptedRun` from these observations.
 
 ### Source and configuration binding
 
