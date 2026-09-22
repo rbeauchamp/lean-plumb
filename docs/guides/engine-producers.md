@@ -121,13 +121,17 @@ Core-only adopter as `Example.lean`. The complete twenty-rule corpus and its sep
 unavailable-analysis demonstrations are described in [rule examples](rule-examples.md).
 
 Run `./scripts/verify.sh diagnostics producers` for the bounded operational campaign.
-It invokes the actual fresh project, incremental and build-lint entrypoints for each fixed/violation/restored source,
+It runs twelve source-owned controls: for the incremental and build-lint entrypoints and each
+of SL5001/SL5002, one workspace runs Fixed, then Violation over that Fixed build (so a stale
+build must not hide the violation), then Fixed again from a cleared build. Each invocation
 checks exact stable ID, detail, primary location, related locations and result status,
-requires unique output and exact embedded source/selector/type/axiom evidence on every invocation,
+requires unique output and exact embedded source/selector/type/axiom evidence,
 then mutates a real returned report through its actual Lean decoder. The original valid
 report is re-admitted after each intended refusal. A standalone executable additionally has
-positive/owned-axiom/restored controls; each carries module documentation so the intended
-axiom violation is isolated. Restored controls start with empty root build output. Optional raw export:
+positive/owned-axiom controls, each in its own fresh workspace; each carries module
+documentation so the intended axiom violation is isolated. The fresh-project SL5001/SL5002
+observations are the [rule-example](rule-examples.md) corpus records, validated there by the
+same producer oracle. Optional raw export:
 
 ```sh
 lake exe qualify producers --evidence tmp/producer-examples.json

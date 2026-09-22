@@ -365,25 +365,15 @@ private def admitRecord (ctx : Context) (record : Json) (refusal : Option String
     | none => checked.exitCode == 0
     | some reason => checked.exitCode != 0 && (checked.stdout ++ checked.stderr).contains reason⟩]
 
-/-- Rules that must share a shard: SL5001 and SL5002 are validated together by the
-producer oracle, which requires one shared fresh-project theorem type. -/
-def shardTogether : Array (Array String) := #[#["SL5001", "SL5002"]]
+/-- The rule pair validated together by the fresh-project producer oracle, which requires
+one shared elaborated theorem type; the pair must therefore share a shard. -/
+def sharedTheoremTypeRules : String × String := ("SL5001", "SL5002")
 
-/-- The group of `shardTogether` containing `key`, if any. -/
-def shardGroup (key : String) : Option (Array String) :=
-  shardTogether.find? (·.contains key)
-
-theorem shardGroup_sl5001 : shardGroup "SL5001" = some #["SL5001", "SL5002"] := by simp [shardGroup, shardTogether]
-theorem shardGroup_sl5002 : shardGroup "SL5002" = some #["SL5001", "SL5002"] := by simp [shardGroup, shardTogether]
-
-/-- The rule whose corpus position decides `key`'s shard: the first member of its
-`shardTogether` group when that member is in the corpus, otherwise `key` itself. -/
+/-- The rule whose corpus position decides `key`'s shard: the first rule of
+`sharedTheoremTypeRules` for the second when the first is in the corpus, otherwise `key`. -/
 def shardAnchor (keys : Array String) (key : String) : String :=
-  match shardGroup key with
-  | some group => match group[0]? with
-    | some first => if keys.contains first then first else key
-    | none => key
-  | none => key
+  if key == sharedTheoremTypeRules.2 && keys.contains sharedTheoremTypeRules.1 then
+    sharedTheoremTypeRules.1 else key
 
 /-- The 1-based shard of `key` among `count` shards: its anchor's corpus position
 modulo `count`. -/
@@ -398,17 +388,38 @@ def selectRules (keys : Array String) (selection : Option (Array String))
   | some (index, count) => keys.filter fun key => shardOf keys count key == some index
   | none => selection.getD keys
 
-/-- Shards partition the corpus: a rule is selected by shard `index` exactly when it is a
-corpus rule whose single `shardOf` value is `index`, so no rule is in two shards. -/
+/-- A rule is selected by shard `index` exactly when it is a corpus rule whose single
+`shardOf` value is `index`, so no rule is in two shards. -/
 theorem mem_selectRules_shard (keys : Array String) (index count : Nat) (key : String) :
     key ∈ selectRules keys none (some (index, count)) ↔
       key ∈ keys ∧ shardOf keys count key = some index := by
   simp [selectRules]
 
+/-- A corpus rule's shard anchor is itself a corpus rule. -/
+theorem shardAnchor_mem (keys : Array String) (key : String) (h : key ∈ keys) :
+    shardAnchor keys key ∈ keys := by
+  unfold shardAnchor
+  split
+  · simp_all
+  · exact h
+
+/-- Every corpus rule is selected by some shard `index` with `1 ≤ index ≤ count`; with
+`mem_selectRules_shard`, the `count` shards partition the corpus. -/
+theorem mem_selectRules_some_shard (keys : Array String) (count : Nat) (key : String)
+    (h : key ∈ keys) (hc : 0 < count) :
+    ∃ index, 1 ≤ index ∧ index ≤ count ∧ key ∈ selectRules keys none (some (index, count)) := by
+  obtain ⟨position, hp⟩ := Option.isSome_iff_exists.mp
+    (Array.isSome_idxOf?.mpr (shardAnchor_mem keys key h))
+  refine ⟨position % count + 1, by omega, Nat.mod_lt _ hc, ?_⟩
+  rw [mem_selectRules_shard]
+  exact ⟨h, by simp [shardOf, hp]⟩
+
 /-- SL5001 and SL5002 always land in the same shard while SL5001 is in the corpus. -/
-theorem sl5001_sl5002_same_shard (keys : Array String) (count : Nat) (h : "SL5001" ∈ keys) :
-    shardOf keys count "SL5002" = shardOf keys count "SL5001" := by
-  simp [shardOf, shardAnchor, shardGroup_sl5001, shardGroup_sl5002, h]
+theorem sl5001_sl5002_same_shard (keys : Array String) (count : Nat)
+    (h : sharedTheoremTypeRules.1 ∈ keys) :
+    shardOf keys count sharedTheoremTypeRules.2 = shardOf keys count sharedTheoremTypeRules.1 := by
+  simp only [sharedTheoremTypeRules] at h ⊢
+  simp [shardOf, shardAnchor, sharedTheoremTypeRules, h]
 
 /-- Full corpus, explicit scoped selection, or one corpus shard; all records and admission
 controls are exported. No partial export is labelled a successfully qualified complete
@@ -557,13 +568,13 @@ def check (evidence : FilePath) (selection : Option (Array String))
         let missing := (record.setObjVal! "result" result).setObjVal! "mutation" (.str "missing sourceAccount")
         admitRecord ctx missing (some "missing result source account")
         controls := controls.push missing
-    -- The fresh-project producer controls: the corpus SL5001/SL5002 records are the
+    -- The fresh-project producer controls: the corpus `sharedTheoremTypeRules` records are the
     -- only fresh-project runs of those fixtures, so the producer oracle validates these
     -- same observations (one shared elaborated theorem type, as in the producer campaign).
     let mut theoremType : Option Json := none
     for record in records do
       let rule ← string record "rule"
-      unless #["SL5001", "SL5002"].contains rule do continue
+      unless rule == sharedTheoremTypeRules.1 || rule == sharedTheoremTypeRules.2 do continue
       let report ← get record "result"
       let account ← IO.ofExcept (StrictLeanQualification.Producer.account report)
       let declarations ← entries account "declarations"

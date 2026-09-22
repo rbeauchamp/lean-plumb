@@ -53,7 +53,8 @@ upstream corpus selection; optional `--rules RULE ...` or `--shard K/N` follows
 CI shards together select every rule once. The corpus runner retains at most five
 concurrent producer detector invocations, each in its own fresh workspace. Each invocation
 may launch subprocesses. The runner prepares one private copy of the root package, shared
-read-only by every producer; its manifest names the captured original Lake dependency
+by every producer, which must not write it (no permission enforces this; `sharedIdentity`
+checks it by content identity); its manifest names the captured original Lake dependency
 roots, which are shared too. The runner records a content-level identity of every entry
 under every shared root, including the root copy,
 (path, `lstat` kind, exact length and a 64-bit native content hash; symlinks recorded by
