@@ -81,42 +81,67 @@ def copySubtreeSystem (source target : FilePath) : IO Unit := do
   unless copied.exitCode == 0 do
     throw <| IO.userError s!"slot subtree copy failed: {source} -> {target}\n{copied.stderr}"
 
-/-- Recursively copy `source` into `target`. The guarded enumeration runs first
-and is unchanged in semantics: the exact copy set with exclusion skipping,
-fail-closed unresolved containment, and symlink detection (a resolved path
-differing from its walked path marks the tree for fallback). When the tree is
-guarded-clean, one metadata-preserving system `cp` performs the copy
-(`copySubtreeSystem`; kernel-side per-file copies, no per-file user-space
-buffers or directory-creation syscalls); otherwise the per-file real byte
-copy fallback runs with identical exclusion/containment semantics. Returns
-the relative file paths copied, in walk order. -/
+private def isDirSafe (path : FilePath) : IO Bool := do
+  try
+    path.isDir
+  catch _ => return false
+
+/-- Fail-closed resolution helper: `none` marks an unresolvable path (classified
+for the materializing fallback and refused at copy). -/
+private def resolveSafe (path : FilePath) : IO (Option FilePath) := do
+  try
+    pure (some (← IO.FS.realPath path))
+  catch _ => return none
+
+/-- Explicit scan-boundary traversal. Each directory scan carries the resolved
+locations of its descent chain; a directory whose resolved location is already
+on the chain is a cycle and is refused **at the scan boundary** (its entry is
+still enumerated by its parent). Aliases at distinct chain positions scan
+normally and materialize (alias output preserved). Finite acyclic inputs
+eumerate each path exactly once — the legacy unique set. Unresolvable entries
+are classified for the materializing fallback and fail closed at copy. -/
+partial def scanTree (root : FilePath) (dir : FilePath) (chain : Array String) :
+    IO (Array (FilePath × String × Bool)) := do
+  let resolved ← IO.FS.realPath dir
+  if chain.contains resolved.toString then
+    return #[]
+  let chain := chain.push resolved.toString
+  let mut entries := #[]
+  for d in (← dir.readDir) do
+    let isDir ← isDirSafe d.path
+    entries := entries.push (d.path, (relativeOf root d.path).toString, isDir)
+    if isDir then
+      entries := entries ++ (← scanTree root d.path chain)
+  return entries
+
+/-- Recursively copy `source` into `target`. The guarded enumeration is the
+explicit scan-boundary traversal (`scanTree`) with unchanged semantics: the
+exact copy set with exclusion skipping, fail-closed unresolved containment,
+and symlink classification covering directories and files alike (any entry
+whose resolved location differs from its walked path — including symlinked and
+empty/directories-only subtrees — forces the materializing per-file fallback,
+so `cp` never copies a link). When the tree is guarded-clean, one
+metadata-preserving system `cp` performs the copy (`copySubtreeSystem`);
+otherwise the per-file real byte copy fallback runs with identical
+exclusion/containment semantics. Returns the relative file paths copied, in
+scan order. -/
 def copyTree (source target : FilePath) : IO (Array String) := do
   let sourceRoot ← IO.FS.realPath source
   IO.FS.createDirAll target
   let mut copied : Array String := #[]
   let mut files : Array (FilePath × String) := #[]
   let mut guarded := true
-  let paths ← source.walkDir fun entry => do
-    -- Cycle refusal: never descend into a directory whose resolved location
-    -- contains its own entry path (a symlink cycle re-enters an ancestor).
-    -- Distinct in-root linked directories still descend and materialize as in
-    -- the contract.
-    let resolved ← IO.FS.realPath entry
-    return !(entry.toString.startsWith (resolved.toString ++ "/"))
-  for path in paths do
-    let relative := (relativeOf source path).toString
+  for (path, relative, isDirectory) in (← scanTree source source #[]) do
     if excluded relative then
       guarded := false
       continue
     unless (← contained sourceRoot path) do
       throw <| IO.userError s!"slot copy walk crossed owned root: {path}"
-    -- Symlink classification covers directories and files alike: any entry
-    -- whose resolved location differs from its walked path (including
-    -- symlinked and empty/directories-only subtrees) forces the materializing
-    -- per-file fallback, so `cp` never copies a link.
-    if (← IO.FS.realPath path).toString != path.toString then
-      guarded := false
-    if ← path.isDir then
+    let resolved ← resolveSafe path
+    match resolved with
+    | some value => if value.toString != path.toString then guarded := false
+    | none => guarded := false
+    if isDirectory then
       IO.FS.createDirAll (target / relative)
     else
       files := files.push (path, relative)
