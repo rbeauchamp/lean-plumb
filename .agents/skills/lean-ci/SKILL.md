@@ -105,15 +105,16 @@ earlier artifacts to their inputs. Use Lake-resolved source domains rather than 
 tracked/untracked lists alone: ignored generated inputs and inventory changes still matter.
 
 When concurrent workers share an immutable input tree instead of private copies, state its
-no-writer requirement and enforce it at the write boundary where a portable mechanism
-exists. Otherwise take a content-level identity (every entry's path, `lstat` kind, length
-and full-content digest; no mtimes or listings alone) before any worker starts, and require
+no-writer requirement. Enforce it at the write boundary only where a portable mechanism
+exists and its undo survives every exit, including a deadline SIGKILL. In all cases take a
+content-level identity (every entry's path, `lstat` kind, length and full-content digest;
+no mtimes or listings alone) before any worker starts, and require
 equality after every worker has been joined. State what remains trusted: concurrent external
 writers, filesystem honesty and digest strength. Size private copies against hosted disk,
 memory and vCPU before relying on local copy-on-write or page-cache behavior.
 
 Before optimizing a repeated observation, split its measured cost by part (for example
-file reads against Git subprocesses). Under an enforced and checked no-writer window, an
+file reads against Git subprocesses). Under a checked no-writer window, an
 expensive observation may be captured once. Inject it only through an internal entry,
 never the user-facing command. Key each injected value by the exact request it answers,
 keep the cheap exact reads fresh, prove that equal injected facts give identical results,
