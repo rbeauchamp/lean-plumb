@@ -441,24 +441,30 @@ def check (evidence : FilePath) (selection : Option (Array String))
     -- each job's original ordered post-production actions in job order
     -- (CONSTRAINT-6: each special's requireChecks stays between its produce and
     -- its admitRecord; records/controls/pending mutation stays here).
-    let sl1005Source ← IO.FS.readFile (root / "examples/rules/SL1005/Violation.lean")
-    let teaching := "<!-- lean-trusted-compiler -->\n```lean\n" ++ (← IO.FS.readFile (root / "examples/rules/SL1004/Violation.lean")) ++ "```\n"
-    let negative := "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n"
     let specials : Array String :=
       (if selected.contains "SL1005" then #["SL1005/WrongClaim", "SL1005/ClaimRestored"] else #[]) ++
       (if selected.contains "SL4004" then #["SL4004/TrustedControl", "SL4004/NegativeControl",
         "SL4004/ClassificationRestored"] else #[])
     let total := jobs.size + specials.size
-    let produceJob (index : Nat) (slot : Slot.ProducerSlot) : IO Json :=
+    -- Special source reads happen inside their own selected producer jobs
+    -- (scoped selections never read unselected specials' sources); a captured
+    -- IO error fails that job's task and is delivered at its original job order.
+    let produceJob (index : Nat) (slot : Slot.ProducerSlot) : IO Json := do
       if index < jobs.size then
         let (rule, phase) := jobs[index]!
         produce ctx slot rule phase
       else match specials[index - jobs.size]! with
         | "SL1005/WrongClaim" =>
-          produce ctx slot "SL1005" "WrongClaim" (some sl1005Source) (some "standard-logical")
+          produce ctx slot "SL1005" "WrongClaim"
+            (some (← IO.FS.readFile (root / "examples/rules/SL1005/Violation.lean")))
+            (some "standard-logical")
         | "SL1005/ClaimRestored" => produce ctx slot "SL1005" "ClaimRestored"
-        | "SL4004/TrustedControl" => produce ctx slot "SL4004" "TrustedControl" (some teaching)
-        | "SL4004/NegativeControl" => produce ctx slot "SL4004" "NegativeControl" (some negative)
+        | "SL4004/TrustedControl" =>
+          produce ctx slot "SL4004" "TrustedControl" (some ("<!-- lean-trusted-compiler -->\n```lean\n" ++
+            (← IO.FS.readFile (root / "examples/rules/SL1004/Violation.lean")) ++ "```\n"))
+        | "SL4004/NegativeControl" =>
+          produce ctx slot "SL4004" "NegativeControl"
+            (some "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n")
         | _ => produce ctx slot "SL4004" "ClassificationRestored"
     -- Five disjoint producer slots (width-5 conservative default), consumed in
     -- fixed order and refilled before each admission. Drain every launched task
