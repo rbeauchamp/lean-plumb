@@ -14,25 +14,25 @@ that record before reusing evidence; no previous code's tests are current-change
 
 ## Active plan and resume point
 
-The preserved implementation predecessor is
-`5d7b5fade002a783943474c5a74c691be66e39e8`. Its reboot-interrupted corpus attempt
-was replaced once; the replacement failed at 420.02 seconds during cleanup after
-terminal qualification, raw validation and source equality. The
-[recovery and cleanup receipt](evidence/ci-corpus-cleanup.md) records the full
-failure, exact artifacts, bounded stream-join/slot-cleanup repair and focused
-build. Independent delta review and authorization precede further full validation.
-Do not retry the failed head unchanged or claim acceptance from terminal marks.
+Reviewed signed `1c7304b40267e2343d65b3b94251b6e9424548f1` passed the complete
+full corpus in391.55s and cold ordinary acceptance in237.84s under their unchanged
+420-second limits. The [recovery and cleanup receipt](evidence/ci-corpus-cleanup.md)
+records exact inputs, full65/79/72 corpus coverage, completed slot/parent cleanup,
+40-module/5,238-declaration coverage and all prior failure artifacts. The previous
+`5d7b5fade002a783943474c5a74c691be66e39e8` attempt failed at420.02s; the material
+stream-join/cleanup repair and independent source review justified the new run.
+Neither terminal marks nor the old failed run supply acceptance evidence.
 
 Previous no-mistakes run `01M2QNJRBW9M8WC4ZNZ3QQHG8G` is terminal failed with
 `daemon shutting down`. Live `axi sync --check` found a clean local-ahead caller,
 with pipeline/live remote at `90a38885fc111bb2aa51172503743e6c9d8beb28`; all
 pipeline commits remain ancestors. Its supported next action is a new full
-`axi run --intent ...`, once current review/verification dispositions permit it.
+`axi run --intent ...`; Firstmate authorized it following the current local passes.
 The daemon is running and must not be restarted by this worker. Preserve all
 commits, prior receipts and failure artifacts. Ordinary cold420 and required
 sequential producer420/history420 remain unchanged; see the
 [diagnostic budget record](evidence/issue-7-diagnostic-budget.md). Final-head local
-and hosted gates remain pending; issue7 and its
+pipeline and hosted gates remain pending; issue7 and its
 [delivery](https://github.com/rbeauchamp/strict-lean/pull/33) are not ready for integration.
 
 [Project8](https://github.com/users/rbeauchamp/projects/8), the complete

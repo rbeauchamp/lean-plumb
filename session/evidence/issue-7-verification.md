@@ -1,11 +1,13 @@
 # Issue7 accepted-result integration evidence
 
 Current bounded CI repair: [recovery and cleanup receipt](ci-corpus-cleanup.md).
-The full corpus at `5d7b5fade002a783943474c5a74c691be66e39e8` reached terminal
-equality but failed at 420.02 seconds during cleanup. The managed stream-join and
-bounded slot-cleanup repair has a focused build only; independent review, complete
-final-head acceptance and delivery remain pending. Historical substages and new
-phase marks do not replace those gates.
+The reviewed signed head `1c7304b40267e2343d65b3b94251b6e9424548f1` passed full
+corpus420 in391.55s and cold ordinary420 in237.84s, retaining65/79/72 coverage and
+all cleanup before PASS. It accepted7,278 project/97 documentation jobs; current
+[exact declaration/axiom coverage](ci-corpus-cleanup-coverage.json) and
+[input hashes](ci-corpus-cleanup-inputs.sha256) are retained. The predecessor's
+420.02s cleanup failure remains a failure. Full no-mistakes, final-head hosted
+checks and integrated delivery remain pending; no phase mark replaces those gates.
 
 Historical [corpus projection receipt](ci-corpus-projection.md),
 based on `e19018e47b73ac732853ad90297bcc94d15854b3`, with proof-linked exact

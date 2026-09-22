@@ -74,7 +74,11 @@ Their combined allowance is up to840; full 21+17 public invocations and 8+17 tra
 controls/order are retained. The former combined420 failure remains a failure. Ordinary
 cold420, rule-example corpus, site and optional serialized-graph meanings are unchanged.
 See issue-7-diagnostic-budget.md for the resource-contract change and pending evidence.
-Local focused results, failures and exact input identities are in issue-7-verification.md;
+Local results, failures and exact input identities are in issue-7-verification.md.
+The reviewed cleanup head `1c7304b40267e2343d65b3b94251b6e9424548f1` passed
+full corpus420 in391.55s and cold ordinary420 in237.84s; ci-corpus-cleanup.md
+binds the full65/79/72 corpus and40-module/5,238-declaration coverage to those
+requests. Final-head hosted evidence and integrated delivery remain pending.
 The first build-lint diagnostic exceeded its180s pilot window; subsequent unchanged
 full build-lint and policy-domain campaigns passed under separate420s diagnostic bounds
 in282.68s and220.03s. These do not establish cold-root acceptance. Final signed head,
