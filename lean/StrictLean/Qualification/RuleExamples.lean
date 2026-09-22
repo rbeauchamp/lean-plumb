@@ -458,6 +458,13 @@ def check (evidence : FilePath) (selection : Option (Array String))
     -- the run fails (smallest-slot-index failure verbatim) before any producer
     -- task starts; every prep task/child drains first.
     let _ ← Slot.prepareSlots 3 slots root rootSources rootConfigs depObservations
+    -- Shared dependency no-writer backstop: content-level identity of every
+    -- entry under every captured dependency root, taken before any producer
+    -- starts and required equal after every producer has been joined.
+    let sharedRoots := depObservations.map (·.root)
+    mark "shared-identity-before" "start"
+    let sharedBefore ← Slot.sharedIdentity sharedRoots
+    mark "shared-identity-before" "end"
     let mut records : Array Json := #[]
     let mut controls : Array Json := #[]
     let jobs := selected.flatMap fun rule => #["Fixed", "Violation", "Restored"].map (rule, ·)
@@ -621,6 +628,11 @@ def check (evidence : FilePath) (selection : Option (Array String))
     mark "terminal-equality" "start"
     requireChecks [⟨"terminal checker sources changed", (← snapshotCached cache checkerPaths) == checkerBefore⟩]
     mark "terminal-equality" "end"
+    mark "shared-identity-after" "start"
+    let sharedAfter ← Slot.sharedIdentity sharedRoots
+    requireChecks [⟨s!"shared dependency trees changed during the producer window: {sharedBefore.difference sharedAfter}",
+      sharedAfter == sharedBefore⟩]
+    mark "shared-identity-after" "end"
     -- All producers (including child/stream joins), admission subprocesses,
     -- terminal qualifier and raw readers have now finished. Only these five
     -- owned slot roots are removed concurrently; retained evidence lives outside

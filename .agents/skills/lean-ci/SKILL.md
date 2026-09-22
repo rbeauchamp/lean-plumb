@@ -104,6 +104,14 @@ share the build. A post-build capture cannot bind
 earlier artifacts to their inputs. Use Lake-resolved source domains rather than Git's
 tracked/untracked lists alone: ignored generated inputs and inventory changes still matter.
 
+When concurrent workers share an immutable input tree instead of private copies, state its
+no-writer requirement and enforce it at the write boundary where a portable mechanism
+exists. Otherwise take a content-level identity (every entry's path, `lstat` kind, length
+and full-content digest; no mtimes or listings alone) before any worker starts, and require
+equality after every worker has been joined. State what remains trusted: concurrent external
+writers, filesystem honesty and digest strength. Size private copies against hosted disk,
+memory and vCPU before relying on local copy-on-write or page-cache behavior.
+
 Keep ownership, standalone roots, source freshness, warning handling, admission and exact
 negative reasons intact. Qualification observations complement implementation-linked
 proofs; samples do not replace them. Retain controls until their purpose and replacement

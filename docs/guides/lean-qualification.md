@@ -51,7 +51,15 @@ The prototype never substitutes for acceptance. `diagnostics rule-examples` reta
 upstream corpus selection; optional `--rules RULE ...` follows `--evidence PATH` on the
 standalone command and never claims full-corpus coverage. The corpus runner retains at
 most five concurrent producer detector invocations in disjoint slots. Each invocation may
-launch subprocesses. The runner consumes records in fixed order and drains launched tasks
+launch subprocesses. Each slot holds a private writable copy of the root package only;
+every slot manifest names the captured original Lake dependency roots, which the slots
+share. Their no-writer requirement is checked, not prevented: before any producer starts
+the runner records a content-level identity of every entry under every shared root (path,
+`lstat` kind, exact length and a 64-bit native content hash; symlinks recorded by
+resolution, never followed) and requires an equal identity after all producers have been
+joined, before cleanup and PASS. A difference refuses the run. Concurrent external writers,
+filesystem honesty and non-cryptographic hash collisions remain trusted assumptions.
+The runner consumes records in fixed order and drains launched tasks
 before ordinary/exceptional scratch cleanup. Partial exports remain `INCOMPLETE`.
 Corpus records use a qualification-only view: top-level `acceptance` and
 `documentationAcceptance` payloads become null, while every key, required nested value

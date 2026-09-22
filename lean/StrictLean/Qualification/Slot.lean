@@ -2,9 +2,17 @@ import StrictLean.Checker.Snapshot
 import StrictLean.Qualification.Support
 import StrictLeanQualification.Json
 
-/-! Producer-only writable slot preparation. A `ProducerSlot` is a physically
-independent writable environment (real byte copies, never hardlinks) for the
-corpus producer window. Ownership boundary (bound by types and callers): slot
+/-! Producer-only writable slot preparation. A `ProducerSlot` holds a physically
+independent writable copy of the ROOT package (real byte copies, never
+hardlinks) for the corpus producer window. Lake dependency packages are not
+copied: every slot manifest names the captured original dependency roots, which
+are shared and must have no writer during the window. That requirement is
+enforced fail-closed by `SharedIdentity`: a content-level identity of every
+entry under every shared root is captured before any producer starts and must be
+equal after every producer has been joined. Detection is not prevention: a
+portable read-only view would need either mutating the caller's dependency
+permissions (which a deadline SIGKILL can leave behind) or platform-specific
+sandboxing, so neither is used. Ownership boundary (bound by types and callers): slot
 roots are written only inside producer tasks whose direct children are waited
 and stream holders closed before return (source-verified joined-worker
 discipline; no universal detached-grandchild termination is claimed); the
@@ -212,10 +220,12 @@ def materializeGit (slotGit : FilePath) (sourceGit : FilePath) : IO Unit := do
       if (← IO.FS.readFile config).contains "worktree =" then
         throw <| IO.userError s!"slot git config carries core.worktree: {config}"
 
-/-- Executed containment checks over one prepared package copy: Git identity
-resolution and every nested manifest `dir` resolution must land inside the
-slot. Refusal on any escape. -/
-def checkContainment (slot : ProducerSlot) (copy : FilePath) : IO Unit := do
+/-- Executed containment checks over the prepared ROOT copy: Git identity
+resolution must land inside the slot, and every manifest `dir` must resolve
+inside the slot or exactly to one of the captured shared dependency roots
+(`shared`, canonical paths). Refusal on any other target. -/
+def checkContainment (slot : ProducerSlot) (copy : FilePath)
+    (shared : Array FilePath) : IO Unit := do
   unless (← contained slot.root copy) do
     throw <| IO.userError s!"slot package copy escapes slot: {copy}"
   if (← (copy / ".git").pathExists) then
@@ -239,7 +249,10 @@ def checkContainment (slot : ProducerSlot) (copy : FilePath) : IO Unit := do
         let relative ← IO.ofExcept dir.getStr?
         let resolved := if FilePath.isAbsolute (FilePath.mk relative) then FilePath.mk relative
           else copy / relative
-        unless (← contained slot.root resolved) do
+        let sharedRoot ← try
+            pure (shared.contains (← IO.FS.realPath resolved))
+          catch _ => pure false
+        unless sharedRoot || (← contained slot.root resolved) do
           throw <| IO.userError s!"slot manifest dir escapes slot: {relative}"
 
 /-- Exact comparison of one prepared file against supplied input bytes. -/
@@ -247,50 +260,94 @@ def compareBytes (target : FilePath) (expected : ByteArray) : IO Unit := do
   unless (← IO.FS.readBinFile target) == expected do
     throw <| IO.userError s!"slot copy byte mismatch: {target}"
 
-/-- Prepare one dependency package copy inside the slot from its captured
-observation: sources and configuration are copied and compared byte-exactly
-against the captured inputs, the writable build tree and self-contained Git
-metadata are copied as independent real copies, and every containment check
-runs before return. -/
-def prepareDependency (slot : ProducerSlot)
-    (before : StrictLean.Checker.Snapshot.DependencyObservation) :
-    IO (Array FileProvenance) := do
-  let name := before.package
-  let copy := slot.root / "packages" / name
-  let original := before.root
-  let mut provenance : Array FileProvenance := #[]
-  for (module, _path, canonical, text) in before.sourceCaptures do
-    let relative := (relativeOf original (FilePath.mk canonical)).toString
-    copyFile (FilePath.mk canonical) (copy / relative)
-    compareBytes (copy / relative) text.toUTF8
-    provenance := provenance.push ⟨s!"{name}/{relative}", s!"source/{module}", "byte-identical"⟩
-  for (path, entry) in before.configurationCaptures do
-    let relative := (relativeOf original (FilePath.mk path)).toString
-    match entry with
-    | some (canonical, bytes) =>
-      copyFile (FilePath.mk canonical) (copy / relative)
-      compareBytes (copy / relative) bytes
-      provenance := provenance.push ⟨s!"{name}/{relative}", "config", "byte-identical"⟩
-    | none =>
-      -- Presence semantics: absent inputs stay absent in the copy.
-      provenance := provenance.push ⟨s!"{name}/{relative}", "config", "absent"⟩
-  if (← (original / ".lake/build").pathExists) then
-    let _ ← copyTree (original / ".lake/build") (copy / ".lake/build")
-    provenance := provenance.push ⟨s!"{name}/.lake/build", "build", "copy"⟩
-  if (← (original / "build").pathExists) then
-    let _ ← copyTree (original / "build") (copy / "build")
-    provenance := provenance.push ⟨s!"{name}/build", "build", "copy"⟩
-  if (← (original / ".git").pathExists) then
-    materializeGit (copy / ".git") (original / ".git")
-    provenance := provenance.push ⟨s!"{name}/.git", "git", "copy"⟩
-  checkContainment slot copy
-  return provenance
+/-- One content-level entry under a shared dependency root: root-relative path,
+`lstat` kind and, for regular files, the exact byte length and the pinned native
+`ByteArray.hash` of the complete contents. Symlinks are never followed; their
+resolution (or its failure) is recorded instead. The digest is a 64-bit
+non-cryptographic hash: it detects accidental writes, not adversarial
+collisions. -/
+structure SharedEntry where
+  relative : String
+  kind : String
+  bytes : Nat
+  digest : UInt64
+  target : String
+  deriving BEq, Inhabited
 
-/-- Prepare one complete slot: the ROOT package copy and every dependency copy.
-The ROOT copy's `lake-manifest.json` is truthfully relocated to slot package
-paths and recorded as `relocated`; captured inputs are compared byte-exactly;
-Git identity is preserved through self-contained materialization while
-top-level path equivalence with the original ROOT is explicitly not claimed. -/
+/-- Content-level identity of the shared dependency roots: one entry array per
+captured root, in capture order, each sorted by relative path so the value does
+not depend on directory enumeration order. Any added, removed, retyped,
+resized, rewritten or re-targeted entry changes the value. -/
+structure SharedIdentity where
+  roots : Array (String × Array SharedEntry)
+  deriving BEq, Inhabited
+
+/-- `lstat` walk of one shared root, threading one accumulator. Directories are
+recursed without following symlinks; every entry is recorded. -/
+private partial def sharedWalk (root dir : FilePath) (acc : Array SharedEntry) :
+    IO (Array SharedEntry) := do
+  let mut acc := acc
+  for d in (← dir.readDir) do
+    let relative := (relativeOf root d.path).toString
+    match (← d.path.symlinkMetadata).type with
+    | .dir =>
+      acc := acc.push ⟨relative, "dir", 0, 0, ""⟩
+      acc ← sharedWalk root d.path acc
+    | .file => acc := acc.push ⟨relative, "file", 0, 0, ""⟩
+    | .symlink =>
+      let target ← try pure (← IO.FS.realPath d.path).toString
+        catch _ => pure "<unresolvable>"
+      acc := acc.push ⟨relative, "symlink", 0, 0, target⟩
+    | .other => acc := acc.push ⟨relative, "other", 0, 0, ""⟩
+  return acc
+
+/-- Complete content of one regular file: exact length and native hash. -/
+private def fileDigest (root : FilePath) (entry : SharedEntry) : IO SharedEntry := do
+  if entry.kind != "file" then return entry
+  let bytes ← IO.FS.readBinFile (root / entry.relative)
+  return { entry with bytes := bytes.size, digest := bytes.hash }
+
+/-- Capture the content-level identity of every shared dependency root. Each
+root is walked once, then its entries are read in `width` contiguous chunks on
+dedicated tasks; every task is joined before the first (lowest-chunk) error is
+rethrown verbatim. Read-only: nothing under a shared root is written. -/
+def sharedIdentity (roots : Array FilePath) (width : Nat := 8) : IO SharedIdentity := do
+  let width := max width 1
+  let mut result := #[]
+  for root in roots do
+    let walked ← sharedWalk root root #[]
+    let chunk := (walked.size + width - 1) / width
+    let tasks ← (Array.range width).mapM fun k =>
+      IO.asTask ((walked.extract (k * chunk) ((k + 1) * chunk)).mapM (fileDigest root))
+        Task.Priority.dedicated
+    let mut outcomes := #[]
+    for task in tasks do
+      outcomes := outcomes.push (← IO.wait task)
+    let mut digested := #[]
+    for outcome in outcomes do
+      digested := digested ++ (← IO.ofExcept outcome)
+    result := result.push (root.toString, digested.qsort (·.relative < ·.relative))
+  return ⟨result⟩
+
+/-- First differing root and relative path between two identities, for the
+refusal diagnostic only; equality itself is decided by `BEq`. -/
+def SharedIdentity.difference (before after : SharedIdentity) : String := Id.run do
+  if before.roots.size != after.roots.size then return "shared root count"
+  for (b, a) in before.roots.zip after.roots do
+    if b.1 != a.1 then return s!"shared root {b.1} vs {a.1}"
+    if b.2.size != a.2.size then return s!"{b.1}: entry count {b.2.size} vs {a.2.size}"
+    for (x, y) in b.2.zip a.2 do
+      if x != y then return s!"{b.1}/{x.relative} vs {y.relative}"
+  return "no difference"
+
+/-- Prepare one complete slot: the writable ROOT package copy. The ROOT copy's
+`lake-manifest.json` is truthfully relocated so that every package entry names
+its captured shared dependency root (a manifest package without a captured
+dependency refuses), recorded as `relocated`; captured inputs are compared
+byte-exactly; Git identity is preserved through self-contained materialization
+while top-level path equivalence with the original ROOT is explicitly not
+claimed. Dependencies are recorded as `shared`; their no-writer requirement is
+decided by the caller's `sharedIdentity` equality around the producer window. -/
 def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
     (rootSources rootConfigs : Array (FilePath × ByteArray))
     (deps : Array StrictLean.Checker.Snapshot.DependencyObservation) :
@@ -303,7 +360,8 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
     copyFile path (copy / relative)
     compareBytes (copy / relative) bytes
     provenance := provenance.push ⟨s!"root/{relative}", "source", "byte-identical"⟩
-  -- Truthful relocation of the copied ROOT manifest to slot package paths.
+  -- Truthful relocation of the copied ROOT manifest to the captured shared
+  -- dependency roots (canonical paths from the frozen Lake discovery).
   let manifestPath := copy / "lake-manifest.json"
   if (← manifestPath.pathExists) then
     let manifest ← readJson manifestPath
@@ -313,7 +371,9 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
       | .error _ => pure entry
       | .ok _ =>
         let name ← IO.ofExcept (entry.getObjValAs? String "name")
-        pure (entry.setObjVal! "dir" (.str (slot.root / "packages" / name).toString))
+        let some dep := deps.find? (·.package == name)
+          | throw <| IO.userError s!"slot manifest package without captured dependency: {name}"
+        pure (entry.setObjVal! "dir" (.str dep.root.toString))
     IO.FS.writeFile manifestPath
       ((manifest.setObjVal! "packages" (toJson relocated)).compress ++ "\n")
     provenance := provenance.push ⟨"root/lake-manifest.json", "config", "relocated"⟩
@@ -324,12 +384,12 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
     materializeGit (copy / ".git") (originalRoot / ".git")
     provenance := provenance.push ⟨"root/.git", "git", "copy"⟩
   for dep in deps do
-    provenance := provenance ++ (← prepareDependency slot dep)
+    provenance := provenance.push ⟨dep.package, "dependency", "shared"⟩
   for dep in deps do
     if let some expected := dep.revision then
-      let git ← run (slot.root / "packages" / dep.package) "git" #["rev-parse", "HEAD"]
+      let git ← run dep.root "git" #["rev-parse", "HEAD"]
       unless git.exitCode == 0 && git.stdout.replace "\n" "" == expected do
-        throw <| IO.userError s!"slot git revision mismatch: {dep.package}"
+        throw <| IO.userError s!"shared dependency git revision mismatch: {dep.package}"
   -- Root revision equality against the captured original (refusal on mismatch).
   let originalGit ← run originalRoot "git" #["rev-parse", "HEAD"]
   unless originalGit.exitCode == 0 do
@@ -338,9 +398,9 @@ def prepareSlot (originalRoot : FilePath) (slot : ProducerSlot)
   unless rootGit.exitCode == 0 &&
       rootGit.stdout.replace "\n" "" == originalGit.stdout.replace "\n" "" do
     throw <| IO.userError "slot root git revision mismatch"
-  -- Root containment runs last so relocated manifest dirs resolve to the
-  -- prepared dependency copies before the fail-closed containment check.
-  checkContainment slot copy
+  -- Root containment runs last: Git resolution stays inside the slot and every
+  -- relocated manifest dir resolves exactly to a captured shared root.
+  checkContainment slot copy (deps.map (·.root))
   let record : SlotProvenance := {
     originalRoot := (← IO.FS.realPath originalRoot).toString,
     slotRoot := (← IO.FS.realPath slot.root).toString,
