@@ -102,6 +102,18 @@ def acceptedJson {claim : StrictLeanPolicy.Claim} (accepted : StrictLeanPolicy.A
     ("jobs", toJson (report.jobs.mapIdx fun slot key => Json.mkObj [
       ("slot", toJson slot), ("stage", toJson (reprStr key.stage)), ("subject", subjectJson key.subject)]))]
 
+/-- The wrapper's composed-publication decision: a composed success is
+publishable only for a fully successful guarded action. Executed literally by
+the run wrapper. -/
+def composeDecision (code : UInt32) (composed : Option Json) : Option Json :=
+  if code = 0 then composed else none
+
+/-- Execution-linked state invariant: a failed guarded action cannot publish
+composed success. -/
+theorem failure_drops_composed (code : UInt32) (composed : Option Json)
+    (h : ¬ code = 0) : composeDecision code composed = none := by
+  simp [composeDecision, h]
+
 /-- Public audit completion cannot be constructed from diagnostic counts or
 worker exits. The composed accepted result value (pure): the historical
 `writeAccepted` payload construction. -/
