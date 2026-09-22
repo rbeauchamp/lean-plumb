@@ -7,7 +7,9 @@ import StrictLean.Checker.RuleExampleCorpusProjection
 /-! Source-owned corpus orchestration. Actual detector receipts are admitted by the
 existing RuleExampleQualification executable and its proof-linked policy functions.
 This adapter does not infer policy from source text. Filesystem/process authenticity
-remains trusted. Independent phases use distinct root artifacts and at most two jobs. -/
+remains trusted. Independent phases use distinct root artifacts and at most two jobs.
+The consumer thread reuses pure snapshot construction only at proved exact equality
+of fresh captures; no read is ever skipped and producer tasks stay uncached. -/
 namespace StrictLean.Qualification.RuleExamples
 open Lean System StrictLeanQualification.Evidence
 
@@ -19,9 +21,63 @@ private def optionalText (j : Json) (key fallback : String) : IO String :=
   | .error _ => pure fallback
   | .ok value => IO.ofExcept value.getStr?
 
-private def snapshot (paths : Array FilePath) : IO Json := do
-  return toJson (← paths.mapM fun path => do
-    pure (Json.mkObj [("uri", .str path.toString), ("source", .str (← IO.FS.readFile path))]))
+/-- Pure snapshot entry construction; the exact `Json.mkObj` request shape. -/
+def snapshotEntry (uri source : String) : Json :=
+  Json.mkObj [("uri", .str uri), ("source", .str source)]
+
+/-- Pure request-snapshot construction from exact captured path/source pairs. -/
+def snapshotOf (captured : Array (String × String)) : Json :=
+  toJson (captured.map fun (uri, source) => snapshotEntry uri source)
+
+/-- Fresh exact capture of every requested path. No read is ever skipped. -/
+def capture (paths : Array FilePath) : IO (Array (String × String)) :=
+  paths.mapM fun path => pure (path.toString, ← IO.FS.readFile path)
+
+/-- Constructed-value cache over exact captured sources. The `sound` field keeps
+the invariant `value = snapshotOf captured` by type. -/
+structure SnapshotCache where
+  captured : Array (String × String)
+  value : Json
+  sound : value = snapshotOf captured
+
+/-- The empty cache: the construction for no captured sources. -/
+def SnapshotCache.empty : SnapshotCache := ⟨#[], snapshotOf #[], rfl⟩
+
+/-- Pure reuse decision. At proved exact equality of the fresh captures it
+returns the cached construction; otherwise it constructs from the fresh
+captures. In both cases the first component is exactly `snapshotOf fresh`. -/
+def decideSnapshot (cache : SnapshotCache) (fresh : Array (String × String)) :
+    Json × SnapshotCache :=
+  dite (fresh = cache.captured) (fun _ => (cache.value, cache))
+    (fun _ => (snapshotOf fresh, ⟨fresh, snapshotOf fresh, rfl⟩))
+
+/-- Execution-linked equivalence: the value returned by the executed
+`decideSnapshot` is exactly the uncached construction `snapshotOf fresh` over the
+same fresh captures, so reuse at equal bytes changes no result. -/
+theorem decideSnapshot_value (cache : SnapshotCache) (fresh : Array (String × String)) :
+    (decideSnapshot cache fresh).1 = snapshotOf fresh :=
+  if hc : fresh = cache.captured then by
+    unfold decideSnapshot
+    rw [dif_pos hc, hc]
+    exact cache.sound
+  else by
+    unfold decideSnapshot
+    rw [dif_neg hc]
+    rfl
+
+/-- Exact request-snapshot value from fresh reads of every path. -/
+def snapshot (paths : Array FilePath) : IO Json :=
+  return snapshotOf (← capture paths)
+
+/-- Fresh reads every path (mandatory), then constructs through the proved
+`decideSnapshot`. Only the pure construction of an equal value is reused, and
+only at proved exact equality of the fresh captures. Consumer-thread only:
+concurrent producers use uncached `snapshot`. -/
+def snapshotCached (cache : IO.Ref SnapshotCache) (paths : Array FilePath) : IO Json := do
+  let fresh ← capture paths
+  let (value, next) := decideSnapshot (← cache.get) fresh
+  cache.set next
+  return value
 
 private def configuration (paths : Array FilePath) : IO Json := do
   return toJson (← paths.mapM fun path => do
@@ -87,6 +143,7 @@ private structure Context where
   checkerBefore : Json
   attempt : String
   rawDirectory : FilePath
+  cache : IO.Ref SnapshotCache
 
 private def produce (ctx : Context) (rule phase : String)
     (sourceText : Option String := none) (producerClaim : Option String := none) : IO Json := do
@@ -249,7 +306,7 @@ private def admitRecord (ctx : Context) (record : Json) (refusal : Option String
     save (controls / (label ++ ".json")) (Json.mkObj [
       ("origin", .str (origin / "record.json").toString), ("mutation", mutation), ("record", record)])
   let current := ctx.scratch / "current.json"
-  save current (Json.mkObj [("checkerBefore", ctx.checkerBefore), ("checkerAfter", ← snapshot ctx.checkerPaths), ("records", toJson #[record])])
+  save current (Json.mkObj [("checkerBefore", ctx.checkerBefore), ("checkerAfter", ← snapshotCached ctx.cache ctx.checkerPaths), ("records", toJson #[record])])
   let checked ← run ctx.root (ctx.root / ".lake/build/bin/ruleExampleQualification").toString #["--record", current.toString] cleanEnv
   requireChecks [⟨s!"corpus record admission: {checked.stdout}{checked.stderr}", match refusal with
     | none => checked.exitCode == 0
@@ -312,9 +369,10 @@ def check (evidence : FilePath) (selection : Option (Array String))
   let modulePaths := inventory.moduleSources.map Prod.snd
   let corpusPaths ← (← (root / "examples/rules").walkDir).filterM fun path => return !(← path.isDir)
   let checkerPaths := (modulePaths ++ #[root / "lean-toolchain", root / "lakefile.lean", root / "lake-manifest.json"] ++ corpusPaths).toList.eraseDups.toArray
-  let checkerBefore ← snapshot checkerPaths
+  let cache ← IO.mkRef SnapshotCache.empty
+  let checkerBefore ← snapshotCached cache checkerPaths
   let completed ← withScratch root "rule-examples" fun scratch => do
-    let ctx : Context := ⟨root, scratch, specs, checkerPaths, checkerBefore, attempt, rawDirectory⟩
+    let ctx : Context := ⟨root, scratch, specs, checkerPaths, checkerBefore, attempt, rawDirectory, cache⟩
     let mut records : Array Json := #[]
     let jobs := selected.flatMap fun rule => #["Fixed", "Violation", "Restored"].map (rule, ·)
     -- Two disjoint producers, consumed in fixed order and refilled before each
@@ -395,14 +453,14 @@ def check (evidence : FilePath) (selection : Option (Array String))
     let finalFields := [("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool selection.isNone),
       ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
       ("selected", toJson selected), ("checkerBefore", checkerBefore),
-      ("checkerAfter", ← snapshot checkerPaths), ("admissionControls", toJson controls)]
+      ("checkerAfter", ← snapshotCached cache checkerPaths), ("admissionControls", toJson controls)]
     save evidence (StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "INCOMPLETE") :: finalFields) records)
     let checked ← run root (root / ".lake/build/bin/ruleExampleQualification").toString #[evidence.toString] cleanEnv
     requireChecks [⟨s!"corpus admission: {checked.stdout}{checked.stderr}", checked.exitCode == 0⟩]
     for record in records ++ controls do
       -- Validate each record's origin binding, including derived mutation controls.
       validateRaw ctx record
-    requireChecks [⟨"terminal checker sources changed", (← snapshot checkerPaths) == checkerBefore⟩]
+    requireChecks [⟨"terminal checker sources changed", (← snapshotCached cache checkerPaths) == checkerBefore⟩]
     return StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "PASS") :: finalFields) records
   save evidence completed
   IO.println s!"rule example campaign: PASS ({selected.size} selected rules; diagnostic evidence only)"
