@@ -35,7 +35,12 @@ def requestJson (kind project subject : String) (claim execution : Option String
 def write (path : System.FilePath) (scope : Json) (mode : EvidenceMode) (status : Status)
     (findings : Array Finding) (unresolved : Array String := #[]) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
-  IO.FS.writeFile path (Json.compress (resultJson scope mode status findings unresolved) ++ "\n")
+  let spanStart ← IO.monoMsNow
+  let encoded := Json.compress (resultJson scope mode status findings unresolved) ++ "\n"
+  IO.println s!"diagnostic span: ResultProtocol.write encode: {(← IO.monoMsNow) - spanStart}ms"
+  let writeStart ← IO.monoMsNow
+  IO.FS.writeFile path encoded
+  IO.println s!"diagnostic span: ResultProtocol.write write: {(← IO.monoMsNow) - writeStart}ms"
 
 private def sourceJson (source : StrictLeanPolicy.SourceSnapshot) : Json :=
   Json.mkObj [("uri", toJson source.uri), ("source", toJson source.source)]
@@ -101,10 +106,15 @@ def acceptedJson {claim : StrictLeanPolicy.Claim} (accepted : StrictLeanPolicy.A
 def writeAccepted {claim : StrictLeanPolicy.Claim} (path : System.FilePath)
     (accepted : StrictLeanPolicy.AcceptedRun claim) (scope : Json) : IO Unit := do
   let report := accepted.report
+  let spanStart ← IO.monoMsNow
   let value := (resultJson scope report.claim.val.mode .completed #[] #[]).setObjVal!
     "acceptance" (acceptedJson accepted)
   if let some parent := path.parent then IO.FS.createDirAll parent
-  IO.FS.writeFile path (Json.compress value ++ "\n")
+  let encoded := Json.compress value ++ "\n"
+  IO.println s!"diagnostic span: writeAccepted encode: {(← IO.monoMsNow) - spanStart}ms"
+  let writeStart ← IO.monoMsNow
+  IO.FS.writeFile path encoded
+  IO.println s!"diagnostic span: writeAccepted write: {(← IO.monoMsNow) - writeStart}ms"
 
 /-- Structural names are rendered only at this legacy display boundary. -/
 private def legacyName (value : Json) : Json :=

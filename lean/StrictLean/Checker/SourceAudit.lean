@@ -170,8 +170,10 @@ private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
         | throw <| IO.userError "checker library directory unavailable"
       let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
       let output := scratch / s!"{spec.«module»}.diagnostics.json"
+      let workerStart ← IO.monoMsNow
       let process ← spawn binary.toString
         #["--diagnostic-worker", (StrictLean.RegistryCodec.nameJson spec.module.toName).compress, sourcePath.toString, output.toString]
+      IO.println s!"diagnostic span: compileIn diagnostic-worker: {(← IO.monoMsNow) - workerStart}ms"
       let errors ← if process.succeeded then
           try
             let json ← IO.ofExcept <| StrictLean.Checker.PolicyCodec.parse (← IO.FS.readFile output)
@@ -195,7 +197,9 @@ private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
           throw <| IO.userError "Lake batch LEAN executable must be absolute"
         pure path
       else pure "lean"
+    let compileStart ← IO.monoMsNow
     let process ← spawn compiler args
+    IO.println s!"diagnostic span: compileIn compile: {(← IO.monoMsNow) - compileStart}ms"
     return { spec, sourcePath, oleanPath, ileanPath, process }
 
 /-- Standalone compilation still obtains its environment through Lake. -/

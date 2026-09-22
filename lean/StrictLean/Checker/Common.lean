@@ -234,7 +234,12 @@ def readJson (path : FilePath) : IO Json := do
 
 def writeJson (path : FilePath) (value : Json) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
-  IO.FS.writeFile path (Json.compress value ++ "\n")
+  let encodeStart ← IO.monoMsNow
+  let encoded := Json.compress value ++ "\n"
+  IO.println s!"diagnostic span: writeJson encode {path}: {(← IO.monoMsNow) - encodeStart}ms"
+  let writeStart ← IO.monoMsNow
+  IO.FS.writeFile path encoded
+  IO.println s!"diagnostic span: writeJson write {path}: {(← IO.monoMsNow) - writeStart}ms"
 
 def parseJsonOutput (what : String) (result : ProcessResult) : IO Json := do
   if !result.succeeded then
