@@ -261,6 +261,12 @@ private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : Str
   let started ← IO.monoMsNow
   let execution ← observe project binary (raw / "stdout") (raw / "stderr") command
   let elapsed := (← IO.monoMsNow) - started
+  IO.println s!"driver span: process wait: {elapsed}ms"
+  let loggedMs := (execution.stdout.splitOn "\n").foldl (fun acc line =>
+    if line.endsWith "ms (finished)" then
+      acc + ((((line.splitOn ": ").getLast!).splitOn "ms").head!).toNat?.getD 0
+    else acc) 0
+  IO.println s!"driver span: detector logged-phase total: {loggedMs}ms (child elapsed {elapsed}ms)"
   let terminal := Json.mkObj [("registration", registration), ("exitCode", toJson execution.exitCode.toNat),
     ("stdout", .str execution.stdout), ("stderr", .str execution.stderr), ("detectorMillis", toJson elapsed)]
   save (raw / "terminal.json") terminal
@@ -270,9 +276,11 @@ private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : Str
   save (raw / "terminal.json") terminal
   requireChecks [⟨s!"{rule}/{phase}: missing terminal result\n{execution.stdout}{execution.stderr}", ← output.pathExists⟩,
     ⟨s!"{rule}/{phase}: process failed/timed out", !#[124, 125, 126, 127, 137].contains execution.exitCode⟩]
+  let evidenceStart ← IO.monoMsNow
   let rawObservation := terminal.setObjVal! "resultIdentity" (← digest root output)
   save (raw / "terminal.json") rawObservation
   let observed ← readJson output
+  IO.println s!"driver span: raw digest/read/parse/projection: {(← IO.monoMsNow) - evidenceStart}ms"
   let mut replacements := [("$PROJECT", project.toString), ("$SOURCE", sourcePath.toString),
     ("$MISSING", (project / "Missing.lean").toString), ("$SOURCE_TEXT", ← IO.FS.readFile sourcePath),
     ("$DOCS", (project / "docs").toString)]
@@ -321,7 +329,9 @@ private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : Str
     ("unresolvedPatterns", if case == "Fixed" then toJson (#[] : Array Json) else (field spec "unresolvedPatterns").toOption.getD (toJson (#[] : Array Json))),
     ("stdout", .str execution.stdout), ("stderr", .str execution.stderr), ("detectorMillis", toJson elapsed)]
     (StrictLean.Checker.RuleExampleProjection.resultView observed)
+  let recordStart ← IO.monoMsNow
   save (raw / "record.json") record
+  IO.println s!"driver span: save record transport: {(← IO.monoMsNow) - recordStart}ms"
   return record
 
 private def admitRecord (ctx : Context) (record : Json) (refusal : Option String := none) : IO Unit := do
@@ -334,8 +344,12 @@ private def admitRecord (ctx : Context) (record : Json) (refusal : Option String
     save (controls / (label ++ ".json")) (Json.mkObj [
       ("origin", .str (origin / "record.json").toString), ("mutation", mutation), ("record", record)])
   let current := ctx.scratch / "current.json"
+  let currentStart ← IO.monoMsNow
   save current (Json.mkObj [("checkerBefore", ctx.checkerBefore), ("checkerAfter", ← snapshotCached ctx.cache ctx.checkerPaths), ("records", toJson #[record])])
+  IO.println s!"driver span: save current transport: {(← IO.monoMsNow) - currentStart}ms"
+  let admissionStart ← IO.monoMsNow
   let checked ← run ctx.root (ctx.root / ".lake/build/bin/ruleExampleQualification").toString #["--record", current.toString] cleanEnv
+  IO.println s!"driver span: admission subprocess: {(← IO.monoMsNow) - admissionStart}ms"
   requireChecks [⟨s!"corpus record admission: {checked.stdout}{checked.stderr}", match refusal with
     | none => checked.exitCode == 0
     | some reason => checked.exitCode != 0 && (checked.stdout ++ checked.stderr).contains reason⟩]
