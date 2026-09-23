@@ -13,6 +13,7 @@ imports retain their Lean module names, such as `Audit.Research` and
 | Inspect mathematical/specification examples | [Audit](Audit.lean) | Claimed abstract-specification surface; representative checks of the standard's claims. |
 | Inspect the verified application | [Main](Main.lean), [AuditApp](AuditApp.lean) | Claimed limiter application; proofs concern its actual definitions and its IO boundary remains reported. |
 | Use typed policy data and admission | [StrictLeanPolicy](StrictLeanPolicy.lean), [domain guide](../docs/guides/policy-domain.md) | Separate claimed pure library; representation proofs do not authenticate compiler observations or establish complete acceptance. |
+| Inspect the proved checker core | [StrictLeanCore.Policy](StrictLeanCore/Policy.lean), [rule registry](StrictLeanCore/Rule.lean) | Claimed pure projections the checker runs (claim request, scope admission, rules, labels); frontend, environment and process adapters stay operational. |
 | Understand declaration and execution auditing | [AxiomGate](StrictLean/Checker/AxiomGate.lean) | Operational checker implementation, qualified separately from the claimed proof surfaces. |
 | Understand documentation auditing | [DocFenceAudit](StrictLean/Checker/DocFenceAudit.lean) | Checks recursively discovered Markdown fences as printed. |
 | Inspect cold-start verification | [StrictLeanVerification](StrictLeanVerification.lean) | Claimed argument-selection/recipe driver; process IO remains a reported boundary under the shell deadline. |

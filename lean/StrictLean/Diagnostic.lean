@@ -1,6 +1,6 @@
 module
 
-public import StrictLean.Rule
+public import StrictLeanCore.Rule
 public import StrictLeanPolicy.Domain
 public import Lean.Data.Lsp.Utf16
 

@@ -84,7 +84,7 @@ private def ruleExampleShard (index : Nat) : List Command := [
 Qualification's private flag retains the already timed process group. -/
 def commands : Mode → List Command
   | .ordinary => [
-      lake #["build", "StrictLeanPolicy", "StrictLeanQualification", "axiomGate", "docFenceAudit", "qualify",
+      lake #["build", "StrictLeanPolicy", "StrictLeanCore", "StrictLeanQualification", "axiomGate", "docFenceAudit", "qualify",
         "+StrictLean.Checker.CheckerSelftest:olean", "+StrictLean.Checker.FreshChecker:olean",
         "+StrictLean.RegistryChecks:olean", "+StrictLean.Linter:olean",
         "+StrictLean.Checker.RuleExamples:olean", "+StrictLean.Checker.RuleExampleQualificationMain:olean"],

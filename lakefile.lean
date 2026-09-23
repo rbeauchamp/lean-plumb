@@ -38,6 +38,12 @@ lean_lib «StrictLeanQualification» where
   -- Pure, proof-backed observation contracts; no process or filesystem drivers.
   globs := #[.submodules `StrictLeanQualification]
 
+@[default_target]
+lean_lib «StrictLeanCore» where
+  -- The rule registry and the pure checker projections of policy decisions that the
+  -- operational checker executes; claimed, so the gate audits their declarations.
+  globs := #[.submodules `StrictLeanCore]
+
 lean_lib «StrictLean» where
   -- Lean-only checker implementation. Operational checker modules are
   -- separately qualified; they are not part of the conforming proof surface.

@@ -1,0 +1,62 @@
+module
+
+public section
+
+/-! Exact success and first-refusal laws for pure `Except` list traversal. They are
+shared by transcript-coordinate scope admission and the qualification evaluator, and
+concern pure `Except` only, not effects of any other monad. -/
+namespace StrictLeanPolicy
+
+/-- Pure `Except` traversal succeeds exactly when every element succeeds. -/
+theorem forM_eq_ok {α ε : Type} (f : α → Except ε Unit) (l : List α) :
+    l.forM f = .ok () ↔ ∀ x ∈ l, f x = .ok () := by
+  induction l with
+  | nil => exact ⟨fun _ _ h => (List.not_mem_nil h).elim, fun _ => rfl⟩
+  | cons y l ih =>
+    rw [show (y :: l).forM f = (f y >>= fun _ => l.forM f) from rfl]
+    cases hy : f y with
+    | error e =>
+      simp only [bind, Except.bind, List.mem_cons, forall_eq_or_imp, hy, reduceCtorEq, false_and]
+    | ok u =>
+      cases u
+      simp only [bind, Except.bind, List.mem_cons, forall_eq_or_imp, hy, true_and, ih]
+
+/-- Pure `Except` traversal refuses with `e` exactly when some element refuses with `e`
+after a prefix whose elements all succeed; the suffix is not evaluated. -/
+theorem forM_eq_error {α ε : Type} (f : α → Except ε Unit) (l : List α) (e : ε) :
+    l.forM f = .error e ↔ ∃ before x after, l = before ++ x :: after ∧
+      (∀ b ∈ before, f b = .ok ()) ∧ f x = .error e := by
+  induction l with
+  | nil =>
+    refine ⟨fun h => (by cases h), ?_⟩
+    rintro ⟨before, x, after, h, -⟩
+    cases before <;> cases h
+  | cons y l ih =>
+    rw [show (y :: l).forM f = (f y >>= fun _ => l.forM f) from rfl]
+    simp only [List.cons_eq_append_iff]
+    cases hy : f y with
+    | error e' =>
+      simp only [bind, Except.bind, Except.error.injEq]
+      constructor
+      · rintro rfl; exact ⟨[], y, l, Or.inl ⟨rfl, rfl⟩, nofun, hy⟩
+      · rintro ⟨before, x, after, ⟨rfl, h⟩ | ⟨tail, rfl, _⟩, hb, hx⟩
+        · simp only [List.cons.injEq] at h
+          rw [h.1, hy] at hx
+          exact Except.error.inj hx
+        · have := hb y List.mem_cons_self
+          rw [hy] at this; cases this
+    | ok u =>
+      cases u
+      simp only [bind, Except.bind, ih]
+      constructor
+      · rintro ⟨before, x, after, rfl, hb, hx⟩
+        refine ⟨y :: before, x, after, Or.inr ⟨before, rfl, rfl⟩, fun b hb' => ?_, hx⟩
+        rcases List.mem_cons.mp hb' with rfl | hb'
+        · exact hy
+        · exact hb b hb'
+      · rintro ⟨before, x, after, ⟨rfl, h⟩ | ⟨tail, rfl, rfl⟩, hb, hx⟩
+        · simp only [List.cons.injEq] at h
+          rw [h.1, hy] at hx; cases hx
+        · exact ⟨tail, x, after, rfl, fun b hb' => hb b (List.mem_cons_of_mem y hb'), hx⟩
+
+end StrictLeanPolicy

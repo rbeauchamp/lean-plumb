@@ -41,8 +41,9 @@ the pure API and builds the operational census/observations without duplicating 
 Lean/Lake observations retain structural names through discovery, reports,
 transcripts and worker requests. The operational reporter converts compiler
 categories directly to the closed domain. `Checker.Policy` adapts admitted data to
-the sole rule-ID registry and existing text subreasons; it does not accept free
-arrays authorizing generated roles. Execution failures and summaries use the same
+the sole rule-ID registry and existing text subreasons through the claimed
+`StrictLeanCore.Policy` projections; it does not accept free arrays authorizing
+generated roles. Execution failures and summaries use the same
 admitted execution inventory.
 
 Worker parsing rejects duplicate JSON fields before constructing a map. Record

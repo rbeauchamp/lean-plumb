@@ -9,6 +9,7 @@ on:
       - lean/StrictLean/**
       - lean/StrictLeanPolicy/**
       - lean/StrictLeanPolicy.lean
+      - lean/StrictLeanCore/**
       - lean/StrictLeanQualification/**
       - lean/StrictLeanVerification.lean
       - examples/rules/**

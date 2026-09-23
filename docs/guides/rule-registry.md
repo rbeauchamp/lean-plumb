@@ -1,8 +1,9 @@
 # Rule registry and diagnostic interface
 
-The implementation lives in `StrictLean.RuleId`, `StrictLean.Rule`,
+The implementation lives in `StrictLeanCore.RuleId`, `StrictLeanCore.Rule`,
 `StrictLean.Diagnostic`, `StrictLean.NameCodec`, `StrictLean.RegistryCodec`,
-`StrictLean.DiagnosticCodec` and `StrictLean.Website`. These modules supply one
+`StrictLean.DiagnosticCodec` and `StrictLean.Website`; the first two are on the claimed
+`StrictLeanCore` surface, whose declarations the gate audits. These modules supply one
 vocabulary to the existing checker, its native diagnostic prototype and the
 prototype website. The [coverage map](rule-coverage.md) defines the twenty
 reserved predicates and their residual semantic obligations.

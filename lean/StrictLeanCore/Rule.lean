@@ -1,6 +1,6 @@
 module
 
-public import StrictLean.RuleId
+public import StrictLeanCore.RuleId
 public import StrictLeanPolicy.Foundation
 
 @[expose] public section

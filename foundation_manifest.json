@@ -20,6 +20,12 @@
       "rationale": "Pure observation-validation contracts used by Lean qualification drivers. Soundness, completeness, first-refusal and composition concern the supplied Lean data, not authenticity of process/filesystem/compiler observations. Runtime and library boundaries are reported separately."
     },
     {
+      "library": "StrictLeanCore",
+      "claim": "standard-logical",
+      "execution": "report",
+      "rationale": "The rule registry and the pure checker projections the operational checker executes: claim request, scope admission for every supplied coordinate check, declaration rules and reasons, foundation labels and execution rules. Their contracts concern the supplied declarations and transcripts; the frontend coordinate check, environment extraction, compiler and filesystem observations stay in the excluded adapters."
+    },
+    {
       "library": "Audit",
       "claim": "standard-logical",
       "rationale": "The Audit library contains Real-based examples. Every declaration is still labeled from its own exact axiom set under docs/standard/4 \u00a74.5."
@@ -41,7 +47,7 @@
     },
     {
       "library": "StrictLean",
-      "rationale": "Operational Lean checker code is not a conforming proof surface; acceptance does not re-elaborate or report its declarations. Its external observation paths are mutation-qualified separately; its proved transport-admission theorems are kernel-checked by the warning-as-error lake build and bounded to Standard-Logical by an in-module collectAxioms ceiling."
+      "rationale": "Operational Lean checker code is not a conforming proof surface; acceptance does not re-elaborate or report its declarations. It holds the adapters around the claimed StrictLeanPolicy and StrictLeanCore decisions: Lake and environment observation, frontend transcripts and coordinate checks, compiler and worker processes, JSON transport, filesystem provenance and text rendering. Its external observation paths are mutation-qualified separately; its proved transport-admission theorems are kernel-checked by the warning-as-error lake build and bounded to Standard-Logical by an in-module collectAxioms ceiling."
     }
   ],
   "excluded-executables": [

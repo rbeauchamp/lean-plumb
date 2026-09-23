@@ -38,8 +38,8 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 
 | Path | Owner and contract |
 | --- | --- |
-| `lean/StrictLean/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
-| `lean/StrictLean/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
+| `lean/StrictLeanCore/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
+| `lean/StrictLeanCore/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
 | `lean/StrictLean/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
 | `lean/StrictLean/Checker/PolicyDomain.lean` | Canonical decoded inputs and typed failures; POLICY-02 (#5). |
 | `lean/StrictLean/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
