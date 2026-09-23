@@ -185,7 +185,8 @@ environment, about 2.1 GiB for the `Audit` import closure. A worker whose import
 exceed 4 GiB reports exhaustion instead of checking. Kernel resource exhaustion is not
 conflated with rejection: the replacement stays trusted, but its reason says the kernel ran
 out of resources before deciding definitional correspondence. With both fixed,
-`diagnostics structural` passes: 806 s locally, down from 1015 s. That is still over the
+`diagnostics structural` passed locally in 806 s, down from 1015 s (observed before the
+memory bound was added). That is still over the
 420-second budget, which remains follow-up work. `StrictLeanPolicy` stays claimed in each
 copy because the checker probe's own imports resolve to it in a self-hosted copy; this
 partition is not a CI job.
