@@ -2,6 +2,7 @@ module
 
 public import StrictLeanPolicy.Specification
 public import StrictLeanPolicy.RoleSpecification
+public import StrictLean.Contract
 
 @[expose] public section
 
@@ -103,6 +104,43 @@ def foundationFor (i : Inventory) (roles : Roles i) (d : Declaration) :
     Except String FoundationClass :=
   if d ∈ i.declarations then .ok (labelOf d.axioms roles.native)
   else .error "declaration is not a member of the authenticated inventory"
+
+/-- Required relation for the member-indexed decision: for every declaration proved to be a
+member of the admitted inventory, it is exactly `policyFor`. Non-members cannot be supplied,
+so invalid-inventory precedence remains with `policyFor` for arbitrary input. -/
+def MemberFailureContract
+    (decide : (i : Inventory) → Roles i → (d : Declaration) → d ∈ i.declarations →
+      InspectionRequest → Option DeclarationFailure) : Prop :=
+  ∀ i roles d (member : d ∈ i.declarations) request,
+    decide i roles d member request = policyFor i roles d request
+
+/-- The membership proof, typically supplied by iterating `i.declarations`, replaces
+`policyFor`'s linear scan; it is never inspected. Callers use `checkedMemberFailure.run`. -/
+def memberFailure (i : Inventory) (roles : Roles i) (d : Declaration)
+    (_member : d ∈ i.declarations) (request : InspectionRequest) : Option DeclarationFailure :=
+  declarationFailure d request roles.native roles.helpers
+
+/-- Registers `MemberFailureContract` about `memberFailure`. -/
+theorem checkedMemberFailure : StrictLean.ExecutableContract memberFailure MemberFailureContract :=
+  ⟨fun i roles d member request => by simp [memberFailure, policyFor, member]⟩
+
+/-- Required relation for the member-indexed classification: for every inventory member,
+`foundationFor` succeeds with exactly this class. The member form has no error case. -/
+def MemberFoundationContract
+    (classify : (i : Inventory) → Roles i → (d : Declaration) → d ∈ i.declarations →
+      FoundationClass) : Prop :=
+  ∀ i roles d (member : d ∈ i.declarations),
+    foundationFor i roles d = .ok (classify i roles d member)
+
+/-- Classification of a proved member; callers use `checkedMemberFoundation.run`. -/
+def memberFoundation (i : Inventory) (roles : Roles i) (d : Declaration)
+    (_member : d ∈ i.declarations) : FoundationClass :=
+  labelOf d.axioms roles.native
+
+/-- Registers `MemberFoundationContract` about `memberFoundation`. -/
+theorem checkedMemberFoundation :
+    StrictLean.ExecutableContract memberFoundation MemberFoundationContract :=
+  ⟨fun i roles d member => by simp [memberFoundation, foundationFor, member]⟩
 
 @[simp] theorem compilerAxiom_iff (native : Array Name) (n : Name) :
     compilerAxiom native n = true ↔ CompilerAxiom native n := by

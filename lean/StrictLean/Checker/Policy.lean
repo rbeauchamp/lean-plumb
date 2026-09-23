@@ -3,6 +3,7 @@ import StrictLeanPolicy.Decision
 import StrictLeanPolicy.Execution
 import StrictLean.Rule
 import StrictLean.Contract
+import StrictLeanQualification.Checks
 
 /-! Exact foundation, generated-role, and computation policy over typed reports. -/
 
@@ -50,28 +51,6 @@ structure PolicyScope where
   inventory : StrictLeanPolicy.Inventory
   roles : StrictLeanPolicy.Roles inventory
 
-/-- Pure `Except` traversal succeeds exactly when every element succeeds. -/
-private theorem forM_ok {α ε : Type} (f : α → Except ε Unit) :
-    ∀ l : List α, l.forM f = .ok () ↔ ∀ x ∈ l, f x = .ok ()
-  | [] => by simp [pure, Except.pure]
-  | x :: l => by
-    simp only [List.forM]
-    cases hx : f x with
-    | error e => simp [bind, Except.bind, hx]
-    | ok u =>
-      cases u
-      simp only [bind, Except.bind, List.mem_cons, forall_eq_or_imp, hx, true_and]
-      exact forM_ok f l
-
-/-- The first failing element determines the refusal of a pure `Except` traversal. -/
-private theorem forM_first {α ε : Type} (f : α → Except ε Unit) (x : α) (e : ε) (after : List α) :
-    ∀ before : List α, (∀ b ∈ before, f b = .ok ()) → f x = .error e →
-      (before ++ x :: after).forM f = .error e
-  | [], _, hx => by simp [List.forM_cons, bind, Except.bind, hx]
-  | b :: before, hb, hx => by
-    simp only [List.cons_append, List.forM, hb b (by simp), bind, Except.bind]
-    exact forM_first f x e after before (fun b' h => hb b' (by simp [h])) hx
-
 /-- Required admission relation. Coordinate checks run first, over transcripts in order,
 and the first refusal is returned. Afterwards admission is exactly inventory admission with
 recomputed roles. Success retains the exact declaration and transcript arrays, and occurs
@@ -101,7 +80,7 @@ private theorem admitScopeImpl_checked (ds : Array Declaration) (ts : Array Tran
     admitScopeImpl ds ts = (StrictLeanPolicy.admitInventory ds ts).map
       fun inventory => ⟨inventory, StrictLeanPolicy.authorize inventory⟩ := by
   have hts : ts.toList.forM (Frontend.validateCoordinates ds) = .ok () :=
-    (forM_ok _ _).mpr fun t ht => h t (by simpa using ht)
+    (StrictLeanQualification.forM_eq_ok _ _).mpr fun t ht => h t (by simpa using ht)
   simp only [admitScopeImpl, hts, bind, Except.bind]
   cases StrictLeanPolicy.admitInventory ds ts <;> rfl
 
@@ -110,7 +89,8 @@ theorem checkedScope : StrictLean.ExecutableContract admitScopeImpl ScopeContrac
   refine ⟨⟨?first, admitScopeImpl_checked, ?success, ?fidelity⟩⟩
   case first =>
     intro ds ts before t after e hts hb ht
-    simp only [admitScopeImpl, hts, forM_first _ t e after before hb ht, bind, Except.bind]
+    have refused := (StrictLeanQualification.forM_eq_error _ _ e).mpr ⟨before, t, after, hts, hb, ht⟩
+    simp only [admitScopeImpl, refused, bind, Except.bind]
   case success =>
     intro ds ts
     by_cases hc : ∀ t ∈ ts, Frontend.validateCoordinates ds t = .ok ()
@@ -119,7 +99,7 @@ theorem checkedScope : StrictLean.ExecutableContract admitScopeImpl ScopeContrac
       · simpa [StrictLeanPolicy.admitInventory_exact ds ts hv, Except.map, hv] using hc
       · simp [StrictLeanPolicy.admitInventory, hv, Except.map]
     · have hts : ts.toList.forM (Frontend.validateCoordinates ds) ≠ .ok () :=
-        fun h => hc fun t ht => (forM_ok _ _).mp h t (by simpa using ht)
+        fun h => hc fun t ht => (StrictLeanQualification.forM_eq_ok _ _).mp h t (by simpa using ht)
       simp only [hc, false_and, iff_false, not_exists]
       intro scope h
       apply hts
@@ -217,6 +197,31 @@ theorem checkedRule : StrictLean.ExecutableContract ruleForImpl RuleContract :=
 def ruleFor (decl : Declaration) (claim : Option Profile) (scope : PolicyScope) : Option RuleId :=
   checkedRule.run decl claim scope
 
+/-- Required member projection: for every declaration proved to be a member of the scope's
+admitted inventory, the rule is exactly `ruleFor`'s, and so satisfies `RuleContract`. -/
+def MemberRuleContract
+    (rule : (decl : Declaration) → Option Profile → (scope : PolicyScope) →
+      decl ∈ scope.inventory.declarations → Option RuleId) : Prop :=
+  ∀ decl claim scope (member : decl ∈ scope.inventory.declarations),
+    rule decl claim scope member = ruleFor decl claim scope
+
+private def ruleForMemberImpl (decl : Declaration) (claim : Option Profile) (scope : PolicyScope)
+    (member : decl ∈ scope.inventory.declarations) : Option RuleId :=
+  (StrictLeanPolicy.checkedMemberFailure.run scope.inventory scope.roles decl member
+    (request claim)).map StrictLean.ruleForFailure
+
+/-- Registers `MemberRuleContract`, reducing it to `MemberFailureContract`. -/
+theorem checkedMemberRule : StrictLean.ExecutableContract ruleForMemberImpl MemberRuleContract :=
+  ⟨fun decl claim scope member => by
+    simp only [ruleForMemberImpl, ruleFor, StrictLean.ExecutableContract.run_eq, ruleForImpl,
+      StrictLeanPolicy.checkedMemberFailure.evidence _ _ _ member]⟩
+
+/-- `ruleFor` for a member, supplied by iterating `scope.inventory.declarations`: the
+membership proof replaces the inventory scan. Through `checkedMemberRule`. -/
+def ruleForMember (decl : Declaration) (claim : Option Profile) (scope : PolicyScope)
+    (member : decl ∈ scope.inventory.declarations) : Option RuleId :=
+  checkedMemberRule.run decl claim scope member
+
 def reasonFor (decl : Declaration) (claim : Option Profile) (scope : PolicyScope) : Option String :=
   (ruleFor decl claim scope).map (fun id => (descriptor id).applicability)
 
@@ -251,6 +256,17 @@ theorem reasonFor_eq_some_iff (decl : Declaration) (claim : Option Profile) (sco
 
 def labelOf (decl : Declaration) (scope : PolicyScope) : Except String FoundationClass :=
   StrictLeanPolicy.foundationFor scope.inventory scope.roles decl
+
+/-- Foundation class of a member of the scope's inventory, through
+`StrictLeanPolicy.checkedMemberFoundation`: `labelOf` succeeds with exactly this class. -/
+def labelOfMember (decl : Declaration) (scope : PolicyScope)
+    (member : decl ∈ scope.inventory.declarations) : FoundationClass :=
+  StrictLeanPolicy.checkedMemberFoundation.run scope.inventory scope.roles decl member
+
+theorem labelOf_member (decl : Declaration) (scope : PolicyScope)
+    (member : decl ∈ scope.inventory.declarations) :
+    labelOf decl scope = .ok (labelOfMember decl scope member) :=
+  StrictLeanPolicy.checkedMemberFoundation.evidence _ _ _ member
 
 abbrev ExecutionInventory := StrictLeanPolicy.ExecutionInventory
 abbrev admitExecution := StrictLeanPolicy.admitExecution
@@ -290,7 +306,7 @@ def describeBoundary (boundary : StrictLean.Report.ExecutionBoundary) : String :
 def executionSummary (inventory : ExecutionInventory) : StrictLeanPolicy.ExecutionSummary :=
   StrictLeanPolicy.checkedSummary.run inventory
 
-def classify (decl : Declaration) (scope : PolicyScope) : String :=
+private def classifyWith (decl : Declaration) (foundation : String) : String :=
   let flags := Id.run do
     let mut values : Array String := #[]
     if decl.kind == .«axiom» then values := values.push "AXIOM"
@@ -317,6 +333,19 @@ def classify (decl : Declaration) (scope : PolicyScope) : String :=
     s!" executable-contract={contract.root} requires={contract.requirement}" ++
       (contract.failure.map (s!" failure={·}")).getD "") |>.getD ""
   s!"{decl.name} ({decl.kind}){flagText}{roleText} type={decl.prettyType} " ++
-    s!"axioms={repr (decl.axioms.toList.map (·.toString))} -> {(StrictLeanPolicy.foundationFor scope.inventory scope.roles decl).toOption.map (·.spelling) |>.getD "invalid-inventory"}{contractText}"
+    s!"axioms={repr (decl.axioms.toList.map (·.toString))} -> {foundation}{contractText}"
+
+def classify (decl : Declaration) (scope : PolicyScope) : String :=
+  classifyWith decl ((labelOf decl scope).toOption.map (·.spelling) |>.getD "invalid-inventory")
+
+/-- `classify` for a member, without the inventory scan or the unreachable fallback. -/
+def classifyMember (decl : Declaration) (scope : PolicyScope)
+    (member : decl ∈ scope.inventory.declarations) : String :=
+  classifyWith decl (labelOfMember decl scope member).spelling
+
+theorem classifyMember_eq (decl : Declaration) (scope : PolicyScope)
+    (member : decl ∈ scope.inventory.declarations) :
+    classifyMember decl scope member = classify decl scope := by
+  simp [classifyMember, classify, labelOf_member decl scope member, Except.toOption]
 
 end StrictLean.Checker.Policy

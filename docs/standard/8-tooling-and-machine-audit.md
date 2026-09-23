@@ -289,7 +289,7 @@ The [complete minimal adopter](../../examples/build-lint/) contains the public r
 3. Copy the sample's `policy` target and make it the **sole default target**. It obtains `axiomGate` from the `strict_lean` package through Lake, then invokes its `--build-lint` mode for the consuming package.
 4. Run ordinary `lake build`. The target builds the linter, then the linter builds the exact manifest-derived library/executable targets incrementally and inspects the completed environments. It never recursively invokes the default target.
 
-This uses Lake's native custom-target/job API. A per-declaration linter or a separate lint command alone does not establish this complete ordinary-build claim. The build target instead reuses the existing `Admission.validate`, `Probe.environmentReport`, `Policy.reasonFor`, `Policy.executionFailures`, Lake discovery, and fresh evaluator attribution. It adds no second foundation or execution policy.
+This uses Lake's native custom-target/job API. A per-declaration linter or a separate lint command alone does not establish this complete ordinary-build claim. The build target instead reuses the existing `Admission.validate`, `Probe.environmentReport`, `Policy.ruleForMember` (equal to `Policy.ruleFor` on every inventory member), `Policy.executionFailures`, Lake discovery, and fresh evaluator attribution. It adds no second foundation or execution policy.
 
 ### Exact contract and coverage scope
 

@@ -39,11 +39,12 @@ unsafe def inspectNegative (repo path output : FilePath) : IO UInt32 := do
         let declarations := inspected.report.declarations.qsort fun a b => Name.quickLt a.name b.name
         let scope ← IO.ofExcept <| Policy.admitScope declarations inspected.transcripts
         let mut findings := #[]
-        for decl in declarations do
-          if let some id := Policy.ruleFor decl (some .standardLogical) scope then
+        -- The admitted inventory is exactly `declarations` (`ScopeContract`).
+        for h : decl in scope.inventory.declarations do
+          if let some id := Policy.ruleForMember decl (some .standardLogical) scope h then
             let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl (some ⟨path.toString, source⟩)
             findings := findings.push (← IO.ofExcept <| RuleDiagnostics.declarationFinding id decl.name
-              (Policy.classify decl scope) location .freshFile (some "standard-logical"))
+              (Policy.classifyMember decl scope h) location .freshFile (some "standard-logical"))
         return (Json.mkObj [
           ("file", toJson path.toString), ("source", toJson source),
           ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),

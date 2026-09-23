@@ -315,13 +315,14 @@ private def assessPositive (task : Task) (unitName : Name) (declarations : Array
     let mut policyProblems := #[]
     let mut problems : Array String := #[]
     let mut compilerCount := 0
-    for decl in declarations do
+    -- The admitted inventory is exactly `declarations` (`ScopeContract`).
+    for h : decl in scope.inventory.declarations do
       if decl.module != unitName then continue
-      if let some id := Policy.ruleFor decl (some claim) scope then
+      if let some id := Policy.ruleForMember decl (some claim) scope h then
         let reason := (StrictLean.descriptor id).applicability
         problems := problems.push s!"{reason}: {decl.name} axioms={repr decl.axioms.toList}"
         policyProblems := policyProblems.push (id, decl)
-      if (Policy.labelOf decl scope).toOption == some .compilerTrusting then
+      if Policy.labelOfMember decl scope h == .compilerTrusting then
         compilerCount := compilerCount + 1
     return (problems, policyProblems, compilerCount)
   return if !problems.isEmpty then
