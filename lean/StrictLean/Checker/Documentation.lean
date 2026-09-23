@@ -663,16 +663,24 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
         s!"(conforming-positive {positiveCount}, negative {negativeCount}, trusted {trustedCount})"
       (← IO.getStdout).flush
 
-      let frozen ← timedPhase "documentation request freeze" do
-        IO.ofExcept (← IO.lazyPure fun _ => freezeDocuments claim tasks)
+      -- A structural problem already refuses acceptance, and a malformed marker's
+      -- fence has no request key. Freeze only a structurally clean corpus, so its
+      -- located problems are still reported; a key error without one still throws.
+      let frozen ← if structural.isEmpty then
+          some <$> timedPhase "documentation request freeze" do
+            IO.ofExcept (← IO.lazyPure fun _ => freezeDocuments claim tasks)
+        else pure none
       let fenceScratch := repo / "tmp" / "fence-build"
       IO.FS.createDirAll fenceScratch
       let results ← auditTasks repo fenceScratch jobs tasks sourceBindings configuration inventory.leanPath (some inventory.leanLibDir)
       checkMarkdown docsRoot documents
       Snapshot.inputsUnchanged inventory dependencies
-      let accepted ← if structural.isEmpty && results.all (·.status != .fail) then
-          pure (some (← finishDocuments frozen build documents structural results))
-        else pure none
+      let accepted ← match frozen with
+        | some frozen =>
+            if results.all (·.status != .fail) then
+              pure (some (← finishDocuments frozen build documents structural results))
+            else pure none
+        | none => pure none
       let mut failures := structural.size
       for problem in structural do
         IO.println s!"[X] {problem}"

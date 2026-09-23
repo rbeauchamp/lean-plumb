@@ -150,24 +150,12 @@ register additional environment extensions. Scratch controls reanchor the
 relative directory without loading cold Lake configurations in this process. -/
 private structure SourceLayout where
   relativeDir : FilePath
-  claimedModules : Array Name
 
 private def loadSourceLayout (repo : FilePath) : IO SourceLayout := do
   let relativeDir ← Workspace.withRootWorkspace repo fun ws => pure ws.root.config.srcDir.normalize
   if relativeDir.isAbsolute || relativeDir.components.contains ".." then
     throw <| IO.userError "self-test: package source directory must stay inside the copied repository"
-  let manifest ← Manifest.load (Manifest.defaultPath repo)
-  let inventory ← Lake.surfaceInventory repo
-  let mut claimedModules : Array Name := #[]
-  for surface in manifest.surfaces do
-    let some library := inventory.libraries.find? (·.library == surface.library)
-      | throw <| IO.userError s!"fresh control: missing library {surface.library}"
-    claimedModules := claimedModules ++ library.modules
-    for executable in surface.executables do
-      let some exe := inventory.executables.find? (·.executable == executable)
-        | throw <| IO.userError s!"fresh control: missing executable {executable}"
-      claimedModules := claimedModules.push exe.root
-  return { relativeDir, claimedModules }
+  return { relativeDir }
 
 private def loadFixtureManifest (layout : SourceLayout) (repo : FilePath) : IO (Array FixtureSpec) := do
   let path := (repo / layout.relativeDir) / "Fixtures" / "fixtures.json"
@@ -683,6 +671,16 @@ private def fenceOriginOutput (output filename : String) : String := Id.run do
     if active then selected := selected.push line
   return "\n".intercalate selected.toList
 
+/-- The public command prints a success label only with accepted evidence, which
+the failing corpus never has. A passing fence there keeps its status mark and is
+labelled as observed; failing records keep their expected diagnostic. -/
+private def publicExpectation (expected : String) : String :=
+  match expected.splitOn " " with
+  | [origin, "PASS"] => s!"[.] {origin} OBSERVED (audit incomplete)"
+  | [origin, "PASS_NEG"] => s!"[n] {origin} OBSERVED (audit incomplete)"
+  | [origin, "PASS_TRUSTED"] => s!"[t] {origin} OBSERVED (audit incomplete)"
+  | _ => expected
+
 /-- In-process fence-corpus qualification: the same corpus the public
 `docFenceAudit` control audits end-to-end, scanned and assessed through the
 checker's own `Documentation.auditTasks` batch auditor without the
@@ -745,9 +743,14 @@ private unsafe def publicScannerQualification (repo scratch : FilePath) : IO (Ar
   let mut failures : Array String := #[]
   if result.succeeded then
     failures := failures.push "scanner/public: malformed corpus unexpectedly passed"
+  -- A malformed marker is reported at its own file and line; it must not abort
+  -- the run with a bare, unlocated failure.
+  if !result.output.contains "[X] empty-pattern.md:1: invalid lean-fail pattern: diagnostic pattern is empty"
+      || result.output.contains "FAIL: diagnostic pattern is empty" then
+    failures := failures.push s!"scanner/public/located-marker: missing located malformed-marker diagnostic:\n{result.output}"
   for (name, _, expected) in cases do
-    if !(fenceOriginOutput result.output s!"{name}.md").contains expected then
-      failures := failures.push s!"scanner/public/{name}: missing diagnostic {repr expected}:\n{result.output}"
+    if !(fenceOriginOutput result.output s!"{name}.md").contains (publicExpectation expected) then
+      failures := failures.push s!"scanner/public/{name}: missing diagnostic {repr (publicExpectation expected)}:\n{result.output}"
   return failures
 
 private def expectManifestFailure (name : String) (action : IO Manifest.Manifest)
@@ -1270,8 +1273,25 @@ private def timedPhase (label : String) (action : IO α) : IO α := do
     IO.println s!"phase {label}: {((← IO.monoNanosNow) - started) / 1000000}ms"
     (← IO.getStdout).flush
 
-/-- Clean-checkout environment controls: each public checker that elaborates
-project-owned source must itself build the claimed libraries when the main
+/-- Two mutually independent modules, so the fresh control has two maximal roots. -/
+private def freshControlStems : Array String := #["Left", "Right"]
+
+/-- The fresh control claims only `FreshControl`; every repository library and
+executable is excluded, so the classification stays complete as they change. -/
+private def freshControlManifest (manifest : Manifest.Manifest) : Json :=
+  let excluded (kind : String) (names : Array String) := Json.arr <| names.map fun name =>
+    Json.mkObj [(kind, .str name), ("rationale", .str "outside the fresh-checker control")]
+  Json.mkObj [
+    ("schema-version", (2 : Nat)),
+    ("surfaces", Json.arr #[Json.mkObj [("library", .str "FreshControl"),
+      ("claim", .str "kernel-only"), ("rationale", .str "clean-checkout freshChecker control")]]),
+    ("excluded-libraries", excluded "library" <|
+      manifest.surfaces.map (·.library) ++ manifest.excludedLibraries.map (·.library)),
+    ("excluded-executables", excluded "executable" <|
+      manifest.surfaces.flatMap (·.executables) ++ manifest.excludedExecutables.map (·.executable))]
+
+/-- Clean-checkout environment controls: each public checker that builds
+project-owned modules must itself build the claimed libraries when the main
 build directory is empty, instead of relying on a prior `lake build`. Each
 control starts from a copied repository with no `.lake/build` at all. -/
 private unsafe def fenceEnvironmentQualification (layout : SourceLayout) (repo scratch : FilePath) : IO (Array String) := do
@@ -1306,21 +1326,38 @@ private unsafe def fenceEnvironmentQualification (layout : SourceLayout) (repo s
       failures.modify (·.push
         s!"fence-env/file-mode: --file importing the owned library failed from unbuilt state:\n{result.output}")
 
+  -- The driver's build and root selection depend only on the manifest and Lake's
+  -- import graph, never on which declarations a module holds. So this control
+  -- claims two import-free `prelude` modules instead of the repository surface:
+  -- `leanchecker --fresh` on the real claimed graph replays Init, Lean and
+  -- Mathlib once per root, which is the separate optional serialized-graph
+  -- claim (`scripts/verify.sh serialized-graph`), not a clean-checkout property.
   timedPhase "clean-checkout/fresh-checker" <| unbuilt "fresh-checker" fun dir => do
+    let sources := dir / layout.relativeDir
+    let expected := freshControlStems.map (s!"FreshControl.{·}")
+    IO.FS.createDirAll (sources / "FreshControl")
+    for stem in freshControlStems do
+      IO.FS.writeFile ((sources / "FreshControl") / s!"{stem}.lean")
+        s!"prelude\n/-! Import-free clean-checkout freshChecker root. -/\ninductive FreshControl.{stem} : Type where\n  | unit\n"
+    let lakefile := dir / "lakefile.lean"
+    IO.FS.writeFile lakefile ((← IO.FS.readFile lakefile) ++
+      "\nlean_lib FreshControl where\n  globs := #[.submodules `FreshControl]\n")
+    let manifest := dir / "foundation_manifest.json"
+    writeJson manifest (freshControlManifest (← Manifest.load manifest))
     let reportPath := dir / "fresh-report.json"
     let result ← runScrubbed dir "freshChecker" #["--json-out", reportPath.toString]
     if !result.succeeded then
       failures.modify (·.push
         s!"fence-env/fresh-checker: freshChecker failed from unbuilt state:\n{result.output}")
     else
-      -- Reconcile the actual fresh run with Lake, not a fixed repository module
-      -- count or root list. This subsumes the former extra baseline plan-only call.
-      -- This copy has no source/configuration mutations. Its expected set was
-      -- discovered before in-process fixtures registered environment extensions.
-      let expected := layout.claimedModules
+      -- Reconcile the actual run against the modules written above: each is a
+      -- maximal root, and every root's successful check must cover it.
       let report ← readJson reportPath
+      let status ← IO.ofExcept <| report.getObjValAs? String "status"
       let modules ← jsonStringArray "fresh control modules" <| ← IO.ofExcept <|
         report.getObjVal? "modules"
+      let roots ← jsonStringArray "fresh control roots" <| ← IO.ofExcept <|
+        report.getObjVal? "roots"
       let checks ← IO.ofExcept <| report.getObjValAs? (Array Json) "checks"
       let mut checked : Array String := #[]
       for check in checks do
@@ -1330,10 +1367,11 @@ private unsafe def fenceEnvironmentQualification (layout : SourceLayout) (repo s
         let covered ← jsonStringArray "fresh control coveredModules" <| ← IO.ofExcept <|
           check.getObjVal? "coveredModules"
         checked := checked ++ covered
-      if uniqueSorted modules != uniqueSorted (expected.map (·.toString))
-          || uniqueSorted checked != uniqueSorted (expected.map (·.toString)) then
+      if status != "completed" || checks.size != expected.size
+          || uniqueSorted modules != uniqueSorted expected || uniqueSorted roots != uniqueSorted expected
+          || uniqueSorted checked != uniqueSorted expected then
         failures.modify (·.push
-          "fence-env/fresh-checker: successful root checks did not cover the exact Lake inventory")
+          s!"fence-env/fresh-checker: accepted root checks did not cover exactly {expected}:\n{result.output}")
   failures.get
 
 private def adopterManifestText : String :=
@@ -1568,15 +1606,15 @@ private unsafe def runEnvironments (layout : SourceLayout) (repo : FilePath)
   for failure in fenceEnv do failures.modify (·.push failure)
   IO.println <| "self-test fence environment: " ++
     (if fenceEnv.isEmpty then "PASS" else "FAIL") ++
-    " (clean-checkout doc fences, --file, freshChecker with no prior build)"
+    " (clean-checkout doc fences, --file, freshChecker with no prior build on a two-root control surface)"
 
   let surface ← timedPhase "public surface" <| runBinary repo "axiomGate" #["--incremental"]
   if !surface.succeeded then
     failures.modify (·.push s!"surface/baseline: public incremental gate failed:\n{surface.output}")
-  IO.println "self-test public controls: completed (surface; exact fresh coverage checked in clean-checkout control)"
+  IO.println "self-test public controls: completed (surface)"
 
 /-- Ordinary-build controls are a separate required partition so they do not
-share the clean-checkout serialized-graph check's CI time budget. -/
+share the clean-checkout environment controls' CI time budget. -/
 private def runBuildPolicy (repo : FilePath) (jobs : Nat)
     (failures : IO.Ref (Array String)) : IO Unit := do
   withScratch repo "checker-build-lint" fun scratch => do
