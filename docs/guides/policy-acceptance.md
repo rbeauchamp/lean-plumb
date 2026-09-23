@@ -89,14 +89,24 @@ restriction models Git's pathspec-limited output is trusted Git behavior, not a 
 - G3. With `--untracked-files=all`, untracked directories are listed per file, except an
   untracked nested repository, which the unrestricted status reports as `dir/` and the
   pathspec status omits.
+- G4. A modified submodule, including one with only untracked content, is reported by
+  the unrestricted status as its gitlink path `sub`; a pathspec beneath it such as
+  `sub/x.lean` does not descend into the submodule, so the pathspec status omits it.
 
 Under G1 and G2 both decisions agree. Under G3 a declared input inside an untracked
-nested repository is now dirty where the pathspec status called it clean; that input is
-not part of the dependency's revision, so the change only corrects the reported bit.
-Request and report bytes are otherwise unchanged, and every byte is still read. Fields
+nested repository, and under G4 a declared input inside a modified submodule, is now
+dirty where the pathspec status called it clean. Neither input's bytes are part of the
+dependency's own revision, so the change only makes the reported bit conservative.
+Outside these two cases, request and report bytes are unchanged. Fields
 that are not UTF-8 are dropped: they cannot equal a declared input, and no `dir/`
 prefix of a UTF-8 input contains them. `lake exe qualify acceptance-snapshots
-git-status` checks these cases against the retired pathspec decision.
+git-status` checks G1-G3 against the retired pathspec decision.
+
+Only the Git status cost changes. Every declared input's bytes are still read and
+UTF-8-decoded, and the terminal recheck still recaptures them. Both are retained on
+purpose: the exact bytes carry per-source attribution in the request, and the recheck
+carries run freshness. Removing dependency bytes from the request is a separate contract
+decision that this change does not make.
 
 Standalone documentation and rule-example documentation callers capture dependencies
 before their prerequisite build and pass that observation into `auditBuiltProject`.
