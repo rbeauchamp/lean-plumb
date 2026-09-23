@@ -307,16 +307,20 @@ three are unchanged. `{propext, Classical.choice, Quot.sound}` for
 `classifyMember_eq` and `checkedScope`, the last unchanged. All are within each
 library's Standard-Logical claim.
 
-Evidence (local, warm, observations only), on Lean inputs identical to this delivery:
+Evidence (local, warm, observations only). Each row names the head or base it was
+observed on. None is evidence for the final rebased head, whose acceptance is its
+exact-head CI run.
 
-| Check | Result |
-| --- | --- |
-| `./scripts/verify.sh` | PASS, 121 s. 40 owned modules, 5377 declarations. The gate recognizes `checkedMemberFailure` and `checkedMemberFoundation` on `StrictLeanPolicy`. |
-| `./scripts/verify.sh docs` | PASS, 126 s (70/70, 23/23, 1/1) |
-| `diagnostics fixtures` | PASS, 173 s |
-| `diagnostics cli` | PASS, 358 s (60 `axiomGate --file` invocations: file gate and self-test mirror) |
-| `diagnostics rule-examples 1/2`, `2/2` | PASS, 130 s and 92 s (rule-example policy audit) |
-| `diagnostics build-policy` | PASS, 282 s (`--build-lint` through the changed project-gate loop) |
+| Check | Observed on | Result |
+| --- | --- | --- |
+| `./scripts/verify.sh` | this change over base `4aa6c89` | PASS, 121 s. 40 owned modules, 5377 declarations. The gate recognizes `checkedMemberFailure` and `checkedMemberFoundation` on `StrictLeanPolicy`. |
+| `./scripts/verify.sh docs` | this change over base `4aa6c89` | PASS, 126 s (70/70, 23/23, 1/1) |
+| `./scripts/verify.sh` | head `2f090ab` (this change over `8de0e85`) | PASS, 121 s. 41 owned modules, 5431 declarations. The gate recognizes `checkedMemberFailure` and `checkedMemberFoundation`. |
+| `./scripts/verify.sh docs` | head `2f090ab` (this change over `8de0e85`) | PASS, 82 s |
+| `diagnostics fixtures` | this change over base `4aa6c89` | PASS, 173 s |
+| `diagnostics cli` | this change over base `4aa6c89` | PASS, 358 s (60 `axiomGate --file` invocations: file gate and self-test mirror) |
+| `diagnostics rule-examples 1/2`, `2/2` | this change over base `4aa6c89` | PASS, 130 s and 92 s (rule-example policy audit) |
+| `diagnostics build-policy` | this change over base `4aa6c89` | PASS, 282 s (`--build-lint` through the changed project-gate loop) |
 
 These diagnostics qualify detection on the changed paths; they are not correctness
 evidence. The two acceptance steps exercise the project gate and `assessPositive`,
