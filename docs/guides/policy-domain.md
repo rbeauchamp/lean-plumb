@@ -92,7 +92,8 @@ probe imports, recursion-helper execution coverage and positive-file warnings.
 `--policy-transport-only` repeats just the parser/decoder/admission controls.
 Run these diagnostics under the same 420-second timeout; they do not replace
 ordinary acceptance. The existing `./scripts/verify.sh diagnostics fixtures`
-retains the declaration, generated-role, execution-policy and Markdown controls.
+retains the declaration, generated-role and Markdown controls; execution-policy failure
+kinds are proved instead ([control inventory](lean-qualification.md#control-inventory)).
 
 The pinned compiler leaves some generated recursive-datatype helpers without
 standalone IR. The probe recognizes the inductive/recursor relationship for that
