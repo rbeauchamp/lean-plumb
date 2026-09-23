@@ -5,14 +5,15 @@ import StrictLeanQualification.Json
 /-! Corpus slot preparation. A `ProducerSlot` holds one physically independent copy
 of the ROOT package (real byte copies, never hardlinks), prepared before the corpus
 producer window and shared by every producer, which must not write it (no permission
-enforces this; the `sharedIdentity` check detects a write rather than preventing it);
+enforces this; the `sharedIdentity` check refuses a changed end state rather than
+preventing a write, and a write restored to identical content is not detected);
 each producer writes only its own fresh workspace. Lake dependency packages are not
 copied: the slot manifest names the captured original dependency roots. The ROOT copy and those dependency roots are
-shared and must have no writer during the window. `SharedIdentity` decides that
-requirement fail-closed: a content-level identity of every entry under every shared
+shared and must have no writer during the window. `SharedIdentity` checks the end
+state of that requirement fail-closed: a content-level identity of every entry under every shared
 root is captured before any producer starts and must be equal after every producer
-has been joined. Shared permissions are never changed, so no campaign state can
-outlive the campaign. Producer children are waited and stream holders closed before
+has been joined. Shared permissions are never changed, so no permission state can
+outlive the campaign (a killed campaign's scratch directory can remain). Producer children are waited and stream holders closed before
 return (source-verified joined-worker discipline; no universal detached-grandchild
 termination is claimed); the consumer path — control admission and terminal
 qualification — consumes captured data and the real ROOT checkout and never
@@ -264,7 +265,7 @@ def compareBytes (target : FilePath) (expected : ByteArray) : IO Unit := do
 `lstat` kind and, for regular files, the exact byte length and the pinned native
 `ByteArray.hash` of the complete contents. Symlinks are never followed; their
 resolution (or its failure) is recorded instead. The digest is a 64-bit
-non-cryptographic hash: it detects accidental writes, not adversarial
+non-cryptographic hash: it detects accidental persisting content changes, not adversarial
 collisions. -/
 structure SharedEntry where
   relative : String

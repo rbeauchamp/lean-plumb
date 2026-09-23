@@ -46,15 +46,31 @@ def runBounded (root : FilePath) (seconds : Nat) (command : String) (args : Arra
     cwd := some root, stdin := .null, stdout := .inherit, stderr := .inherit }
   child.wait
 
+/-- Witness that `withScratchCleaned` removed its owned scratch directory after the
+action returned normally. Only this module can construct it, so a value exists only
+after that removal returned without error. It says nothing about processes the
+action did not join, and a killed process never obtains one. -/
+structure Cleaned where
+  private mk ::
+  path : FilePath
+
 /-- Fresh scratch under the worktree, with cleanup on normal or exceptional return.
-Random naming and OS directory operations are not logical freshness proofs. -/
-def withScratch (root : FilePath) (stem : String) (action : FilePath → IO α) : IO α := do
+On normal return it also yields the cleanup witness, constructed only after the
+finalizer's removal returned. Random naming and OS directory operations are not
+logical freshness proofs. -/
+def withScratchCleaned (root : FilePath) (stem : String) (action : FilePath → IO α) :
+    IO (α × Cleaned) := do
   IO.FS.createDirAll (root / "tmp")
   let bytes ← IO.getRandomBytes 16
   let suffix := bytes.foldl (fun s b => s ++ s!"{b.toNat}-") ""
   let path := root / "tmp" / s!"{stem}-{suffix}"
   IO.FS.createDir path
-  try action path finally IO.FS.removeDirAll path
+  let value ← try action path finally IO.FS.removeDirAll path
+  return (value, ⟨path⟩)
+
+/-- Fresh scratch under the worktree, with cleanup on normal or exceptional return. -/
+def withScratch (root : FilePath) (stem : String) (action : FilePath → IO α) : IO α :=
+  return (← withScratchCleaned root stem action).1
 
 /-- Parse using the pinned Lean JSON implementation; malformed output is an error. -/
 def readJson (path : FilePath) : IO Json := do

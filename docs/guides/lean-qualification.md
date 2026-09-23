@@ -59,15 +59,24 @@ upstream corpus selection; optional `--rules RULE ...` or `--shard K/N` follows
 `--evidence PATH` on the standalone command and never claims full-corpus coverage; the two
 CI shards together select every rule once. The corpus runner retains at most five
 concurrent producer detector invocations, each in its own fresh workspace. Each invocation
-may launch subprocesses. The runner prepares one private copy of the root package, shared
+may launch subprocesses. Every launch and the consumption order come from the pure
+`StrictLeanQualification.CorpusWindow` definitions the runner calls: `launched_le` bounds
+the launched but unconsumed Tasks by the width, `launch_order` shows that the launches of
+a complete run name every job once in index order, `launched_eq_total` shows that every
+launched Task has been awaited once every record is taken, and `productions_nodup` gives
+every production a distinct `(rule, phase)` workspace given the checked duplicate-free
+selection. Task scheduling, `IO.asTask`/`IO.wait` semantics and process reaping remain
+trusted runtime mechanisms that these theorems do not describe. The runner prepares one private copy of the root package, shared
 by every producer, which must not write it (no permission enforces this; `sharedIdentity`
 checks it by content identity); its manifest names the captured original Lake dependency
 roots, which are shared too. The runner records a content-level identity of every entry
 under every shared root, including the root copy,
 (path, `lstat` kind, exact length and a 64-bit native content hash; symlinks recorded by
 resolution, never followed) before any producer starts, and requires an equal identity
-after all producers have been joined. A difference refuses the run. This detects a write;
-it does not prevent one. The runner never changes shared dependency permissions, so a
+after all producers have been joined. A difference refuses the run. Equality establishes
+only that the recorded content at the end equals the content at the start, not that no
+write occurred: a write later restored to the same content, or a rewrite with identical
+bytes, is not detected, and nothing prevents a write. The runner never changes shared dependency permissions, so a
 deadline SIGKILL cannot leave the dependency trees read-only.
 
 Dependency snapshots are captured once per run. Before any producer starts, the runner
@@ -81,14 +90,16 @@ retained path. Producers run through the internal
 uses an injected pair only for a request that matches exactly. The private
 `strict_lean` copy and fixture dependencies are always observed fresh.
 `Snapshot.assemble_facts_eq` shows that equal Git facts give an identical capture, and so
-(`stateOfCore_congruence`) identical request and report bytes. That the facts are equal is
-the no-writer premise. Producers do not recheck an injected dependency at their own end; the campaign
+(`stateOfCore_congruence`) identical request and report bytes. The no-writer premise is that
+the facts stay equal throughout the producer window; the terminal checks establish only
+end-state equality with the start. Producers do not recheck an injected dependency at their own end; the campaign
 rechecks the shared trees once: at run end, `Snapshot.inputsUnchanged` rechecks the
 once-captured value with fresh reads and fresh Git, and the content identity must be equal.
 Every producer still rechecks each non-injected dependency and its own inputs. Results
 produced with injected facts carry `"gitFacts": "injected"`; admission ignores the field. User-facing `axiomGate` rejects `--injected-git-facts`.
 Root processes, other file owners, concurrent external writers, filesystem honesty and
-non-cryptographic hash collisions remain trusted assumptions.
+non-cryptographic hash collisions and the absence of shared writes restored before the
+terminal check remain trusted assumptions.
 The runner consumes records in fixed order and drains launched tasks
 before ordinary/exceptional scratch cleanup. Partial exports remain `INCOMPLETE`.
 Corpus records use a qualification-only view: top-level `acceptance` and
@@ -99,8 +110,14 @@ stream files, terminal metadata and the compact original record. During producti
 INCOMPLETE receipt points to these sidecars; the full aggregate is written once all
 records and controls are ready, and one corpus admission then admits every record. The
 runner does not re-read its own just-written sidecars; it requires unchanged terminal
-checker sources before exporting PASS. Kill paths retain INCOMPLETE and partial files.
-PASS is written only after successful scratch cleanup.
+checker sources before the final export. That export records outcome `COMPLETED`, and its
+only writer, `saveCompleted`, requires the `Cleaned` witness that `withScratchCleaned`
+constructs only after scratch removal returns, so it follows every producer join,
+admission, identity check, slot deletion and scratch removal. `COMPLETED` attests what
+finished; it is not a run verdict. The run's verdict is its exit status: a deadline kill
+before the final save leaves INCOMPLETE and partial files, and a kill after it still fails
+the run with the `COMPLETED` file in place. Every write inside the killed process group is
+followed by an exit tail, so no file written there can itself be a run verdict.
 Stream retention on kill covers completed lines already read; an unterminated line
 can remain buffered. Only terminal observations claim complete streams.
 The former launcher's separate 180-second diagnostic timer is replaced by the same
