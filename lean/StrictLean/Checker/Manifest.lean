@@ -9,7 +9,9 @@ the executed parser. `parse_sound` proves what every accepted manifest satisfies
 `parse_input` proves it has the allowed keys and schema version and that each entry is, in
 order, the decoding of its JSON element, including the `execution` field;
 `parse_emptyExclusions` proves empty exclusion arrays are accepted whenever the surfaces are.
-`load` adds only file IO. -/
+The refusal-class theorems prove the message of malformed JSON, an unknown top-level or surface
+key, a non-2 schema version, empty surfaces and a bad surface `execution`, each given an
+otherwise accepted prefix. `load` adds only file IO. -/
 
 namespace StrictLean.Checker.Manifest
 
@@ -731,6 +733,136 @@ theorem parse_emptyExclusions {path text : String} {value : Json} {sv : Array Js
   simp [parse, hvalue, htop, hsurfaces, parseAll, Except.mapError, bind, Except.bind, pure,
     Except.pure]
 
+/-! Refusal classes. Each isolated defect, after an otherwise accepted prefix, yields exactly
+its documented `manifest-malformed`, `manifest-schema` or `manifest-incomplete` message. -/
+
+/-- A step refusing an item after an accepted prefix is the fold's refusal. -/
+theorem parseAll_refuses (step : Acc → Nat → Json → Except String Acc) {item : Json}
+    {rest : List Json} {msg : String} :
+    ∀ {pre : List Json} {index : Nat} {acc mid : Acc}, parseAll step pre index acc = .ok mid →
+      step mid (index + pre.length) item = .error msg →
+      parseAll step (pre ++ item :: rest) index acc = .error msg
+  | [], index, acc, mid, hpre, h => by
+    simp only [parseAll, pure_eq_ok] at hpre
+    subst hpre
+    simp only [List.length_nil, Nat.add_zero] at h
+    rw [List.nil_append, parseAll, h]
+    rfl
+  | x :: pre, index, acc, mid, hpre, h => by
+    simp only [parseAll, bind_eq_ok] at hpre
+    obtain ⟨next, hnext, hpre⟩ := hpre
+    have h' : step mid (index + 1 + pre.length) item = .error msg := by
+      rw [show index + 1 + pre.length = index + (x :: pre).length by
+        simp only [List.length_cons]; omega]
+      exact h
+    rw [List.cons_append, parseAll, hnext]
+    exact parseAll_refuses step hpre h'
+
+theorem objectWithKeys_unknown {value : Json} {allowed : Array String} {location : String}
+    {object : Std.TreeMap.Raw String Json compare} (hobj : value.getObj? = .ok object)
+    (hunknown : object.keysArray.filter (!allowed.contains ·) ≠ #[]) :
+    objectWithKeys value allowed location = .error
+      s!"manifest-schema: {location} has unknown key(s): {repr (object.keysArray.filter (!allowed.contains ·)).toList}" := by
+  have hne : (object.keysArray.filter (!allowed.contains ·)).isEmpty = false := by
+    simpa [Array.isEmpty_iff] using hunknown
+  unfold objectWithKeys
+  simp only [hobj, bind, Except.bind, hne, Bool.false_eq_true, ↓reduceIte]
+  rfl
+
+theorem parse_malformed {path text error : String}
+    (h : StrictLean.Checker.PolicyCodec.parse text = .error error) :
+    parse path text = .error s!"manifest-malformed: {path}: {error}" := by
+  simp [parse, h, Except.mapError, bind, Except.bind]
+
+/-- A top-level refusal of well-formed JSON is the refusal of `parse`. -/
+theorem parse_topLevel_refuses {path text msg : String} {value : Json}
+    (hvalue : StrictLean.Checker.PolicyCodec.parse text = .ok value) (h : topLevel value = .error msg) :
+    parse path text = .error msg := by
+  simp [parse, hvalue, h, Except.mapError, bind, Except.bind]
+
+/-- An unknown top-level key yields the `objectWithKeys_unknown` message. -/
+theorem topLevel_unknownKey {value : Json} {msg : String}
+    (h : objectWithKeys value #["schema-version", "surfaces", "excluded-libraries",
+      "excluded-executables"] "top level" = .error msg) :
+    topLevel value = .error msg := by
+  unfold topLevel
+  simp only [bind, Except.bind, h]
+
+theorem topLevel_schemaVersion {value schema : Json}
+    (hkeys : KeysAllowed value
+      #["schema-version", "surfaces", "excluded-libraries", "excluded-executables"])
+    (hschema : value.getObjVal? "schema-version" = .ok schema) (hv : (schema == Json.num 2) = false) :
+    topLevel value = .error "manifest-schema: schema-version must be exactly 2" := by
+  simp [topLevel, objectWithKeys_complete hkeys, hschema, hv, bind, Except.bind,
+    throw, throwThe, MonadExceptOf.throw]
+
+theorem topLevel_emptySurfaces {value : Json} {lv ev : Array Json}
+    (hkeys : KeysAllowed value
+      #["schema-version", "surfaces", "excluded-libraries", "excluded-executables"])
+    (hschema : ∃ schema, value.getObjVal? "schema-version" = .ok schema ∧ (schema == Json.num 2) = true)
+    (hs : value.getObjVal? "surfaces" = .ok (.arr #[]))
+    (hl : value.getObjVal? "excluded-libraries" = .ok (.arr lv))
+    (he : value.getObjVal? "excluded-executables" = .ok (.arr ev)) :
+    topLevel value = .error "manifest-incomplete: surfaces must be a nonempty array" := by
+  obtain ⟨schema, hschema, hv⟩ := hschema
+  simp [topLevel, objectWithKeys_complete hkeys, hschema, hv, hs, hl, he, bind, Except.bind,
+    throw, throwThe, MonadExceptOf.throw]
+
+/-- A refusal of one surface after accepted earlier surfaces is the refusal of `parse`. -/
+theorem parse_surface_refuses {path text msg : String} {value : Json} {sv lv ev : Array Json}
+    {pre rest : List Json} {item : Json} {acc : Acc}
+    (hvalue : StrictLean.Checker.PolicyCodec.parse text = .ok value)
+    (htop : topLevel value = .ok (sv, lv, ev)) (hsv : sv.toList = pre ++ item :: rest)
+    (hpre : parseAll parseSurface pre 0 {} = .ok acc)
+    (h : parseSurface acc pre.length item = .error msg) : parse path text = .error msg := by
+  have hall := parseAll_refuses parseSurface (rest := rest) hpre (by simpa using h)
+  simp [parse, hvalue, htop, hsv, hall, Except.mapError, bind, Except.bind]
+
+/-- An unknown surface key yields the `objectWithKeys_unknown` message. -/
+theorem parseSurface_unknownKey {acc : Acc} {index : Nat} {item : Json} {msg : String}
+    (h : objectWithKeys item #["library", "executables", "claim", "execution", "rationale"]
+      s!"surfaces[{index}]" = .error msg) :
+    parseSurface acc index item = .error msg := by
+  unfold parseSurface
+  simp only [bind, Except.bind, h]
+
+/-- Every check `parseSurface` runs before decoding `execution` accepts the item. -/
+def SurfacePrefixOK (acc : Acc) (index : Nat) (item : Json) : Prop :=
+  let location := s!"surfaces[{index}]"
+  objectWithKeys item #["library", "executables", "claim", "execution", "rationale"] location = .ok () ∧
+  ∃ text library executables seenExes claim,
+    stringField item "library" location = .ok text ∧
+    targetName "library" text s!"{location}.library" = .ok library ∧
+    acc.seen.contains library = false ∧
+    surfaceExecutables item location = .ok executables ∧
+    addExecutables location acc.seenExes executables.toList = .ok seenExes ∧
+    surfaceClaim item location = .ok claim
+
+theorem parseSurface_execution_refuses {acc : Acc} {index : Nat} {item : Json} {msg : String}
+    (hp : SurfacePrefixOK acc index item)
+    (h : surfaceExecution item s!"surfaces[{index}]" = .error msg) :
+    parseSurface acc index item = .error msg := by
+  obtain ⟨hkeys, text, library, executables, seenExes, claim, htext, hlib, hfresh, hexecs, hadd,
+    hclaim⟩ := hp
+  unfold parseSurface
+  simp only [bind, Except.bind, hkeys, htext, hlib, fresh, hfresh, Bool.false_eq_true, ↓reduceIte,
+    pure, Except.pure, hexecs, hadd, hclaim, h]
+
+theorem surfaceExecution_unknown {item : Json} {location text : String}
+    (hfield : item.getObjVal? "execution" = .ok (.str text)) (hparse : ExecutionClaim.parse? text = none) :
+    surfaceExecution item location =
+      .error s!"manifest-schema: {location}.execution must be \"report\" or \"checked\"" := by
+  simp [surfaceExecution, hfield, hparse, throw, throwThe, MonadExceptOf.throw]
+
+theorem surfaceExecution_nonString {item field : Json} {location : String}
+    (hfield : item.getObjVal? "execution" = .ok field) (hnot : ∀ text, field ≠ .str text) :
+    surfaceExecution item location = .error s!"manifest-schema: {location}.execution must be a string" := by
+  unfold surfaceExecution
+  split
+  · rename_i e he; simp [hfield] at he
+  · rename_i text htext; exact absurd (Except.ok.inj (hfield.symm.trans htext)) (hnot text)
+  · simp [throw, throwThe, MonadExceptOf.throw]
+
 def load (path : FilePath) : IO Manifest := do
   if !(← path.pathExists) then
     throw <| IO.userError s!"manifest-missing: {path}"
@@ -747,7 +879,16 @@ end StrictLean.Checker.Manifest
 -- Exact dependency ceiling for the manifest-parser guarantees: Standard-Logical.
 run_cmd do
   for name in #[``StrictLean.Checker.Manifest.parse_sound, ``StrictLean.Checker.Manifest.parse_input,
-      ``StrictLean.Checker.Manifest.parse_emptyExclusions] do
+      ``StrictLean.Checker.Manifest.parse_emptyExclusions, ``StrictLean.Checker.Manifest.parse_malformed,
+      ``StrictLean.Checker.Manifest.parse_topLevel_refuses, ``StrictLean.Checker.Manifest.topLevel_unknownKey,
+      ``StrictLean.Checker.Manifest.objectWithKeys_unknown,
+      ``StrictLean.Checker.Manifest.topLevel_schemaVersion,
+      ``StrictLean.Checker.Manifest.topLevel_emptySurfaces,
+      ``StrictLean.Checker.Manifest.parse_surface_refuses,
+      ``StrictLean.Checker.Manifest.parseSurface_unknownKey,
+      ``StrictLean.Checker.Manifest.parseSurface_execution_refuses,
+      ``StrictLean.Checker.Manifest.surfaceExecution_unknown,
+      ``StrictLean.Checker.Manifest.surfaceExecution_nonString] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "manifest theorem {name} exceeds Standard-Logical: {axioms}"

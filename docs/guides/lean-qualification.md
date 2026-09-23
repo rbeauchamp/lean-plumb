@@ -148,8 +148,8 @@ evidence (standard §0 "The Role of Testing").
 | checkerSelftest fixtures | 11 execution-policy cases | failure kind per boundary/claim | Proved | `boundaryFailures_ids`, `rootFailures_ids`, `executionFailureRecords_empty_iff` |
 | checkerSelftest fixtures | 12 scanner cases | `Documentation.scan` marker/fence problems | Counterexample aid | follow-up: step-function scanner with proved problem coverage |
 | checkerSelftest fixtures | fence corpus, diagnostic-setup controls | fence compilation through real workers | External | kept |
-| checkerSelftest structural | in-process malformed, incomplete, wrong-version, unknown-key, bad-execution and excluded-empty manifest cases | `Manifest.parse` refusals, field decoding and acceptance of empty exclusions | Proved | `Manifest.parse_sound`, `parse_input`, `parse_emptyExclusions` |
-| checkerSelftest structural | real manifest, missing file; public CLI missing, malformed and unknown-library cases | file IO, CLI refusal propagation, Lake inventory | External | kept |
+| checkerSelftest structural | in-process malformed, incomplete, wrong-version, unknown-key, bad-execution and excluded-empty manifest cases | `Manifest.parse` acceptance, field decoding, acceptance of empty exclusions and the diagnostic class of each refusal | Proved | `Manifest.parse_sound`, `parse_input`, `parse_emptyExclusions`, refusal-class theorems |
+| checkerSelftest structural | real manifest, missing file; public CLI missing, malformed, incomplete, wrong-version, unknown-key, bad-execution and unknown-library cases | file IO, the `axiomGate` CLI rendering of each refusal class, Lake inventory | External | kept |
 | checkerSelftest structural | Lake discovery, unlisted modules, executable classification, fresh-checker coverage | Lake inventory and build behaviour | External | kept |
 | checkerSelftest cli, environments, build-policy | CLI sweep, adopters, clean checkout, ordinary build | packaging, Lake and build integration | External | kept |
 | ordinary | `qualify registry`, `qualify native` | CLI argv/output invalidation; compiler messages and ranges | External | kept |
@@ -245,13 +245,30 @@ by their source-level linkage. The proof is erased at execution.
   name and rationale is the JSON string, the claim is `Profile.parse?` of the JSON string, an
   absent `executables` is empty and a present one is exactly its string array, and an absent
   `execution` is `report` while a present one is `ExecutionClaim.parse?` of the JSON string.
-  `load` adds only the missing-file check and the read. These replace the in-process
-  malformed, incomplete, wrong-version, unknown-key and bad-execution manifest cases.
+  `load` adds only the missing-file check and the read. With the refusal-class theorems
+  below, these replace the in-process malformed, incomplete, wrong-version, unknown-key and
+  bad-execution manifest cases.
+- Manifest refusal classes: each isolated defect yields exactly its documented message from
+  the executed `parse`. `parse_malformed`: unparseable JSON gives `manifest-malformed`.
+  `objectWithKeys_unknown` gives `manifest-schema: LOCATION has unknown key(s): KEYS` for
+  any object with a key outside the allowed set. With well-formed JSON
+  (`parse_topLevel_refuses`), `topLevel_unknownKey` passes that message through for the top
+  level, `topLevel_schemaVersion` gives `manifest-schema: schema-version must be exactly 2`
+  when the keys are allowed, and `topLevel_emptySurfaces` gives `manifest-incomplete:
+  surfaces must be a nonempty array` when the rest of the top level is accepted. After
+  accepted earlier surfaces (`parse_surface_refuses`), `parseSurface_unknownKey` passes the
+  unknown-key message through for that surface. When every check before `execution` accepts
+  it (`SurfacePrefixOK`, `parseSurface_execution_refuses`), an unrecognized execution string
+  (`surfaceExecution_unknown`) or a non-string value (`surfaceExecution_nonString`) gives the
+  `manifest-schema` execution message. Other refusals, including a missing required field
+  and an unknown key in an exclusion entry, are not classified by a theorem. The public
+  `axiomGate` CLI controls for the malformed, incomplete, wrong-version, unknown-key and
+  bad-execution cases stay as external controls of how the CLI renders these classes.
 - `Checker.Manifest.parse_emptyExclusions`: JSON meeting the top-level conditions above
   with empty exclusion arrays is accepted whenever its surfaces array parses
   (`parseAll parseSurface` succeeds), with exactly those surfaces. This completeness
   statement replaces the in-process excluded-empty case; it does not prove that any
-  particular surface is accepted. Axioms of all three theorems are bounded by the module's
+  particular surface is accepted. Axioms of these theorems are bounded by the module's
   `collectAxioms` command; the module is in the excluded `StrictLean` library.
 - `StrictLeanPolicy.boundaryFailures_ids` and `rootFailures_ids`: the failure kind of
   every boundary and unresolved path for every claim. With

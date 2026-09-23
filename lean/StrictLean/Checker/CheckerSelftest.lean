@@ -699,10 +699,13 @@ private def expectManifestPublicFailure (repo : FilePath) (name : String)
   return some s!"manifest/public/{name}: wrong diagnostic:\n{result.output}"
 
 /-- External manifest controls only: the real repository manifest, a missing file, and the
-public CLI propagating a parser refusal and a Lake-inventory refusal. The pure parser is
-proved for every input instead of sampled: `Manifest.parse_sound` and `Manifest.parse_input`
-cover the former malformed, incomplete, wrong-version, unknown-key and bad-execution cases,
-and `Manifest.parse_emptyExclusions` the former excluded-empty case. -/
+public `axiomGate` CLI rendering the malformed, incomplete, wrong-version, unknown-key and
+bad-execution refusal classes and a Lake-inventory refusal. The pure parser is proved for every
+input instead of sampled in process: `Manifest.parse_sound` and `Manifest.parse_input` for what
+it accepts, `Manifest.parse_emptyExclusions` for empty exclusions, and the refusal-class
+theorems (`parse_malformed`, `topLevel_emptySurfaces`, `topLevel_schemaVersion`,
+`objectWithKeys_unknown`, `parseSurface_execution_refuses` and their lifts) for the
+message of each of those defects. -/
 private def manifestQualification (repo scratch : FilePath) : IO (Array String) := do
   let mut failures : Array String := #[]
   let valid ← Manifest.load (Manifest.defaultPath repo)
@@ -717,6 +720,34 @@ private def manifestQualification (repo scratch : FilePath) : IO (Array String) 
   let malformed := scratch / "malformed.json"
   IO.FS.writeFile malformed "{"
   if let some failure ← expectManifestPublicFailure repo "malformed" malformed "manifest-malformed" then
+    failures := failures.push failure
+  let incomplete := scratch / "incomplete.json"
+  IO.FS.writeFile incomplete
+    "{\"schema-version\":2,\"surfaces\":[],\"excluded-libraries\":[],\"excluded-executables\":[]}"
+  if let some failure ← expectManifestPublicFailure repo "incomplete" incomplete
+      "manifest-incomplete: surfaces must be a nonempty array" then
+    failures := failures.push failure
+  let wrongVersion := scratch / "wrong-version.json"
+  IO.FS.writeFile wrongVersion <| "{\"schema-version\":1,\"surfaces\":[{" ++
+    "\"library\":\"Audit\",\"claim\":\"standard-logical\",\"rationale\":\"control\"}]," ++
+    "\"excluded-libraries\":[],\"excluded-executables\":[]}"
+  if let some failure ← expectManifestPublicFailure repo "wrong-version" wrongVersion
+      "manifest-schema: schema-version must be exactly 2" then
+    failures := failures.push failure
+  let unknown := scratch / "unknown.json"
+  IO.FS.writeFile unknown <| "{\"schema-version\":2,\"surfaces\":[{" ++
+    "\"library\":\"Audit\",\"claim\":\"standard-logical\",\"rationale\":\"control\",\"extra\":true}]," ++
+    "\"excluded-libraries\":[{\"library\":\"Fixtures\",\"rationale\":\"mutations\"}]," ++
+    "\"excluded-executables\":[]}"
+  if let some failure ← expectManifestPublicFailure repo "unknown" unknown
+      "manifest-schema: surfaces[0] has unknown key(s)" then
+    failures := failures.push failure
+  let badExecution := scratch / "bad-execution.json"
+  IO.FS.writeFile badExecution <| "{\"schema-version\":2,\"surfaces\":[{" ++
+    "\"library\":\"Audit\",\"claim\":\"standard-logical\",\"execution\":\"bogus\",\"rationale\":\"control\"}]," ++
+    "\"excluded-libraries\":[],\"excluded-executables\":[]}"
+  if let some failure ← expectManifestPublicFailure repo "bad-execution" badExecution
+      "manifest-schema: surfaces[0].execution must be \"report\" or \"checked\"" then
     failures := failures.push failure
   let unknownLibrary := scratch / "unknown-library.json"
   IO.FS.writeFile unknownLibrary <| "{\"schema-version\":2,\"surfaces\":[{" ++
@@ -1432,7 +1463,7 @@ private unsafe def runStructural (layout : SourceLayout) (repo : FilePath) (jobs
     timedPhase "manifest controls" <| withScratch repo "checker-manifest" fun scratch =>
       manifestQualification repo scratch
   for failure in ← IO.ofExcept (← IO.wait manifestTask) do failures.modify (·.push failure)
-  IO.println "self-test manifest: completed (valid + missing in-process; missing, malformed and unknown-library public cases)"
+  IO.println "self-test manifest: completed (valid + missing in-process; missing, malformed, incomplete, wrong-version, unknown-key, bad-execution and unknown-library public cases)"
 
   let structural ← IO.ofExcept (← IO.wait structuralTask)
   for failure in structural do failures.modify (·.push failure)
@@ -1709,7 +1740,7 @@ unsafe def run (args : List String) : IO UInt32 := do
   IO.println <| s!"checker self-test: PASS ({fixtures.size} fixed fixtures in-process; " ++
     (if options.buildBound then s!"{fixtures.size} real-CLI controls (including all smoke controls); "
       else s!"{smokeFixtureNames.size} real-CLI smoke controls; ") ++
-    s!"{fenceCorpusCases.size + publicOnlyFenceCases.size} Markdown cases plus import-setup controls; 5 manifest cases; structural controls including explicit contract mutations; " ++
+    s!"{fenceCorpusCases.size + publicOnlyFenceCases.size} Markdown cases plus import-setup controls; 9 manifest cases; structural controls including explicit contract mutations; " ++
     s!"{CompilerPaths.caseCount} imported compiler-path mutations with fresh restorations; " ++
     (if options.buildBound then
       "build-bound tier: full real-CLI fixture sweep, end-to-end fence corpus, " ++
