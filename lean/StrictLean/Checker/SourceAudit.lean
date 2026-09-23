@@ -257,17 +257,9 @@ def compileBatch (repo scratch : FilePath) (jobs : Nat) (specs : Array SourceSpe
             actual.sourcePath == scratch / s!"{expected.module}.lean" &&
             actual.oleanPath == scratch / s!"{expected.module}.olean" &&
             actual.ileanPath == scratch / s!"{expected.module}.ilean"
+      -- `checkedIndexedResults` proves one bound result per request, in request order.
       let compilations ← IO.ofExcept <| admitIndexedWorkerResults specs.size binding payload
-      if compilations.size != specs.size then
-        throw <| IO.userError "compile batch returned incomplete results"
-      for i in [:specs.size] do
-        let some expected := specs[i]? | throw <| IO.userError "missing compile request"
-        let some actual := compilations[i]? | throw <| IO.userError "missing compile result"
-        unless toJson actual.spec == toJson expected &&
-            actual.sourcePath == scratch / s!"{expected.module}.lean" &&
-            actual.oleanPath == scratch / s!"{expected.module}.olean" &&
-            actual.ileanPath == scratch / s!"{expected.module}.ilean" do
-          throw <| IO.userError "compile batch result binding mismatch"
+      for (expected, actual) in specs.zip compilations do
         unless (← IO.FS.readFile actual.sourcePath) == expected.source do
           throw <| IO.userError "compile batch source snapshot changed"
       return compilations

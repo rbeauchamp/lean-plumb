@@ -49,11 +49,12 @@ Paths in this table start at `lean/StrictLean/`.
 
 | Operational caller | Proved pure function | Remaining boundary |
 | --- | --- | --- |
-| `Checker/Policy.admitScope` | `admitInventory`, `authorize` | Fresh frontend/FileMap checks, actual source and compiler observation acquisition. |
-| `Checker/Policy.ruleFor` / `reasonFor` | `policyFor` | Exhaustive mapping to the sole registry and its existing subreasons. |
+| `Checker/Policy.admitScope` | `checkedScope` (`ScopeContract`): first coordinate refusal in transcript order, then exactly `admitInventory` with `authorize`; success iff all coordinate checks and `InventoryValid` hold, retaining both input arrays | Fresh frontend/FileMap checks, actual source and compiler observation acquisition. |
+| `Checker/Policy.request`, `ruleFor` / `reasonFor` | `checkedRequest` (`RequestContract`), `checkedRule` (`RuleContract`) over `policyFor`; `ruleForFailure_injective`, `reasonFor_eq_some_iff` | Registry descriptor text itself; adequacy of the mapped rule set. |
 | `Checker/Policy.labelOf` / `classify` | `foundationFor` | Actual transitive `Lean.collectAxioms` results and module ownership. |
-| `Checker/Policy.executionFailureRecords` / `executionFailures` | `executionFailureRecords` | Root/closure collection, retained compiler edges, correspondence admission, source history and canonical runtime origins. |
-| `Checker/Common.admitIndexedWorkerResults`, `mapWorkQueue`; `Documentation.auditTasks` | `ResultState.collect`, `collect_success_iff`, `collect_lookup` | Child completion, strict packet decoding and exact request/source binding. |
+| `Checker/Policy.executionFailureRecords` (identity) / `executionFailures`, `executionSummary` | `executionFailureRecords`, `executionRule_injective`, `checkedSummary` (`SummaryContract`) | Root/closure collection, retained compiler edges, correspondence admission, source history and canonical runtime origins. |
+| `Checker/Common.admitIndexedWorkerResults`, `mapWorkQueue` | `checkedIndexedResults` (`IndexedResultsContract`) over `ResultState.collect` | Child completion, strict packet decoding and exact request/source binding. |
+| `Documentation.auditTasks` | `ResultState.collect`, `collect_success_iff`, `collect_lookup` | Child completion, strict packet decoding and exact request/source binding. |
 | `Checker/Documentation.matchesPattern` | `matchesPattern` | Structural fence scanning, supported-pattern diagnostic text, and completed effective-error extraction. |
 | `Checker/Acceptance.finish`; `Documentation.finishDocuments`; `FreshChecker.finishGraph` | `finalize`, `finalize_iff`, `accepted_report_identity`, `accepted_covers_slot` | Independently supplied census and truthful actual observations remain external; each finalizer supplies all derived jobs and returns `AcceptedRun`. |
 | `AxiomGate.auditSurface` combined success | `combineAccepted`, `combined_policy`, `combined_reports_same_snapshot` | Child completion/raw decoding, terminal source stability and truthful environment extraction remain operational. |
@@ -160,8 +161,8 @@ accepted report is not full standard conformance.
 ## Evidence and supported domain
 
 The implementation targets the [supported toolchain](../../README.md#supported-toolchain).
-The pure policy library itself imports Init/Std and its own modules, not Mathlib
-or the excluded operational checker.
+The pure policy library's import boundary is owned by
+[the acceptance contract](policy-acceptance.md#5-pure-module-boundary-and-migration).
 
 The [POLICY-03 evidence](../../session/evidence/issue-6-verification.md) records its
 historical Mathlib revision, declaration and

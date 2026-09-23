@@ -1,4 +1,5 @@
 import StrictLeanPolicy.Admission
+import StrictLean.Contract
 
 /-! Executable execution decisions and their exact finite-observation specification.
 Neither policy equivalence nor admitted origin data proves extraction or native runtime correctness. -/
@@ -63,21 +64,100 @@ theorem executionFailureRecords_empty_iff (i : ExecutionInventory) (c : Executio
   simp [executionFailureRecords, rootFailures, ExecutionOK, Array.flatMap_eq_empty_iff,
     boundaryFailures_empty_iff]
 
-/-- Execution-coverage summary counts for gate output: roots, boundaries,
-checked, trusted, unresolved. -/
-def executionSummary (inventory : ExecutionInventory) :
-    Nat × Nat × Nat × Nat × Nat := Id.run do
-  let mut boundaries := 0
-  let mut checked := 0
-  let mut trusted := 0
-  let mut unresolved := 0
-  for root in inventory.roots do
-    unresolved := unresolved + root.unresolved.size
-    for boundary in root.boundaries do
-      boundaries := boundaries + 1
-      if boundary.correspondence == .checked then checked := checked + 1
-      else if boundary.correspondence == .trusted then trusted := trusted + 1
-      else unresolved := unresolved + 1
-  return (inventory.roots.size, boundaries, checked, trusted, unresolved)
+/-- Named execution-coverage counts rendered by gate output. -/
+structure ExecutionSummary where
+  roots : Nat
+  boundaries : Nat
+  checked : Nat
+  trusted : Nat
+  unresolved : Nat
+  deriving Repr, DecidableEq
+
+/-- Every boundary observation of the account, in root order, without deduplication. -/
+def ExecutionInventory.boundaries (inventory : ExecutionInventory) : Array ExecutionBoundary :=
+  inventory.roots.flatMap (·.boundaries)
+
+/-- Required meaning of the rendered counts. Roots and boundaries count observations, not
+distinct runtime paths; `unresolved` is the number of unresolved diagnostics the execution
+decision reports, for every claim: each unresolved root path and each unresolved boundary. -/
+def SummaryContract (summary : ExecutionInventory → ExecutionSummary) : Prop :=
+  ∀ inventory, (summary inventory).roots = inventory.roots.size ∧
+    (summary inventory).boundaries = inventory.boundaries.size ∧
+    (summary inventory).checked =
+      (inventory.boundaries.filter (·.correspondence = .checked)).size ∧
+    (summary inventory).trusted =
+      (inventory.boundaries.filter (·.correspondence = .trusted)).size ∧
+    ∀ claim, (summary inventory).unresolved =
+      ((executionFailureRecords inventory claim).filter (·.id = .executionUnresolved)).size
+
+/-- Execution-coverage counts over the admitted account. -/
+def executionSummary (inventory : ExecutionInventory) : ExecutionSummary :=
+  let boundaries := inventory.boundaries
+  { roots := inventory.roots.size, boundaries := boundaries.size
+    checked := boundaries.countP (·.correspondence == .checked)
+    trusted := boundaries.countP (·.correspondence == .trusted)
+    unresolved := (inventory.roots.map (·.unresolved.size)).sum +
+      boundaries.countP (·.correspondence == .unresolved) }
+
+/-- One boundary contributes one unresolved diagnostic exactly when it is unresolved. -/
+private theorem boundaryFailures_unresolved (root : ExecutionRoot) (claim : ExecutionClaim)
+    (b : ExecutionBoundary) :
+    (boundaryFailures root claim b).countP (·.id = .executionUnresolved) =
+      if b.correspondence = .unresolved then 1 else 0 := by
+  unfold boundaryFailures
+  cases claim <;> cases b.correspondence <;> simp <;> split <;> simp
+
+private theorem sum_indicator (xs : Array ExecutionBoundary) (f : ExecutionBoundary → Nat)
+    (h : ∀ b, f b = if b.correspondence = .unresolved then 1 else 0) :
+    (xs.map f).sum = xs.countP (·.correspondence == .unresolved) := by
+  rcases xs with ⟨xs⟩
+  induction xs with
+  | nil => simp
+  | cons x xs ih => simp_all [List.countP_cons]; split <;> omega
+
+private theorem sum_map_add (xs : Array ExecutionRoot) (f g : ExecutionRoot → Nat) :
+    (xs.map fun x => f x + g x).sum = (xs.map f).sum + (xs.map g).sum := by
+  rcases xs with ⟨xs⟩
+  induction xs with
+  | nil => simp
+  | cons x xs ih => simp_all; omega
+
+/-- A root reports each unresolved path and each unresolved boundary once. -/
+private theorem rootFailures_unresolved (root : ExecutionRoot) (claim : ExecutionClaim) :
+    (rootFailures root claim).countP (·.id = .executionUnresolved) =
+      root.unresolved.size + root.boundaries.countP (·.correspondence == .unresolved) := by
+  simp only [rootFailures, Array.countP_append, Array.countP_map, Array.countP_flatMap]
+  congr 1
+  · simp [Function.comp_def]
+  · exact sum_indicator _ _ (boundaryFailures_unresolved root claim)
+
+/-- The unresolved count is every root path plus every unresolved boundary, which is
+exactly the number of unresolved diagnostics in the decision's failure records. -/
+theorem executionSummary_unresolved (inventory : ExecutionInventory) (claim : ExecutionClaim) :
+    (executionSummary inventory).unresolved =
+      ((executionFailureRecords inventory claim).filter (·.id = .executionUnresolved)).size := by
+  rw [← Array.countP_eq_size_filter]
+  simp only [executionSummary, ExecutionInventory.boundaries, executionFailureRecords,
+    Array.countP_flatMap, Function.comp_def, rootFailures_unresolved, sum_map_add]
+
+/-- Every boundary has exactly one of the three correspondence categories. -/
+theorem executionSummary_partition (inventory : ExecutionInventory) :
+    (executionSummary inventory).checked + (executionSummary inventory).trusted +
+      (inventory.boundaries.filter (·.correspondence = .unresolved)).size =
+      (executionSummary inventory).boundaries := by
+  simp only [executionSummary, ← Array.countP_eq_size_filter]
+  generalize inventory.boundaries = xs
+  rcases xs with ⟨xs⟩
+  induction xs with
+  | nil => simp
+  | cons x xs ih =>
+    simp only [List.size_toArray, List.countP_toArray, List.countP_cons, List.length_cons] at *
+    cases x.correspondence <;> simp <;> omega
+
+/-- The gate renders these counts through this registration, whose `run` is exactly
+`executionSummary`. It does not count distinct runtime paths or authenticate extraction. -/
+theorem checkedSummary : StrictLean.ExecutableContract executionSummary SummaryContract :=
+  ⟨fun inventory => ⟨rfl, rfl, Array.countP_eq_size_filter .., Array.countP_eq_size_filter ..,
+    executionSummary_unresolved inventory⟩⟩
 
 end StrictLeanPolicy

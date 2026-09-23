@@ -21,6 +21,5 @@ def executionFinding (failure : Policy.ExecutionFailure) (location : Location)
   | .executionBoundary =>
       return ⟨.executionBoundary, ← makeDiagnostic .executionBoundary a location mode
         (some claim.toString) .violation⟩
-  | _ => throw "invalid execution diagnostic rule"
 
 end StrictLean.Checker.RuleDiagnostics

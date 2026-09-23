@@ -529,11 +529,10 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
             let declarations := report.declarations.filter (·.«module» == moduleName)
               |>.qsort fun left right => Name.quickLt left.name right.name
             for decl in declarations do IO.println s!"  {Policy.classify decl scope}"
-        let (rootCount, boundaryCount, checkedCount, trustedCount, unresolvedCount) :=
-          Policy.executionSummary executionInventory
+        let summary := Policy.executionSummary executionInventory
         IO.println <| s!"execution coverage for {surface.library} [claim: {surface.execution}]: " ++
-          s!"{rootCount} root(s), {boundaryCount} boundary(ies) " ++
-          s!"({checkedCount} checked, {trustedCount} trusted), {unresolvedCount} unresolved"
+          s!"{summary.roots} root(s), {summary.boundaries} boundary(ies) " ++
+          s!"({summary.checked} checked, {summary.trusted} trusted), {summary.unresolved} unresolved"
         -- Every root and boundary is always in `--json-out`; text lists them only on request.
         if verbose then
           for root in report.execution do
@@ -819,11 +818,10 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
               let finding ← IO.ofExcept <| RuleDiagnostics.executionFinding failure location .freshFile execution
               findings := findings.push finding
               IO.println finding.2.text
-            let (rootCount, boundaryCount, checkedCount, trustedCount, unresolvedCount) :=
-              Policy.executionSummary executionInventory
-            IO.println <| s!"execution coverage [claim: {execution}]: {rootCount} root(s), " ++
-              s!"{boundaryCount} boundary(ies) ({checkedCount} checked, {trustedCount} trusted), " ++
-              s!"{unresolvedCount} unresolved"
+            let summary := Policy.executionSummary executionInventory
+            IO.println <| s!"execution coverage [claim: {execution}]: {summary.roots} root(s), " ++
+              s!"{summary.boundaries} boundary(ies) ({summary.checked} checked, {summary.trusted} trusted), " ++
+              s!"{summary.unresolved} unresolved"
             for root in inspected.report.execution do
               if !root.boundaries.isEmpty || !root.unresolved.isEmpty then
                 IO.println s!"  execution root {root.name}"
