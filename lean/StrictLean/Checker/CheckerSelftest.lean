@@ -1169,6 +1169,7 @@ private unsafe def structuralQualification (layout : SourceLayout) (repo scratch
         return #[s!"structural/setup: copy{index + 1} baseline did not build:\n{setup.output}"]
       let started ← IO.monoMsNow
       let result ← part repo copy
+      -- Deliberate per-cluster timing for the 420-second structural budget follow-up.
       IO.println s!"phase structural part {index + 1}: {(← IO.monoMsNow) - started}ms"
       return result
   return results.foldl (· ++ ·) #[]

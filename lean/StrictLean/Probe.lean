@@ -110,11 +110,17 @@ value 200000 was 1/1000 of that, so any sizeable audited environment timed out a
 definitional correspondence was misreported as trusted. -/
 private def correspondenceHeartbeats : USize := 200000 * 1000
 
+/-- Kernel resource exhaustion ends admission without a verdict on the proof. -/
+private def kernelExhausted : Kernel.Exception → Bool
+  | .deterministicTimeout | .excessiveMemory | .deepRecursion | .interrupted => true
+  | _ => false
+
 /-- Admission checks the constructed closed proof against the exact required
 proposition in a disposable kernel declaration. Neither metavariable unification
-nor a matching theorem statement alone authorizes `checked`. -/
+nor a matching theorem statement alone authorizes `checked`. `none` means the
+kernel exhausted its resources before deciding; a kernel rejection throws. -/
 private def checkCorrespondenceProof (levels : List Name) (required proof : Expr) :
-    MetaM String := do
+    MetaM (Option String) := do
   let required ← instantiateMVars required
   let proof ← instantiateMVars proof
   if required.hasMVar || proof.hasMVar || required.hasFVar || proof.hasFVar then
@@ -127,14 +133,16 @@ private def checkCorrespondenceProof (levels : List Name) (required proof : Expr
     value := proof }
   let checked ← match (← getEnv).addDeclCore correspondenceHeartbeats 1000 declaration none with
     | .ok checked => pure checked
-    | .error _ => throwError "kernel rejected exact correspondence"
+    | .error e =>
+      if kernelExhausted e then return none
+      throwError "kernel rejected exact correspondence"
   let axioms ← withEnv checked <| collectAxioms name
   unless axioms.all (fun ax =>
       ax == ``propext || ax == ``Quot.sound || ax == ``Classical.choice) do
     throwError "correspondence exceeds standard-logical foundations"
   withOptions (fun opts => opts.setBool `pp.all true |>.setBool `pp.deepTerms true
       |>.set `pp.maxSteps (1000000 : Nat)) do
-    return s!"proof={← Meta.ppExpr proof}; required={← Meta.ppExpr required}"
+    return some s!"proof={← Meta.ppExpr proof}; required={← Meta.ppExpr required}"
 
 /-- A theorem mentioning both endpoints is only a search candidate. For every
 prefix of the actual dependent domain, instantiate its universes and premises,
@@ -158,7 +166,7 @@ private def theoremCorrespondence? (levels : List Name) (reference replacement :
           for arg in domain.extract count domain.size do
             proof ← Meta.mkCongrFun proof arg
           proof ← Meta.mkLambdaFVars domain proof
-          let detail ← checkCorrespondenceProof levels required proof
+          let some detail ← checkCorrespondenceProof levels required proof | return none
           return some s!"proved: {name}; {detail}"
         catch _ => return none
       if result.isSome then return result
@@ -188,10 +196,12 @@ private def replacementCorrespondence (env : Environment) (reference replacement
         let lhs := mkAppN ref domain
         let rhs := mkAppN impl domain
         let required ← Meta.mkForallFVars domain (← Meta.mkEq lhs rhs)
+        let mut defeqExhausted := false
         try
           let proof ← Meta.mkLambdaFVars domain (← Meta.mkEqRefl lhs)
-          let detail ← checkCorrespondenceProof levels required proof
-          return (.checked, some s!"kernel-defeq; {detail}")
+          match ← checkCorrespondenceProof levels required proof with
+          | some detail => return (.checked, some s!"kernel-defeq; {detail}")
+          | none => defeqExhausted := true
         catch _ => pure ()
         for name in proofCandidates do
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
@@ -202,7 +212,10 @@ private def replacementCorrespondence (env : Environment) (reference replacement
           if !used.contains reference || !used.contains replacement then continue
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
             return (.checked, some evidence)
-        return (.trusted, some "no kernel-checked unconditional correspondence proof")
+        return (.trusted, some <| if defeqExhausted then
+          "no kernel-checked unconditional correspondence proof; " ++
+            "kernel resources exhausted before deciding definitional correspondence"
+          else "no kernel-checked unconditional correspondence proof")
   catch _ =>
     return (.unresolved, some s!"cannot construct exact correspondence for {reference} and {replacement}")
 
