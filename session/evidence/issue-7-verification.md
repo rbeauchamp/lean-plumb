@@ -1048,3 +1048,22 @@ The issue also names two further classes:
 ## Closeout: #10 handoff
 
 #10's body is at GitHub's 65,536-character limit, so the finalized API, coverage, mode semantics, commands, evidence revisions and remaining trust assumptions were delivered as a dated amendment comment, which is the deliverable: https://github.com/rbeauchamp/strict-lean/issues/10#issuecomment-5785859335 (also on #7 and #13).
+
+## Closeout: external-adopter and build-integration diagnostics at `96ed7423885d12c551dbf964cca62ccf280e59d7`
+
+The build-integration capability changed in issue 7: every audit route, including `--build-lint`, now takes dependency snapshots and runs terminal freshness rechecks. Each partition was run once locally at this signed closeout head, on a clean tree at low host load. **Both FAILED at the hard 420 s deadline** (exit 1, SIGKILL).
+
+| Command | Result | Wall | Window (UTC) | Load |
+| --- | --- | --- | --- | --- |
+| `./scripts/verify.sh diagnostics environments` | **FAIL, 420 s deadline** | 420.06 s | 01:09:49–01:16:50 | 5.08 → 3.21 |
+| `./scripts/verify.sh diagnostics build-policy` | **FAIL, 420 s deadline** | 420.01 s | 01:16:50–01:23:50 | 3.21 → 5.55 |
+
+- **environments:** the clean-checkout phases completed, and the `external adopters` phase finished in 173.9 s. The partition was still running (clean-checkout/fresh-checker) at the kill.
+- **build-policy:** 26 of its 27 build-lint controls completed (positive / intended mutation / fresh restoration each). `reenabled-cached-axiom` and the final verdict did not complete.
+- **Before issue 7:** the same partition passed in 184.41 s at `7085071` (issue 37, 2026-09-18), with `BuildLintQualification.lean` unchanged since then.
+- **Derived cause, not measured per build:**
+  - At `7085071`, `AxiomGate` had no dependency snapshot. On main it captures one and rechecks it on every audit route.
+  - A build-lint adopter that requires `strict_lean` transitively depends on Mathlib. Each checker invocation therefore reads its ~9,100 sources and runs batched Git status. That is 3.5–4.5 s per capture measured elsewhere in this work, taken at the start and end of each build, in every one of the 3–4 builds per control.
+- **Receipts and logs:** `tmp/closeout-96ed742-{environments,build-policy}.{receipt,log}`.
+
+This is a genuine failure of the changed build-integration capability's diagnostic within its limit, not a pass. It remains open.
