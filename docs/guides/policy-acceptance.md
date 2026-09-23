@@ -57,13 +57,46 @@ module identities, canonical source paths and exact bytes independently of Git i
 rules. Unused dependency executables need not ship source files; root-package targets
 remain required, and terminal rediscovery detects executable source additions/removals.
 Library roots whose globs admit their submodules include those submodules even
-when the configured target array selects only the root. Nominal Git revision and dirty
-status are observed only for the declared inputs. Configuration paths come from Lake's
+when the configured target array selects only the root. Nominal Git revision is observed
+once per dependency root; dirty status is decided only for the declared inputs, by
+membership in one unrestricted porcelain status of that root (an ignored or untracked
+directory entry covers every declared input beneath it, and a rename covers both its
+paths); the status output itself is not retained. Configuration paths come from Lake's
 actual package configuration/manifest plus toolchain and default-config presence checks.
 No Git diff, untracked-file content list or directory-wide bytes are retained; unrelated
 files and build outputs are not inputs merely because they share a dependency directory. Terminal checks rediscover the Lake domain and reread
 these same inputs, refusing newly added or removed sources; filesystem acquisition and change-and-restore races remain trusted
 boundaries. No whole-workspace file scan substitutes for this Lake source inventory.
+
+The dirty decision replaces a literal-pathspec status over the declared inputs, whose
+cost grew with the pathspec count (about 1.5 s per Mathlib capture inside the checker),
+with one unrestricted `git status --porcelain=v1 -z --untracked-files=all
+--ignored=matching` of the root and the pure `Snapshot.dirtyOf` decision. `dirtyOf` is
+proved to hold exactly when some reported path, or a rename's original path, equals a
+declared root-relative input or is a directory above it (`dirtyOf_iff`), and to equal
+non-emptiness of the entries so restricted (`dirtyOf_eq_restricted`). Declared inputs
+are spelled as Git spells a literal pathspec from the canonical root: the leading
+directory that is the root, lexically or by `realPath`, is removed and the rest is kept
+literally; an input outside the root refuses, as the pathspec status did. That this
+restriction models Git's pathspec-limited output is trusted Git behavior, not a theorem:
+
+- G1. Directory collapsing precedes pathspec filtering. An ignored directory without
+  tracked files is reported as `dir/` even for a file pathspec beneath it; a directory
+  containing tracked files is descended, so a clean tracked file there is reported by
+  neither status.
+- G2. A rename on either side is reported as `XY new` followed by its original path;
+  with only the original declared, the pathspec status reports it as deleted.
+- G3. With `--untracked-files=all`, untracked directories are listed per file, except an
+  untracked nested repository, which the unrestricted status reports as `dir/` and the
+  pathspec status omits.
+
+Under G1 and G2 both decisions agree. Under G3 a declared input inside an untracked
+nested repository is now dirty where the pathspec status called it clean; that input is
+not part of the dependency's revision, so the change only corrects the reported bit.
+Request and report bytes are otherwise unchanged, and every byte is still read. Fields
+that are not UTF-8 are dropped: they cannot equal a declared input, and no `dir/`
+prefix of a UTF-8 input contains them. `lake exe qualify acceptance-snapshots
+git-status` checks these cases against the retired pathspec decision.
 
 Standalone documentation and rule-example documentation callers capture dependencies
 before their prerequisite build and pass that observation into `auditBuiltProject`.
@@ -80,7 +113,12 @@ failure already refuses the run; it is never replaced by an empty census.
 The focused `lake exe qualify acceptance-snapshots all` diagnostic exercises ignored
 Git-backed dependency source/configuration mutations with restoration, and the SL3001
 project control through fresh, incremental and build-lint invocations. It checks typed
-root/source attribution and absence of acceptance on unavailable history. These are
+root/source attribution and absence of acceptance on unavailable history. Its
+`git-status` group compares the dirty decision with the retired pathspec status for a
+clean root, unrelated ignored/untracked/NUL-framed siblings, inputs under an ignored
+directory with tracked files, a collapsed ignored directory and an untracked directory,
+staged and worktree renames, a deleted input, an untracked nested repository, a
+symlinked root spelling, a relative input and an input outside the root. These are
 scoped operational controls, not a proof of IO extraction or a full acceptance run.
 
 `Common.mapWorkQueue`, `admitIndexedWorkerResults` and documentation's task collector
