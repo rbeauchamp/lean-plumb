@@ -2,6 +2,7 @@ import StrictLean.Report
 import StrictLeanPolicy.Admission
 import StrictLeanPolicy.Guards
 import StrictLean.Contract
+import StrictLeanCore.Assembly
 import Lean.Elab.Command
 
 /-! Operational producer transport and key reconciliation. Kept outside the force-loaded
@@ -61,13 +62,6 @@ instance : FromJson DocumentationObservation := ⟨fun j => do
   return { modules := ← j.getObjValAs? _ "modules"
            materialDeclarations := ← j.getObjValAs? _ "materialDeclarations"
            declarations := ← j.getObjValAs? _ "declarations" }⟩
-
-/-- Completed history preserves the exact Lean-resolved source before/after the worker.
-Unavailable history has no successful source receipt or usable edge payload. -/
-inductive HistoryOutcome where
-  | completed (path before after : String) (replacements : Array (Name × Name))
-  | unavailable (detail : String)
-  deriving Repr
 
 instance : ToJson HistoryOutcome := ⟨fun
   | .completed path before after edges => Json.mkObj [
@@ -309,7 +303,7 @@ theorem validate_eq_ok (r : Environment) :
       (∀ root ∈ r.execution, r.validateRoot root = .ok ()) := by
   unfold Environment.validate
   cases admitExecution r.execution <;> cases r.admission <;> cases r.documentation <;>
-    simp [forM_eq_ok]
+    simp [Guards.forM_eq_ok]
 
 /-- Claimed modules are nonempty, unique and loaded; the declaration census is exactly
 the reported declaration keys in order, unique, and owned by claimed modules. -/
@@ -542,7 +536,7 @@ theorem validateRoot_eq_ok (r : Environment) (root : ExecutionRoot) (h : r.valid
   simp only [bind_eq_ok] at h
   obtain ⟨⟨⟩, hb, rest⟩ := h
   simp [-bind_pure_comp] at rest
-  exact ⟨forM_eq_ok.mp hb, rest.1, rest.2.1, rest.2.2⟩
+  exact ⟨Guards.forM_eq_ok.mp hb, rest.1, rest.2.1, rest.2.2⟩
 
 /-- A recorded-history lookup succeeds only for a reached, attributed, requested and
 recorded replacement reference, and returns exactly its completed-history edges. -/

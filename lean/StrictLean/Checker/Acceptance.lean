@@ -55,19 +55,9 @@ private def moduleKey (snapshot : AdmittedSnapshot) (name : Name) : Except Strin
 private def declarationKey (snapshot : AdmittedSnapshot) (key : Name × Name) : Except String DeclarationKey := do
   return ⟨← moduleKey snapshot key.1, ← admitIdentity key.2⟩
 
-/-- Preserve all completed histories, including their exact source binding. Unavailable
-history cannot be turned into an empty successful observation. -/
-def historyObservations (reports : Array RequestedInspection) : Except String (Array HistoryObservation) := do
-  let mut histories := #[]
-  for inspected in reports do
-    for (name, outcome) in inspected.report.histories do
-      match outcome with
-      | .unavailable detail => throw s!"history unavailable for {name}: {detail}"
-      | .completed path before after replacements =>
-        histories := histories.push {
-          moduleName := name, before := ⟨path, before⟩, after := ⟨path, after⟩,
-          replacements, unsupported := #[] }
-  return histories
+/-- Every report's history outcomes, in report order, through `checkedHistories`. -/
+def historyObservations (reports : Array RequestedInspection) : Except String (Array HistoryObservation) :=
+  histories (reports.flatMap (·.report.histories))
 
 /-- Reconcile full producer censuses with an independently selected positive domain. Full
 replay selection and both replay key arrays survive the infrastructure partition. Sources

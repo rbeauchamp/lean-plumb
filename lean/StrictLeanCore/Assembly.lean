@@ -3,12 +3,14 @@ import StrictLeanPolicy.Acceptance
 import StrictLeanPolicy.Traversal
 
 /-! Pure assembly of the acceptance census and job observations from the decoded manifest,
-Lake inventory and frozen environment records. `conformingProfile` and `surfaceAssignments`
-fix each claimed surface's profile, execution claim and module sequence, which nothing
-downstream rechecks, so each carries a contract. Every property of `observations` that
-acceptance relies on is decided again by the claimed `accept` (`StageOK`), so it carries
-none. Manifest parsing, Lake loading and environment extraction stay in the operational
-adapters; these definitions do not authenticate those observations. -/
+Lake inventory, producer history and frozen environment records. Contracts cover what
+nothing downstream decides again: each surface's profile and execution claim and its
+module order (`conformingProfile`, `surfaceAssignments`), exact history copies
+(`histories`), and which record supplies documentation-presence evidence
+(`checkedEnvironmentEvidence`). The claimed `accept` binds every other observation to its
+job (`ResultBound`, `PolicyOK`, `StageOK`). Manifest parsing, Lake loading and environment
+extraction stay in the operational adapters; these definitions do not authenticate those
+observations. -/
 
 namespace StrictLean.Checker.Manifest
 
@@ -80,6 +82,17 @@ structure SurfaceInventory where
   deriving Repr, BEq
 
 end StrictLean.Checker.Lake
+
+namespace StrictLean.Checker.ProducerReport
+
+/-- Completed history preserves the exact Lean-resolved source before/after the worker.
+Unavailable history has no successful source receipt or usable edge payload. -/
+inductive HistoryOutcome where
+  | completed (path before after : String) (replacements : Array (Lean.Name × Lean.Name))
+  | unavailable (detail : String)
+  deriving Repr
+
+end StrictLean.Checker.ProducerReport
 
 namespace StrictLean.Checker.Acceptance
 
@@ -323,6 +336,77 @@ def discoveredTargets (inventory : Lake.SurfaceInventory) : Array DiscoveredTarg
   inventory.libraries.map (fun library => ⟨.library, library.library, library.modules⟩) ++
   inventory.executables.map (fun exe => ⟨.executable, exe.executable, #[exe.root]⟩)
 
+/-- One completed producer history outcome, copied exactly: its module, path, source
+snapshots before and after, and replacement edges. Unsupported evaluators travel in the
+frontend transcript (`replacementHistoryUnsupported`), so none is recorded here. -/
+def HistoryCopied (entry : Name × ProducerReport.HistoryOutcome) (observation : HistoryObservation) :
+    Prop :=
+  ∃ path before after replacements,
+    entry.2 = .completed path before after replacements ∧
+    observation = ⟨entry.1, ⟨path, before⟩, ⟨path, after⟩, replacements, #[]⟩
+
+/-- Required history assembly: success exactly when every outcome completed, with one
+exact copy per outcome, in order. An unavailable history is refused, never dropped. -/
+def HistoriesContract
+    (assemble : Array (Name × ProducerReport.HistoryOutcome) →
+      Except String (Array HistoryObservation)) : Prop :=
+  ∀ outcomes out, assemble outcomes = .ok out ↔
+    out.size = outcomes.size ∧
+    ∀ i (h : i < outcomes.size) (h' : i < out.size), HistoryCopied outcomes[i] out[i]
+
+private def historyStep : Name × ProducerReport.HistoryOutcome → Except String HistoryObservation
+  | (name, .unavailable detail) => .error s!"history unavailable for {name}: {detail}"
+  | (name, .completed path before after replacements) =>
+    .ok ⟨name, ⟨path, before⟩, ⟨path, after⟩, replacements, #[]⟩
+
+private def historiesImpl (outcomes : Array (Name × ProducerReport.HistoryOutcome)) :
+    Except String (Array HistoryObservation) :=
+  List.toArray <$> outcomes.toList.mapM historyStep
+
+private theorem historyStep_ok (entry : Name × ProducerReport.HistoryOutcome)
+    (observation : HistoryObservation) :
+    historyStep entry = .ok observation ↔ HistoryCopied entry observation := by
+  obtain ⟨name, outcome⟩ := entry
+  cases outcome with
+  | unavailable detail => simp [historyStep, HistoryCopied]
+  | completed path before after replacements =>
+    simp only [historyStep, HistoryCopied, Except.ok.injEq]
+    constructor
+    · rintro rfl
+      exact ⟨path, before, after, replacements, rfl, rfl⟩
+    · rintro ⟨p, b, a, r, h, rfl⟩
+      simp only [ProducerReport.HistoryOutcome.completed.injEq] at h
+      obtain ⟨rfl, rfl, rfl, rfl⟩ := h
+      rfl
+
+/-- Registers `HistoriesContract` about the executed history assembly. -/
+theorem checkedHistories : StrictLean.ExecutableContract historiesImpl HistoriesContract := by
+  refine ⟨fun outcomes out => ?_⟩
+  unfold historiesImpl
+  constructor
+  · intro h
+    cases hm : outcomes.toList.mapM historyStep with
+    | error e => simp [hm, Functor.map, Except.map] at h
+    | ok copied =>
+      simp only [hm, Functor.map, Except.map, Except.ok.injEq] at h
+      subst h
+      have ⟨hl, hi⟩ := (mapM_eq_ok _ _ _).mp hm
+      refine ⟨by simpa using hl, fun i h h' => ?_⟩
+      have step := hi i (by simpa using h) (by simpa using h')
+      rw [Array.getElem_toList] at step
+      exact (historyStep_ok _ _).mp (by simpa using step)
+  · rintro ⟨hl, hi⟩
+    have hm : outcomes.toList.mapM historyStep = .ok out.toList :=
+      (mapM_eq_ok _ _ _).mpr ⟨by simpa using hl, fun i h h' =>
+        by simpa using (historyStep_ok _ _).mpr (hi i (by simpa using h) (by simpa using h'))⟩
+    simp [hm, Functor.map, Except.map]
+
+/-- Preserve all completed histories, including their exact source binding. Unavailable
+history cannot be turned into an empty successful observation. Through `checkedHistories`. -/
+def histories (outcomes : Array (Name × ProducerReport.HistoryOutcome)) :
+    Except String (Array HistoryObservation) :=
+  checkedHistories.run outcomes
+
 /-- Operational observations retained after the independent census has been frozen.
 These data do not carry an accepted flag or determine the required stage list. -/
 structure FrozenEnvironment where
@@ -374,7 +458,7 @@ theorem modulePresence_iff (present : Bool) :
 /-- Each required slot receives its actual stage's observation. Failed lookup returns an
 explicit error; unknown stages cannot become a completed empty payload. The caller supplies
 the actual build process observation, not a synthesized success from diagnostic counts. -/
-private def environmentEvidence (frozen : FrozenEnvironment) (stage : Stage)
+private def environmentEvidenceImpl (frozen : FrozenEnvironment) (stage : Stage)
     (subject : LocalJobSubject) : Except String JobEvidence := do
     match stage, subject with
       | .admission, .scope => pure <| .admission frozen.admission
@@ -407,6 +491,73 @@ private def environmentEvidence (frozen : FrozenEnvironment) (stage : Stage)
           pure <| .documentationPresence observation.2
       | _, _ => throw "unsupported environment observation stage"
 
+private theorem requireOne_ok (what : String) (values : Array α) (value : α) :
+    requireOne what values = .ok value ↔ values.toList = [value] := by
+  unfold requireOne
+  split <;> simp_all
+
+private theorem filter_single {p : α → Bool} {values : Array α} {value : α}
+    (h : (values.filter p).toList = [value]) :
+    value ∈ values ∧ p value = true ∧ ∀ other ∈ values, p other = true → other = value := by
+  rw [Array.toList_filter] at h
+  have hv : value ∈ values.toList.filter p := by rw [h]; simp
+  rw [List.mem_filter] at hv
+  refine ⟨Array.mem_def.mpr hv.1, hv.2, fun other ho hp => ?_⟩
+  have : other ∈ values.toList.filter p := List.mem_filter.mpr ⟨Array.mem_def.mp ho, hp⟩
+  rw [h] at this
+  simpa using this
+
+/-- Required documentation-presence evidence. Acceptance checks only that a docstring is
+present, not which record supplied it, so this binding is not decided again there: success
+reports exactly the presence of the only record with the job's module name, or with its
+module and declaration names. Every other stage's record is bound to its subject by
+`LocalStageOK`. -/
+def DocumentationEvidenceContract
+    (evidence : FrozenEnvironment → Stage → LocalJobSubject → Except String JobEvidence) :
+    Prop :=
+  (∀ frozen k e, evidence frozen .documentationPresence (.module k) = .ok e →
+    ∃ present, (k.name.name, present) ∈ frozen.moduleDocumentation ∧
+      (∀ other ∈ frozen.moduleDocumentation, other.1 = k.name.name →
+        other = (k.name.name, present)) ∧
+      e = .documentationPresence (modulePresence present)) ∧
+  (∀ frozen k e, evidence frozen .documentationPresence (.declaration k) = .ok e →
+    ∃ doc, ((k.moduleKey.name.name, k.name.name), doc) ∈ frozen.declarationDocumentation ∧
+      (∀ other ∈ frozen.declarationDocumentation,
+        other.1 = (k.moduleKey.name.name, k.name.name) →
+          other = ((k.moduleKey.name.name, k.name.name), doc)) ∧
+      e = .documentationPresence doc)
+
+/-- Registers `DocumentationEvidenceContract` about the executed evidence selection. -/
+theorem checkedEnvironmentEvidence :
+    StrictLean.ExecutableContract environmentEvidenceImpl DocumentationEvidenceContract := by
+  refine ⟨⟨fun frozen k e h => ?_, fun frozen k e h => ?_⟩⟩
+  · simp only [environmentEvidenceImpl, bind, Except.bind] at h
+    cases hr : requireOne "module documentation"
+        (frozen.moduleDocumentation.filter (·.1 == k.name.name)) with
+    | error _ => simp [hr] at h
+    | ok observation =>
+      simp only [hr, pure, Except.pure, Except.ok.injEq] at h
+      obtain ⟨hmem, hp, huniq⟩ := filter_single ((requireOne_ok _ _ _).mp hr)
+      have hname : observation = (k.name.name, observation.2) := by
+        simp only [beq_iff_eq] at hp
+        rw [← hp]
+      refine ⟨observation.2, hname ▸ hmem, fun other ho h1 => ?_, h.symm⟩
+      rw [huniq other ho (by simp [h1])]
+      exact hname
+  · simp only [environmentEvidenceImpl, bind, Except.bind] at h
+    cases hr : requireOne "declaration documentation"
+        (frozen.declarationDocumentation.filter (·.1 == (k.moduleKey.name.name, k.name.name))) with
+    | error _ => simp [hr] at h
+    | ok observation =>
+      simp only [hr, pure, Except.pure, Except.ok.injEq] at h
+      obtain ⟨hmem, hp, huniq⟩ := filter_single ((requireOne_ok _ _ _).mp hr)
+      have hname : observation = ((k.moduleKey.name.name, k.name.name), observation.2) := by
+        simp only [beq_iff_eq] at hp
+        rw [← hp]
+      refine ⟨observation.2, hname ▸ hmem, fun other ho h1 => ?_, h.symm⟩
+      rw [huniq other ho (by simp [h1])]
+      exact hname
+
 /-- Global jobs are emitted once; local lookups select only the exact bound environment.
 Duplicate metadata occurrences fail instead of being normalized into one response. -/
 def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservation) :
@@ -420,7 +571,7 @@ def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservati
       | stage, .environment request subject => do
           let environment ← requireOne "environment" <| frozen.environments.filter
             (fun value => decide (value.census.request.key = request))
-          environmentEvidence environment stage subject
+          checkedEnvironmentEvidence.run environment stage subject
       | _, _ => throw "unsupported observation stage for project/file collector"
     return (slot, ({ key, snapshot := claim.val.snapshot, completion := .completed, evidence } : JobObservation))
   return values.toList
