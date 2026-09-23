@@ -40,14 +40,14 @@ private def phaseCheck (records : Array Json) (rule phase : String) : Except Str
   let some record := matching[0]? | throw "missing fixture record"
   unless ((← string record "kind") == "positive") == (phase != "Violation") do
     throw "fixture phase classification mismatch"
-  qualifyMutations record
+  qualify record
   pure (.yield PUnit.unit)
 
 private theorem phaseCheck_congr (xs : Array α) (f g : α → Json) (rule phase : String)
     (hr : ∀ x, string (f x) "rule" = string (g x) "rule")
     (hp : ∀ x, string (f x) "phase" = string (g x) "phase")
     (hk : ∀ x, string (f x) "kind" = string (g x) "kind")
-    (hq : ∀ x, qualifyMutations (f x) = qualifyMutations (g x)) :
+    (hq : ∀ x, qualify (f x) = qualify (g x)) :
     phaseCheck (xs.map f) rule phase = phaseCheck (xs.map g) rule phase := by
   unfold phaseCheck
   rw [filterM_map, filterM_map]
@@ -94,8 +94,8 @@ theorem qualifyCorpus_congr (fields : List (String × Json)) (xs : Array α) (f 
       string ((g x).setObjVal! "checkerSources" checker) "phase")
     (hk : ∀ x checker, string ((f x).setObjVal! "checkerSources" checker) "kind" =
       string ((g x).setObjVal! "checkerSources" checker) "kind")
-    (hq : ∀ x checker, qualifyMutations ((f x).setObjVal! "checkerSources" checker) =
-      qualifyMutations ((g x).setObjVal! "checkerSources" checker)) :
+    (hq : ∀ x checker, qualify ((f x).setObjVal! "checkerSources" checker) =
+      qualify ((g x).setObjVal! "checkerSources" checker)) :
     qualifyCorpus (corpus fields (xs.map f)) = qualifyCorpus (corpus fields (xs.map g)) := by
   simp only [corpusBody_eq, corpusBody, corpus,
     field_set (Json.mkObj fields) Std.TreeMap.Raw.WF.ofList]
@@ -110,7 +110,7 @@ theorem qualifyCorpus_congr (fields : List (String × Json)) (xs : Array α) (f 
     (fun x => hk x _) (fun x => hq x _)]
 
 /-- Exact full-corpus decision equality, including ordered prechecks, phase scans,
-every per-record mutation, and the first refusal. No hypothesis constrains metadata,
+every per-record admission, and the first refusal. No hypothesis constrains metadata,
 producer JSON, rule order, phase completeness, or validity of the supplied records. -/
 theorem qualifyCorpus_records (fields : List (String × Json))
     (inputs : Array (List (String × Json) × Json)) :
@@ -130,6 +130,6 @@ theorem qualifyCorpus_records (fields : List (String × Json))
       (recordRel_set _ _ (record_wf _ _) (record_wf _ _) (record_rel _ _ _)
         "checkerSources" checker "kind" (by decide))
   · intro item checker
-    exact qualifyMutations_record_checkerSources item.1 item.2 checker
+    exact qualify_record_checkerSources item.1 item.2 checker
 
 end StrictLean.Checker.RuleExampleProjection

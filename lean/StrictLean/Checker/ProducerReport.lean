@@ -295,17 +295,6 @@ extraction remains the trusted boundary. -/
 
 open StrictLeanPolicy.Guards
 
-@[simp] private theorem throw_bind {e : ε} {f : α → Except ε β} :
-    (throw e >>= f : Except ε β) = throw e := rfl
-
-@[simp] private theorem ite_throw_eq_ok {p : Prop} [Decidable p] {a : Except ε α} {e : ε} {b : α} :
-    (if p then a else throw e) = .ok b ↔ p ∧ a = .ok b := by
-  by_cases hp : p <;> simp [hp]
-
-@[simp] private theorem exists_punit_eq_ok {e : Except ε PUnit} :
-    (∃ x, e = .ok x) ↔ e = .ok ⟨⟩ :=
-  ⟨fun ⟨⟨⟩, h⟩ => h, fun h => ⟨_, h⟩⟩
-
 /-- Exact decomposition: the executed validator succeeds iff every guard succeeds. The
 converse direction excludes an always-refusing implementation. -/
 theorem validate_eq_ok (r : Environment) :

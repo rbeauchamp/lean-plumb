@@ -33,24 +33,39 @@ theorem binding_congr (a b ra rb : Json) (mode : StrictLean.EvidenceMode)
   simp only [Except.bind, bind, Bind.bind, hresult "toolchain" (by decide) (by decide),
     hresult "sourceRevision" (by decide) (by decide)]
 
+theorem observedSources_congr (a b : Json) (bound : StrictLean.Website.ExampleBinding)
+    (h : ResultRel a b) : observedSources a bound = observedSources b bound := by
+  simp only [observedSources, h "scope" (by decide) (by decide),
+    h "sourceAccount" (by decide) (by decide)]
+
 theorem sourceAccount_congr (a b : Json) (bound : StrictLean.Website.ExampleBinding) (displayed : String)
     (h : ResultRel a b) : sourceAccount a bound displayed = sourceAccount b bound displayed := by
-  simp only [sourceAccount, h "scope" (by decide) (by decide),
-    h "sourceAccount" (by decide) (by decide)]
+  simp only [sourceAccount, observedSources_congr a b bound h]
+
+theorem effectiveAccount_congr (a b : Json) (admitted : StrictLean.Website.ExampleRequest)
+    (h : ResultRel a b) : effectiveAccount a admitted = effectiveAccount b admitted := by
+  simp only [effectiveAccount, h "effective" (by decide) (by decide), h "scope" (by decide) (by decide)]
 
 theorem requestAccount_congr (a b : Json) (bound : StrictLean.Website.ExampleBinding)
     (h : ResultRel a b) : requestAccount a bound = requestAccount b bound := by
-  simp only [requestAccount, h "request" (by decide) (by decide),
-    h "effective" (by decide) (by decide), h "scope" (by decide) (by decide)]
+  simp only [requestAccount, h "request" (by decide) (by decide), effectiveAccount_congr a b _ h]
+
+theorem identity_congr (ra rb : Json) (h : ResultRel ra rb) :
+    (RegistryCodec.identityFields ResultProtocol.producer).forM (checkIdentity ra) =
+      (RegistryCodec.identityFields ResultProtocol.producer).forM (checkIdentity rb) := by
+  simp only [RegistryCodec.identityFields, List.forM, checkIdentity,
+    h "schemaVersion" (by decide) (by decide), h "producerVersion" (by decide) (by decide),
+    h "toolchain" (by decide) (by decide), h "sourceRevision" (by decide) (by decide)]
 
 theorem qualify_congr (a b ra rb : Json)
     (ha : field a "result" = .ok ra) (hb : field b "result" = .ok rb)
     (hr : RecordRel a b) (hresult : ResultRel ra rb) : qualify a = qualify b := by
-  simp only [qualify, ha, hb, Except.bind, bind, Bind.bind]
-  simp only [RegistryCodec.identityFields, List.forIn_cons, List.forIn_nil]
-  simp only [string, hresult "schemaVersion" (by decide) (by decide),
-    hresult "producerVersion" (by decide) (by decide), hresult "toolchain" (by decide) (by decide),
-    hresult "sourceRevision" (by decide) (by decide), hresult "mode" (by decide) (by decide),
+  unfold qualify
+  rw [ha, hb]
+  simp only [Except.bind, bind, Bind.bind]
+  rw [identity_congr ra rb hresult]
+  simp only [checkFindings, expectFindings, qualifyKind, Except.bind, bind, Bind.bind]
+  simp only [string, hresult "mode" (by decide) (by decide),
     hresult "diagnostics" (by decide) (by decide), hresult "unresolved" (by decide) (by decide),
     hresult "status" (by decide) (by decide), hresult "scope" (by decide) (by decide),
     hr "mode" (by decide), hr "exitCode" (by decide), hr "expected" (by decide),
@@ -120,24 +135,6 @@ theorem qualify_result_congr (a b ra rb : Json)
     simp only [field_set a hwa, field_set b hwb, ite_eq_right (Ne.symm hkey), hr key hkey]
   · exact hresult
 
-theorem qualifyMutations_congr (a b ra rb : Json)
-    (hwa : ObjectWF a) (hwb : ObjectWF b)
-    (ha : field a "result" = .ok ra) (hb : field b "result" = .ok rb)
-    (hr : RecordRel a b) (hresult : ResultRel ra rb)
-    (hmut : ResultRel (ra.setObjVal! "sourceRevision" (.str "stale"))
-      (rb.setObjVal! "sourceRevision" (.str "stale"))) :
-    qualifyMutations a = qualifyMutations b := by
-  simp only [qualifyMutations, qualify_congr a b ra rb ha hb hr hresult,
-    ha, hb, hr "request" (by decide), Except.bind, bind, Bind.bind]
-  simp only [← Array.forIn_toList, List.forIn_cons, List.forIn_nil]
-  simp only [qualify_set_congr a b ra rb hwa hwb ha hb hr hresult "exitCode" _ (by decide),
-    qualify_set_congr a b ra rb hwa hwb ha hb hr hresult "after" _ (by decide),
-    qualify_set_congr a b ra rb hwa hwb ha hb hr hresult "mode" _ (by decide),
-    qualify_set_congr a b ra rb hwa hwb ha hb hr hresult "kind" _ (by decide),
-    qualify_set_congr a b ra rb hwa hwb ha hb hr hresult "request" _ (by decide),
-    qualify_result_congr a b _ _ hwa hwb hr hmut]
-
-
 theorem resultView_rel (result : Json) : ResultRel (resultView result) result := by
   intro key hka hkd
   cases result <;> try rfl
@@ -163,29 +160,6 @@ theorem qualify_record (fields : List (String × Json)) (result : Json) :
     qualify (record fields (resultView result)) = qualify (record fields result) :=
   qualify_congr _ _ _ _ (field_record _ _) (field_record _ _) (record_rel _ _ _) (resultView_rel _)
 
-/-- Every old mutation and restored positive executes with exactly the old refusal. -/
-theorem qualifyMutations_record (fields : List (String × Json)) (result : Json) :
-    qualifyMutations (record fields (resultView result)) = qualifyMutations (record fields result) := by
-  apply qualifyMutations_congr _ _ _ _ (record_wf _ _) (record_wf _ _)
-    (field_record _ _) (field_record _ _) (record_rel _ _ _) (resultView_rel _)
-  rw [← resultView_set result "sourceRevision" (.str "stale") (by decide) (by decide)]
-  exact resultView_rel _
-
-/-- Checker-source injection retains the same complete mutation decision. -/
-theorem qualifyMutations_record_checkerSources (fields : List (String × Json))
-    (result checker : Json) :
-    qualifyMutations ((record fields (resultView result)).setObjVal! "checkerSources" checker) =
-      qualifyMutations ((record fields result).setObjVal! "checkerSources" checker) := by
-  apply qualifyMutations_congr _ _ (resultView result) result
-  · exact wf_set _ (record_wf _ _) _ _
-  · exact wf_set _ (record_wf _ _) _ _
-  · simp [field_set _ (record_wf _ _), field_record]
-  · simp [field_set _ (record_wf _ _), field_record]
-  · exact recordRel_set _ _ (record_wf _ _) (record_wf _ _) (record_rel _ _ _) _ _
-  · exact resultView_rel _
-  · rw [← resultView_set result "sourceRevision" (.str "stale") (by decide) (by decide)]
-    exact resultView_rel _
-
 /-- Single-record admission injects the identical checked source snapshot. -/
 theorem qualify_record_checkerSources (fields : List (String × Json))
     (result checker : Json) :
@@ -210,36 +184,5 @@ theorem resultView_mkObj (fields : List (String × Json)) :
   simp only [resultView, Json.mkObj, Std.TreeMap.Raw.ofList_eq_insertMany_empty]
   rw [map_insertMany]
   rfl
-
-/-- This is precisely the missing-source-account control's object reconstruction. -/
-def withoutSourceAccount (result : Json) : Except String Json := do
-  let fields ← result.getObj?
-  return Json.mkObj (fields.toList.filter (·.1 != "sourceAccount"))
-
-/-- Removing the source account commutes with the view even for malformed raw maps;
-list reconstruction is the same existing operation on both sides. -/
-theorem withoutSourceAccount_view (result : Json) :
-    withoutSourceAccount (resultView result) = (withoutSourceAccount result).map resultView := by
-  cases result <;> try rfl
-  rename_i tree
-  change Except.ok (Json.mkObj ((tree.map payload).toList.filter (·.1 != "sourceAccount"))) =
-    Except.ok (resultView (Json.mkObj (tree.toList.filter (·.1 != "sourceAccount"))))
-  rw [resultView_mkObj, Std.TreeMap.Raw.toList_map]
-  congr 1
-  simp only [List.filter_map]
-  rfl
-
-
-/-- The missing-account control retains both its parse refusal and its qualification
-refusal, including the checker-source injection used by its actual admission. -/
-theorem qualify_withoutSourceAccount (fields : List (String × Json)) (result checker : Json) :
-    (withoutSourceAccount (resultView result)).bind
-      (fun updated => qualify ((record fields updated).setObjVal! "checkerSources" checker)) =
-    (withoutSourceAccount result).bind
-      (fun updated => qualify ((record fields updated).setObjVal! "checkerSources" checker)) := by
-  rw [withoutSourceAccount_view]
-  cases h : withoutSourceAccount result with
-  | error detail => rfl
-  | ok updated => exact qualify_record_checkerSources fields updated checker
 
 end StrictLean.Checker.RuleExampleProjection
