@@ -453,10 +453,10 @@ role evidence bound to the whole declaration/transcript inventory, not caller wh
 ## 5. Pure module boundary and migration
 
 The root namespace and Lake library **`StrictLeanPolicy`** use the umbrella
-`lean/StrictLeanPolicy.lean`. Imports are acyclic and remain within Init/Std and
-the pure library. Foundation and role specifications support declaration decisions;
-Plan derives required jobs, Observation defines stage predicates, and Acceptance
-assembles complete results. Codec defines a pure tagged wire tree.
+`lean/StrictLeanPolicy.lean`. Imports are acyclic and remain within Init/Std, the pure
+library and the import-free `StrictLean.Contract` registration type. Foundation and
+role specifications support declaration decisions; Plan derives required jobs,
+Observation defines stage predicates, and Acceptance assembles complete results. Codec defines a pure tagged wire tree.
 JSON parsing/printing stays in `Checker/PolicyCodec.lean`; prove decoded-tree codec laws
 in Codec and qualify the operational parser, including duplicate-field rejection.
 A tree-codec theorem is not a theorem about JSON text parsing. No Environment, Meta,

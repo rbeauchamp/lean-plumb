@@ -161,8 +161,8 @@ accepted report is not full standard conformance.
 ## Evidence and supported domain
 
 The implementation targets the [supported toolchain](../../README.md#supported-toolchain).
-The pure policy library itself imports Init/Std and its own modules, not Mathlib
-or the excluded operational checker.
+The pure policy library's import boundary is owned by
+[the acceptance contract](policy-acceptance.md#5-pure-module-boundary-and-migration).
 
 The [POLICY-03 evidence](../../session/evidence/issue-6-verification.md) records its
 historical Mathlib revision, declaration and

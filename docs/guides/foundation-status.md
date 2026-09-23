@@ -187,12 +187,13 @@ weakened definition is visible to review.
 | [`checkedSummary`](../../lean/StrictLeanPolicy/Execution.lean) | `executionSummary`, now a named `ExecutionSummary` | `SummaryContract`: roots and boundaries are observation counts, checked/trusted are filter counts, and `unresolved` equals the number of `executionUnresolved` records of `executionFailureRecords` for every claim. `executionSummary_partition` proves checked + trusted + unresolved boundaries = boundaries. | `Policy.executionSummary`, both gate renderers |
 | [`checkedIndexedResults`](../../lean/StrictLeanPolicy/ResultState.lean) | `@admitIndexedResults`, universe-fixed `α : Type` | `IndexedResultsContract`: `.ok out` iff `out.size = count`, every `binding i out[i]`, and `responses.Perm ((List.range count).zip out.toList)`. Duplicates, unknown or missing slots, rebound payloads and shorter plans are refused. Every satisfying array is returned. | `Common.admitIndexedWorkerResults` (compile batch), `Common.mapWorkQueue` |
 
-`Policy.ExecutionFailure` was removed. The gate consumes the decision's own
-records, so kind, root, detail and order are preserved by identity. The total
-bridge `executionRule` is injective, and `RuleDiagnostics.executionFinding` no
-longer has an unreachable wrong-rule branch. `SourceAudit.compileBatch` no longer
-repeats the size and binding checks that `checkedIndexedResults` proves. It keeps
-the IO check that each source snapshot is unchanged.
+The `Policy.ExecutionFailure` record was replaced by an alias of the decision's
+own record type. The gate consumes those records, so kind, root, detail and order
+are preserved by identity. The total bridge `executionRule` is injective, and
+`RuleDiagnostics.executionFinding` no longer has an unreachable wrong-rule branch.
+`SourceAudit.compileBatch` no longer repeats the size and binding checks that
+`checkedIndexedResults` proves. It keeps the IO check that each source snapshot
+is unchanged.
 
 Limits: `ScopeContract` is conditional on the existing `validateCoordinates`
 check and on `InventoryValid`. Neither authenticates the supplied transcripts.

@@ -28,8 +28,8 @@ mechanical contributions and residual obligations.
 | `Claim`, `admitClaim`, typed keys | Scope/mode combinations, positive profiles, exact source/configuration/dependency observations and key bindings are explicit. | A requested claim is not an accepted result. Teaching and no-profile inspection remain separate. |
 | `ResultState`, `insertResult` | Each occupied key belongs to the fixed required set and satisfies its binding relation. Insertion rejects an occupied slot, including an identical repeat. | Insertion success/refusal and frame laws are proved. Whole-table acceptance additionally requires the fixed plan and every stage relation. |
 
-The core imports Init/Std and its own modules. It does not import the operational
-reporter, frontend, registry, Mathlib or IO execution. `Specification` states
+The [acceptance contract](policy-acceptance.md#5-pure-module-boundary-and-migration)
+owns the core's import boundary. `Specification` states
 independent declaration predicates; `Plan` and `Observation`
 define the concrete census, derived jobs and stage relations; `Acceptance` proves
 soundness, completeness and report identity for those fixed inputs.
