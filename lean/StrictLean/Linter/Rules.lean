@@ -45,8 +45,9 @@ def declarations (ds : Array StrictLeanPolicy.Declaration) (source : SourceSnaps
     | .classification => none
     | .teaching => some "compiler-trusting"
   let mut result : SnapshotResult := {}
-  for d in ds do
-    if let some failure := policyFor inventory roles d inspection then
+  -- `admitInventory_exact` retains `ds`; iterating the inventory supplies membership.
+  for h : d in inventory.declarations do
+    if let some failure := checkedMemberFailure.run inventory roles d h inspection then
       if needsRoleEvidence d failure then
         result := { result with pending := result.pending.push d.name }
       else

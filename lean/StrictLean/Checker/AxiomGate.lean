@@ -501,14 +501,17 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
             "material-documentation: document the claim, assumptions and evidence at this declaration"
             location mode (some surface.claim.toString))
           failures := failures.push s!"material-documentation: {key.2}"
-        for decl in report.declarations do
-          if let some id := Policy.ruleFor decl (some surface.claim) scope then
+        -- `ScopeContract` retains `report.declarations` as the inventory, so iterating the
+        -- inventory visits the same sequence and supplies each membership proof.
+        for h : decl in scope.inventory.declarations do
+          if let some id := Policy.ruleForMember decl (some surface.claim) scope h then
             let reason := (StrictLean.descriptor id).applicability
-            failures := failures.push s!"{reason}: {decl.name} [claim: {surface.claim}] {Policy.classify decl scope}"
+            let classification := Policy.classifyMember decl scope h
+            failures := failures.push s!"{reason}: {decl.name} [claim: {surface.claim}] {classification}"
             let snapshot := snapshotFor decl.module
             let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl snapshot
             let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding id (← IO.ofExcept (RuleDiagnostics.declarationName decl))
-              (Policy.classify decl scope) location
+              classification location
               (if fresh then .freshProject else .incrementalProject) (some surface.claim.toString)
             findings := findings.push finding
           if let some contract := decl.executableContract then
@@ -793,20 +796,21 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
             let unsafeHelpers := scope.helpers
             let mut reasons : Array String := #[]
             let mut findings : Array StrictLean.Finding := #[]
-            for decl in declarations do
-              let reason := Policy.reasonFor decl claim scope
-              let verdict := match reason with
+            -- The admitted inventory is exactly `declarations` (`ScopeContract`). One member
+            -- rule per declaration; its reason is `reasonFor`'s by definition.
+            for h : decl in scope.inventory.declarations do
+              let rule := Policy.ruleForMember decl claim scope h
+              let classification := Policy.classifyMember decl scope h
+              let verdict := match rule with
                 | none => "OK"
-                | some value => s!"VIOLATION[{value}]"
-              IO.println s!"[{verdict}] {Policy.classify decl scope}"
-              if let some value := reason then
-                reasons := reasons.push value
-                let some id := Policy.ruleFor decl claim scope
-                  | throw <| IO.userError "internal rule classification mismatch"
+                | some id => s!"VIOLATION[{(StrictLean.descriptor id).applicability}]"
+              IO.println s!"[{verdict}] {classification}"
+              if let some id := rule then
+                reasons := reasons.push (StrictLean.descriptor id).applicability
                 let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl
                   (some ⟨path.toString, source⟩)
                 let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding id (← IO.ofExcept (RuleDiagnostics.declarationName decl))
-                  (Policy.classify decl scope) location .freshFile (claim.map Profile.toString)
+                  classification location .freshFile (claim.map Profile.toString)
                 findings := findings.push finding
                 IO.println finding.2.text
             let executionInventory ← IO.ofExcept <| Policy.admitExecution inspected.report.execution

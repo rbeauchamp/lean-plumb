@@ -24,16 +24,82 @@ def evaluate : List Check → Except String Unit
   | [] => .ok ()
   | check :: rest => if check.holds then evaluate rest else .error check.label
 
+/-- Pure `Except` traversal succeeds exactly when every element succeeds. Shared by
+`evaluate` and the checker's transcript-coordinate admission. -/
+theorem forM_eq_ok {α ε : Type} (f : α → Except ε Unit) (l : List α) :
+    l.forM f = .ok () ↔ ∀ x ∈ l, f x = .ok () := by
+  induction l with
+  | nil => exact ⟨fun _ _ h => (List.not_mem_nil h).elim, fun _ => rfl⟩
+  | cons y l ih =>
+    rw [show (y :: l).forM f = (f y >>= fun _ => l.forM f) from rfl]
+    cases hy : f y with
+    | error e =>
+      simp only [bind, Except.bind, List.mem_cons, forall_eq_or_imp, hy, reduceCtorEq, false_and]
+    | ok u =>
+      cases u
+      simp only [bind, Except.bind, List.mem_cons, forall_eq_or_imp, hy, true_and, ih]
+
+/-- Pure `Except` traversal refuses with `e` exactly when some element refuses with `e`
+after a prefix whose elements all succeed; the suffix is not evaluated. -/
+theorem forM_eq_error {α ε : Type} (f : α → Except ε Unit) (l : List α) (e : ε) :
+    l.forM f = .error e ↔ ∃ before x after, l = before ++ x :: after ∧
+      (∀ b ∈ before, f b = .ok ()) ∧ f x = .error e := by
+  induction l with
+  | nil =>
+    refine ⟨fun h => (by cases h), ?_⟩
+    rintro ⟨before, x, after, h, -⟩
+    cases before <;> cases h
+  | cons y l ih =>
+    rw [show (y :: l).forM f = (f y >>= fun _ => l.forM f) from rfl]
+    simp only [List.cons_eq_append_iff]
+    cases hy : f y with
+    | error e' =>
+      simp only [bind, Except.bind, Except.error.injEq]
+      constructor
+      · rintro rfl; exact ⟨[], y, l, Or.inl ⟨rfl, rfl⟩, nofun, hy⟩
+      · rintro ⟨before, x, after, ⟨rfl, h⟩ | ⟨tail, rfl, _⟩, hb, hx⟩
+        · simp only [List.cons.injEq] at h
+          rw [h.1, hy] at hx
+          exact Except.error.inj hx
+        · have := hb y List.mem_cons_self
+          rw [hy] at this; cases this
+    | ok u =>
+      cases u
+      simp only [bind, Except.bind, ih]
+      constructor
+      · rintro ⟨before, x, after, rfl, hb, hx⟩
+        refine ⟨y :: before, x, after, Or.inr ⟨before, rfl, rfl⟩, fun b hb' => ?_, hx⟩
+        rcases List.mem_cons.mp hb' with rfl | hb'
+        · exact hy
+        · exact hb b hb'
+      · rintro ⟨before, x, after, ⟨rfl, h⟩ | ⟨tail, rfl, rfl⟩, hb, hx⟩
+        · simp only [List.cons.injEq] at h
+          rw [h.1, hy] at hx; cases hx
+        · exact ⟨tail, x, after, rfl, fun b hb' => hb b (List.mem_cons_of_mem y hb'), hx⟩
+
+/-- One assertion as a pure `Except` step: its label is the refusal. -/
+def Check.step (check : Check) : Except String Unit :=
+  if check.holds then .ok () else .error check.label
+
+/-- The evaluator is exactly the standard traversal of `Check.step`; its recursion is
+retained as the executed definition. -/
+theorem evaluate_eq_forM (checks : List Check) : evaluate checks = checks.forM Check.step := by
+  induction checks with
+  | nil => rfl
+  | cons check rest ih =>
+    show _ = (check.step >>= fun _ => rest.forM Check.step)
+    cases h : check.holds <;> rw [evaluate, Check.step, h]
+    · rfl
+    · exact ih
+
 /-- Success is equivalent to every supplied assertion holding. No assumptions about
 list size, labels, or observations; in particular an always-refusing implementation
 cannot satisfy this equivalence. -/
 theorem evaluate_success (checks : List Check) :
     evaluate checks = .ok () ↔ Satisfied checks := by
-  induction checks with
-  | nil => simp [evaluate, Satisfied]
-  | cons check rest ih =>
-    cases h : check.holds <;> simp [evaluate, Satisfied, h, Satisfied] at ih ⊢
-    exact ih
+  rw [evaluate_eq_forM, forM_eq_ok]
+  refine forall₂_congr fun check _ => ?_
+  cases h : check.holds <;> simp [Check.step, h]
 
 /-- Refusal reports exactly the first false assertion, with a satisfied prefix and
 an arbitrary unevaluated suffix. Duplicate labels do not affect the statement. -/
@@ -41,39 +107,12 @@ theorem evaluate_error (checks : List Check) (label : String) :
     evaluate checks = .error label ↔
       ∃ before check after, checks = before ++ check :: after ∧
         Satisfied before ∧ check.holds = false ∧ check.label = label := by
-  induction checks with
-  | nil => simp [evaluate]
-  | cons check rest ih =>
-    cases h : check.holds
-    · constructor
-      · intro he
-        have hl : check.label = label := by simpa [evaluate, h] using he
-        exact ⟨[], check, rest, rfl, by simp [Satisfied], h, hl⟩
-      · rintro ⟨before, bad, after, he, hs, hb, hl⟩
-        cases before with
-        | nil =>
-          simp only [List.nil_append, List.cons.injEq] at he
-          simpa [evaluate, h, ← he.1] using hl
-        | cons first preceding =>
-          simp only [List.cons_append, List.cons.injEq] at he
-          have hf := hs first (by simp)
-          rw [← he.1, h] at hf
-          contradiction
-    · rw [evaluate, ite_eq_left h, ih]
-      constructor
-      · rintro ⟨before, bad, after, he, hs, hb, hl⟩
-        exact ⟨check :: before, bad, after, by simp [he],
-          by simpa [Satisfied, h] using hs, hb, hl⟩
-      · rintro ⟨before, bad, after, he, hs, hb, hl⟩
-        cases before with
-        | nil =>
-          simp only [List.nil_append, List.cons.injEq] at he
-          rw [← he.1, h] at hb
-          contradiction
-        | cons first preceding =>
-          simp only [List.cons_append, List.cons.injEq] at he
-          exact ⟨preceding, bad, after, he.2,
-            fun c hc => hs c (by simp [hc]), hb, hl⟩
+  rw [evaluate_eq_forM, forM_eq_error]
+  refine exists_congr fun before => exists_congr fun check => exists_congr fun after =>
+    and_congr_right fun _ => and_congr ?_ ?_
+  · refine forall₂_congr fun b _ => ?_
+    cases hb : b.holds <;> simp [Check.step, hb]
+  · cases hc : check.holds <;> simp [Check.step, hc]
 
 /-- Composition runs the suffix only after prefix success and retains the exact
 first error otherwise. This describes pure `Except`, not rollback of external IO. -/

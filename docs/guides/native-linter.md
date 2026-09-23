@@ -48,8 +48,9 @@ existing definitions so exported proofs and downstream reduction retain their
 meaning. This requires some formerly private computational helpers to have public
 bodies. Raw helpers such as `declarationFailure`, `labelOf`, `compilerAxiom` and
 `boundaryEvidenceCandidate` are computational kernels over supplied data; they
-are not receipt/admission APIs. `policyFor`/`foundationFor` require inventory-bound
-Roles, and `admitBoundaryEvidence` preserves the supplied observation fields.
+are not receipt/admission APIs. `policyFor`/`foundationFor` and their member forms
+`memberFailure`/`memberFoundation` require inventory-bound Roles, and
+`admitBoundaryEvidence` preserves the supplied observation fields.
 The candidate helper can discard incompatible fields. No raw helper constructs
 accepted project evidence or forges an inventory-bound Roles receipt.
 

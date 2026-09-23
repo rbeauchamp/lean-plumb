@@ -127,7 +127,9 @@ con-leche code or claim its proofs establish Strict Lean policy.
 The native module import chain exposes proof-facing definitions for Lean's module
 system. Computational helpers `declarationFailure`, `labelOf` and `compilerAxiom`
 accept caller-supplied sets and do not authorize roles. Use `policyFor` and
-`foundationFor` with the inventory-bound `Roles` receipt. Similarly,
+`foundationFor` with the inventory-bound `Roles` receipt, or their member forms
+`memberFailure`/`memberFoundation`, which also require a proof that the declaration
+belongs to that inventory and are registered as equal to them on every member. Similarly,
 `boundaryEvidenceCandidate` may discard incompatible fields; use
 `admitBoundaryEvidence` when preserving every supplied observation field is required.
 Public indexed constructors remain values, not attestations about an external producer.

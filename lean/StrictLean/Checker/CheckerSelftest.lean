@@ -295,13 +295,13 @@ private def renderFileAudit (fixture : FixtureSpec) (_moduleName : String)
     | none => .report
   let mut lines : Array String := #[]
   let mut failed := false
-  for decl in declarations do
-    let reason := Policy.reasonFor decl fixture.claim scope
-    failed := failed || reason.isSome
-    let verdict := match reason with
+  for h : decl in scope.inventory.declarations do
+    let rule := Policy.ruleForMember decl fixture.claim scope h
+    failed := failed || rule.isSome
+    let verdict := match rule with
       | none => "OK"
-      | some value => s!"VIOLATION[{value}]"
-    lines := lines.push s!"[{verdict}] {Policy.classify decl scope}"
+      | some id => s!"VIOLATION[{(StrictLean.descriptor id).applicability}]"
+    lines := lines.push s!"[{verdict}] {Policy.classifyMember decl scope h}"
   let .ok executionInventory := Policy.admitExecution roots
     | return ("invalid execution inventory", true)
   let executionViolations := Policy.executionFailures executionInventory execution
