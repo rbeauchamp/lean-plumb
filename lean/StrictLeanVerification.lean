@@ -87,7 +87,6 @@ def commands : Mode → List Command
       lake #["build", "StrictLeanPolicy", "StrictLeanQualification", "axiomGate", "docFenceAudit", "qualify",
         "+StrictLean.Checker.CheckerSelftest:olean", "+StrictLean.Checker.FreshChecker:olean",
         "+StrictLean.RegistryChecks:olean", "+StrictLean.Linter:olean",
-        "+StrictLean.Checker.ProducerQualification:olean", "+StrictLean.Checker.HistoryQualification:olean",
         "+StrictLean.Checker.RuleExamples:olean", "+StrictLean.Checker.RuleExampleQualificationMain:olean"],
       lake #["env", "lean", "--run", "lean/StrictLean/RegistryChecks.lean"],
       lake #["exe", "qualify", "--under-deadline", "combined"],
@@ -98,10 +97,10 @@ def commands : Mode → List Command
   | .graph => [lake #["exe", "freshChecker", "--verbose"]]
   | .diagnostics => [lake #["exe", "checkerSelftest", "--build-bound", "--jobs", "4"]]
   | .producers => [
-      lake #["build", "axiomGate", "qualify", "+StrictLean.Checker.ProducerQualification:olean"],
+      lake #["build", "axiomGate", "qualify"],
       lake #["exe", "qualify", "--under-deadline", "producers"]]
   | .history => [
-      lake #["build", "axiomGate", "qualify", "+StrictLean.Checker.HistoryQualification:olean"],
+      lake #["build", "axiomGate", "qualify"],
       lake #["exe", "qualify", "--under-deadline", "history"]]
   | .ruleExamples => [
       lake #["build", "axiomGate", "ruleExamples", "ruleExampleQualification", "qualify"],

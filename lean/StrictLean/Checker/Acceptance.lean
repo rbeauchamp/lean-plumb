@@ -146,7 +146,7 @@ private def freezeEnvironment (claim : Claim) (request : EnvironmentRequest)
       report.census.executionRoots.isSome do
     throw <| IO.userError "producer census differs from independently requested environment"
   timedPhase "freeze report validation" do
-    IO.ofExcept (← IO.lazyPure fun _ => report.validate)
+    IO.ofExcept (← IO.lazyPure fun _ => ProducerReport.checkedValidate.run report)
     IO.ofExcept (← IO.lazyPure fun _ => (report.validateSourceEvidence).mapError (·.detail))
     IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.validateAgainst sources report).mapError (·.detail))
     IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.transcriptsMatch sources inspected.transcripts).mapError (·.detail))

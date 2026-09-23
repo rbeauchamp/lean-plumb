@@ -60,10 +60,4 @@ def observeProject (root project output : FilePath) (flags : Array String) : IO 
     (#["--project", project.toString] ++ flags ++ #["--json-out", output.toString]) cleanEnv
   return (result, ← readJson output)
 
-/-- Preserve the existing Lean-native transport-admission mutation campaigns. -/
-def transportControl (root : FilePath) (modulePath : String) (output : FilePath) : IO Unit := do
-  let result ← run root "lake" #["env", "lean", "--run", modulePath, output.toString] cleanEnv
-  requireChecks [⟨s!"transport qualification {modulePath}: {result.stdout}{result.stderr}", result.exitCode == 0⟩]
-  IO.print result.stdout
-
 end StrictLean.Qualification

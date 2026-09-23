@@ -2,8 +2,11 @@ import StrictLean.Qualification.Project
 import StrictLeanQualification.Producer
 
 /-! Actual producer qualification: twelve documented-source controls (incremental and
-build-lint, SL5001/SL5002, Fixed then Violation then restored Fixed), existing transport
-mutations and two standalone-executable controls. Each invocation and rule shares one
+build-lint, SL5001/SL5002, Fixed then Violation then restored Fixed) and two
+standalone-executable controls. Each is kept for a genuinely external boundary: the
+real `axiomGate` process, Lake build state and Lean elaboration of one source. Transport
+admission of their reports is proved for every report (`ProducerReport.validate_sound`),
+not sampled by mutation. Each invocation and rule shares one
 workspace: the Violation audit runs over the prior Fixed build, so the incremental and
 build-lint paths must detect the violation rather than accept stale artifacts. Because
 that mutation shares its workspace, the Fixed control is re-established afterwards from a
@@ -26,7 +29,6 @@ def check (evidence : Option FilePath) : IO Unit := do
       return project
     let mut records : Array Json := #[]
     let mut theoremType : Option Json := none
-    let mut lastPositive : Option FilePath := none
     for (invocation, flags, mode) in #[
         ("incremental", #["--incremental"], "incrementalProject"),
         ("build-lint", #["--build-lint"], "incrementalProject")] do
@@ -53,10 +55,7 @@ def check (evidence : Option FilePath) : IO Unit := do
           records := records.push (Json.mkObj [
             ("rule", .str rule), ("case", .str kind), ("invocation", .str invocation),
             ("path", .str relative), ("source", .str source), ("result", report)])
-          if kind == "Fixed" then lastPositive := some output
           IO.println s!"{invocation} project {rule}/{kind}: PASS"
-    let some output := lastPositive | throw <| IO.userError "no producer controls ran"
-    transportControl root "lean/StrictLean/Checker/ProducerQualification.lean" output
     let mainSource := "/-! Standalone no-effect IO entrypoint. -/\ndef main : IO Unit := pure ()\n"
     for phase in #["positive", "axiom"] do
       let project ← fresh s!"standalone-{phase}"

@@ -549,7 +549,7 @@ def exampleObservation (result : Result) : IO StrictLeanPolicy.ExampleObservatio
       pure (#[], StrictLeanPolicy.ExampleOutcome.compilerRejection errors)
     else do
       let some group := raw.group | throw <| IO.userError "missing example group inspection"
-      IO.ofExcept group.report.validate
+      IO.ofExcept (ProducerReport.checkedValidate.run group.report)
       IO.ofExcept <| group.report.validateSourceEvidence.mapError (·.detail)
       let scope ← IO.ofExcept <| Policy.admitScope group.report.declarations group.transcripts
       let some replay := group.report.admission

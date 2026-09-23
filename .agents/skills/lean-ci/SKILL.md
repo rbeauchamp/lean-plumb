@@ -36,6 +36,12 @@ faster sample.
   Pairwise distinctness can use set cardinality only after proving equivalence to
   the original predicate. Deduplicating input alone would silently accept duplicates;
   lawful hash-set equality must still distinguish colliding keys.
+- A control that mutates one real output and reruns a pure checker samples a universal
+  property of that checker. Prove it over the executed definition instead: decompose
+  the guard sequence exactly, restate each guard as a named proposition, route callers
+  through a proof-requiring contract, exhibit an admitted witness, then delete the
+  mutation. Keep a process-level control only for the external boundary it observes,
+  and say which boundary in its comment.
 - Check repeated compiler startup, source elaboration and broad imports. A stable receipt
   qualifier can be a Lake-built executable of the same entrypoint rather than `lean --run`
   for every record. Preserve initialization, interpreter/dynamic-evaluation requirements,
