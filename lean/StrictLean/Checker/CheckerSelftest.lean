@@ -671,6 +671,16 @@ private def fenceOriginOutput (output filename : String) : String := Id.run do
     if active then selected := selected.push line
   return "\n".intercalate selected.toList
 
+/-- The public command prints a success label only with accepted evidence, which
+the failing corpus never has. A passing fence there keeps its status mark and is
+labelled as observed; failing records keep their expected diagnostic. -/
+private def publicExpectation (expected : String) : String :=
+  match expected.splitOn " " with
+  | [origin, "PASS"] => s!"[.] {origin} OBSERVED (audit incomplete)"
+  | [origin, "PASS_NEG"] => s!"[n] {origin} OBSERVED (audit incomplete)"
+  | [origin, "PASS_TRUSTED"] => s!"[t] {origin} OBSERVED (audit incomplete)"
+  | _ => expected
+
 /-- In-process fence-corpus qualification: the same corpus the public
 `docFenceAudit` control audits end-to-end, scanned and assessed through the
 checker's own `Documentation.auditTasks` batch auditor without the
@@ -733,9 +743,14 @@ private unsafe def publicScannerQualification (repo scratch : FilePath) : IO (Ar
   let mut failures : Array String := #[]
   if result.succeeded then
     failures := failures.push "scanner/public: malformed corpus unexpectedly passed"
+  -- A malformed marker is reported at its own file and line; it must not abort
+  -- the run with a bare, unlocated failure.
+  if !result.output.contains "[X] empty-pattern.md:1: invalid lean-fail pattern: diagnostic pattern is empty"
+      || result.output.contains "FAIL: diagnostic pattern is empty" then
+    failures := failures.push s!"scanner/public/located-marker: missing located malformed-marker diagnostic:\n{result.output}"
   for (name, _, expected) in cases do
-    if !(fenceOriginOutput result.output s!"{name}.md").contains expected then
-      failures := failures.push s!"scanner/public/{name}: missing diagnostic {repr expected}:\n{result.output}"
+    if !(fenceOriginOutput result.output s!"{name}.md").contains (publicExpectation expected) then
+      failures := failures.push s!"scanner/public/{name}: missing diagnostic {repr (publicExpectation expected)}:\n{result.output}"
   return failures
 
 private def expectManifestFailure (name : String) (action : IO Manifest.Manifest)
