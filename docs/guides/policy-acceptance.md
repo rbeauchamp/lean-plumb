@@ -466,8 +466,9 @@ Mathlib import belongs in the pure policy library.
 `Checker/PolicyDomain.lean` remains a compatibility import. `Checker/Acceptance.lean`
 re-exports the pure definitions and assembles observations through them; it defines no
 duplicate policy. The claimed `StrictLeanCore.Policy` holds the checker's pure claim,
-scope-admission, rule and execution-rule projections, and `StrictLeanCore.Assembly` the
-pure census assembly; operational `Checker/Policy.lean`
+scope-admission, rule and execution-rule projections, `StrictLeanCore.Coordinates` and
+`StrictLeanCore.Source` the transcript-coordinate and source-range admission, and
+`StrictLeanCore.Assembly` the pure census assembly; operational `Checker/Policy.lean`
 only binds scope admission to the frontend coordinate check and renders text;
 `Checker/PolicyCodec.lean` handles worker/report JSON. Move transcript **data** shapes
 into the pure domain (including source/range/evaluator keys); `Frontend` imports them,
@@ -477,7 +478,10 @@ failures to the existing twenty IDs and preserves subreasons. The pure core does
 import the registry, so no cycle forms when diagnostics import policy types. The claimed
 `StrictLeanCore` library holds that registry (`RuleId`, `Rule`) and imports the policy
 library, never the reverse; it shares this section's import restrictions except the
-registry itself.
+registry itself and Lean's pure `Lean.Data.Position` (`FileMap`), whose import closure has
+no `Lean.Environment`, `Lean.Meta` or `Lean.Elab` module. It does not import
+`Lean.Data.Lsp.Utf16`, whose closure contains `Lean.Environment`; the operational
+`StrictLean.Diagnostic` supplies that UTF-16 column function.
 
 The `lean_lib StrictLeanPolicy` has `.andSubmodules` discovery, a positive
 Standard-Logical manifest entry as an initial upper bound, and explicit ordinary

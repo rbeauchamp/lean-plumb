@@ -23,7 +23,7 @@
       "library": "StrictLeanCore",
       "claim": "standard-logical",
       "execution": "report",
-      "rationale": "The rule registry and the pure checker projections the operational checker executes: claim request, scope admission for every supplied coordinate check, declaration rules and reasons, foundation labels, execution rules, and census assembly from decoded manifest and Lake records. Their contracts concern the supplied declarations, transcripts and records; the frontend coordinate check, manifest parsing, Lake loading, environment extraction, compiler and filesystem observations stay in the excluded adapters."
+      "rationale": "The rule registry and the pure checker projections the operational checker executes: claim request, scope admission for every supplied coordinate check, transcript-coordinate and source-range admission for every UTF-16 column function, declaration rules and reasons, foundation labels, execution rules, and census assembly from decoded manifest and Lake records. Their contracts concern the supplied declarations, transcripts and records; Lean's UTF-16 column function, manifest parsing, Lake loading, environment extraction, compiler and filesystem observations stay in the excluded adapters."
     },
     {
       "library": "Audit",
@@ -47,7 +47,7 @@
     },
     {
       "library": "StrictLean",
-      "rationale": "Operational Lean checker code is not a conforming proof surface; acceptance does not re-elaborate or report its declarations. It holds the adapters around the claimed StrictLeanPolicy and StrictLeanCore decisions: Lake and environment observation, frontend transcripts and coordinate checks, compiler and worker processes, JSON transport, filesystem provenance and text rendering. Its external observation paths are mutation-qualified separately; its proved transport-admission theorems are kernel-checked by the warning-as-error lake build and bounded to Standard-Logical by an in-module collectAxioms ceiling."
+      "rationale": "Operational Lean checker code is not a conforming proof surface; acceptance does not re-elaborate or report its declarations. It holds the adapters around the claimed StrictLeanPolicy and StrictLeanCore decisions: Lake and environment observation, frontend transcripts, Lean's LSP UTF-16 column conversion, compiler and worker processes, JSON transport, filesystem provenance and text rendering. Its external observation paths are mutation-qualified separately; its proved transport-admission theorems are kernel-checked by the warning-as-error lake build and bounded to Standard-Logical by an in-module collectAxioms ceiling."
     }
   ],
   "excluded-executables": [

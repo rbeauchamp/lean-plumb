@@ -3,7 +3,8 @@ import StrictLeanCore.Policy
 
 /-! Operational adapter over the claimed `StrictLeanCore.Policy` projections: it binds
 scope admission to the frontend's source-coordinate check and renders policy results
-as text. Every decision it exposes is a registration's `run` from that module. -/
+as text. Every decision it exposes is a registration's `run` from the claimed
+`StrictLeanCore` modules. -/
 
 namespace StrictLean.Checker.Policy
 
@@ -15,9 +16,10 @@ abbrev ExecutionClaim := StrictLeanPolicy.ExecutionClaim
 abbrev ExecutionClaim.parse? (s : String) : Option ExecutionClaim := StrictLeanPolicy.ExecutionClaim.parse? s
 abbrev ExecutionClaim.toString (x : ExecutionClaim) : String := StrictLeanPolicy.ExecutionClaim.spelling x
 
-/-- Admit the scope through `checkedScope` with the frontend's coordinate check.
-`ScopeContract`, instantiated at `Frontend.validateCoordinates`, is its exact relation;
-that check's reading of transcript bytes is not authenticated. -/
+/-- Admit the scope through `checkedScope` with the frontend's coordinate check, itself
+`checkedCoordinates.run`. `ScopeContract`, instantiated at `Frontend.validateCoordinates`,
+is its exact relation, and `CoordinateContract` that check's. Transcript bytes are not
+authenticated. -/
 def admitScope (ds : Array Declaration) (ts : Array Frontend.Transcript := #[]) :
     Except String PolicyScope :=
   checkedScope.run Frontend.validateCoordinates ds ts

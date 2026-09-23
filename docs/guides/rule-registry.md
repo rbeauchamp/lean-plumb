@@ -63,7 +63,9 @@ strings with its finer typed categories.
 scope. A source location retains the exact text and byte offsets for both full
 and selection ranges. `admitSource` checks bounds, character boundaries, ordering
 and containment. `sourceFromReport` additionally requires the recorded codepoint
-and UTF-16 coordinates to agree with that text. Missing ranges have module
+and UTF-16 coordinates to agree with that text. `admitSource` and the conversion live in
+the claimed `StrictLeanCore.Source`; the UTF-16 column is Lean's `leanPosToLspPos`, supplied
+by `StrictLean.Diagnostic`. Missing ranges have module
 attribution; inconsistent supplied ranges fail instead of acquiring a fabricated
 location.
 

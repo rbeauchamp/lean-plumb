@@ -2,24 +2,11 @@ module
 
 public section
 
-/-! Exact success, first-refusal and pointwise-map laws for pure `Except` list traversal.
-They are shared by scope admission, census assembly, worker-result admission and the
-qualification evaluator, and concern pure `Except` only, not effects of any other monad. -/
+/-! Exact first-refusal and pointwise-map laws for pure `Except` list traversal; the success
+law is `Guards.listForM_eq_ok`. They are shared by scope admission, census assembly,
+worker-result admission and the qualification evaluator, and concern pure `Except` only,
+not effects of any other monad. -/
 namespace StrictLeanPolicy
-
-/-- Pure `Except` traversal succeeds exactly when every element succeeds. -/
-theorem forM_eq_ok {α ε : Type} (f : α → Except ε Unit) (l : List α) :
-    l.forM f = .ok () ↔ ∀ x ∈ l, f x = .ok () := by
-  induction l with
-  | nil => exact ⟨fun _ _ h => (List.not_mem_nil h).elim, fun _ => rfl⟩
-  | cons y l ih =>
-    rw [show (y :: l).forM f = (f y >>= fun _ => l.forM f) from rfl]
-    cases hy : f y with
-    | error e =>
-      simp only [bind, Except.bind, List.mem_cons, forall_eq_or_imp, hy, reduceCtorEq, false_and]
-    | ok u =>
-      cases u
-      simp only [bind, Except.bind, List.mem_cons, forall_eq_or_imp, hy, true_and, ih]
 
 /-- Pure `Except` traversal refuses with `e` exactly when some element refuses with `e`
 after a prefix whose elements all succeed; the suffix is not evaluated. -/

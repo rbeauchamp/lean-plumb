@@ -1,7 +1,7 @@
 module
 
 public import StrictLeanCore.Rule
-public import StrictLeanPolicy.Domain
+public import StrictLeanCore.Source
 public import Lean.Data.Lsp.Utf16
 
 @[expose] public section
@@ -11,34 +11,6 @@ con-leche (see RuleId); source conversion uses pinned Lean FileMap/LSP APIs. -/
 namespace StrictLean
 open Lean
 
-abbrev SourceSnapshot := StrictLeanPolicy.SourceSnapshot
-abbrev ByteRange := StrictLeanPolicy.ByteRange
-
-/-- Raw coordinates are admitted only after checking character boundaries and containment. -/
-structure SourceCandidate where
-  snapshot : SourceSnapshot
-  full : ByteRange
-  selection : ByteRange
-  deriving Repr, BEq
-
-namespace SourceCandidate
-def boundary (source : String) (n : Nat) : Bool :=
-  n ≤ source.utf8ByteSize &&
-    (source.toFileMap.ofPosition (source.toFileMap.toPosition ⟨n⟩)).byteIdx == n
-
-def valid (c : SourceCandidate) : Bool :=
-  !c.snapshot.uri.isEmpty && c.full.start ≤ c.selection.start &&
-  c.selection.start ≤ c.selection.stop && c.selection.stop ≤ c.full.stop &&
-  [c.full.start, c.full.stop, c.selection.start, c.selection.stop].all
-    (boundary c.snapshot.source)
-end SourceCandidate
-
-/-- Invalid coordinates cannot inhabit an admitted source location. -/
-abbrev SourceLocation := { c : SourceCandidate // c.valid = true }
-
-def admitSource (c : SourceCandidate) : Except String SourceLocation :=
-  if h : c.valid = true then .ok ⟨c, h⟩ else .error "invalid source coordinates"
-
 def SourceLocation.fullLsp (s : SourceLocation) : Lsp.Range :=
   s.val.snapshot.source.toFileMap.utf8RangeToLspRange
     ⟨⟨s.val.full.start⟩, ⟨s.val.full.stop⟩⟩
@@ -47,21 +19,13 @@ def SourceLocation.selectionLsp (s : SourceLocation) : Lsp.Range :=
   s.val.snapshot.source.toFileMap.utf8RangeToLspRange
     ⟨⟨s.val.selection.start⟩, ⟨s.val.selection.stop⟩⟩
 
+/-- Lean's LSP UTF-16 column of a position. -/
+def lspUtf16Column : Utf16Column := fun fm p => (fm.leanPosToLspPos p).character
+
 /-- A report's codepoint and UTF-16 columns must both agree with the exact source. -/
 def sourceFromReport (snapshot : SourceSnapshot) (ranges : StrictLeanPolicy.Ranges) :
-    Except String SourceLocation := do
-  let fm := snapshot.source.toFileMap
-  let convert (r : StrictLeanPolicy.Range) : Except String ByteRange := do
-    let a : Lean.Position := ⟨r.start.line, r.start.column⟩
-    let b : Lean.Position := ⟨r.end.line, r.end.column⟩
-    let start := fm.ofPosition a
-    let stop := fm.ofPosition b
-    unless r.start.line > 0 && r.end.line > 0 && fm.toPosition start == a &&
-        fm.toPosition stop == b && (fm.leanPosToLspPos a).character == r.startUtf16 &&
-        (fm.leanPosToLspPos b).character == r.endUtf16 do
-      throw "reported source coordinates disagree with the snapshot"
-    return ⟨start.byteIdx, stop.byteIdx⟩
-  admitSource ⟨snapshot, ← convert ranges.range, ← convert ranges.selectionRange⟩
+    Except String SourceLocation :=
+  sourceFromReportWith lspUtf16Column snapshot ranges
 
 /-- Range-less generated declarations retain honest module attribution. -/
 inductive Location where

@@ -1,15 +1,17 @@
 import StrictLeanCore.Rule
 import StrictLeanPolicy.Decision
 import StrictLeanPolicy.Execution
+import StrictLeanPolicy.Guards
 import StrictLeanPolicy.Traversal
 import StrictLean.Contract
 
 /-! Pure checker projections of the policy decisions: claim spelling and request,
 scope admission, declaration rules and execution rules. Each requirement is a named
 `Prop`; a closed `ExecutableContract` proves it about the executed definition, and the
-operational adapter `StrictLean.Checker.Policy` runs these registrations. Transcript
-coordinate checking is a parameter supplied by that adapter: these contracts hold for
-every check and do not authenticate transcripts, sources or environment observations. -/
+operational adapter `StrictLean.Checker.Policy` runs these registrations. Scope admission
+takes the transcript-coordinate check as a parameter, so `ScopeContract` holds for every
+check; the adapter supplies `StrictLeanCore.Coordinates`'s `checkedCoordinates`. These
+contracts do not authenticate transcripts, sources or environment observations. -/
 
 namespace StrictLean.Checker.Policy
 
@@ -61,7 +63,7 @@ def PolicyScope.native (s : PolicyScope) : Array Lean.Name := s.roles.native
 def PolicyScope.helpers (s : PolicyScope) : Array Lean.Name := s.roles.helpers
 
 /-- A transcript-coordinate check over the declaration inventory. The operational
-adapter supplies `Frontend.validateCoordinates`; its source reading is outside this module. -/
+adapter supplies `Frontend.validateCoordinates`, which runs `checkedCoordinates`. -/
 abbrev CoordinateCheck :=
   Array Declaration → StrictLeanPolicy.Frontend.Transcript → Except String Unit
 
@@ -95,7 +97,7 @@ private theorem admitScopeImpl_checked (check : CoordinateCheck) (ds : Array Dec
     admitScopeImpl check ds ts = (StrictLeanPolicy.admitInventory ds ts).map
       fun inventory => ⟨inventory, StrictLeanPolicy.authorize inventory⟩ := by
   have hts : ts.toList.forM (check ds) = .ok () :=
-    (StrictLeanPolicy.forM_eq_ok _ _).mpr fun t ht => h t (by simpa using ht)
+    StrictLeanPolicy.Guards.listForM_eq_ok.mpr fun t ht => h t (by simpa using ht)
   simp only [admitScopeImpl, hts, bind, Except.bind]
   cases StrictLeanPolicy.admitInventory ds ts <;> rfl
 
@@ -115,7 +117,7 @@ theorem checkedScope : StrictLean.ExecutableContract admitScopeImpl ScopeContrac
       · simpa [StrictLeanPolicy.admitInventory_exact ds ts hv, Except.map, hv] using hc
       · simp [StrictLeanPolicy.admitInventory, hv, Except.map]
     · have hts : ts.toList.forM (check ds) ≠ .ok () :=
-        fun h => hc fun t ht => (StrictLeanPolicy.forM_eq_ok _ _).mp h t (by simpa using ht)
+        fun h => hc fun t ht => StrictLeanPolicy.Guards.listForM_eq_ok.mp h t (by simpa using ht)
       simp only [hc, false_and, iff_false, not_exists]
       intro scope h
       apply hts

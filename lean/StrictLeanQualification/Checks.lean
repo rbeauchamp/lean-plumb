@@ -1,4 +1,5 @@
 import StrictLean.Contract
+import StrictLeanPolicy.Guards
 import StrictLeanPolicy.Traversal
 import Lean.Data.Json
 
@@ -45,7 +46,7 @@ list size, labels, or observations; in particular an always-refusing implementat
 cannot satisfy this equivalence. -/
 theorem evaluate_success (checks : List Check) :
     evaluate checks = .ok () ↔ Satisfied checks := by
-  rw [evaluate_eq_forM, StrictLeanPolicy.forM_eq_ok]
+  rw [evaluate_eq_forM, StrictLeanPolicy.Guards.listForM_eq_ok]
   refine forall₂_congr fun check _ => ?_
   cases h : check.holds <;> simp [Check.step, h]
 

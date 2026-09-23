@@ -1,5 +1,6 @@
 import StrictLean.Report
 import StrictLean.Diagnostic
+import StrictLeanCore.Coordinates
 import StrictLean.Checker.Common
 import Lean
 
@@ -100,31 +101,12 @@ instance : FromJson StrictLeanPolicy.Frontend.Transcript := ⟨fun j => do
 
 
 
-/-- Recheck source coordinates against exact transcript bytes using Lean's FileMap.
-This is a data-boundary check; it does not authenticate how a worker acquired the bytes. -/
+/-- Recheck source coordinates against exact transcript bytes using Lean's FileMap and LSP
+UTF-16 columns, through `checkedCoordinates`. This is a data-boundary check; it does not
+authenticate how a worker acquired the bytes. -/
 def validateCoordinates (declarations : Array StrictLean.Report.Declaration)
-    (transcript : Transcript) : Except String Unit := do
-  let fm := transcript.sourceContent.toFileMap
-  let check (range : SyntaxRange) : Except String Unit := do
-    let a : Lean.Position := ⟨range.start.line, range.start.column⟩
-    let b : Lean.Position := ⟨range.end.line, range.end.column⟩
-    let start := fm.ofPosition a
-    let stop := fm.ofPosition b
-    unless a.line > 0 && b.line > 0 && fm.toPosition start == a &&
-        fm.toPosition stop == b && start.byteIdx ≤ stop.byteIdx do
-      throw "transcript coordinates disagree with source snapshot"
-  for command in transcript.commands do
-    unless command.added == command.addedDeclarations.map (·.name) do
-      throw "transcript declaration inventory mismatch"
-    for range in command.commandRange do check range
-    for evaluator in command.evaluators do
-      for range in evaluator.range do check range
-    for binding in command.bindings do
-      for range in binding.range do check range
-  for declaration in declarations do
-    if declaration.module == transcript.module then
-      for ranges in declaration.ranges do
-        let _ ← StrictLean.sourceFromReport ⟨transcript.source, transcript.sourceContent⟩ ranges
+    (transcript : Transcript) : Except String Unit :=
+  checkedCoordinates.run StrictLean.lspUtf16Column declarations transcript
 
 /-- Keep every implementation selected in a command context, before later
 attribute assignments can overwrite it. Nested command contexts matter: a

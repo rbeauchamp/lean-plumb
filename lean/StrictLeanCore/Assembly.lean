@@ -6,8 +6,9 @@ import StrictLeanPolicy.Traversal
 Lake inventory, producer history and frozen environment records. Contracts cover what
 nothing downstream decides again: each surface's profile and execution claim and its
 module order (`conformingProfile`, `surfaceAssignments`), exact history copies
-(`histories`), and, as soundness only, which record within the selected environment
-supplies documentation-presence evidence (`checkedEnvironmentEvidence`). The claimed
+(`histories`), the frozen environment an environment job reads (`checkedEnvironmentJob`),
+and, as soundness only, which record within that environment supplies
+documentation-presence evidence (`checkedEnvironmentEvidence`). The claimed
 `accept` binds every other stage's observation to its job (`ResultBound`, `PolicyOK`,
 `StageOK`). Manifest parsing, Lake loading and environment
 extraction stay in the operational adapters; these definitions do not authenticate those
@@ -560,6 +561,49 @@ theorem checkedEnvironmentEvidence :
       rw [huniq other ho (by simp [h1])]
       exact hname
 
+/-- Required environment-job evidence: success exactly when exactly one frozen environment has
+the job's environment key, with exactly that environment's `checkedEnvironmentEvidence`
+result for the job's stage and subject. -/
+def EnvironmentJobContract
+    (select : Array FrozenEnvironment → EnvironmentKey → Stage → LocalJobSubject →
+      Except String JobEvidence) : Prop :=
+  ∀ environments request stage subject evidence,
+    select environments request stage subject = .ok evidence ↔
+      ∃ environment,
+        (environments.toList.filter fun value => decide (value.census.request.key = request)) =
+          [environment] ∧
+        checkedEnvironmentEvidence.run environment stage subject = .ok evidence
+
+private def environmentJobImpl (environments : Array FrozenEnvironment) (request : EnvironmentKey)
+    (stage : Stage) (subject : LocalJobSubject) : Except String JobEvidence := do
+  let environment ← requireOne "environment" <| environments.filter
+    (fun value => decide (value.census.request.key = request))
+  checkedEnvironmentEvidence.run environment stage subject
+
+/-- Registers `EnvironmentJobContract` about the executed environment lookup. -/
+theorem checkedEnvironmentJob :
+    StrictLean.ExecutableContract environmentJobImpl EnvironmentJobContract := by
+  refine ⟨fun environments request stage subject evidence => ?_⟩
+  have exact := fun environment => (requireOne_ok "environment"
+    (environments.filter fun value => decide (value.census.request.key = request)) environment)
+  simp only [Array.toList_filter] at exact
+  unfold environmentJobImpl
+  cases hr : requireOne "environment"
+      (environments.filter fun value => decide (value.census.request.key = request)) with
+  | error e =>
+    simp only [bind, Except.bind, reduceCtorEq, false_iff, not_exists, not_and]
+    intro environment hf
+    rw [(exact environment).mpr hf] at hr
+    cases hr
+  | ok environment =>
+    simp only [bind, Except.bind]
+    have selected := (exact environment).mp hr
+    refine ⟨fun h => ⟨environment, selected, h⟩, ?_⟩
+    rintro ⟨other, hf, h⟩
+    rw [hf, List.cons.injEq] at selected
+    rw [selected.1] at h
+    exact h
+
 /-- Global jobs are emitted once; local lookups select only the exact bound environment.
 Duplicate metadata occurrences fail instead of being normalized into one response. -/
 def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservation) :
@@ -570,10 +614,8 @@ def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservati
           pure (JobEvidence.configuration frozen.census.configuredTargets frozen.census.discoveredTargets)
       | .discovery, .scope => pure <| .discovery frozen.census
       | .build, .scope => pure <| .build build
-      | stage, .environment request subject => do
-          let environment ← requireOne "environment" <| frozen.environments.filter
-            (fun value => decide (value.census.request.key = request))
-          checkedEnvironmentEvidence.run environment stage subject
+      | stage, .environment request subject =>
+          checkedEnvironmentJob.run frozen.environments request stage subject
       | _, _ => throw "unsupported observation stage for project/file collector"
     return (slot, ({ key, snapshot := claim.val.snapshot, completion := .completed, evidence } : JobObservation))
   return values.toList
