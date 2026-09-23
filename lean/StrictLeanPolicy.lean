@@ -1,4 +1,5 @@
 import StrictLeanPolicy.Domain
+import StrictLeanPolicy.Guards
 import StrictLeanPolicy.Codec
 import StrictLeanPolicy.Claim
 import StrictLeanPolicy.Admission

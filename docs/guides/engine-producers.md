@@ -105,8 +105,9 @@ byte equality establishes. Global claim/job composition is described in the
 
 The separate `history` diagnostic runs `StrictLean.Qualification.History`: real fresh/incremental
 project and file invocations check overwritten history, an unsupported source evaluator, and
-fresh restoration. Actual returned records are mutated through the Lean decoder to qualify
-missing requests/receipts/edges, changed bytes, missing paths and concealed unavailability.
+fresh restoration. Refusal of missing requests/receipts/edges, changed bytes, missing paths
+and concealed unavailability is proved for every report by `ProducerReport.validate_sound`
+([Lean qualification](lean-qualification.md#exact-proved-boundary)), not sampled by mutation.
 See the [contributor guide](contributing.md#develop-and-verify) for diagnostic commands,
 required CI ordering and budgets.
 The existing structural campaign remains separately scoped; this does not report it PASS.
@@ -125,9 +126,10 @@ It runs twelve source-owned controls: for the incremental and build-lint entrypo
 of SL5001/SL5002, one workspace runs Fixed, then Violation over that Fixed build (so a stale
 build must not hide the violation), then Fixed again from a cleared build. Each invocation
 checks exact stable ID, detail, primary location, related locations and result status,
-requires unique output and exact embedded source/selector/type/axiom evidence,
-then mutates a real returned report through its actual Lean decoder. The original valid
-report is re-admitted after each intended refusal. A standalone executable additionally has
+and requires unique output and exact embedded source/selector/type/axiom evidence.
+Transport admission of every report is proved rather than sampled by mutation; see
+`ProducerReport.validate_sound` in [Lean qualification](lean-qualification.md#exact-proved-boundary).
+A standalone executable additionally has
 positive/owned-axiom controls, each in its own fresh workspace; each carries module
 documentation so the intended axiom violation is isolated. The fresh-project SL5001/SL5002
 observations are the [rule-example](rule-examples.md) corpus records, validated there by the

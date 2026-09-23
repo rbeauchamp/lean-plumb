@@ -211,7 +211,7 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       }
       SourceBinding.unchanged report.sourceBindings
       if let .error failure := report.validateSourceEvidence then return .error failure
-      IO.ofExcept report.validate
+      IO.ofExcept (ProducerReport.checkedValidate.run report)
       return .ok report
   ).bind id
 

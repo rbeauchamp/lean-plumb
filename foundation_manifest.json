@@ -41,7 +41,7 @@
     },
     {
       "library": "StrictLean",
-      "rationale": "Operational Lean checker code is mutation-qualified separately and is not a conforming proof surface."
+      "rationale": "Operational Lean checker code is not a conforming proof surface; acceptance does not re-elaborate or report its declarations. Its external observation paths are mutation-qualified separately; its proved transport-admission theorems are kernel-checked by the warning-as-error lake build and bounded to Standard-Logical by an in-module collectAxioms ceiling."
     }
   ],
   "excluded-executables": [

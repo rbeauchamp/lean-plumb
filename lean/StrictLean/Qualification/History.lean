@@ -3,15 +3,21 @@ import StrictLeanQualification.History
 
 /-! Actual project/file history qualification. Every control runs in its own fresh
 workspace with its own output path, so no restored rerun repeats an earlier positive
-control (docs/standard/8 §8.8). -/
+control (docs/standard/8 §8.8).
+
+Each control is kept for a genuinely external boundary: it observes what the real
+`axiomGate` process, Lean elaborator and collector emit for one source. What the pure
+checkers conclude from such an output is proved instead, for every input:
+`ProducerReport.validate_sound` for transport admission and
+`StrictLeanQualification.History.validate_importedRootExecuted` /
+`validate_unsupported_unresolved` for this oracle. -/
 namespace StrictLean.Qualification.History
 open Lean
 
 private def source := "import Lean\nimport StrictLean.Contract\n/-! Two callers preserve an earlier implementation overwritten after compilation. -/\ndef earlier (n : Nat) : Nat := n + 0\ndef target (n : Nat) : Nat := n\n@[implemented_by earlier] def reference (n : Nat) : Nat := n\ndef first (n : Nat) : Nat := reference n\nattribute [implemented_by target] reference\ndef second (n : Nat) : Nat := reference n\ndef recursiveSum : List Nat → Nat\n  | [] => 0\n  | x :: xs => x + recursiveSum xs\nprivate def unused (xs : List Nat) : Nat := recursiveSum xs\nprivate def unregistered (xs : List Nat) : Nat := recursiveSum xs\ntheorem privateContract : StrictLean.ExecutableContract unused\n    (fun f => ∀ xs, f xs = recursiveSum xs) := ⟨by intro xs; rfl⟩\ntheorem importedContract : StrictLean.ExecutableContract Nat.add\n    (fun f => ∀ n m, f n m = n + m) := ⟨by intros; rfl⟩\n-- evaluator control\n"
 
 /-- Ten real public invocations retain exact requests, source binding, outcomes and
-both replacement targets. The transport mutation campaign consumes the real positive
-project report. -/
+both replacement targets. -/
 def check : IO Unit := do
   let root ← rootDirectory
   withScratch root "history-controls" fun scratch => do
@@ -57,45 +63,7 @@ def check : IO Unit := do
           let imported := execution.filter (fun entry => (entry.getObjVal? "name").toOption == some importedName)
           requireChecks [⟨"one imported control with existing ownership", imported.size == 1 && imported.all
             (fun entry => (entry.getObjVal? "module").toOption.isSome)⟩]
-          let changed ← execution.mapM fun entry => do
-            if (entry.getObjVal? "name").toOption != some importedName then return entry
-            let fields ← IO.ofExcept entry.getObj?
-            return Json.mkObj (fields.toList.filter (·.1 != "module"))
-          let mutated := report.setObjVal! "scope" (scope.setObjVal! "report"
-            (account.setObjVal! "execution" (toJson changed)))
-          match StrictLeanQualification.History.checkedValidation.run mutated result.exitCode.toNat mode source true false with
-          | .ok () => throw <| IO.userError "missing imported ownership accepted"
-          | .error reason => requireChecks [⟨"intended imported-ownership refusal", reason == "registered imported root executed"⟩]
-          IO.ofExcept (StrictLeanQualification.History.checkedValidation.run report result.exitCode.toNat mode source true false)
-          IO.println "history oracle file/missing-imported-module: intended refusal + restored control PASS"
-        if phase == "unsupported" then
-          let scope ← IO.ofExcept (report.getObjVal? "scope")
-          let account ← IO.ofExcept (if invocation == "file" then scope.getObjVal? "report" else do
-            let surfaces ← scope.getObjValAs? (Array Json) "surfaces"
-            let some surface := surfaces[0]? | throw "missing surface"
-            surface.getObjVal? "report")
-          let execution ← IO.ofExcept (account.getObjValAs? (Array Json) "execution")
-          let missingOne := execution.filter (fun entry =>
-            (entry.getObjVal? "name").toOption != some (nameJson "reference"))
-          requireChecks [⟨"missing-one mutation removes reference", missingOne.size < execution.size⟩]
-          for (label, entries) in #[("missing-one-execution", missingOne), ("empty-execution", #[])] do
-            let changed := account.setObjVal! "execution" (toJson entries)
-            let changedScope ← IO.ofExcept (if invocation == "file" then pure (scope.setObjVal! "report" changed) else do
-              let surfaces ← scope.getObjValAs? (Array Json) "surfaces"
-              let some surface := surfaces[0]? | throw "missing surface"
-              pure (scope.setObjVal! "surfaces" (toJson (surfaces.set! 0 (surface.setObjVal! "report" changed)))))
-            let mutated := report.setObjVal! "scope" changedScope
-            match StrictLeanQualification.History.checkedValidation.run mutated result.exitCode.toNat
-                mode source (invocation == "file") true with
-            | .ok () => throw <| IO.userError s!"{label}: missing evidence accepted"
-            | .error reason => requireChecks [⟨"intended missing-execution refusal",
-                reason == "every requested root has unresolved execution evidence"⟩]
-            IO.ofExcept (StrictLeanQualification.History.checkedValidation.run report result.exitCode.toNat
-              mode source (invocation == "file") true)
-            IO.println s!"history oracle {invocation}/{label}: intended refusal + restored control PASS"
         requireChecks [⟨"history source unchanged", (← IO.FS.readFile (project / "Example.lean")) == source⟩]
-        if invocation == "project" && phase == "positive" then
-          transportControl root "lean/StrictLean/Checker/HistoryQualification.lean" output
         IO.println s!"history {invocation}/{phase}: exact requests/source/outcome PASS"
 
 end StrictLean.Qualification.History

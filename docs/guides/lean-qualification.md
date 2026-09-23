@@ -21,12 +21,19 @@ promoted, that the compiler supplied the right source range, or that a static re
 produced a page. Deleting those observations would lose real coverage under standard §8.8.
 Conversely, passing these controls never proves arbitrary compiler or OS behavior.
 
+The converse also holds: a property of a pure Lean function the checker executes is
+proved over every input, not sampled by mutating one real output. Producer and history
+transport admission (`ProducerReport.validate_sound`) and the history oracle
+(`History.validate_importedRootExecuted`, `validate_unsupported_unresolved`) replaced
+their former mutation campaigns this way; the retained controls above are each kept for
+the external process, compiler or filesystem boundary they observe.
+
 | Former entrypoint | Lean replacement | Retained purpose |
 | --- | --- | --- |
 | `registry_cli_checks.py` | `lake exe qualify registry` | Seven malformed CLI invocations must invalidate seeded stale output. |
 | `native_linter_checks.py` | `lake exe qualify native` | 36 real compiler controls: identity, multiplicity, severity, source ranges, documentation and metadata ownership. |
-| `producer_checks.py` | `lake exe qualify producers` | Twelve source-owned documentation controls: for incremental and build-lint and each of SL5001/SL5002, one workspace runs Fixed, then Violation over that Fixed build (stale-artifact detection), then Fixed again from a cleared build. Also eight existing transport mutations and two standalone-executable controls, each in its own fresh workspace. The fresh-project SL5001/SL5002 observations are the rule-example corpus records, validated there by the same producer oracle. |
-| `history_checks.py` | `lake exe qualify history` | Ten project/file invocations, each in its own fresh workspace, private/imported roots, reached-closure/source accounts, and transport mutations. |
+| `producer_checks.py` | `lake exe qualify producers` | Twelve source-owned documentation controls: for incremental and build-lint and each of SL5001/SL5002, one workspace runs Fixed, then Violation over that Fixed build (stale-artifact detection), then Fixed again from a cleared build. Also two standalone-executable controls, each in its own fresh workspace. The fresh-project SL5001/SL5002 observations are the rule-example corpus records, validated there by the same producer oracle. |
+| `history_checks.py` | `lake exe qualify history` | Ten project/file invocations, each in its own fresh workspace: private/imported roots, reached-closure/source accounts, unsupported-evaluator refusal and source-snapshot changes. |
 | `closure_evidence_checks.py` | `lake exe qualify closure-evidence` | Reflexive candidate versus active cycle, retained recursive IR edges, and range refusals through four invocation paths. |
 | `configuration_capture_checks.py` | `lake exe qualify configuration-capture` | Initial configuration IO failure through project/file result protocols. |
 | `documentation_source_checks.py` | `lake exe qualify documentation-source` | Frozen dependency/configuration changes through both documentation commands; `--source-read-only` adds file/build read-failure controls. |
@@ -148,6 +155,36 @@ by their source-level linkage. The proof is erased at execution.
   Their registered contracts apply this equivalence to the actual decoders; they do
   **not** prove that the observations were extracted truthfully or that Lean's JSON
   parser implements a separately formalized JSON specification.
+- `Checker.ProducerReport.validate_sound`: every producer report that
+  `Environment.validate` admits satisfies `Environment.Admissible`, which restates every
+  executed guard: a nonempty, unique, loaded module census; a declaration census equal
+  to the reported keys in order and duplicate-free; execution results exactly for the
+  requested roots; `ExecutionValid` closures; unique located source bindings covering
+  every claimed module and range; a replay receipt admitting exactly its unique
+  requirements and requiring every safe, total declaration; documentation observations
+  for exactly the claimed modules and unique material selection; unique history
+  requests with exactly one history per requested module; completed histories that are
+  located, source-stable, bound to the owned snapshot when the module has one and
+  free of anonymous edge endpoints; unavailable histories that leave every requested root unresolved;
+  requested runtime replacements whose resolved edges appear in completed histories;
+  root/boundary module attribution with exact replacement-edge channels; and, for every
+  current replacement reference, a reached, attributed, requested and recorded module
+  history, with the root's historical edges the canonical form of exactly those
+  completed-history edges. `validate_eq_ok` decomposes the executed guard sequence
+  exactly, `validate_nonvacuous` exhibits an admitted report by kernel reduction, and
+  `fromJson_admissible` extends soundness to the transport decoder. Producers,
+  documentation groups and acceptance call `checkedValidate.run`, so each call site
+  requires this `ExecutableContract`. These replace the former 8 producer and 17
+  history/closure/source transport mutations. They do not authenticate the observations.
+  They live in the excluded operational `StrictLean` library, so acceptance's
+  claimed-surface audit neither re-elaborates nor reports them: the `lake build` kernel-checks
+  them under `warningAsError` (which also rejects `sorry`), and the module's `run_cmd`
+  `collectAxioms` ceiling bounds their transitive axioms to Standard-Logical.
+- `History.validate_importedRootExecuted` and `validate_unsupported_unresolved`: every
+  report the history oracle admits executes the imported registered root with a foreign
+  module, and, for an unsupported evaluator, leaves every root requested from the
+  audited module with nonempty unresolved evidence. These replace the former 7 oracle
+  mutations.
 - `Evidence.checkedValidation` and `checkedDocumentation`: exact conjunctions of decoded
   status/diagnostic/exit and transcript requirements, including distinct fence/project
   admission messages and the underlying IO reason. IO-only controls also consume the
