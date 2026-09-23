@@ -428,26 +428,23 @@ environment-census qualification. `conformingProfile` is called by the file gate
 `freshChecker`, `checkerSelftest`, `qualify`, `ruleExamples` and
 `ruleExampleQualification`. The claimed `auditApp` does not use them.
 
-Coverage, from ordinary acceptance on Lean 4.34.0 and Mathlib `5ed29652` at `eb11005`.
-That run preceded `StrictLeanCore.Source`, `StrictLeanCore.Coordinates`,
-`checkedEnvironmentJob` and the removal of `StrictLeanPolicy.forM_eq_ok`. The Lake
-globs now give 48 owned modules, with 6 in `StrictLeanCore`. The declaration, axiom and
-execution counts below have not been re-recorded for those changes:
+Coverage, from ordinary acceptance on Lean 4.34.0 and Mathlib `5ed29652`, on this
+delivery's final Lean sources rebased onto main `ecd78bc`:
 
-- 6 claimed libraries, 46 owned modules and 6399 owned declarations. #40's head
-  `e2d00b5` had 41 modules and 5446 declarations.
-- The excluded `StrictLean` library has 71 modules, down from 73.
-- `StrictLeanCore` has 4 modules and 953 attributed declarations: `Assembly` 376,
-  `Policy` 188, `Rule` 293, `RuleId` 96.
-- Exact axiom sets across those 953: 729 `{}`, 90 `{propext}`, 10
-  `{propext, Quot.sound}` and 124 `{propext, Classical.choice, Quot.sound}`.
-- At `eb11005` the gate recognized eight registrations on `StrictLeanCore`:
-  `checkedScope`, `checkedRequest`, `checkedRule`, `checkedMemberRule`,
-  `checkedConformingProfile`, `checkedSurfaceAssignments`, `checkedHistories` and
-  `checkedEnvironmentEvidence`. `checkedCoordinates` and `checkedEnvironmentJob` are
-  closed registrations of the same form; their gate recognition has not yet been observed.
-- Execution coverage for `StrictLeanCore`: 375 roots and 2331 boundaries (368 checked,
-  1963 trusted), 0 unresolved. The trusted boundaries are reported Lean core and runtime
+- 6 claimed libraries, 49 owned modules and 6586 owned declarations. #40's head
+  `e2d00b5` had 41 modules and 5446 declarations. Main added
+  `StrictLeanQualification.CorpusWindow` in #55.
+- The excluded `StrictLean` library has 71 modules, down from 73 on main.
+- `StrictLeanCore` has 6 modules and 1064 attributed declarations: `Assembly` 381,
+  `Coordinates` 61, `Policy` 188, `Rule` 293, `RuleId` 96 and `Source` 45.
+- Exact axiom sets across those 1064: 768 `{}`, 108 `{propext}`, 13
+  `{propext, Quot.sound}` and 175 `{propext, Classical.choice, Quot.sound}`.
+- The gate recognizes ten registrations on `StrictLeanCore`: `checkedScope`,
+  `checkedRequest`, `checkedRule`, `checkedMemberRule`, `checkedCoordinates`,
+  `checkedConformingProfile`, `checkedSurfaceAssignments`, `checkedHistories`,
+  `checkedEnvironmentEvidence` and `checkedEnvironmentJob`.
+- Execution coverage for `StrictLeanCore`: 408 roots and 3242 boundaries (489 checked,
+  2753 trusted), 0 unresolved. The trusted boundaries are reported Lean core and runtime
   mechanisms, not verified ones.
 
 Named axiom sets, from `#print axioms`:
@@ -472,17 +469,16 @@ renderers remain kernel-checked by `lake build` only. No scenario control was ad
 the contracts are the correctness evidence, and the existing controls qualify
 detection.
 
-Evidence (local, warm, observations only). "Final" means the Lean sources at `eb11005`,
-before the coordinate, environment-job and traversal-law changes; those changes have
-only focused `lake build` evidence so far. `16d694b` preceded the history and documentation-evidence contracts and a
-docstring edit:
+Evidence (local, warm, observations only). "Final" means this delivery's Lean sources
+rebased onto main `ecd78bc`. `16d694b` preceded the coordinate, environment-job, history
+and documentation-evidence contracts, the traversal-law collapse and the rebase:
 
 | Check | Lean sources | Result |
 | --- | --- | --- |
-| `./scripts/verify.sh` | final | PASS, 120 s. 6 claimed libraries, 46 owned modules, 6399 declarations; the eight `StrictLeanCore` registrations recognized |
-| `./scripts/verify.sh docs` | final | PASS, 101 s (70/70, 23/23, 1/1); only this table changed afterwards |
-| `checkerSelftest --forced-collector-only` | final | PASS, 256 s (fresh positive, excluded-source refusal, restored) |
-| `diagnostics fixtures` | `16d694b` | PASS, 109 s |
+| `./scripts/verify.sh` | final | PASS, 172 s. 6 claimed libraries, 49 owned modules, 6586 declarations; all ten `StrictLeanCore` registrations recognized |
+| `./scripts/verify.sh docs` | final | PASS, 178 s (70/70, 23/23, 1/1); only this table changed afterwards |
+| `checkerSelftest --forced-collector-only` | final | PASS, 313 s (fresh positive, excluded-source refusal, restored) |
+| `diagnostics fixtures` | final | PASS, 129 s |
 | `diagnostics environments` | `16d694b` | PASS, 204 s |
 | `diagnostics build-policy` | `16d694b` | PASS, 266 s |
 | `diagnostics structural` | `16d694b` | FAIL, 211 s; pre-existing: the same 37 failure labels as main `fa62dd1` (300 s) |

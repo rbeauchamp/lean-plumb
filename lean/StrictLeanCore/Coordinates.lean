@@ -93,11 +93,8 @@ theorem decides_forM {α : Type} (l : List α) (f : α → Except String Unit)
 theorem decides_forM_map {α : Type} (l : List α) (f : α → Except String Unit)
     (obligation : α → Obligation) (h : ∀ x ∈ l, Decides (f x) [obligation x]) :
     Decides (l.forM f) (l.map obligation) := by
-  induction l with
-  | nil => exact decides_pure
-  | cons x rest ih =>
-    rw [show (x :: rest).forM f = (f x >>= fun _ => rest.forM f) from rfl, List.map_cons]
-    exact (h x List.mem_cons_self).bind (ih fun y hy => h y (List.mem_cons_of_mem x hy))
+  rw [List.map_eq_flatMap]
+  exact decides_forM l f (fun x => [obligation x]) h
 
 /-- A transcript range has positive lines, both ends round-trip through `fm`, and its
 start is not after its stop. -/
