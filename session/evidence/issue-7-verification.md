@@ -1,5 +1,17 @@
 # Issue7 accepted-result integration evidence
 
+**Current status, 2026-09-23.**
+
+- **Delivered and merged:** https://github.com/rbeauchamp/strict-lean/pull/33 (main `12a704502f78d578ccfd81ec7c93bc0dd88af757`) and the review follow-up https://github.com/rbeauchamp/strict-lean/pull/45 (main `b0f1ccb83596b703c1bf2a3ce5502642f417b1ee`). Exact-head hosted CI and post-merge main CI and Diagnostics were green for both.
+- **Closeout sections at the end of this file:**
+  - the updated theorem-to-call-site map;
+  - the per-class qualification mapping after the verification slimming;
+  - the independent review record;
+  - the #10 handoff;
+  - the diagnostics run at the closeout head.
+- **Historical sections:** everything below the old heading records earlier checkpoints with their own identities. Where they say "pending", that is historical.
+
+
 Current bounded CI repair: [recovery and cleanup receipt](ci-corpus-cleanup.md).
 The reviewed signed head `1c7304b40267e2343d65b3b94251b6e9424548f1` passed full
 corpus420 in391.55s and cold ordinary420 in237.84s, retaining65/79/72 coverage and
@@ -81,7 +93,7 @@ identifies the exact owners, including non-audit modes. The core theorem-to-call
 | `Checker.Common.mapWorkQueue`, `admitIndexedWorkerResults`; `Documentation.auditTasks` | `ResultState.collect`; `collect_success_iff`, `collect_lookup`, `collect_empty_lookup`. |
 | `Checker.Acceptance.finish` → `AxiomGate.auditSurfaceAt`, explicit-positive `auditFile` | `finalize`; `finalize_iff`, `finalized_covers_input`, `accepted_covers_slot`, `accepted_report_identity`. |
 | `Documentation.finishDocuments` → `auditBuiltProject`, `DocFenceAudit.run`, `RuleExamples.documentation` | Same full-domain finalizer plus `ExampleExpectationOK`/`DocumentOK`; original fence spans/group units and terminal source checks remain operational. |
-| `AxiomGate.auditSurface` combined final success | Parent decodes/reconciles raw `SurfaceProduction`, recomputes `Acceptance.finish`, then `combineAccepted`; `combined_policy`, `combined_reports_same_snapshot`. |
+| `AxiomGate.auditSurface --with-docs` combined final success | Since the slimming there is no surface worker or serialized `SurfaceProduction`. In one process, `Acceptance.finish` yields the project `AcceptedRun`, then `Documentation.auditBuiltProject` finalizes the documents, and `combineAccepted documents evidence.accepted accepted` (`AxiomGate.lean:698`) builds the combined receipt; `combined_policy`, `combined_reports_same_snapshot`. |
 | `FreshChecker.finishGraph` → `FreshChecker.run` audit success | Same `finalize`; frozen `GraphPlanOK` and `GraphOK`; actual process completion remains an IO observation. |
 | `ResultProtocol.writeAccepted`, all audit success text | `AcceptedRun.report`, `acceptedRun_claim`, `accepted_report_identity`. Rendering is not universally proved and serialized metadata never supplies a proof. |
 
@@ -992,3 +1004,47 @@ passed ordinary hosted acceptance but failed combined420 with history incomplete
 The historical failure remains a failure. The restarted terminal pipeline cannot be
 resumed; a signed preserved-branch follow-up and fresh full validation own final-head
 local/hosted evidence and independent delta review. This entry claims no new Lean run.
+
+## Closeout 2026-09-23: qualification mapping after the verification slimming
+
+This section applies to main `b0f1ccb83596b703c1bf2a3ce5502642f417b1ee`. The slimming decision's cut 3 removed the surface worker process and the parent's re-check of serialized surface evidence. Firstmate recorded that decision on 2026-09-22 under the captain's authority to cut what CI verifies, and it is summarized in the #7/#10/#13 amendment comments. The combined project/documentation audit now runs in one process, so the `surface`, `evidence`, `sources` and `process` groups of `lake exe qualify acceptance GROUP` were retired. Each of them mutated the surface-worker packet or request. The `fences` group remains.
+
+For each retired case the table names what covers that failure class on main, or states that the class no longer arises.
+
+Where the controls run:
+
+- **CI** runs ordinary acceptance plus the producers, history and rule-examples campaigns.
+- **Diagnostics on request** (standard §8.8):
+  - `checkerSelftest` partitions, for example `lake exe checkerSelftest --policy-transport-only`, which runs `PolicyQualification.transport`;
+  - `lake exe qualify acceptance fences`;
+  - `frozen-exits` and the other `qualify` subcommands.
+- **Theorems** are checked on every ordinary run, because StrictLeanPolicy is a claimed surface.
+
+| Retired case (group) | Failure class | Coverage on main |
+| --- | --- | --- |
+| `missing` (surface) | Missing worker output | No surface worker exists anymore. For every remaining worker (compile batch, inspection groups, source audit): `finalize_iff` and `collect_success_iff` prove that a missing required slot fails finalization; `admitIndexedWorkerResults` → `insertResult`; the executed controls are `fence-missing` in the `fences` group and `missing-result` in `PolicyQualification.transport`. |
+| `duplicate` (surface) | Duplicate result | `ResultState.insertResult_success_iff` (duplicate refusal); `fence-duplicate`; `duplicate-result` and `conflicting-result` in the transport controls. |
+| `misindexed` (surface) | Misindexed result | `insertResult_success_iff` (unknown key and binding refusal); `fence-misindexed`; `unknown-result` and `wrong-result-binding`. |
+| `stale` (surface) | Stale or mismatched request/scope | Surface route removed. Remaining worker packets pass through `readWorkerPacket`: `request-mismatch`, `producer-mismatch` and `schema-mismatch` in the transport controls. The accepted report's claim and census identity is `accepted_report_identity`. |
+| `unknown` (evidence) | Unknown category | In process, a declaration kind is a value of a Lean inductive, so an unknown kind cannot be represented. For serialized worker packets, the derived `FromJson` decoders refuse unknown constructors. That is the pinned derive handler, a trusted boundary. `process-overflow` in the transport controls exercises decoder refusal. No executed mutation specific to unknown declaration kinds remains; this matches cut 3's "parent re-check of serialized evidence (vacuous once nothing crosses a process boundary)". |
+| `conflict` (evidence) | Conflicting evidence | In process, there is one source binding, captured by the audit itself, with no second serialized copy to disagree with. Terminal `SourceBinding.unchanged` and `Snapshot.inputsUnchanged` still compare fresh bytes. The history campaign (CI) covers source-bound replacement and source-change refusals. The producers campaign (CI) runs 8 producer-receipt transport mutations: dropped or duplicate census, missing admission or replay, missing documentation observations. |
+| `build` (evidence) | Failed build accepted | `PolicyOK` requires the build observation's `StageOK`, and `accept_iff` makes it necessary for success. `lake exe qualify frozen-exits` exercises failed build and compilation operations. |
+| `process` (process) | Worker process failure | Surface worker removed. Remaining workers are joined, and a nonzero exit or undecodable packet refuses (`runTypedWorker`, `readWorkerPacket`). `process-overflow` covers exit-code decoding. `frozen-exits` covers failed compilation processes. |
+| `timeout` (process) | Worker timeout | No inner per-worker timers remain by design (see the Lean qualification guide). Every process inherits the single hard 420 s process-group SIGKILL, so a hang fails the whole run and leaves the verdict INCOMPLETE rather than producing a partial acceptance. No separate worker-timeout control is needed. |
+| `source-shortened/reordered/extra` (sources) | Worker source inventory differs from parent | Removed by construction: the audit uses its own single `SourceBinding.capture`, and no second inventory is transferred. Terminal rediscovery (`Snapshot.inputsUnchanged`, `SourceBinding.unchanged`) and `lake exe qualify input-inventory` cover inventory changes during the run. |
+
+The issue also names two further classes:
+
+- **Excluded or imported contamination:** covered by `InfrastructureOK` and `AdmissionOK` (no ordinary imported or excluded module becomes positive), by the history campaign's private and imported roots (CI), and by the `structural` partition.
+- **Positive restoration:** covered by `fences` restored cases, the producers' restored Fixed after the stale-build Violation (CI), and the corpus positive phases (CI).
+
+**Missing, unknown or unsupported evidence fails only the affected claim.** Each finalizer is universal over its own frozen plan: `finalize_iff`, and `accept_iff` per claim. Project, file, documentation and graph claims are finalized separately. `combineAccepted` needs both accepted components and equal snapshots, and otherwise leaves each component's own outcome intact. Fresh, incremental, document and optional-graph modes stay distinct claim modes.
+
+## Closeout: independent review record
+
+- **PR 45 (`12a7045` → `f8d655b`):** an independent non-pipeline source review cleared it with no findings. It closed P2(a) and P3-2/3/4 on the slimming delta and confirmed that the 4 commits are signed with good key `E530DB272392A04C`. The review is retained in Firstmate's `strict-lean-7-final-review` report, latest section, 2026-09-23. It contains `dfea72d..f8d655b`.
+- **Slimming delta `d015c9b..a11c07b`:** the same reviewer covered it earlier. Its P2 and three P3 findings were resolved in PR 45.
+
+## Closeout: #10 handoff
+
+#10's body is at GitHub's 65,536-character limit, so the finalized API, coverage, mode semantics, commands, evidence revisions and remaining trust assumptions were delivered as a dated amendment comment, which is the deliverable: https://github.com/rbeauchamp/strict-lean/issues/10#issuecomment-5785859335 (also on #7 and #13).
