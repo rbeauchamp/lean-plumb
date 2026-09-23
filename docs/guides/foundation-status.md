@@ -336,7 +336,7 @@ for arbitrary input. The new core registrations are on the claimed `StrictLeanPo
 surface. `checkedMemberRule` shares the #39 `Policy` limit: it is kernel-checked by
 `lake build` but not audited by the gate until #41. The shared traversal laws live in
 `StrictLeanQualification.Checks`, which `Checker/Policy.lean` imports; a #41 move of
-`checkedScope` into a claimed policy module must move or restate them. (#41 moved both.) No scenario control was added.
+`checkedScope` into a claimed policy module must move or restate them. (#41 moved `forM_eq_error` and reused `Guards.listForM_eq_ok`; see above.) No scenario control was added.
 The contracts are the correctness evidence; qualification detects, it does not prove.
 
 ### #41: bring the selected pure adapters into the conforming surface
