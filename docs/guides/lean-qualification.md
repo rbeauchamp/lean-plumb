@@ -164,8 +164,8 @@ by their source-level linkage. The proof is erased at execution.
   requirements and requiring every safe, total declaration; documentation observations
   for exactly the claimed modules and unique material selection; unique history
   requests with exactly one history per requested module; completed histories that are
-  located, source-stable, bound to the owned snapshot and free of anonymous edge
-  endpoints; unavailable histories that leave every requested root unresolved;
+  located, source-stable, bound to the owned snapshot when the module has one and
+  free of anonymous edge endpoints; unavailable histories that leave every requested root unresolved;
   requested runtime replacements whose resolved edges appear in completed histories;
   root/boundary module attribution with exact replacement-edge channels; and, for every
   current replacement reference, a reached, attributed, requested and recorded module
@@ -176,6 +176,10 @@ by their source-level linkage. The proof is erased at execution.
   documentation groups and acceptance call `checkedValidate.run`, so each call site
   requires this `ExecutableContract`. These replace the former 8 producer and 17
   history/closure/source transport mutations. They do not authenticate the observations.
+  They live in the excluded operational `StrictLean` library, so acceptance's
+  claimed-surface audit neither re-elaborates nor reports them: the `lake build` kernel-checks
+  them under `warningAsError` (which also rejects `sorry`), and the module's `run_cmd`
+  `collectAxioms` ceiling bounds their transitive axioms to Standard-Logical.
 - `History.validate_importedRootExecuted` and `validate_unsupported_unresolved`: every
   report the history oracle admits executes the imported registered root with a foreign
   module, and, for an unsupported evaluator, leaves every root requested from the

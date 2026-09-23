@@ -376,7 +376,7 @@ def Environment.HistoryRequestsSound (r : Environment) : Prop :=
   r.histories.map (·.1) = canonicalNames (r.census.historyRequests.map (·.2))
 
 /-- A completed history is located, source-stable, has named edge endpoints and is bound
-to the owned snapshot; an unavailable one is explained and leaves every root requested
+to the owned snapshot when its module has one; an unavailable one is explained and leaves every root requested
 from its module with unresolved execution evidence. -/
 def Environment.HistoriesSound (r : Environment) : Prop :=
   (∀ mod path before after edges, (mod, .completed path before after edges) ∈ r.histories →
