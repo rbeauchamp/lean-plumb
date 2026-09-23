@@ -143,7 +143,7 @@ def run (args : List String) : IO Unit := do
       Command.mk "shellcheck" #["scripts/verify.sh"]] ++ commands selection.val do
     execute command
   IO.println (match selection.val with
-    | .ordinary => "local verification: PASS (complete ordinary conformance commands; run `scripts/verify.sh docs` for documentation)"
+    | .ordinary => "local verification: PASS (ordinary mechanical acceptance commands completed; semantic review is separate; run `scripts/verify.sh docs` for documentation)"
     | .docs => "documentation verification: PASS (every docs/ Lean fence; inputs equal the accepted ordinary inputs)"
     | .graph => "serialized-graph diagnostic: PASS (not ordinary verification)"
     | _ => "diagnostic qualification: PASS (selected scope only; not ordinary verification)")

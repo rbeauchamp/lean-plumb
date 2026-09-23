@@ -25,7 +25,7 @@ operational bridge, re-exporting the pure API without duplicating policy decisio
 
 | Invocation / success owner | Required evidence and external boundary |
 | --- | --- |
-| `AxiomGate.auditSurfaceAt`: fresh project | `Acceptance.freeze` reconciles coordinator-selected Lake modules, source/configuration/dependency state, completed report/replay inventories and origins. `Acceptance.finish` times collection and acceptance separately, carrying checked equality of every outcome to `finalize` through `finalize_collection_error` and `finalize_of_collected`; success text and `ResultProtocol.writeAccepted` consume its `AcceptedRun.report`. Fresh isolated source build and all existing warning, ownership, exclusion, source and replay guards remain. |
+| `AxiomGate.auditSurfaceAt`: fresh project | `Acceptance.freeze` reconciles coordinator-selected Lake modules, source/configuration/dependency state, completed report/replay inventories and origins. `Acceptance.finish` times collection and acceptance separately, carrying checked equality of every outcome to `finalize` through `finalize_collection_error` and `finalize_of_collected`; success text and `ResultProtocol.writeAccepted` consume its `AcceptedRun.report` through the report account `Account.account`. Fresh isolated source build and all existing warning, ownership, exclusion, source and replay guards remain. |
 | Same function: `--incremental`, `--build-lint` | The same full policy plan uses `incrementalProject`; cached Lake build artifacts do not cache policy decisions. Build-lint has no second exit-code-only PASS branch. |
 | `AxiomGate.auditSurface`: `--with-docs` | One process: `auditSurfaceAt` accepts the project plan over a snapshot that includes the copied Markdown, then `auditBuiltProject` accepts the documentation plan over that same snapshot and build, and `combineAccepted` joins them. No evidence crosses a process boundary between the two stages. `CombinedAccepted` is required before combined success. |
 | `AxiomGate.auditSurface`: `--acceptance-link PATH` | Fresh project success only (no `--with-docs`). After `AcceptedRun`, records the SHA-256 of the copy-relative accepted sources, configuration, dependency captures and `docs/` Markdown in PATH; the path is invalidated before the audit starts. |
@@ -204,6 +204,20 @@ The success owners above consume the dependent package, and typed
 an ergonomic boundary, not hostile in-process unforgeability. `acceptance` JSON is
 rendered metadata only: a parent decodes raw production and recomputes evidence.
 
+Every success line and every `completed` status is rendered from one report account,
+`Account.account run` in claimed `StrictLeanCore.Account`. `Account` is the subtype of
+account data that is the projection of some `AcceptedRun`, and `Status.completed`
+takes an `Account`; the refusal statuses carry none. `Status.completed_accepted`
+therefore proves that a `completed` status has an accepted run, complete for its plan
+and meeting every stage policy, behind it. `AccountContract` (`checkedAccount`) states
+the account's meaning: mode, scope, surfaces, toolchain and job count are the run's
+own; coverage is fresh whole-project exactly for a fresh project claim; the listed
+`ExecutableContract` registrations are exactly the accepted inventory's; execution
+counts are `executionSummary` of each accepted environment; the fence counts partition
+the accepted fences by expectation; and the residual identifiers stay unresolved. The
+human lines (`Account.lines`, `Account.pass`) and `acceptance.account` JSON are total
+projections of it.
+
 ### Frozen input coverage at operational entry points
 
 Each row concerns the effective workspace actually consumed. Fresh project audits own
@@ -256,6 +270,9 @@ Project policy, documentation results and semantic review are separate component
 A completed mechanically accepted project report keeps R-INTENT, R-INVARIANT,
 R-LAWS, R-BOUNDARY, R-NONVACUITY, R-DOC, R-COST and R-QUALIFY explicitly unresolved
 where applicable; it is not full standard conformance. R-GRAPH is requested separately.
+The report account (`StrictLeanCore.Account`, below) renders exactly this: every
+accepted account lists these identifiers as unresolved, adding R-GRAPH only for a
+`serializedGraph` claim. An identifier is an open obligation, not a completed review.
 Editor mode admits only its declared completed snapshot checks and lists pending
 stages. It has no conversion to fresh/incremental project acceptance.
 

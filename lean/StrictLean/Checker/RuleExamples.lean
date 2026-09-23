@@ -99,8 +99,11 @@ unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
       let report := accepted.report
       unless report.claim.val.scope == .documentation (sources.map fun (path, source) => ⟨path.toString, source⟩) do
         throw <| IO.userError "documentation adapter request mismatch"
-      pure (if report.census.fences.size > 0 && report.census.fences.all
-        (fun fence => decide (fence.expectation = .positive)) then ResultProtocol.Status.completed else .classified)
+      -- Only an all-positive fence set is conforming evidence; expectations are classified.
+      let account := StrictLean.Checker.Account.account accepted
+      let fences := account.val.fences
+      pure (if fences.positive > 0 && fences.compilerRejection + fences.policyRejection +
+          fences.trustedTeaching == 0 then StrictLean.Checker.Account.Status.completed account else .classified)
     else pure (if actual.any (·.2.impact == .incomplete) then .incomplete else .rejected)
   ResultProtocol.write output (Json.mkObj [
     ("configuration", toJson configuration), ("configurationRoot", toJson configurationRoot),

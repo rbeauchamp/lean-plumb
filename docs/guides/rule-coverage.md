@@ -119,6 +119,13 @@ mechanical selectors/adapters in #13 and accepted-evidence construction in #7.
 - **R-GRAPH:** optional serialized-graph/export compatibility is #8/#9; absence of that claim does
   not block core delivery. A claimed graph still requires every exact selected root covered.
 
+The report account's `Residual` type in
+[`StrictLeanCore.Account`](../../lean/StrictLeanCore/Account.lean) has exactly these nine
+identifiers. Every accepted result lists them as unresolved where applicable (R-GRAPH only
+for a serialized-graph claim), and each SL1007 contract it reports carries R-INTENT and
+R-INVARIANT for the adequacy of its requirement and its caller coverage. A listed identifier
+is an open obligation, not a completed review. Change this list and that type together.
+
 ## Complete chapter 9 row map
 
 Each row below names its mechanical contribution and residual account. The linked chapter 9 row
