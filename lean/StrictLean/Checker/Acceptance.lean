@@ -1,4 +1,5 @@
 import StrictLeanPolicy.Acceptance
+import StrictLeanCore.Assembly
 import StrictLean.Checker.Environment
 import StrictLean.Checker.Lake
 import StrictLean.Checker.Snapshot
@@ -44,73 +45,9 @@ def sourceSnapshots (sources : Array ProducerReport.SourceBinding)
     else files := files.push source
   return files
 
-/-- Positive maxima remain distinct from no-profile and compiler-trusting classification. -/
-def conformingProfile (profile : Policy.Profile) : Except String ConformingProfile :=
-  match Policy.request (some profile) with
-  | .conforming conforming => .ok conforming
-  | _ => .error "compiler-trusting inspection is not a conforming claim"
-
-/-- Construct requested surface assignments solely from the frozen manifest and Lake
-inventory, before looking at returned declarations or policy results. -/
-def surfaceAssignments (manifest : Manifest.Manifest) (inventory : Lake.SurfaceInventory) :
-    Except String (Array SurfaceAssignment) := manifest.surfaces.mapM fun surface => do
-  let some library := inventory.libraries.find? (·.library == surface.library)
-    | throw "manifest surface missing from Lake discovery"
-  let mut modules := library.modules
-  for name in surface.executables do
-    let some exe := inventory.executables.find? (·.executable == name)
-      | throw "manifest executable missing from Lake discovery"
-    modules := modules.push exe.root
-  return ⟨surface.library, ← modules.mapM admitIdentity, ← conformingProfile surface.claim, surface.execution⟩
-
-def configuredTargets (manifest : Manifest.Manifest) : Array TargetAssignment :=
-  manifest.surfaces.flatMap (fun surface =>
-    #[⟨.library, surface.library, some surface.library⟩] ++
-      surface.executables.map (fun name => ⟨.executable, name, some surface.library⟩)) ++
-  manifest.excludedLibraries.map (fun excluded => ⟨.library, excluded.library, none⟩) ++
-  manifest.excludedExecutables.map (fun excluded => ⟨.executable, excluded.executable, none⟩)
-
-def discoveredTargets (inventory : Lake.SurfaceInventory) : Array DiscoveredTarget :=
-  inventory.libraries.map (fun library => ⟨.library, library.library, library.modules⟩) ++
-  inventory.executables.map (fun exe => ⟨.executable, exe.executable, #[exe.root]⟩)
-
 /-- Observed process completion is not a theorem of external process semantics. -/
 def buildObservation (process : ProcessResult) : BuildObservation :=
   ⟨process.exitCode.toNat, warningLines process.output, errorLines process.output⟩
-
-/-- Operational observations retained after the independent census has been frozen.
-These data do not carry an accepted flag or determine the required stage list. -/
-structure FrozenEnvironment where
-  census : EnvironmentCensus
-  roles : Roles census.policy
-  admission : AdmissionObservation
-  moduleDocumentation : Array (Name × Bool)
-  declarationDocumentation : Array ((Name × Name) × Option String)
-  histories : Array HistoryObservation
-
-/-- Select the role receipt already computed during admission of this exact environment.
-The dependent result prevents selecting a receipt for another inventory. -/
-def frozenEnvironmentRoles (environments : Array FrozenEnvironment) :
-    (slot : Fin (environments.map FrozenEnvironment.census).size) →
-      Roles (environments.map FrozenEnvironment.census)[slot].policy :=
-  fun slot => by
-    simpa using (environments[slot.val]'(by simpa using slot.isLt)).roles
-
-/-- Retaining admitted receipts is exactly the former recomputation at every slot. -/
-theorem frozenEnvironmentRoles_eq (environments : Array FrozenEnvironment) :
-    frozenEnvironmentRoles environments =
-      (fun (slot : Fin (environments.map FrozenEnvironment.census).size) =>
-        authorize (environments.map FrozenEnvironment.census)[slot].policy) := by
-  funext slot
-  exact Roles.eq_authorize _
-
-/-- The complete project plan retains each environment's observations without merging
-declaration namespaces, root registrations, replay or role authority. -/
-structure Frozen (claim : Claim) where
-  census : Census
-  plan : Plan claim census
-  roles : CensusRoles census
-  environments : Array FrozenEnvironment
 
 private def moduleKey (snapshot : AdmittedSnapshot) (name : Name) : Except String ModuleKey := do
   return ⟨snapshot, ← admitIdentity name⟩
@@ -227,74 +164,6 @@ def freeze (claim : Claim) (expected : Array (Array Name))
     IO.ofExcept (← IO.lazyPure fun _ => buildPlan claim census)
   return {
     census, plan, roles := frozenEnvironmentRoles environments, environments }
-
-private def requireOne (what : String) (values : Array α) : Except String α :=
-  match values.toList with
-  | [value] => .ok value
-  | [] => .error s!"missing required {what} observation"
-  | _ => .error s!"duplicate required {what} observation"
-
-/-- Presence observations for modules have no docstring text payload. `some ""` encodes
-observed presence only, exactly the existing `DocumentationPresenceOK` predicate. -/
-def modulePresence (present : Bool) : Option String := if present then some "" else none
-
-theorem modulePresence_iff (present : Bool) :
-    DocumentationPresenceOK (modulePresence present) ↔ present = true := by
-  cases present <;> simp [modulePresence, DocumentationPresenceOK]
-
-/-- Each required slot receives its actual stage's observation. Failed lookup returns an
-explicit error; unknown stages cannot become a completed empty payload. The caller supplies
-the actual build process observation, not a synthesized success from diagnostic counts. -/
-private def environmentEvidence (frozen : FrozenEnvironment) (stage : Stage)
-    (subject : LocalJobSubject) : Except String JobEvidence := do
-    match stage, subject with
-      | .admission, .scope => pure <| .admission frozen.admission
-      | .declarationPolicy, .declaration k => do
-          let declaration ← requireOne "declaration" <| frozen.census.policy.declarations.filter
-            (fun d => d.module == k.moduleKey.name.name && d.name == k.name.name)
-          pure <| .declaration declaration
-      | .execution, .root k => do
-          let root ← requireOne "execution root" <| frozen.census.execution.roots.filter
-            (fun r => r.module == k.moduleKey.name.name && r.name == k.name.name)
-          pure <| .execution root
-      | .transcript, .module k => do
-          pure <| JobEvidence.transcript (← requireOne "transcript" <| frozen.census.policy.transcripts.filter
-            (·.module == k.name.name))
-      | .history, .module k => do
-          pure <| JobEvidence.history (← requireOne "history" <| frozen.histories.filter (·.moduleName == k.name.name))
-      | .origin, .module k => do
-          let origins := frozen.census.execution.roots.flatMap fun r => r.boundaries.filterMap
-            fun b => if b.module == k.name.name then b.account.nativeOrigin? else none
-          let some origin := origins[0]? | throw "missing native-runtime origin observation"
-          unless origins.all (fun other => decide (other = origin)) do throw "conflicting native-runtime origins"
-          pure <| .origin origin
-      | .documentationPresence, .module k => do
-          let observation ← requireOne "module documentation" <|
-            frozen.moduleDocumentation.filter (·.1 == k.name.name)
-          pure <| .documentationPresence (modulePresence observation.2)
-      | .documentationPresence, .declaration k => do
-          let observation ← requireOne "declaration documentation" <|
-            frozen.declarationDocumentation.filter (·.1 == (k.moduleKey.name.name, k.name.name))
-          pure <| .documentationPresence observation.2
-      | _, _ => throw "unsupported environment observation stage"
-
-/-- Global jobs are emitted once; local lookups select only the exact bound environment.
-Duplicate metadata occurrences fail instead of being normalized into one response. -/
-def observations {claim : Claim} (frozen : Frozen claim) (build : BuildObservation) :
-    Except String (List (Nat × JobObservation)) := do
-  let values : Array (Nat × JobObservation) ← frozen.plan.jobs.mapIdxM fun slot key => do
-    let evidence ← match key.stage, key.subject with
-      | .configuration, .scope =>
-          pure (JobEvidence.configuration frozen.census.configuredTargets frozen.census.discoveredTargets)
-      | .discovery, .scope => pure <| .discovery frozen.census
-      | .build, .scope => pure <| .build build
-      | stage, .environment request subject => do
-          let environment ← requireOne "environment" <| frozen.environments.filter
-            (fun value => decide (value.census.request.key = request))
-          environmentEvidence environment stage subject
-      | _, _ => throw "unsupported observation stage for project/file collector"
-    return (slot, ({ key, snapshot := claim.val.snapshot, completion := .completed, evidence } : JobObservation))
-  return values.toList
 
 /-- Final operational admission returns evidence indexed by the exact requested claim.
 Consumer APIs must keep this package until projecting `AcceptedRun.report`. -/

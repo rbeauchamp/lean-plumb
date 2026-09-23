@@ -466,7 +466,8 @@ Mathlib import belongs in the pure policy library.
 `Checker/PolicyDomain.lean` remains a compatibility import. `Checker/Acceptance.lean`
 re-exports the pure definitions and assembles observations through them; it defines no
 duplicate policy. The claimed `StrictLeanCore.Policy` holds the checker's pure claim,
-scope-admission, rule and execution-rule projections; operational `Checker/Policy.lean`
+scope-admission, rule and execution-rule projections, and `StrictLeanCore.Assembly` the
+pure census assembly; operational `Checker/Policy.lean`
 only binds scope admission to the frontend coordinate check and renders text;
 `Checker/PolicyCodec.lean` handles worker/report JSON. Move transcript **data** shapes
 into the pure domain (including source/range/evaluator keys); `Frontend` imports them,

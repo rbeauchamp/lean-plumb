@@ -2,9 +2,9 @@ module
 
 public section
 
-/-! Exact success and first-refusal laws for pure `Except` list traversal. They are
-shared by transcript-coordinate scope admission and the qualification evaluator, and
-concern pure `Except` only, not effects of any other monad. -/
+/-! Exact success, first-refusal and pointwise-map laws for pure `Except` list traversal.
+They are shared by scope admission, census assembly, worker-result admission and the
+qualification evaluator, and concern pure `Except` only, not effects of any other monad. -/
 namespace StrictLeanPolicy
 
 /-- Pure `Except` traversal succeeds exactly when every element succeeds. -/
@@ -58,5 +58,49 @@ theorem forM_eq_error {α ε : Type} (f : α → Except ε Unit) (l : List α) (
         · simp only [List.cons.injEq] at h
           rw [h.1, hy] at hx; cases hx
         · exact ⟨tail, x, after, rfl, fun b hb' => hb b (List.mem_cons_of_mem y hb'), hx⟩
+
+/-- Pure `Except` traversal succeeds exactly with pointwise successful results. -/
+theorem mapM_eq_ok {α β ε : Type} (g : α → Except ε β) :
+    ∀ (l : List α) (out : List β), l.mapM g = .ok out ↔
+      out.length = l.length ∧ ∀ i (h : i < l.length) (h' : i < out.length), g l[i] = .ok out[i]
+  | [], out => by cases out <;> simp [pure, Except.pure]
+  | a :: l, out => by
+    have ih := mapM_eq_ok g l
+    rw [List.mapM_cons]
+    cases ha : g a with
+    | error e =>
+      simp only [bind, Except.bind, reduceCtorEq, false_iff, not_and]
+      intro hl hi
+      have := hi 0 (by simp) (by simp [hl])
+      simp [ha] at this
+    | ok b =>
+      cases hr : l.mapM g with
+      | error e =>
+        simp only [bind, Except.bind, reduceCtorEq, false_iff, not_and]
+        intro hl hi
+        cases out with
+        | nil => simp at hl
+        | cons c cs =>
+          have := (ih cs).mpr ⟨by simpa using hl, fun i h h' => hi (i+1) (Nat.succ_lt_succ h) (Nat.succ_lt_succ h')⟩
+          rw [hr] at this; cases this
+      | ok bs =>
+        have hbs := (ih bs).mp hr
+        simp only [bind, Except.bind, pure, Except.pure, Except.ok.injEq]
+        constructor
+        · rintro rfl
+          refine ⟨by simp [hbs.1], fun i h h' => ?_⟩
+          cases i with
+          | zero => simpa using ha
+          | succ i => simpa using hbs.2 i (by simpa using h) (by simpa using h')
+        · rintro ⟨hl, hi⟩
+          cases out with
+          | nil => simp at hl
+          | cons c cs =>
+            have h0 := hi 0 (by simp) (by simp)
+            simp [ha] at h0
+            have := (ih cs).mpr ⟨by simpa using hl, fun i h h' => hi (i+1) (Nat.succ_lt_succ h) (Nat.succ_lt_succ h')⟩
+            rw [hr] at this
+            cases this
+            simp [h0]
 
 end StrictLeanPolicy

@@ -14,40 +14,6 @@ structure RootInventory where
   leanLibDir : FilePath
   deriving Repr, BEq
 
-structure SourceEntry where
-  «module» : Name
-  source : FilePath
-  deriving Repr, BEq
-
-structure LibraryInventory where
-  library : String
-  modules : Array Name
-  sources : Array SourceEntry
-  deriving Repr, BEq
-
-structure ExecutableInventory where
-  executable : String
-  root : Name
-  source : FilePath
-  deriving Repr, BEq
-
-structure DependencyInventory where
-  package : String
-  root : FilePath
-  configurationPaths : Array FilePath
-  sources : Array SourceEntry
-  deriving Repr, BEq
-
-structure SurfaceInventory where
-  root : FilePath
-  leanLibDir : FilePath
-  leanPath : Array FilePath
-  leanSrcPath : Array FilePath
-  libraries : Array LibraryInventory
-  executables : Array ExecutableInventory
-  dependencies : Array DependencyInventory
-  deriving Repr, BEq
-
 /-- Exact source locations already discovered through Lake for root-package
 modules. Reuse these for frontend history instead of a module-prefix search. -/
 def SurfaceInventory.moduleSources (inventory : SurfaceInventory) : Array (Name × FilePath) :=

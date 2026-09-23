@@ -160,6 +160,10 @@ theorem checkedRequest : StrictLean.ExecutableContract requestImpl RequestContra
 def request (claim : Option Profile) : StrictLeanPolicy.InspectionRequest :=
   checkedRequest.run claim
 
+/-- `RequestContract` stated about `request` itself, for reuse by its consumers. -/
+theorem request_contract : RequestContract request :=
+  checkedRequest.evidence
+
 /-- Required declaration projection: no rule exactly when the inventory-bound policy decision
 for the selected request succeeds, and otherwise the registry rule of that decision's failure.
 With `ruleForFailure_injective`, the rule identifies the first failed requirement proved by

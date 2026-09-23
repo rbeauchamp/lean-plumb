@@ -109,7 +109,7 @@ private def manifestJson (manifest : Manifest.Manifest) : Json :=
       ("library", Json.str surface.library),
       ("executables", Json.arr <| surface.executables.map Json.str),
       ("claim", Json.str surface.claim.toString),
-      ("execution", Json.str surface.execution.toString),
+      ("execution", Json.str surface.execution.spelling),
       ("rationale", Json.str surface.rationale)
     ]),
     ("excluded-libraries", Json.arr <| manifest.excludedLibraries.map fun item =>
@@ -548,7 +548,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         surfaceReports := surfaceReports.push <| Json.mkObj [
           ("library", Json.str surface.library),
           ("claim", Json.str surface.claim.toString),
-          ("execution", Json.str surface.execution.toString),
+          ("execution", Json.str surface.execution.spelling),
           ("modules", Json.arr <| info.modules.map (fun n => Json.str n.toString)),
           ("authorizedNativeAxioms", Json.arr <| native.map (Json.str ∘ Name.toString)),
           ("authorizedUnsafeRecHelpers", Json.arr <| unsafeHelpers.map (Json.str ∘ Name.toString)),
