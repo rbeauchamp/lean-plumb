@@ -65,7 +65,10 @@ def record (path : FilePath) (digest : String) (jobs : Nat) : IO Unit :=
   writeJson path (Json.mkObj [("schemaVersion", toJson (1 : Nat)), ("status", .str "accepted"),
     ("identity", .str digest), ("acceptedJobs", toJson jobs)])
 
-/-- Refuse unless ordinary acceptance recorded an accepted success over equal inputs. -/
+/-- Refuse unless ordinary acceptance recorded an accepted success over equal inputs.
+The `status: accepted` record lives in a writable `tmp/` file and is trusted as written
+by ordinary acceptance, like the `shasum` and filesystem observations behind its
+identity; a process that forges it is outside the assurance boundary (standard §8). -/
 def require (path : FilePath) (digest : String) : IO Unit := do
   unless ← path.pathExists do
     throw <| IO.userError s!"acceptance link missing: run ordinary acceptance first ({path})"

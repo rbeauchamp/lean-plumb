@@ -1,10 +1,13 @@
 import StrictLean.Qualification.Project
 import StrictLeanQualification.Producer
 
-/-! Actual producer qualification: eight documented-source controls (incremental and
-build-lint, SL5001/SL5002, Fixed/Violation), existing transport mutations and two
-standalone-executable controls. Every control runs in its own fresh workspace, so no
-restored rerun repeats an earlier control (docs/standard/8 §8.8). The fresh-project
+/-! Actual producer qualification: twelve documented-source controls (incremental and
+build-lint, SL5001/SL5002, Fixed then Violation then restored Fixed), existing transport
+mutations and two standalone-executable controls. Each invocation and rule shares one
+workspace: the Violation audit runs over the prior Fixed build, so the incremental and
+build-lint paths must detect the violation rather than accept stale artifacts. Because
+that mutation shares its workspace, the Fixed control is re-established afterwards from a
+cleared build (docs/standard/8 §8.8). The fresh-project
 SL5001/SL5002 observations are the rule-example corpus records, which that campaign
 validates with this same producer oracle. The source files remain authoritative; this
 driver copies their bytes rather than maintaining another theorem fixture. -/
@@ -28,12 +31,14 @@ def check (evidence : Option FilePath) : IO Unit := do
         ("incremental", #["--incremental"], "incrementalProject"),
         ("build-lint", #["--build-lint"], "incrementalProject")] do
       for rule in #["SL5001", "SL5002"] do
-        for kind in #["Fixed", "Violation"] do
+        let project ← fresh s!"{invocation}-{rule}"
+        for kind in #["Fixed", "Violation", "Fixed"] do
           let relative := s!"examples/rules/{rule}/{kind}.lean"
           let bytes ← IO.FS.readBinFile (root / relative)
           let some source := String.fromUTF8? bytes | throw <| IO.userError "fixture must be valid UTF-8"
-          let project ← fresh s!"{invocation}-{rule}-{kind}"
           IO.FS.writeBinFile (project / "Example.lean") bytes
+          -- Fixed runs from a cleared build; Violation keeps the prior Fixed build.
+          if kind == "Fixed" then clearBuild project
           let output := project / s!"result-{records.size}.json"
           let (result, report) ← observeProject root project output flags
           let account ← IO.ofExcept (StrictLeanQualification.Producer.account report)
