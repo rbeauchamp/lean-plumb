@@ -198,9 +198,9 @@ def modeMatches (kind : String) (mode : EvidenceMode) : Bool :=
   | _ => false
 
 /-- Exactly the expected diagnostics, in order, and exactly the expected unresolved
-evidence; returns the parsed actual findings. -/
-def checkFindings (record result : Json) (bound : ExampleBinding) : Except String (Array Finding) := do
-  let actual ← (← (← field result "diagnostics").getArr?).mapM DiagnosticCodec.parseDiagnostic
+evidence. -/
+def expectFindings (record result : Json) (bound : ExampleBinding) (actual : Array Finding) :
+    Except String Unit := do
   let expected ← (← field record "expected").getArr?
   unless expected.size == actual.size do throw "missing or unexpected diagnostic"
   for (spec, finding) in expected.zip actual do matchFinding spec finding bound
@@ -209,6 +209,11 @@ def checkFindings (record result : Json) (bound : ExampleBinding) : Except Strin
   unless unresolved.size == patterns.size && (patterns.zip unresolved).all
       (fun (pattern, detail) => StrictLeanPolicy.matchesPattern pattern detail) do
     throw "unexpected unresolved evidence"
+
+/-- The parsed actual findings, once they meet `expectFindings`. -/
+def checkFindings (record result : Json) (bound : ExampleBinding) : Except String (Array Finding) := do
+  let actual ← (← (← field result "diagnostics").getArr?).mapM DiagnosticCodec.parseDiagnostic
+  expectFindings record result bound actual
   return actual
 
 /-- The kind-specific classification of an admitted record. -/
@@ -325,15 +330,35 @@ theorem requestAccount_sound {result : Json} {bound : ExampleBinding} {req : Exa
   rw [hsound.1]
   exact parseRequest_sound hobs
 
+theorem checkFindings_sound {record result : Json} {bound : ExampleBinding} {actual : Array Finding}
+    (h : checkFindings record result bound = .ok actual) :
+    ((field result "diagnostics" >>= Json.getArr?) >>=
+      (·.mapM DiagnosticCodec.parseDiagnostic)) = .ok actual := by
+  unfold checkFindings at h
+  simp only [bind_eq_ok] at h
+  obtain ⟨raw, hraw, parsed, hparsed, found, hfound, _, _, h⟩ := h
+  rw [pure_eq_ok] at h
+  subst h
+  simp [bind_eq_ok, hraw, hparsed, hfound]
+
 theorem sourceAccount_sound {result : Json} {bound : ExampleBinding} {displayed : String}
     (h : sourceAccount result bound displayed = .ok ()) :
-    (∃ observed, ExampleSourcesOK bound.snapshot.val.sources observed displayed) ∧
+    (∃ observed, observedSources result bound = .ok observed ∧
+      ExampleSourcesOK bound.snapshot.val.sources observed displayed ∧
+      (bound.request.kind = "file" ∨ bound.request.kind = "policyNegative" →
+        ∃ s ∈ observed, s.uri = bound.request.subject ∧ s.source = displayed)) ∧
     ((∃ raw, field result "sourceAccount" = .ok raw) ∨
       bound.request.kind = "policyNegative" ∨ bound.request.kind = "documentation") := by
   unfold sourceAccount at h
   simp only [bind_eq_ok] at h
-  obtain ⟨observed, hobs, admitted, hadm, -⟩ := h
-  refine ⟨⟨observed, admitExampleSources_sound _ _ _ admitted hadm⟩, ?_⟩
+  obtain ⟨observed, hobs, admitted, hadm, h⟩ := h
+  refine ⟨⟨observed, hobs, admitExampleSources_sound _ _ _ admitted hadm, fun hk => ?_⟩, ?_⟩
+  · have hc : (bound.request.kind == "file" || bound.request.kind == "policyNegative") = true := by
+      rcases hk with hk | hk <;> simp [hk]
+    simp only [hc, ↓reduceIte, unless_eq_ok] at h
+    obtain ⟨s, hs, hsub⟩ := Array.any_eq_true'.mp h
+    simp only [Bool.and_eq_true, beq_iff_eq] at hsub
+    exact ⟨s, hs, hsub⟩
   unfold observedSources at hobs
   simp only [bind_eq_ok] at hobs
   obtain ⟨_, _, hobs⟩ := hobs
@@ -386,9 +411,14 @@ def RecordAdmissible (record : Json) : Prop :=
       (fromJson? requestJson : Except String ExampleRequest) = .ok bound.request) ∧
     (field record "exitCode" >>= Json.getNat?) = .ok code ∧ code ≤ 1 ∧
     string record "source" = .ok displayed ∧
-    (∃ observed, ExampleSourcesOK bound.snapshot.val.sources observed displayed) ∧
+    (∃ observed, observedSources result bound = .ok observed ∧
+      ExampleSourcesOK bound.snapshot.val.sources observed displayed ∧
+      (bound.request.kind = "file" ∨ bound.request.kind = "policyNegative" →
+        ∃ s ∈ observed, s.uri = bound.request.subject ∧ s.source = displayed)) ∧
     ((∃ raw, field result "sourceAccount" = .ok raw) ∨
       bound.request.kind = "policyNegative" ∨ bound.request.kind = "documentation") ∧
+    ((field result "diagnostics" >>= Json.getArr?) >>=
+      (·.mapM DiagnosticCodec.parseDiagnostic)) = .ok actual ∧
     string record "kind" = .ok kind ∧
     (kind = "positive" ∨ kind = "policyRejection" ∨ kind = "diagnosticDemonstration") ∧
     (kind = "diagnosticDemonstration" → ∃ rule,
@@ -397,14 +427,14 @@ def RecordAdmissible (record : Json) : Prop :=
 
 theorem qualify_sound (record : Json) (h : qualify record = .ok ()) : RecordAdmissible record := by
   obtain ⟨result, mode, bound, req, code, actual, status, kind, displayed, hr, hid, hmode, hrm, hb, hreq,
-    _, hcode, hle, _, _, hk, hsrc, hsa, hq⟩ := qualify_parts record h
+    _, hcode, hle, hfind, _, hk, hsrc, hsa, hq⟩ := qualify_parts record h
   obtain ⟨before, after, hbefore, hafter, hstable, _, rj, hrj, hbreq⟩ := binding_sound hb
   obtain ⟨rfl, oj, hoj, horeq⟩ := requestAccount_sound hreq
   obtain ⟨hsources, hpresent⟩ := sourceAccount_sound hsa
   obtain ⟨hkind, hdemo⟩ := qualifyKind_sound hq
   refine ⟨result, mode, bound, code, displayed, kind, actual, hr, fun e he => checkIdentity_sound (hid e he),
     hmode, hrm, ⟨before, after, hbefore, hafter, hstable⟩, hb, ⟨rj, hrj, hbreq⟩, ⟨oj, hoj, horeq⟩,
-    hcode, hle, hsrc, hsources, hpresent, hk, hkind, ?_⟩
+    hcode, hle, hsrc, hsources, hpresent, checkFindings_sound hfind, hk, hkind, ?_⟩
   simpa using hdemo
 
 /-- Full-corpus coverage derives from the sole closed registry; every selected rule has

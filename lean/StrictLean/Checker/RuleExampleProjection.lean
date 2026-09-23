@@ -64,7 +64,7 @@ theorem qualify_congr (a b ra rb : Json)
   rw [ha, hb]
   simp only [Except.bind, bind, Bind.bind]
   rw [identity_congr ra rb hresult]
-  simp only [checkFindings, qualifyKind, Except.bind, bind, Bind.bind]
+  simp only [checkFindings, expectFindings, qualifyKind, Except.bind, bind, Bind.bind]
   simp only [string, hresult "mode" (by decide) (by decide),
     hresult "diagnostics" (by decide) (by decide), hresult "unresolved" (by decide) (by decide),
     hresult "status" (by decide) (by decide), hresult "scope" (by decide) (by decide),

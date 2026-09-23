@@ -188,11 +188,13 @@ by their source-level linkage. The proof is erased at execution.
   producer identity fields; the result mode is the record's parsed evidence mode; the
   record's `before` and `after` source/configuration snapshots are equal; the result's
   observed request decodes to exactly the frozen request the record binds; the exit code
-  is at most 1; every observed source is in the bound snapshot and one equals the
-  displayed source; a result source account is present unless the request is
-  diagnostic-only or documentation; the kind is one of positive, policy rejection or
-  diagnostic demonstration; and a demonstration satisfies `DemonstrationOK` for the
-  record's own rule and findings. The terminal corpus admission and every individual
+  is at most 1; every source in the result's own source account (`observedSources`) is
+  in the bound snapshot and one has the displayed text, and for a file or diagnostic-only
+  request one such source is the requested subject with the displayed text; a result
+  source account is present unless the request is diagnostic-only or documentation; the
+  findings are exactly the result's parsed `diagnostics`; the kind is one of positive,
+  policy rejection or diagnostic demonstration; and a demonstration satisfies
+  `DemonstrationOK` for the record's parsed `rule` and those findings. The terminal corpus admission and every individual
   admission run this `qualify`. It replaces the former 7 in-process mutations of each
   record and the 7 derived admission subprocesses. Its axiom ceiling is checked by the
   module's `collectAxioms` command; the module is in the excluded `StrictLean` library,
