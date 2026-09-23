@@ -699,10 +699,10 @@ private def expectManifestPublicFailure (repo : FilePath) (name : String)
   return some s!"manifest/public/{name}: wrong diagnostic:\n{result.output}"
 
 /-- External manifest controls only: the real repository manifest, a missing file, and the
-public CLI propagating a parser refusal and a Lake-inventory refusal. What the pure parser
-accepts is proved for every input (`Manifest.parse_sound`, `Manifest.parse_input`), replacing
-the former sampled malformed, incomplete, wrong-version, unknown-key, bad-execution and
-empty-exclusion cases. -/
+public CLI propagating a parser refusal and a Lake-inventory refusal. The pure parser is
+proved for every input instead of sampled: `Manifest.parse_sound` and `Manifest.parse_input`
+cover the former malformed, incomplete, wrong-version, unknown-key and bad-execution cases,
+and `Manifest.parse_emptyExclusions` the former excluded-empty case. -/
 private def manifestQualification (repo scratch : FilePath) : IO (Array String) := do
   let mut failures : Array String := #[]
   let valid ← Manifest.load (Manifest.defaultPath repo)
@@ -1432,7 +1432,7 @@ private unsafe def runStructural (layout : SourceLayout) (repo : FilePath) (jobs
     timedPhase "manifest controls" <| withScratch repo "checker-manifest" fun scratch =>
       manifestQualification repo scratch
   for failure in ← IO.ofExcept (← IO.wait manifestTask) do failures.modify (·.push failure)
-  IO.println "self-test manifest: completed (valid + excluded-empty + 7 adversarial public cases)"
+  IO.println "self-test manifest: completed (valid + missing in-process; missing, malformed and unknown-library public cases)"
 
   let structural ← IO.ofExcept (← IO.wait structuralTask)
   for failure in structural do failures.modify (·.push failure)
@@ -1709,7 +1709,7 @@ unsafe def run (args : List String) : IO UInt32 := do
   IO.println <| s!"checker self-test: PASS ({fixtures.size} fixed fixtures in-process; " ++
     (if options.buildBound then s!"{fixtures.size} real-CLI controls (including all smoke controls); "
       else s!"{smokeFixtureNames.size} real-CLI smoke controls; ") ++
-    s!"{fenceCorpusCases.size + publicOnlyFenceCases.size} Markdown cases plus import-setup controls; 11 execution-policy cases; 9 manifest cases; structural controls including explicit contract mutations; " ++
+    s!"{fenceCorpusCases.size + publicOnlyFenceCases.size} Markdown cases plus import-setup controls; 5 manifest cases; structural controls including explicit contract mutations; " ++
     s!"{CompilerPaths.caseCount} imported compiler-path mutations with fresh restorations; " ++
     (if options.buildBound then
       "build-bound tier: full real-CLI fixture sweep, end-to-end fence corpus, " ++

@@ -148,7 +148,8 @@ evidence (standard §0 "The Role of Testing").
 | checkerSelftest fixtures | 11 execution-policy cases | failure kind per boundary/claim | Proved | `boundaryFailures_ids`, `rootFailures_ids`, `executionFailureRecords_empty_iff` |
 | checkerSelftest fixtures | 12 scanner cases | `Documentation.scan` marker/fence problems | Counterexample aid | follow-up: step-function scanner with proved problem coverage |
 | checkerSelftest fixtures | fence corpus, diagnostic-setup controls | fence compilation through real workers | External | kept |
-| checkerSelftest structural | manifest cases | `Manifest.parse` refusals | Proved (in-process); External (missing file, public CLI) | `Manifest.parse_sound`, `parse_input`; one public control kept |
+| checkerSelftest structural | in-process malformed, incomplete, wrong-version, unknown-key, bad-execution and excluded-empty manifest cases | `Manifest.parse` refusals, field decoding and acceptance of empty exclusions | Proved | `Manifest.parse_sound`, `parse_input`, `parse_emptyExclusions` |
+| checkerSelftest structural | real manifest, missing file; public CLI missing, malformed and unknown-library cases | file IO, CLI refusal propagation, Lake inventory | External | kept |
 | checkerSelftest structural | Lake discovery, unlisted modules, executable classification, fresh-checker coverage | Lake inventory and build behaviour | External | kept |
 | checkerSelftest cli, environments, build-policy | CLI sweep, adopters, clean checkout, ordinary build | packaging, Lake and build integration | External | kept |
 | ordinary | `qualify registry`, `qualify native` | CLI argv/output invalidation; compiler messages and ranges | External | kept |
@@ -238,11 +239,20 @@ by their source-level linkage. The proof is erased at execution.
   accepts has nonempty surfaces, duplicate-free library and executable names across
   surfaces and exclusions, well-formed target names, no compiler-trusting claim and a
   nonempty rationale for every entry (`Manifest.Valid`). It comes from JSON whose top-level
-  and per-entry keys are all allowed, whose schema version is 2, and whose three arrays
-  have exactly one parsed entry per element. `load` adds only the missing-file check and the
-  read. Axioms are bounded by the module's `collectAxioms` command; the module is in
-  the excluded `StrictLean` library. These replace the in-process malformed, incomplete,
-  wrong-version, unknown-key, bad-execution and empty-exclusion manifest cases.
+  and per-entry keys are all allowed and whose schema version is 2. Each of its three arrays
+  is, element by element in order, the decoding of the matching JSON array
+  (`SurfaceDecodes`, `ExcludedLibraryDecodes`, `ExcludedExecutableDecodes`): every
+  name and rationale is the JSON string, the claim is `Profile.parse?` of the JSON string, an
+  absent `executables` is empty and a present one is exactly its string array, and an absent
+  `execution` is `report` while a present one is `ExecutionClaim.parse?` of the JSON string.
+  `load` adds only the missing-file check and the read. These replace the in-process
+  malformed, incomplete, wrong-version, unknown-key and bad-execution manifest cases.
+- `Checker.Manifest.parse_emptyExclusions`: JSON meeting the top-level conditions above
+  with empty exclusion arrays is accepted whenever its surfaces array parses
+  (`parseAll parseSurface` succeeds), with exactly those surfaces. This completeness
+  statement replaces the in-process excluded-empty case; it does not prove that any
+  particular surface is accepted. Axioms of all three theorems are bounded by the module's
+  `collectAxioms` command; the module is in the excluded `StrictLean` library.
 - `StrictLeanPolicy.boundaryFailures_ids` and `rootFailures_ids`: the failure kind of
   every boundary and unresolved path for every claim. With
   `executionFailureRecords_empty_iff` they replace the 11 in-memory execution-policy

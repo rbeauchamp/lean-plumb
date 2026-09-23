@@ -5,8 +5,11 @@ import StrictLeanPolicy.Guards
 import Lean.Elab.Command
 
 /-! Strict surface-manifest parsing. Unknowns and omissions fail closed. The pure `parse` is
-the executed parser; `parse_sound` and `parse_input` prove what every accepted manifest
-satisfies, replacing sampled malformed-manifest controls. `load` adds only file IO. -/
+the executed parser. `parse_sound` proves what every accepted manifest satisfies;
+`parse_input` proves it has the allowed keys and schema version and that each entry is, in
+order, the decoding of its JSON element, including the `execution` field;
+`parse_emptyExclusions` proves empty exclusion arrays are accepted whenever the surfaces are.
+`load` adds only file IO. -/
 
 namespace StrictLean.Checker.Manifest
 
@@ -80,10 +83,25 @@ theorem objectWithKeys_sound {value : Json} {allowed : Array String} {location :
       simp at hmem
   · simp [throw, throwThe, MonadExceptOf.throw] at h
 
+theorem objectWithKeys_complete {value : Json} {allowed : Array String} {location : String}
+    (h : KeysAllowed value allowed) : objectWithKeys value allowed location = .ok () := by
+  obtain ⟨object, hobj, hkeys⟩ := h
+  simpa [objectWithKeys, hobj, bind, Except.bind, pure, Except.pure] using hkeys
+
 private def stringField (value : Json) (key location : String) : Except String String := do
   match ← value.getObjVal? key with
   | .str text => return text
   | _ => throw s!"manifest-schema: {location}.{key} must be a string"
+
+theorem stringField_ok {value : Json} {key location text : String}
+    (h : stringField value key location = .ok text) : value.getObjVal? key = .ok (.str text) := by
+  unfold stringField at h
+  simp only [bind_eq_ok] at h
+  obtain ⟨field, hfield, h⟩ := h
+  split at h
+  · simp only [pure_eq_ok] at h
+    exact h ▸ hfield
+  · simp [throw, throwThe, MonadExceptOf.throw] at h
 
 def targetName (kind value location : String) : Except String String := do
   if value.isEmpty || value.trimAscii.toString != value
@@ -198,14 +216,38 @@ theorem fresh_sound {seen : Array String} {name message : String} {u : Unit}
   · rename_i hc
     simpa using hc
 
-/-- A JSON array of unique nonempty strings. -/
-def stringArray (what : String) (value : Json) : Except String (Array String) := do
-  let .arr values := value | throw s!"{what}: expected a JSON string array"
-  values.foldlM (init := #[]) fun result item => do
-    let .str text := item | throw s!"{what}: expected a JSON string array"
-    if text.isEmpty || result.contains text then
-      throw s!"{what}: expected unique nonempty strings"
-    return result.push text
+/-- A fold whose every step appends the string of a JSON string item decodes exactly those items. -/
+theorem foldlM_strings {f : Array String → Json → Except String (Array String)}
+    (hf : ∀ r item r', f r item = .ok r' → ∃ t, item = .str t ∧ r' = r.push t) :
+    ∀ (xs : List Json) (acc out : Array String), xs.foldlM f acc = .ok out →
+      ∃ ys : List String, out.toList = acc.toList ++ ys ∧ xs = ys.map .str
+  | [], acc, out, h => by
+    simp only [List.foldlM_nil, pure_eq_ok] at h
+    exact ⟨[], by simp [h], rfl⟩
+  | x :: rest, acc, out, h => by
+    simp only [List.foldlM_cons, bind_eq_ok] at h
+    obtain ⟨mid, hmid, h⟩ := h
+    obtain ⟨t, rfl, rfl⟩ := hf _ _ _ hmid
+    obtain ⟨ys, hout, hrest⟩ := foldlM_strings hf rest _ _ h
+    exact ⟨t :: ys, by simp [hout], by simp [hrest]⟩
+
+/-- `stringArray` returns exactly the strings of the JSON array it accepts, in order. -/
+theorem stringArray_items {what : String} {value : Json} {out : Array String}
+    (h : stringArray what value = .ok out) : value = .arr (out.map .str) := by
+  unfold stringArray at h
+  split at h
+  · rw [← Array.foldlM_toList] at h
+    obtain ⟨ys, hout, hxs⟩ := foldlM_strings (fun r item r' hs => by
+      split at hs
+      · split at hs
+        · simp [throw, throwThe, MonadExceptOf.throw, Functor.map, Except.map] at hs
+        · simp only [pure_eq_ok] at hs
+          exact ⟨_, rfl, hs.symm⟩
+      · simp [throw, throwThe, MonadExceptOf.throw] at hs) _ _ _ h
+    congr
+    apply Array.toList_inj.mp
+    simp [hxs, hout]
+  · simp [throw, throwThe, MonadExceptOf.throw] at h
 
 /-- A surface's optional executables, defaulting to none. -/
 def surfaceExecutables (item : Json) (location : String) : Except String (Array String) :=
@@ -241,6 +283,69 @@ def surfaceExecution (item : Json) (location : String) : Except String Execution
     | some mode => pure mode
     | none => throw s!"manifest-schema: {location}.execution must be \"report\" or \"checked\""
   | .ok _ => throw s!"manifest-schema: {location}.execution must be a string"
+
+theorem surfaceExecutables_ok {item : Json} {location : String} {out : Array String}
+    (h : surfaceExecutables item location = .ok out) :
+    ((∃ e, item.getObjVal? "executables" = .error e) ∧ out = #[]) ∨
+      item.getObjVal? "executables" = .ok (.arr (out.map .str)) := by
+  unfold surfaceExecutables at h
+  split at h
+  · rename_i e he
+    simp only [pure_eq_ok] at h
+    exact .inl ⟨⟨e, he⟩, h.symm⟩
+  · rename_i value hv
+    exact .inr (hv.trans (congrArg _ (stringArray_items h)))
+
+theorem surfaceClaim_ok {item : Json} {location : String} {claim : Profile}
+    (h : surfaceClaim item location = .ok claim) :
+    ∃ text, item.getObjVal? "claim" = .ok (.str text) ∧ Profile.parse? text = some claim := by
+  unfold surfaceClaim at h
+  simp only [bind_eq_ok] at h
+  obtain ⟨text, htext, h⟩ := h
+  split at h
+  · rename_i c hc
+    split at h
+    · simp [throw, throwThe, MonadExceptOf.throw, Functor.map, Except.map] at h
+    · simp only [pure_eq_ok] at h
+      exact ⟨text, stringField_ok htext, h ▸ hc⟩
+  · simp [throw, throwThe, MonadExceptOf.throw] at h
+
+theorem surfaceExecution_ok {item : Json} {location : String} {execution : ExecutionClaim}
+    (h : surfaceExecution item location = .ok execution) :
+    ((∃ e, item.getObjVal? "execution" = .error e) ∧ execution = .report) ∨
+      ∃ text, item.getObjVal? "execution" = .ok (.str text) ∧
+        ExecutionClaim.parse? text = some execution := by
+  unfold surfaceExecution at h
+  split at h
+  · rename_i e he
+    simp only [pure_eq_ok] at h
+    exact .inl ⟨⟨e, he⟩, h.symm⟩
+  · rename_i text htext
+    split at h
+    · rename_i mode hmode
+      simp only [pure_eq_ok] at h
+      exact .inr ⟨text, htext, h ▸ hmode⟩
+    · simp [throw, throwThe, MonadExceptOf.throw] at h
+  · simp [throw, throwThe, MonadExceptOf.throw] at h
+
+/-- `s` is the decoding of the JSON surface `item`: every field is its JSON value, an absent
+`executables` is empty and an absent `execution` is `report`. -/
+def SurfaceDecodes (item : Json) (s : Surface) : Prop :=
+  item.getObjVal? "library" = .ok (.str s.library) ∧
+  (((∃ e, item.getObjVal? "executables" = .error e) ∧ s.executables = #[]) ∨
+    item.getObjVal? "executables" = .ok (.arr (s.executables.map .str))) ∧
+  (∃ text, item.getObjVal? "claim" = .ok (.str text) ∧ Profile.parse? text = some s.claim) ∧
+  (((∃ e, item.getObjVal? "execution" = .error e) ∧ s.execution = .report) ∨
+    ∃ text, item.getObjVal? "execution" = .ok (.str text) ∧
+      ExecutionClaim.parse? text = some s.execution) ∧
+  item.getObjVal? "rationale" = .ok (.str s.rationale)
+
+def ExcludedLibraryDecodes (item : Json) (l : ExcludedLibrary) : Prop :=
+  item.getObjVal? "library" = .ok (.str l.library) ∧ item.getObjVal? "rationale" = .ok (.str l.rationale)
+
+def ExcludedExecutableDecodes (item : Json) (e : ExcludedExecutable) : Prop :=
+  item.getObjVal? "executable" = .ok (.str e.executable) ∧
+    item.getObjVal? "rationale" = .ok (.str e.rationale)
 
 def parseSurface (acc : Acc) (index : Nat) (item : Json) : Except String Acc := do
   let location := s!"surfaces[{index}]"
@@ -475,62 +580,86 @@ theorem parseAll_each (step : Acc → Nat → Json → Except String Acc) (Q : J
     · exact hstep _ _ _ _ hmid
     · exact parseAll_each step Q hstep h x hx
 
-/-- A fold whose every step adds exactly one to `f` adds the item count. -/
-theorem parseAll_count (step : Acc → Nat → Json → Except String Acc) (f : Acc → Nat)
-    (hstep : ∀ acc out index item, step acc index item = .ok out → f out = f acc + 1) :
-    ∀ {items : List Json} {index : Nat} {acc out : Acc},
-      parseAll step items index acc = .ok out → f out = f acc + items.length
+/-- `D` relates the two lists element by element, in order. -/
+def Decodes {α : Type} (D : Json → α → Prop) (items : List Json) (ys : List α) : Prop :=
+  items.length = ys.length ∧ ∀ p ∈ items.zip ys, D p.1 p.2
+
+/-- A fold whose every step appends one decoding of its item to `f` pairs the items, in
+order, with the appended entries. -/
+theorem parseAll_decodes {α : Type} (step : Acc → Nat → Json → Except String Acc)
+    (f : Acc → Array α) (D : Json → α → Prop)
+    (hstep : ∀ acc out index item, step acc index item = .ok out →
+      ∃ x, f out = (f acc).push x ∧ D item x) :
+    ∀ {items : List Json} {index : Nat} {acc out : Acc}, parseAll step items index acc = .ok out →
+      ∃ ys : List α, (f out).toList = (f acc).toList ++ ys ∧ Decodes D items ys
   | [], _, acc, out, h => by
     simp only [parseAll, pure_eq_ok] at h
-    subst h; rfl
+    exact ⟨[], by simp [h], by simp [Decodes]⟩
   | item :: rest, index, acc, out, h => by
     simp only [parseAll, bind_eq_ok] at h
     obtain ⟨mid, hmid, h⟩ := h
-    rw [parseAll_count step f hstep h, hstep _ _ _ _ hmid]
-    simp; omega
+    obtain ⟨x, hx, hd⟩ := hstep _ _ _ _ hmid
+    obtain ⟨ys, hys, hall⟩ := parseAll_decodes step f D hstep h
+    refine ⟨x :: ys, by simp [hys, hx], by simp [hall.1], ?_⟩
+    intro p hp
+    simp only [List.zip_cons_cons, List.mem_cons] at hp
+    rcases hp with rfl | hp
+    · exact hd
+    · exact hall.2 p hp
 
 
 theorem parseSurface_input {acc out : Acc} {index : Nat} {item : Json}
     (h : parseSurface acc index item = .ok out) :
     KeysAllowed item #["library", "executables", "claim", "execution", "rationale"] ∧
-      out.surfaces.size = acc.surfaces.size + 1 ∧
+      (∃ s, out.surfaces = acc.surfaces.push s ∧ SurfaceDecodes item s) ∧
       out.excludedLibraries = acc.excludedLibraries ∧ out.excludedExecutables = acc.excludedExecutables := by
   unfold parseSurface at h
   simp only [bind_eq_ok, pure_eq_ok] at h
-  obtain ⟨_, hkeys, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl⟩ := h
-  exact ⟨objectWithKeys_sound hkeys, by simp, rfl, rfl⟩
+  obtain ⟨_, hkeys, _, hlt, _, hlib, _, _, _, hexecs, _, _, _, hclaim, _, hexec, _, hrt, _, hwhy,
+    rfl⟩ := h
+  obtain ⟨rfl, -⟩ := targetName_sound hlib
+  obtain ⟨rfl, -⟩ := rationale_sound hwhy
+  exact ⟨objectWithKeys_sound hkeys, ⟨_, rfl, stringField_ok hlt, surfaceExecutables_ok hexecs,
+    surfaceClaim_ok hclaim, surfaceExecution_ok hexec, stringField_ok hrt⟩, rfl, rfl⟩
 
 theorem parseExcludedLibrary_input {acc out : Acc} {index : Nat} {item : Json}
     (h : parseExcludedLibrary acc index item = .ok out) :
     KeysAllowed item #["library", "rationale"] ∧
-      out.excludedLibraries.size = acc.excludedLibraries.size + 1 ∧
+      (∃ l, out.excludedLibraries = acc.excludedLibraries.push l ∧ ExcludedLibraryDecodes item l) ∧
       out.surfaces = acc.surfaces ∧ out.excludedExecutables = acc.excludedExecutables := by
   unfold parseExcludedLibrary at h
   simp only [bind_eq_ok, pure_eq_ok] at h
-  obtain ⟨_, hkeys, _, _, _, _, _, _, _, _, _, _, rfl⟩ := h
-  exact ⟨objectWithKeys_sound hkeys, by simp, rfl, rfl⟩
+  obtain ⟨_, hkeys, _, hlt, _, hlib, _, _, _, hrt, _, hwhy, rfl⟩ := h
+  obtain ⟨rfl, -⟩ := targetName_sound hlib
+  obtain ⟨rfl, -⟩ := rationale_sound hwhy
+  exact ⟨objectWithKeys_sound hkeys, ⟨_, rfl, stringField_ok hlt, stringField_ok hrt⟩, rfl, rfl⟩
 
 theorem parseExcludedExecutable_input {acc out : Acc} {index : Nat} {item : Json}
     (h : parseExcludedExecutable acc index item = .ok out) :
     KeysAllowed item #["executable", "rationale"] ∧
-      out.excludedExecutables.size = acc.excludedExecutables.size + 1 ∧
+      (∃ e, out.excludedExecutables = acc.excludedExecutables.push e ∧
+        ExcludedExecutableDecodes item e) ∧
       out.surfaces = acc.surfaces ∧ out.excludedLibraries = acc.excludedLibraries := by
   unfold parseExcludedExecutable at h
   simp only [bind_eq_ok, pure_eq_ok] at h
-  obtain ⟨_, hkeys, _, _, _, _, _, _, _, _, _, _, rfl⟩ := h
-  exact ⟨objectWithKeys_sound hkeys, by simp, rfl, rfl⟩
+  obtain ⟨_, hkeys, _, hlt, _, hexe, _, _, _, hrt, _, hwhy, rfl⟩ := h
+  obtain ⟨rfl, -⟩ := targetName_sound hexe
+  obtain ⟨rfl, -⟩ := rationale_sound hwhy
+  exact ⟨objectWithKeys_sound hkeys, ⟨_, rfl, stringField_ok hlt, stringField_ok hrt⟩, rfl, rfl⟩
 
 
 /-- Input fidelity: the parsed manifest comes from well-formed JSON with exactly the allowed
-top-level and per-entry keys and schema version 2, with one entry per JSON array element. -/
+top-level and per-entry keys and schema version 2, and each of its three arrays is, element by
+element in order, the decoding of the corresponding JSON array. -/
 theorem parse_input {path text : String} {m : Manifest} (h : parse path text = .ok m) :
     ∃ value sv lv ev, StrictLean.Checker.PolicyCodec.parse text = .ok value ∧
       KeysAllowed value #["schema-version", "surfaces", "excluded-libraries", "excluded-executables"] ∧
       (∃ schema, value.getObjVal? "schema-version" = .ok schema ∧ (schema == Json.num 2) = true) ∧
       value.getObjVal? "surfaces" = .ok (.arr sv) ∧ value.getObjVal? "excluded-libraries" = .ok (.arr lv) ∧
       value.getObjVal? "excluded-executables" = .ok (.arr ev) ∧
-      m.surfaces.size = sv.size ∧ m.excludedLibraries.size = lv.size ∧
-      m.excludedExecutables.size = ev.size ∧
+      Decodes SurfaceDecodes sv.toList m.surfaces.toList ∧
+      Decodes ExcludedLibraryDecodes lv.toList m.excludedLibraries.toList ∧
+      Decodes ExcludedExecutableDecodes ev.toList m.excludedExecutables.toList ∧
       (∀ item ∈ sv, KeysAllowed item #["library", "executables", "claim", "execution", "rationale"]) ∧
       (∀ item ∈ lv, KeysAllowed item #["library", "rationale"]) ∧
       (∀ item ∈ ev, KeysAllowed item #["executable", "rationale"]) := by
@@ -538,12 +667,12 @@ theorem parse_input {path text : String} {m : Manifest} (h : parse path text = .
   simp only [bind_eq_ok, pure_eq_ok] at h
   obtain ⟨value, hvalue, ⟨sv, lv, ev⟩, htop, a1, h1, a2, h2, a3, h3, rfl⟩ := h
   obtain ⟨hkeys, hschema, hs, hl, he, -⟩ := topLevel_sound htop
-  have c1 := parseAll_count parseSurface (·.surfaces.size)
+  obtain ⟨y1, e1, d1⟩ := parseAll_decodes parseSurface (·.surfaces) SurfaceDecodes
     (fun _ _ _ _ hs => (parseSurface_input hs).2.1) h1
-  have c2 := parseAll_count parseExcludedLibrary (·.excludedLibraries.size)
-    (fun _ _ _ _ hs => (parseExcludedLibrary_input hs).2.1) h2
-  have c3 := parseAll_count parseExcludedExecutable (·.excludedExecutables.size)
-    (fun _ _ _ _ hs => (parseExcludedExecutable_input hs).2.1) h3
+  obtain ⟨y2, e2, d2⟩ := parseAll_decodes parseExcludedLibrary (·.excludedLibraries)
+    ExcludedLibraryDecodes (fun _ _ _ _ hs => (parseExcludedLibrary_input hs).2.1) h2
+  obtain ⟨y3, e3, d3⟩ := parseAll_decodes parseExcludedExecutable (·.excludedExecutables)
+    ExcludedExecutableDecodes (fun _ _ _ _ hs => (parseExcludedExecutable_input hs).2.1) h3
   -- Later folds leave earlier arrays unchanged.
   have k2 := parseAll_inv parseExcludedLibrary (fun acc => acc.surfaces = a1.surfaces ∧
       acc.excludedExecutables = a1.excludedExecutables)
@@ -568,10 +697,39 @@ theorem parse_input {path text : String} {m : Manifest} (h : parse path text = .
     fun item hi => parseAll_each parseExcludedExecutable _
       (fun _ _ _ _ hs => (parseExcludedExecutable_input hs).1) h3 item (by simpa using hi)⟩
   · cases hp : StrictLean.Checker.PolicyCodec.parse text <;> simp_all [Except.mapError]
-  · simp only [Acc.manifest, k3.1, k2.1]; simpa using c1
-  · simp only [Acc.manifest, k3.2]; simp only [k1.1] at c2; simpa using c2
-  · simp only [Acc.manifest]; simp only [k2.2, k1.2] at c3; simpa using c3
+  · simp only [Acc.manifest, k3.1, k2.1]; simp only at e1; simpa [e1] using d1
+  · simp only [Acc.manifest, k3.2]; simp only [k1.1] at e2; simpa [e2] using d2
+  · simp only [Acc.manifest]; simp only [k2.2, k1.2] at e3; simpa [e3] using d3
 
+/-- `topLevel` accepts every value meeting the conditions `topLevel_sound` establishes. -/
+theorem topLevel_complete {value : Json} {sv lv ev : Array Json}
+    (hkeys : KeysAllowed value
+      #["schema-version", "surfaces", "excluded-libraries", "excluded-executables"])
+    (hschema : ∃ schema, value.getObjVal? "schema-version" = .ok schema ∧ (schema == Json.num 2) = true)
+    (hs : value.getObjVal? "surfaces" = .ok (.arr sv))
+    (hl : value.getObjVal? "excluded-libraries" = .ok (.arr lv))
+    (he : value.getObjVal? "excluded-executables" = .ok (.arr ev)) (hne : sv ≠ #[]) :
+    topLevel value = .ok (sv, lv, ev) := by
+  obtain ⟨schema, hschema, hv⟩ := hschema
+  have hne : sv.isEmpty = false := by simpa [Array.isEmpty_iff] using hne
+  simp [topLevel, objectWithKeys_complete hkeys, hschema, hv, hs, hl, he, hne, bind, Except.bind,
+    pure, Except.pure]
+
+/-- Completeness for empty exclusions: well-formed top-level JSON whose exclusion arrays are
+empty is accepted whenever its surfaces are, with exactly the parsed surfaces. -/
+theorem parse_emptyExclusions {path text : String} {value : Json} {sv : Array Json} {acc : Acc}
+    (hvalue : StrictLean.Checker.PolicyCodec.parse text = .ok value)
+    (hkeys : KeysAllowed value
+      #["schema-version", "surfaces", "excluded-libraries", "excluded-executables"])
+    (hschema : ∃ schema, value.getObjVal? "schema-version" = .ok schema ∧ (schema == Json.num 2) = true)
+    (hs : value.getObjVal? "surfaces" = .ok (.arr sv))
+    (hl : value.getObjVal? "excluded-libraries" = .ok (.arr #[]))
+    (he : value.getObjVal? "excluded-executables" = .ok (.arr #[])) (hne : sv ≠ #[])
+    (hsurfaces : parseAll parseSurface sv.toList 0 {} = .ok acc) :
+    parse path text = .ok acc.manifest := by
+  have htop := topLevel_complete hkeys hschema hs hl he hne
+  simp [parse, hvalue, htop, hsurfaces, parseAll, Except.mapError, bind, Except.bind, pure,
+    Except.pure]
 
 def load (path : FilePath) : IO Manifest := do
   if !(← path.pathExists) then
@@ -588,7 +746,8 @@ end StrictLean.Checker.Manifest
 
 -- Exact dependency ceiling for the manifest-parser guarantees: Standard-Logical.
 run_cmd do
-  for name in #[``StrictLean.Checker.Manifest.parse_sound, ``StrictLean.Checker.Manifest.parse_input] do
+  for name in #[``StrictLean.Checker.Manifest.parse_sound, ``StrictLean.Checker.Manifest.parse_input,
+      ``StrictLean.Checker.Manifest.parse_emptyExclusions] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "manifest theorem {name} exceeds Standard-Logical: {axioms}"
