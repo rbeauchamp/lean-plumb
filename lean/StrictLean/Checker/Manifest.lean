@@ -851,6 +851,81 @@ def positiveTargets (manifest : Manifest) : Array String :=
   manifest.surfaces.foldl
     (fun targets surface => targets.push surface.library ++ surface.executables) #[]
 
+/-- The actual manifest's `claimed` surfaces, with every other actual library and executable
+excluded. Both name sets equal the actual manifest's by construction. -/
+def structuralManifest (actual : Manifest) (claimed : Array String) : Manifest :=
+  let surfaces := actual.surfaces.filter (claimed.contains ·.library)
+  let claimedLibs := surfaces.map (·.library)
+  let claimedExes := surfaces.flatMap (·.executables)
+  { surfaces
+    excludedLibraries := (libraries actual).filter (!claimedLibs.contains ·) |>.map
+      fun library => ⟨library, "structural control: excluded"⟩
+    excludedExecutables := (executables actual).filter (!claimedExes.contains ·) |>.map
+      fun executable => ⟨executable, "structural control: excluded"⟩ }
+
+private theorem filter_split {xs ys : Array String} (hsub : ∀ x ∈ xs, x ∈ ys) (x : String) :
+    x ∈ xs ++ ys.filter (fun y => !xs.contains y) ↔ x ∈ ys := by
+  simp only [Array.mem_append, Array.mem_filter, Bool.not_eq_true']
+  constructor
+  · rintro (h | ⟨h, -⟩)
+    · exact hsub x h
+    · exact h
+  · intro h
+    by_cases hx : x ∈ xs
+    · exact Or.inl hx
+    · exact Or.inr ⟨h, by simpa [Array.contains_iff_mem] using hx⟩
+
+/-- Every actual library is classified in the copy, and the copy names no other library. -/
+theorem structural_libraries (actual : Manifest) (claimed : Array String) (l : String) :
+    l ∈ libraries (structuralManifest actual claimed) ↔ l ∈ libraries actual := by
+  have hsub : ∀ x ∈ (actual.surfaces.filter (claimed.contains ·.library)).map (·.library),
+      x ∈ libraries actual := by
+    intro x hx
+    simp only [Array.mem_map, Array.mem_filter] at hx
+    obtain ⟨s, ⟨hs, -⟩, rfl⟩ := hx
+    exact Array.mem_append_left _ (Array.mem_map_of_mem hs)
+  have key : libraries (structuralManifest actual claimed) =
+      (actual.surfaces.filter (claimed.contains ·.library)).map (·.library) ++
+        (libraries actual).filter (fun y =>
+          !((actual.surfaces.filter (claimed.contains ·.library)).map (·.library)).contains y) := by
+    simp only [structuralManifest, libraries, Array.map_map]
+    congr 1
+    ext1 <;> simp [Function.comp_def]
+  rw [key]
+  exact filter_split hsub l
+
+/-- Every actual executable is classified in the copy, and the copy names no other executable. -/
+theorem structural_executables (actual : Manifest) (claimed : Array String) (e : String) :
+    e ∈ executables (structuralManifest actual claimed) ↔ e ∈ executables actual := by
+  have hsub : ∀ x ∈ (actual.surfaces.filter (claimed.contains ·.library)).flatMap (·.executables),
+      x ∈ executables actual := by
+    intro x hx
+    simp only [Array.mem_flatMap, Array.mem_filter] at hx
+    obtain ⟨s, ⟨hs, -⟩, hx⟩ := hx
+    exact Array.mem_append_left _ (Array.mem_flatMap.mpr ⟨s, hs, hx⟩)
+  have key : executables (structuralManifest actual claimed) =
+      (actual.surfaces.filter (claimed.contains ·.library)).flatMap (·.executables) ++
+        (executables actual).filter (fun y =>
+          !((actual.surfaces.filter (claimed.contains ·.library)).flatMap (·.executables)).contains y) := by
+    simp only [structuralManifest, executables, Array.map_map]
+    congr 1
+    ext1 <;> simp [Function.comp_def]
+  rw [key]
+  exact filter_split hsub e
+
+/-- The manifest in the checker's own JSON schema; `parse` reads exactly these keys. -/
+def toJson (m : Manifest) : Json :=
+  Json.mkObj [
+    ("schema-version", Json.num 2),
+    ("surfaces", Json.arr (m.surfaces.map fun s => Json.mkObj [
+      ("library", .str s.library), ("executables", Json.arr (s.executables.map .str)),
+      ("claim", .str s.claim.toString), ("execution", .str (ExecutionClaim.toString s.execution)),
+      ("rationale", .str s.rationale)])),
+    ("excluded-libraries", Json.arr (m.excludedLibraries.map fun l =>
+      Json.mkObj [("library", .str l.library), ("rationale", .str l.rationale)])),
+    ("excluded-executables", Json.arr (m.excludedExecutables.map fun e =>
+      Json.mkObj [("executable", .str e.executable), ("rationale", .str e.rationale)]))]
+
 end StrictLean.Checker.Manifest
 
 -- Exact dependency ceiling for the manifest-parser guarantees: Standard-Logical.
@@ -865,7 +940,9 @@ run_cmd do
       ``StrictLean.Checker.Manifest.parseSurface_unknownKey,
       ``StrictLean.Checker.Manifest.parseSurface_execution_refuses,
       ``StrictLean.Checker.Manifest.surfaceExecution_unknown,
-      ``StrictLean.Checker.Manifest.surfaceExecution_nonString] do
+      ``StrictLean.Checker.Manifest.surfaceExecution_nonString,
+      ``StrictLean.Checker.Manifest.structural_libraries,
+      ``StrictLean.Checker.Manifest.structural_executables] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "manifest theorem {name} exceeds Standard-Logical: {axioms}"

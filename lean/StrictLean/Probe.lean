@@ -104,6 +104,12 @@ private def ownedDecls (env : Environment) (modules : List Name) :
     CommandElabM (Array (Name × ConstantInfo)) :=
   pure (ownedConstants env modules)
 
+/-- Kernel budget for one correspondence check: Lean's default `maxHeartbeats` (200000),
+expressed in the kernel's raw unit (`Core.getMaxHeartbeats` multiplies by 1000). The raw
+value 200000 was 1/1000 of that, so any sizeable audited environment timed out and every
+definitional correspondence was misreported as trusted. -/
+private def correspondenceHeartbeats : USize := 200000 * 1000
+
 /-- Admission checks the constructed closed proof against the exact required
 proposition in a disposable kernel declaration. Neither metavariable unification
 nor a matching theorem statement alone authorizes `checked`. -/
@@ -119,7 +125,7 @@ private def checkCorrespondenceProof (levels : List Name) (required proof : Expr
     levelParams := levels
     type := required
     value := proof }
-  let checked ← match (← getEnv).addDeclCore 200000 1000 declaration none with
+  let checked ← match (← getEnv).addDeclCore correspondenceHeartbeats 1000 declaration none with
     | .ok checked => pure checked
     | .error _ => throwError "kernel rejected exact correspondence"
   let axioms ← withEnv checked <| collectAxioms name

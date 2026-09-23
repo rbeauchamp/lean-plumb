@@ -799,23 +799,38 @@ private def expectedFailure (name : String) (result : ProcessResult)
     some s!"structural/{name}: missing diagnostic {repr missing}:\n{result.output}"
   else none
 
-/-- Manifest claimed inside every structural copy: the light Init-only
-`AuditApp` surface is claimed, every heavier library is excluded. The
-mutations' intended reasons are surface-content-agnostic, so each structural
-gate run pays only the light import closure; the heavy-surface end-to-end
-coverage stays in the conditional tier's public-surface control and the
-standalone CI gate. -/
-private def structuralManifestText : String :=
-  "{\"schema-version\":2,\"surfaces\":[{" ++
-  "\"library\":\"AuditApp\",\"executables\":[\"auditApp\"]," ++
-  "\"claim\":\"standard-logical\",\"rationale\":\"structural control\"}]," ++
-  "\"excluded-libraries\":[{\"library\":\"Audit\",\"rationale\":\"dogfood documents\"}," ++
-  "{\"library\":\"Fixtures\",\"rationale\":\"mutations\"}," ++
-  "{\"library\":\"StrictLean\",\"rationale\":\"checker\"}]," ++
-  "\"excluded-executables\":[{\"executable\":\"axiomGate\",\"rationale\":\"tooling\"}," ++
-  "{\"executable\":\"docFenceAudit\",\"rationale\":\"tooling\"}," ++
-  "{\"executable\":\"freshChecker\",\"rationale\":\"tooling\"}," ++
-  "{\"executable\":\"checkerSelftest\",\"rationale\":\"tooling\"}]}"
+/-- `AuditApp` and the policy library the probe imports; every other library stays excluded. -/
+private def structuralClaims : Array String := #["AuditApp", "StrictLeanPolicy"]
+
+/-- Manifest claimed inside every structural copy: the actual repository manifest's
+`AuditApp` surface and the `StrictLeanPolicy` surface, with every other actual library
+and executable excluded. `StrictLeanPolicy` must stay claimed because the checker probe's
+own imports resolve to it inside a self-hosted copy. It is derived from the actual
+manifest, so `Manifest.structural_libraries` and `structural_executables` make its
+classified names exactly the actual ones: a newly added library or executable cannot be
+left unclassified. The mutations' intended reasons are surface-content-agnostic; the
+heavy-surface end-to-end coverage stays in the conditional tier's public-surface
+control and the standalone CI gate. -/
+private def structuralBase (repo : FilePath) : IO Manifest.Manifest := do
+  let actual ← Manifest.load (Manifest.defaultPath repo)
+  for library in structuralClaims do
+    unless actual.surfaces.any (·.library == library) do
+      throw <| IO.userError s!"structural control requires the actual {library} surface"
+  return Manifest.structuralManifest actual structuralClaims
+
+private def structuralManifestText (repo : FilePath) : IO String := do
+  return (Manifest.toJson (← structuralBase repo)).compress
+
+/-- A structural manifest whose `AuditApp` surface claims exactly `executables`; the
+application executable is excluded when `excludeApp`, and otherwise left unclassified. -/
+private def auditAppVariant (repo : FilePath) (executables : Array String) (excludeApp : Bool) :
+    IO String := do
+  let base ← structuralBase repo
+  let surfaces := base.surfaces.map fun s =>
+    if s.library == "AuditApp" then { s with executables } else s
+  let excludedExecutables := if excludeApp then
+    base.excludedExecutables.push ⟨"auditApp", "application"⟩ else base.excludedExecutables
+  return (Manifest.toJson { base with surfaces, excludedExecutables }).compress
 
 /-- Structural mutation cluster: discovery of added modules, suppressed
 warnings, and contamination of the claimed library root by excluded fixture
@@ -913,17 +928,7 @@ private unsafe def structuralPartB (layout : SourceLayout) (repo copy : FilePath
   -- which Lake never compiled), so this control claims the `AuditApp` library
   -- and classifies the application executable as excluded.
   let libOnlyManifest := copy / "lib-only.json"
-  IO.FS.writeFile libOnlyManifest <| "{\"schema-version\":2,\"surfaces\":[{" ++
-    "\"library\":\"AuditApp\",\"claim\":\"standard-logical\"," ++
-    "\"rationale\":\"unlisted root control\"}]," ++
-    "\"excluded-libraries\":[{\"library\":\"Audit\",\"rationale\":\"dogfood documents\"}," ++
-    "{\"library\":\"Fixtures\",\"rationale\":\"mutations\"}," ++
-    "{\"library\":\"StrictLean\",\"rationale\":\"checker\"}]," ++
-    "\"excluded-executables\":[{\"executable\":\"auditApp\",\"rationale\":\"application\"}," ++
-    "{\"executable\":\"axiomGate\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"docFenceAudit\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"freshChecker\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"checkerSelftest\",\"rationale\":\"tooling\"}]}"
+  IO.FS.writeFile libOnlyManifest (← auditAppVariant repo #[] true)
 
   withNewFile (sources / "AuditLookalike.lean") "axiom Attack.lookalikeAxiom : False\n" do
     let outputDir := copy / ".lake" / "build" / "lib" / "lean"
@@ -957,17 +962,7 @@ private unsafe def structuralPartB (layout : SourceLayout) (repo copy : FilePath
   -- executable's root `Main` already defines `main`, so a surface claiming
   -- both would collide in one environment for reasons unrelated to the
   -- mutation under test.
-  let claimedManifestText := "{\"schema-version\":2,\"surfaces\":[{" ++
-    "\"library\":\"AuditApp\",\"executables\":[\"selftestTool\"]," ++
-    "\"claim\":\"standard-logical\",\"rationale\":\"structural control\"}]," ++
-    "\"excluded-libraries\":[{\"library\":\"Audit\",\"rationale\":\"dogfood documents\"}," ++
-    "{\"library\":\"Fixtures\",\"rationale\":\"mutations\"}," ++
-    "{\"library\":\"StrictLean\",\"rationale\":\"checker\"}]," ++
-    "\"excluded-executables\":[{\"executable\":\"auditApp\",\"rationale\":\"application\"}," ++
-    "{\"executable\":\"axiomGate\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"docFenceAudit\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"freshChecker\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"checkerSelftest\",\"rationale\":\"tooling\"}]}"
+  let claimedManifestText ← auditAppVariant repo #["selftestTool"] true
   let claimedGate := gate #["--manifest", claimedManifest.toString, "--incremental"]
 
   withNewFile (sources / "SelftestMain.lean") "/-! Standalone no-effect IO entrypoint. -/\ndef main : IO Unit := pure ()\n" do
@@ -1013,16 +1008,7 @@ private unsafe def structuralPartC (layout : SourceLayout) (repo copy : FilePath
     runBinaryFrom repo copy "axiomGate" args
 
   let appOmittedManifest := copy / "app-omitted-exe.json"
-  IO.FS.writeFile appOmittedManifest <| "{\"schema-version\":2,\"surfaces\":[{" ++
-    "\"library\":\"AuditApp\",\"claim\":\"standard-logical\"," ++
-    "\"rationale\":\"omitted exe control\"}]," ++
-    "\"excluded-libraries\":[{\"library\":\"Audit\",\"rationale\":\"dogfood documents\"}," ++
-    "{\"library\":\"Fixtures\",\"rationale\":\"mutations\"}," ++
-    "{\"library\":\"StrictLean\",\"rationale\":\"checker\"}]," ++
-    "\"excluded-executables\":[{\"executable\":\"axiomGate\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"docFenceAudit\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"freshChecker\",\"rationale\":\"tooling\"}," ++
-    "{\"executable\":\"checkerSelftest\",\"rationale\":\"tooling\"}]}"
+  IO.FS.writeFile appOmittedManifest (← auditAppVariant repo #[] false)
   if let some failure := expectedFailure "app-omitted-exe"
       (← gate #["--manifest", appOmittedManifest.toString, "--incremental"])
       #["manifest-incomplete", "auditApp"] then
@@ -1137,12 +1123,14 @@ private unsafe def structuralCorrespondence (layout : SourceLayout) (repo copy :
   let checkedManifest := originalManifest.replace "\"surfaces\":["
     ("\"surfaces\":[{\"library\":\"CorrespondenceControl\",\"claim\":\"standard-logical\"," ++
       "\"execution\":\"checked\",\"rationale\":\"correspondence control\"},")
+  if checkedManifest == originalManifest then return #["correspondence/control: manifest anchor missing"]
   let negative ← IO.FS.readFile ((repo / layout.relativeDir) / "Fixtures" / "Mutations" / "ConditionalCorrespondence.lean")
   let positive := negative.replace "def falseReference (n : Nat) : Nat := n\n"
     "def falseReference (n : Nat) : Nat := n + 1\n"
   if positive == negative then return #["correspondence/control: mutation anchor missing"]
   let source := sources / "CorrespondenceControl.lean"
-  let gate := runBinaryFrom repo copy "axiomGate" #[]
+  -- Boundary evidence text is printed only in verbose mode.
+  let gate := runBinaryFrom repo copy "axiomGate" #["--verbose"]
   withReplacedFile lakefile (originalLakefile ++ "\nlean_lib CorrespondenceControl\n") do
     withReplacedFile manifest checkedManifest do
       withNewFile source positive do
@@ -1162,8 +1150,9 @@ private unsafe def structuralCorrespondence (layout : SourceLayout) (repo copy :
   failures.get
 
 /-- Structural qualification: the mutation clusters run in parallel, each in
-its own isolated project copy claiming the light `AuditApp` surface, so no
-two concurrent Lake builds ever share a build directory. -/
+its own isolated project copy claiming the derived structural surfaces, so no
+two concurrent Lake builds ever share a build directory. Each cluster prints its
+elapsed time. -/
 private unsafe def structuralQualification (layout : SourceLayout) (repo scratch : FilePath) (jobs : Nat)
     : IO (Array String) := do
   let parts : Array (FilePath → FilePath → IO (Array String)) :=
@@ -1173,12 +1162,15 @@ private unsafe def structuralQualification (layout : SourceLayout) (repo scratch
     (parts.mapIdx fun index part => (index, part)) fun (index, part) => do
       let copy := scratch / s!"copy{index + 1}"
       prepareScratchRepo repo copy
-      IO.FS.writeFile (copy / "foundation_manifest.json") (structuralManifestText ++ "\n")
+      IO.FS.writeFile (copy / "foundation_manifest.json") ((← structuralManifestText repo) ++ "\n")
       let setup ← runProcess copy "lake"
         #["build", "AuditApp", "auditApp", "Fixtures.Mutations.DirectAxiom"]
       if !setup.succeeded then
         return #[s!"structural/setup: copy{index + 1} baseline did not build:\n{setup.output}"]
-      part repo copy
+      let started ← IO.monoMsNow
+      let result ← part repo copy
+      IO.println s!"phase structural part {index + 1}: {(← IO.monoMsNow) - started}ms"
+      return result
   return results.foldl (· ++ ·) #[]
 
 /-- Flush phase boundaries so CI timestamps and elapsed times identify the

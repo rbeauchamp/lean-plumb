@@ -151,6 +151,19 @@ evidence (standard §0 "The Role of Testing").
 | checkerSelftest structural | in-process malformed, incomplete, wrong-version, unknown-key, bad-execution and excluded-empty manifest cases | `Manifest.parse` acceptance, field decoding, acceptance of empty exclusions and the diagnostic class of each refusal | Proved | `Manifest.parse_sound`, `parse_input`, `parse_emptyExclusions`, refusal-class theorems |
 | checkerSelftest structural | real manifest, missing file; public CLI missing, malformed, incomplete, wrong-version, unknown-key, bad-execution and unknown-library cases | file IO, the `axiomGate` CLI rendering of each refusal class, Lake inventory | External | kept |
 | checkerSelftest structural | Lake discovery, unlisted modules, executable classification, fresh-checker coverage | Lake inventory and build behaviour | External | kept |
+
+**Structural partition status.** Each structural copy's manifests derive from the actual
+repository manifest (`Manifest.structuralManifest`; `structural_libraries` and
+`structural_executables` prove the copy classifies exactly the actual library and executable
+names), so adding a library can no longer leave copies unclassified. Before this, every copy
+failed early because `StrictLeanPolicy`, `StrictLeanVerification` and
+`StrictLeanQualification` were unclassified, which masked a checker defect.
+`checkCorrespondenceProof` gave the kernel 200000 raw heartbeats, 1/1000 of Lean's default,
+so every definitionally equal `implemented_by` replacement timed out and was reported as
+trusted. Its budget is now Lean's default. With both fixed, `diagnostics structural` passes:
+806 s locally, down from 1015 s. That is still over the 420-second budget, which remains
+follow-up work. `StrictLeanPolicy` stays claimed in each copy because the checker probe's own
+imports resolve to it in a self-hosted copy; this partition is not a CI job.
 | checkerSelftest cli, environments, build-policy | CLI sweep, adopters, clean checkout, ordinary build | packaging, Lake and build integration | External | kept |
 | ordinary | `qualify registry`, `qualify native` | CLI argv/output invalidation; compiler messages and ranges | External | kept |
 | ordinary | `RegistryChecks.lean` codec and source cases | registry, diagnostic and source codecs | Proved in part (roundtrip theorems) | follow-up: state the remaining refusal cases as theorems |
