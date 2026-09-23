@@ -30,7 +30,7 @@ re-paying it per verdict:
   changes, plus CI.
 
 With `--build-bound`, the closed partitions are `fixtures` (in-process fixtures,
-scanner, policy, and fence corpus), `structural` (structural/compiler-path and
+scanner, and fence corpus), `structural` (structural/compiler-path and
 manifest controls), `cli` (the complete CLI sweep), `environments` (packaging
 and fresh-state controls), and `build-policy` (ordinary-build enforcement).
 Each starts with the same baseline preparation.
@@ -1430,7 +1430,7 @@ private unsafe def adopterQualification (repo scratch : FilePath) : IO (Array St
           s!"adopter/toml/fresh-plan: exact adopter coverage plan failed:\n{fresh.output}")
   failures.get
 
-/-- In-process fixture, scanner, policy, and fence-corpus controls. Imports
+/-- In-process fixture, scanner, and fence-corpus controls. Imports
 remain serialized, and transcript workers finish before parent imports. -/
 private unsafe def runFixtures (repo : FilePath) (jobs : Nat)
     (fixtures : Array FixtureSpec) (failures : IO.Ref (Array String)) : IO Unit := do
