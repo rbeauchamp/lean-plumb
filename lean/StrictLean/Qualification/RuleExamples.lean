@@ -5,14 +5,19 @@ import StrictLean.Qualification.Slot
 import StrictLeanQualification.Evidence
 import StrictLeanQualification.Template
 import StrictLeanQualification.Producer
+import StrictLeanQualification.CorpusWindow
 import StrictLean.Checker.RuleExampleCorpusProjection
 
 /-! Source-owned corpus orchestration. Actual detector receipts are admitted by the
 existing RuleExampleQualification executable and its proof-linked policy functions.
 This adapter does not infer policy from source text. Filesystem/process authenticity
 remains trusted. At most five producer jobs run at once, each in its own fresh
-workspace over one shared private ROOT copy and the shared dependency roots; a
-content-level identity decides that no producer wrote any shared tree. The consumer
+workspace over one shared private ROOT copy and the shared dependency roots; the
+run refuses unless a content-level identity of every shared tree at the end equals
+the identity before any producer started (end-state equality, not an absence of
+writes). Launches and consumption order come from the proved pure
+`StrictLeanQualification.CorpusWindow` state; the final `COMPLETED` export requires
+the scratch cleanup witness, and the run verdict is the process exit status. The consumer
 path — control admission and terminal qualification — consumes captured data and the
 real ROOT checkout and never dereferences the slot path. The consumer thread reuses
 pure snapshot construction only at proved exact equality of fresh captures; producer
@@ -417,6 +422,20 @@ theorem sl5001_sl5002_same_shard (keys : Array String) (count : Nat)
   simp only [sharedTheoremTypeRules] at h ⊢
   simp [shardOf, shardAnchor, sharedTheoremTypeRules, h]
 
+/-- At most this many producer Tasks are launched and not yet consumed
+(`CorpusWindow.launched_le`). -/
+def producerWidth : Nat := 5
+
+/-- The completed-corpus export, the only writer of outcome `COMPLETED`. It takes the
+cleanup witness of the campaign's own scratch, which exists only after every producer
+join, the terminal admission, the shared-identity check, slot deletion and scratch
+removal have returned. It records what finished, not a run verdict: the run's verdict
+is its exit status, and a deadline kill after this save still fails the run. -/
+private def saveCompleted (evidence : FilePath) (fields : List (String × Json))
+    (records : Array Json) (_cleaned : Cleaned) : IO Unit :=
+  save evidence (StrictLean.Checker.RuleExampleProjection.corpus
+    (("outcome", .str "COMPLETED") :: fields) records)
+
 /-- Full corpus, explicit scoped selection, or one corpus shard; all records and admission
 controls are exported. No partial export is labelled a successfully qualified complete
 corpus. Every canonical record is admitted exactly once, by the terminal corpus admission;
@@ -439,7 +458,7 @@ def check (evidence : FilePath) (selection : Option (Array String))
   let specs ← readJson (root / "examples/rules/corpus.json")
   let keys := (← IO.ofExcept specs.getObj?).toList.map Prod.fst |>.toArray
   let selected := selectRules keys selection shard
-  requireChecks [⟨"nonempty known unique selected rules", !selected.isEmpty && selected.all keys.contains && selected.toList.eraseDups.length == selected.size⟩]
+  requireChecks [⟨"nonempty known unique selected rules", !selected.isEmpty && selected.all keys.contains && decide selected.toList.Nodup⟩]
   let inventory ← StrictLean.Checker.Lake.surfaceInventory root
   let modulePaths := inventory.moduleSources.map Prod.snd
   let corpusPaths ← (← (root / "examples/rules").walkDir).filterM fun path => return !(← path.isDir)
@@ -452,10 +471,11 @@ def check (evidence : FilePath) (selection : Option (Array String))
     ("schemaVersion", toJson (1 : Nat)), ("completeCorpus", .bool complete), ("shard", shardField),
     ("attempt", .str attempt), ("rawDirectory", .str rawDirectory.toString),
     ("selected", toJson selected), ("checkerBefore", checkerBefore)])
-  let completed ← withScratch root "rule-examples" fun scratch => do
+  let ((finalFields, records), cleaned) ← withScratchCleaned root "rule-examples" fun scratch => do
     let ctx : Context := ⟨root, scratch, specs, checkerPaths, checkerBefore, attempt, rawDirectory, cache⟩
     -- One private ROOT copy shared by every producer. Its only writers are this
-    -- preparation; the shared identity below decides that no producer wrote it.
+    -- preparation; the shared identity below refuses unless its recorded content at
+    -- the end equals the content before any producer started.
     let slot : Slot.ProducerSlot := ⟨scratch / "slot"⟩
     IO.FS.createDirAll slot.root
     let configNames ← (#["lean-toolchain", "lakefile.lean", "lake-manifest.json",
@@ -483,60 +503,68 @@ def check (evidence : FilePath) (selection : Option (Array String))
     let sharedBefore ← Slot.sharedIdentity sharedRoots
     let mut records : Array Json := #[]
     let mut controls : Array Json := #[]
-    let jobs := selected.flatMap fun rule => #["Fixed", "Violation"].map (rule, ·)
-    -- Pooled productions: the record jobs plus the selected special refusal controls,
-    -- consumed in this fixed order.
-    let specials : Array String :=
-      (if selected.contains "SL1005" then #["SL1005/WrongClaim"] else #[]) ++
-      (if selected.contains "SL4004" then #["SL4004/TrustedControl", "SL4004/NegativeControl"] else #[])
-    let total := jobs.size + specials.size
+    -- Pooled productions (`CorpusWindow.productions`): the record jobs, then the
+    -- selected special refusal controls, consumed in this fixed order. With the
+    -- duplicate-free selection checked above, `productions_nodup` gives each its own
+    -- `(rule, phase)` workspace.
+    let productions := (StrictLeanQualification.CorpusWindow.productions selected.toList).toArray
+    let recordCount := (StrictLeanQualification.CorpusWindow.records selected.toList).length
+    let total := productions.size
     -- Special source reads happen inside their own selected producer jobs
     -- (scoped selections never read unselected specials' sources); a captured
     -- IO error fails that job's task and is delivered at its original job order.
     let produceJob (index : Nat) : IO Json := do
-      if index < jobs.size then
-        let (rule, phase) := jobs[index]!
-        produce ctx slot rule phase
-      else match specials[index - jobs.size]! with
-        | "SL1005/WrongClaim" =>
-          produce ctx slot "SL1005" "WrongClaim"
+      let some (rule, phase) := productions[index]?
+        | throw <| IO.userError s!"internal error: corpus production {index} outside the pool"
+      match rule, phase with
+        | "SL1005", "WrongClaim" =>
+          produce ctx slot rule phase
             (some (← IO.FS.readFile (root / "examples/rules/SL1005/Violation.lean")))
             (some "standard-logical")
-        | "SL4004/TrustedControl" =>
-          produce ctx slot "SL4004" "TrustedControl" (some ("<!-- lean-trusted-compiler -->\n```lean\n" ++
+        | "SL4004", "TrustedControl" =>
+          produce ctx slot rule phase (some ("<!-- lean-trusted-compiler -->\n```lean\n" ++
             (← IO.FS.readFile (root / "examples/rules/SL1004/Violation.lean")) ++ "```\n"))
-        | _ =>
-          produce ctx slot "SL4004" "NegativeControl"
+        | "SL4004", "NegativeControl" =>
+          produce ctx slot rule phase
             (some "<!-- lean-fail: Unknown identifier -->\n```lean\n#check missingExample\n```\n")
-    -- At most five concurrent producers, each in its own fresh workspace, consumed in
-    -- fixed order and refilled on consumption. Drain every launched task before
-    -- scratch cleanup, including on a refusal.
+        | _, _ => produce ctx slot rule phase
+    -- At most `producerWidth` concurrent producers, each in its own fresh workspace.
+    -- Every launch and the consumption order come from the pure `CorpusWindow` state:
+    -- `launch_order` shows the launches name jobs `0, 1, …, total - 1` once each in
+    -- that order, so `pending[i]` is job `i`'s Task, and `launched_le` bounds the
+    -- unconsumed Tasks by the width. Drain every launched task before scratch
+    -- cleanup, including on a refusal.
     let pending ← IO.mkRef (#[] : Array (Task (Except IO.Error Json)))
-    for k in [0:5] do
-      if k < total then
-        let task ← IO.asTask (produceJob k)
-        pending.modify (·.push task)
+    let launch (job : Nat) : IO Unit := do
+      let task ← IO.asTask (produceJob job)
+      pending.modify (·.push task)
+    let initial := StrictLeanQualification.CorpusWindow.init producerWidth total
+    for job in List.range initial.launched do
+      launch job
     try
-      for index in [:total] do
-        let task := (← pending.get)[index]!
+      let mut window := initial
+      for _ in [:total] do
+        let index := window.consumed
+        let some task := (← pending.get)[index]?
+          | throw <| IO.userError s!"internal error: corpus task {index} was not launched"
         let record ← match (← IO.wait task) with
           | .ok value => pure value
           | .error error => throw error
-        if index < jobs.size then
+        if index < recordCount then
           records := records.push record
         else
           controls := controls.push record
-        if index + 5 < total then
-          let task ← IO.asTask (produceJob (index + 5))
-          pending.modify (·.push task)
-        if index < jobs.size then
+        if let some job := StrictLeanQualification.CorpusWindow.refill window then
+          launch job
+        window := StrictLeanQualification.CorpusWindow.consume window
+        if index < recordCount then
           IO.println s!"{← string record "rule"}/{← string record "phase"}: produced {← string record "kind"}"
           (← IO.getStdout).flush
         else
           -- Special refusal controls: completed producer outcome, then the intended
           -- admission refusal.
-          match specials[index - jobs.size]! with
-          | "SL1005/WrongClaim" =>
+          match productions[index]? with
+          | some ("SL1005", "WrongClaim") =>
             requireChecks [⟨"Standard-Logical producer control completes", (← get record "exitCode") == toJson (0 : Nat) && (← string (← get record "result") "status") == "completed"⟩]
             admitRecord ctx record (some "producer request differs from frozen example request")
           | _ =>
@@ -583,12 +611,13 @@ def check (evidence : FilePath) (selection : Option (Array String))
       sharedAfter == sharedBefore⟩]
     -- Every producer (including child/stream joins), admission subprocess and the
     -- terminal qualifier has finished. Authenticate the owned slot before deletion;
-    -- retained evidence lives outside scratch. Complete deletion precedes PASS.
+    -- retained evidence lives outside scratch. Complete deletion precedes the
+    -- COMPLETED save, which needs the scratch cleanup witness.
     let expected := (← IO.FS.realPath scratch) / "slot"
     requireChecks [⟨"contained owned cleanup slot", (← IO.FS.realPath slot.root) == expected &&
       (← slot.root.symlinkMetadata).type == .dir⟩]
     IO.FS.removeDirAll slot.root
-    return StrictLean.Checker.RuleExampleProjection.corpus (("outcome", .str "PASS") :: finalFields) records
-  save evidence completed
-  IO.println s!"rule example campaign: PASS ({selected.size} selected rules; diagnostic evidence only)"
+    return (finalFields, records)
+  saveCompleted evidence finalFields records cleaned
+  IO.println s!"rule example campaign: COMPLETED ({selected.size} selected rules; diagnostic evidence only; the run verdict is the exit status)"
 end StrictLean.Qualification.RuleExamples

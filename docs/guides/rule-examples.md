@@ -64,8 +64,8 @@ The qualifier separately applies `PositiveClassifications` to require a nonempty
 with every fence positive, passing and complete before admitting a positive correction.
 Successful compiler negatives and trusted teaching remain `classified`; failed and incomplete checks retain their
 own outcomes. `positiveClassifications_sound` states the exact admitted relation.
-The [acceptance guide](policy-acceptance.md) owns global policy assembly; a corpus PASS
-is not full-standard conformance.
+The [acceptance guide](policy-acceptance.md) owns global policy assembly; a passing corpus
+run is not full-standard conformance.
 
 ## Exact source and remediation map
 
@@ -124,7 +124,7 @@ universal data predicates and their proofs remain distinct from observed process
 The Lean qualifier checks selected coverage against the
 closed registry and requires both phases once. It is the single admission of every
 canonical record; each refusal control is admitted individually. Unrun selected rules cannot be called
-full-corpus PASS. Version fields alone do not authenticate whole binaries; the producer and
+a complete-corpus pass. Version fields alone do not authenticate whole binaries; the producer and
 filesystem remain the existing trusted operational boundary.
 
 After provisioning pinned dependencies, build both detector executables and the qualifier executable.

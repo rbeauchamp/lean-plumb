@@ -82,6 +82,19 @@ A Python timeout that kills/waits its direct checker child alone does not establ
 that nested Lake/compiler descendants have stopped before scratch cleanup; an outer
 SIGKILL cannot execute user-space cleanup. The OS remains a trusted boundary.
 
+## Strict Lean: Veil scout for the corpus harness (2026-09-23)
+
+On 2026-09-23, Veil ([verse-lab/veil](https://github.com/verse-lab/veil), main `517f2ba`)
+was evaluated for the rule-example corpus harness: producer window, joins, cleanup,
+final export and deadline kill. It found no protocol bug. It was not adopted: it pins
+Lean v4.32.0 against Strict Lean's v4.34.0 and is a pre-release (Veil 2.0). By default
+it closes SMT goals with `sorry` (`veil.smt.trust := true`; set it to `false` for kernel
+reconstruction). Its explicit-state model checker deduplicates states by a 64-bit hash
+and emits no certificate, so a clean run is testing, not proof. Its model has no checked
+link to the executed code. Direct theorems about the executed step function
+(`StrictLeanQualification.CorpusWindow`) took about 45 lines and 0.25s to check.
+This is dated evidence for that harness, not a general verdict on Veil.
+
 ## Public Acorn: reusable work still needs exact ownership
 
 Public source: [delivered change](https://github.com/rbeauchamp/acorn/pull/4), integrated
