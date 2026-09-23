@@ -53,7 +53,7 @@ private unsafe def dispatch (args : List String) (attempt : Option String := non
   | ["frozen-exits"] => StrictLean.Qualification.FrozenExit.check
   | ["documentation-source"] => StrictLean.Qualification.DocumentationSource.check false
   | ["documentation-source", "--source-read-only"] => StrictLean.Qualification.DocumentationSource.check true
-  | _ => throw <| IO.userError "usage: lake exe qualify registry|native|combined|native-launcher|producers [--evidence PATH]|environments --evidence PATH|acceptance GROUP --evidence PATH|acceptance-snapshots dependencies|history|all|documentation-dependencies|input-inventory|history|closure-evidence|configuration-capture|fence-evidence|frozen-exits|documentation-source [--source-read-only]|rule-examples --evidence PATH [--rules RULE ... | --shard K/N]"
+  | _ => throw <| IO.userError "usage: lake exe qualify registry|native|combined|native-launcher|producers [--evidence PATH]|environments --evidence PATH|acceptance GROUP --evidence PATH|acceptance-snapshots dependencies|history|git-status|all|documentation-dependencies|input-inventory|history|closure-evidence|configuration-capture|fence-evidence|frozen-exits|documentation-source [--source-read-only]|rule-examples --evidence PATH [--rules RULE ... | --shard K/N]"
 
 /-- Standalone commands get one group-wide 420-second bound. The private protocol flag
 is supplied by this wrapper or the already timed acceptance driver, never documented

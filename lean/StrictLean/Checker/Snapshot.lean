@@ -176,26 +176,176 @@ private def captureConfiguration (path : FilePath) :
   let bytes ← IO.FS.readBinFile canonical
   return (path.toString, some (canonical.toString, bytes))
 
+/-- One record of `git status --porcelain=v1 -z`: the reported path and, for a
+rename or copy on either side, its original path. A field that is not UTF-8 is kept
+as `none`: its bytes cannot equal a declared input, and no `…/` prefix of a UTF-8
+input can contain it, so dropping it cannot hide a declared input. -/
+structure StatusEntry where
+  path : Option String
+  original : Option String := none
+  deriving BEq, Repr, Inhabited
+
+/-- Every UTF-8 path an entry reports. -/
+def StatusEntry.paths (entry : StatusEntry) : List String :=
+  entry.path.toList ++ entry.original.toList
+
+/-- A reported root-relative path covers a declared input when it is the input
+itself or an ancestor directory. Git reports a collapsed ignored or untracked
+directory (including an untracked nested repository) as `dir/`, and a gitlink as
+`dir`, so both spellings are treated as directories. -/
+def statusCovers (reported input : String) : Bool :=
+  input == reported ||
+    (if reported.endsWith "/" then reported else reported ++ "/").isPrefixOf input
+
+/-- A declared input is dirty when some reported path covers it. -/
+def inputDirty (entries : List StatusEntry) (input : String) : Bool :=
+  entries.any fun entry => entry.paths.any fun reported => statusCovers reported input
+
+/-- Dependency dirty status: membership of the declared inputs in one unrestricted
+status of the dependency root. -/
+def dirtyOf (entries : List StatusEntry) (inputs : List String) : Bool :=
+  inputs.any (inputDirty entries)
+
+/-- Model of the retired pathspec-limited status: exactly the entries of the
+unrestricted status that cover some declared input. -/
+def restrictedStatus (entries : List StatusEntry) (inputs : List String) : List StatusEntry :=
+  entries.filter fun entry => inputs.any fun input => entry.paths.any fun reported =>
+    statusCovers reported input
+
+/-- Membership characterization of the executed dirty decision. -/
+theorem dirtyOf_iff {entries : List StatusEntry} {inputs : List String} :
+    dirtyOf entries inputs = true ↔
+      ∃ input ∈ inputs, ∃ entry ∈ entries, ∃ reported ∈ entry.paths,
+        statusCovers reported input = true := by
+  simp [dirtyOf, inputDirty]
+
+/-- The executed decision is non-emptiness of the modeled restricted status: the
+retired pathspec decision whenever Git's restricted output is that model. -/
+theorem dirtyOf_eq_restricted {entries : List StatusEntry} {inputs : List String} :
+    dirtyOf entries inputs = !(restrictedStatus entries inputs).isEmpty := by
+  cases h : dirtyOf entries inputs <;>
+    simp_all [dirtyOf, inputDirty, restrictedStatus, List.isEmpty_iff, List.filter_eq_nil_iff]
+  · exact fun entry he input hi reported hr => h input hi entry he reported hr
+  · obtain ⟨input, hi, entry, he, reported, hr, hc⟩ := h
+    exact ⟨entry, he, input, hi, reported, hr, hc⟩
+
+/-- A clean status leaves every declared input clean. -/
+theorem dirtyOf_nil {inputs : List String} : dirtyOf [] inputs = false := by
+  simp [dirtyOf, inputDirty]
+
+/-- Additional reported entries can only make the decision dirtier. -/
+theorem dirtyOf_mono {entries entries' : List StatusEntry} {inputs : List String}
+    (hsub : ∀ entry ∈ entries, entry ∈ entries') (h : dirtyOf entries inputs = true) :
+    dirtyOf entries' inputs = true := by
+  rw [dirtyOf_iff] at h ⊢
+  obtain ⟨input, hi, entry, he, reported, hr, hc⟩ := h
+  exact ⟨input, hi, entry, hsub entry he, reported, hr, hc⟩
+
+/-- Every path covers itself. -/
+theorem statusCovers_self (path : String) : statusCovers path path = true := by
+  simp [statusCovers]
+
+/-- A path covers every input beneath it as a directory. -/
+theorem statusCovers_of_prefix {reported input : String}
+    (h : (if reported.endsWith "/" then reported else reported ++ "/").isPrefixOf input = true) :
+    statusCovers reported input = true := by
+  simp [statusCovers, h]
+
+/-- A declared input reported by any path of any entry (including a rename's
+original) is dirty. -/
+theorem dirtyOf_of_reported {entries : List StatusEntry} {inputs : List String}
+    {entry : StatusEntry} {input : String} (he : entry ∈ entries) (hr : input ∈ entry.paths)
+    (hi : input ∈ inputs) : dirtyOf entries inputs = true :=
+  dirtyOf_iff.mpr ⟨input, hi, entry, he, input, hr, statusCovers_self input⟩
+
+/-- A declared input beneath a reported directory is dirty. -/
+theorem dirtyOf_of_directory {entries : List StatusEntry} {inputs : List String}
+    {entry : StatusEntry} {reported input : String} (he : entry ∈ entries)
+    (hr : reported ∈ entry.paths) (hi : input ∈ inputs)
+    (hp : (if reported.endsWith "/" then reported else reported ++ "/").isPrefixOf input = true) :
+    dirtyOf entries inputs = true :=
+  dirtyOf_iff.mpr ⟨input, hi, entry, he, reported, hr, statusCovers_of_prefix hp⟩
+
+/-- Whether a porcelain status code letter carries an original-path field. -/
+def statusCarriesOriginal (code : UInt8) : Bool :=
+  code == 'R'.toNat.toUInt8 || code == 'C'.toNat.toUInt8
+
+/-- Parse NUL-terminated porcelain v1 fields: `XY␠path`, followed by the original
+path when either status letter is a rename or copy. Malformed output is `none`. -/
+def parseStatusFields : List ByteArray → Option (List StatusEntry)
+  | [] => some []
+  | field :: rest =>
+    if field.size < 4 || field.get! 2 != ' '.toNat.toUInt8 then none
+    else
+      let path := String.fromUTF8? (field.extract 3 field.size)
+      if statusCarriesOriginal (field.get! 0) || statusCarriesOriginal (field.get! 1) then
+        match rest with
+        | original :: rest' =>
+          (parseStatusFields rest').map ({ path, original := String.fromUTF8? original } :: ·)
+        | [] => none
+      else (parseStatusFields rest).map ({ path } :: ·)
+
+/-- Split `-z` output into its NUL-terminated fields; `none` when bytes follow the
+final NUL. -/
+def splitStatusFields (bytes : ByteArray) : Option (List ByteArray) := Id.run do
+  let mut fields : Array ByteArray := #[]
+  let mut start := 0
+  for index in [0:bytes.size] do
+    if bytes.get! index == 0 then
+      fields := fields.push (bytes.extract start index)
+      start := index + 1
+  return if start == bytes.size then some fields.toList else none
+
+/-- Lexical normalization as Git applies it to a pathspec: empty and `.`
+components are dropped and `..` removes the previous component. -/
+private def lexicalComponents (path : FilePath) : List String :=
+  path.components.foldl (fun acc component =>
+    if component.isEmpty || component == "." then acc
+    else if component == ".." then acc.dropLast else acc ++ [component]) []
+
+/-- The root-relative spelling Git gives a declared input when it is passed as a
+literal pathspec from the canonical root: relative inputs are resolved against the
+root; otherwise the shortest leading directory prefix that is the root, lexically
+first and then by `realPath`, is removed and the remainder is kept literally.
+`none` when no prefix is the root (Git refuses such a pathspec). -/
+private def statusRelative (root path : FilePath) : IO (Option String) := do
+  let rootComponents := lexicalComponents root
+  let components := lexicalComponents (if path.isAbsolute then path else root / path)
+  let relative (count : Nat) : Option String :=
+    let rest := components.drop count
+    if rest.isEmpty then none else some ("/".intercalate rest)
+  if rootComponents.isPrefixOf components then return relative rootComponents.length
+  for count in [1:components.length] do
+    let candidate := FilePath.mk ("/" ++ "/".intercalate (components.take count))
+    if ← candidate.pathExists then
+      if (← IO.FS.realPath candidate) == root then return relative count
+  return none
+
+/-- One unrestricted `git status` of the canonical root, as raw bytes: file names
+in unrelated entries need not be UTF-8. -/
+private def statusBytes (root : FilePath) : IO (UInt32 × ByteArray) := do
+  let child ← IO.Process.spawn {
+    cmd := "git", cwd := some root, stdin := .null, stdout := .piped, stderr := .piped
+    args := #["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching"] }
+  let stderr ← IO.asTask child.stderr.readBinToEnd .dedicated
+  let stdout ← child.stdout.readBinToEnd
+  let _ ← IO.ofExcept stderr.get
+  return (← child.wait, stdout)
+
+/-- Input-scoped dirty status: one unrestricted porcelain status of the dependency
+root, decided purely by `dirtyOf` over the declared inputs' root-relative paths.
+Status failure, malformed output or an input outside the root refuses, as a
+failing pathspec status did. -/
 private def inputsDirty (root : FilePath) (paths : Array FilePath) : IO Bool := do
-  let mut offset := 0
-  while offset < paths.size do
-    -- Consecutive, nonempty slices preserve the input order and multiplicity.
-    -- Bound both argv entries and UTF-8 bytes (including each terminating NUL).
-    -- An oversized individual path stays a singleton, leaving its failure to Git/OS.
-    let mut stop := offset + 1
-    let mut bytes := paths[offset]!.toString.utf8ByteSize + 1
-    while stop < paths.size && stop - offset < 512 do
-      let nextBytes := paths[stop]!.toString.utf8ByteSize + 1
-      if bytes + nextBytes > 96 * 1024 then break
-      bytes := bytes + nextBytes
-      stop := stop + 1
-    let status ← runProcess root "git" (#["--literal-pathspecs", "status", "--porcelain=v1",
-      "-z", "--untracked-files=all", "--ignored=matching", "--"] ++
-      (paths.extract offset stop).map (·.toString))
-    unless status.succeeded do throw <| IO.userError "dependency input status unavailable"
-    if !status.stdout.isEmpty then return true
-    offset := stop
-  return false
+  let inputs ← paths.toList.mapM fun path => do
+    let some relative ← statusRelative root path
+      | throw <| IO.userError "dependency input status unavailable"
+    pure relative
+  let (exitCode, output) ← statusBytes root
+  unless exitCode == 0 do throw <| IO.userError "dependency input status unavailable"
+  let some entries := splitStatusFields output >>= parseStatusFields
+    | throw <| IO.userError "dependency input status unavailable"
+  return dirtyOf entries inputs
 
 /-- The Git-derived part of one dependency capture, together with the exact
 capture request it answers: package, canonical root, and the ordered source and
@@ -216,17 +366,22 @@ every process except one started through the internal qualification entry point
 initialize injectedGitFacts : IO.Ref (Array GitFacts) ← IO.mkRef #[]
 
 /-- The Git facts for one exact capture request: the nominal revision (only for
-a dependency that is its own repository) and input-scoped dirty status. -/
+a dependency that is its own repository) and input-scoped dirty status. One
+`rev-parse` prints the revision line and then the top level. It fails when there is
+no repository or `HEAD` does not resolve; the two separate calls it replaces then
+also yielded no revision, so the facts are unchanged. -/
 def observeGitFacts (package : String) (root : FilePath)
     (sourcePaths : Array (Name × FilePath)) (configurationPaths : Array FilePath) :
     IO (Option String × Bool) := do
-  let head ← runProcess root "git" #["rev-parse", "HEAD"]
-  let top ← runProcess root "git" #["rev-parse", "--show-toplevel"]
-  let ownRepository ← if top.succeeded then
-    pure ((← IO.FS.realPath (FilePath.mk top.stdout.trimAscii.toString)) == root)
+  let parsed ← runProcess root "git" #["rev-parse", "HEAD", "--show-toplevel"]
+  let (head, top) := match parsed.stdout.splitOn "\n" with
+    | head :: rest => (head, "\n".intercalate rest)
+    | [] => ("", "")
+  let ownRepository ← if parsed.succeeded then
+    pure ((← IO.FS.realPath (FilePath.mk top.trimAscii.toString)) == root)
     else pure false
-  let revision ← if head.succeeded && ownRepository then do
-      let revision := head.stdout.trimAscii.toString
+  let revision ← if parsed.succeeded && ownRepository then do
+      let revision := head.trimAscii.toString
       if revision.isEmpty then throw <| IO.userError s!"empty dependency revision: {package}"
       pure (some revision)
     else pure none

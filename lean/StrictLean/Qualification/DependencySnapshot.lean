@@ -62,9 +62,106 @@ private def control (project dependency : FilePath) : IO Unit := do
     | .error error => requireChecks [⟨"intended dependency refusal", error.toString.contains "dependency snapshot changed:"⟩]
     unchanged
 
+/-- The retired dirty decision, kept only as this control's oracle: non-empty output
+of one literal-pathspec status over the declared inputs. -/
+private def retiredDirty (root : FilePath) (paths : Array FilePath) : IO String := do
+  let status ← run root "git" (#["--literal-pathspecs", "status", "--porcelain=v1", "-z",
+    "--untracked-files=all", "--ignored=matching", "--"] ++ paths.map (·.toString))
+  return if status.exitCode != 0 then "refused" else if status.stdout.isEmpty then "clean" else "dirty"
+
+/-- The executed decision, through the public Git-facts observation. -/
+private def currentDirty (root : FilePath) (paths : Array FilePath) : IO String := do
+  match ← (StrictLean.Checker.Snapshot.observeGitFacts "control" root #[] paths).toBaseIO with
+  | .ok (some _, dirty) => return if dirty then "dirty" else "clean"
+  | .ok (none, _) => return "no revision"
+  | .error error => return if error.toString == "dependency input status unavailable" then "refused"
+      else s!"unexpected refusal: {error}"
+
+private def unrestrictedStatus (root : FilePath) : IO String := do
+  return (← run root "git" #["status", "--porcelain=v1", "-z", "--untracked-files=all",
+    "--ignored=matching"]).stdout
+
+/-- Git-semantics controls for the unrestricted-status membership decision. Each case
+states the retired pathspec result and the current result; they are equal except for
+an input inside an untracked nested repository, which the retired status omits. -/
+private def gitStatusControls (root : FilePath) : IO Unit :=
+  withScratch root "git-status" fun scratch => do
+    let repository := scratch / "repository"
+    IO.FS.createDirAll (repository / "A")
+    IO.FS.createDirAll (repository / "ig")
+    IO.FS.writeFile (repository / ".gitignore") "ig/\nig2/\n*.gen\n"
+    IO.FS.writeFile (repository / "A/a.lean") "def a : Nat := 1\ndef b : Nat := 2\ndef c : Nat := 3\n"
+    IO.FS.writeFile (repository / "ig/tracked.lean") "def tracked : Nat := 1\n"
+    for args in #[#["init", "-q"], #["add", "-f", ".gitignore", "A/a.lean", "ig/tracked.lean"],
+        #["-c", "user.name=Status Control", "-c", "user.email=status@example.invalid", "-c",
+          "commit.gpgsign=false", "commit", "-qm", "status control"]] do
+      success (← run repository "git" args)
+    let repository ← IO.FS.realPath repository
+    let base := #[repository / "A/a.lean", repository / "ig/tracked.lean"]
+    let expectCase (name : String) (paths : Array FilePath) (retired current : String)
+        (shape : String → Bool := fun _ => true) : IO Unit := do
+      let observedRetired ← retiredDirty repository paths
+      let observedCurrent ← currentDirty repository paths
+      requireChecks [⟨s!"git-status {name}: status shape", shape (← unrestrictedStatus repository)⟩,
+        ⟨s!"git-status {name}: retired {observedRetired}, expected {retired}", observedRetired == retired⟩,
+        ⟨s!"git-status {name}: current {observedCurrent}, expected {current}", observedCurrent == current⟩]
+      success (← run repository "git" #["reset", "-q", "--hard", "HEAD"])
+      success (← run repository "git" #["clean", "-qffdx"])
+      requireChecks [⟨s!"git-status {name}: restored", (← currentDirty repository base) == "clean"⟩]
+      IO.println s!"git-status {name}: PASS (retired {observedRetired}, current {observedCurrent})"
+    expectCase "clean" base "clean" "clean"
+    IO.FS.writeFile (repository / "ig/other.lean") "unrelated\n"
+    IO.FS.writeFile (repository / "x.gen") "unrelated\n"
+    IO.FS.createDirAll (repository / "U")
+    IO.FS.writeFile (repository / "U/u.lean") "unrelated\n"
+    IO.FS.writeFile (repository / "sp ä\nx.lean") "unrelated\n"
+    expectCase "unrelated ignored, untracked and NUL-framed siblings" base "clean" "clean"
+      (·.contains "!! ig/other.lean")
+    IO.FS.writeFile (repository / "ig/new.lean") "new\n"
+    expectCase "untracked input under an ignored directory with tracked files"
+      #[repository / "ig/new.lean"] "dirty" "dirty" (·.contains "!! ig/new.lean")
+    IO.FS.writeFile (repository / "ig/tracked.lean") "def tracked : Nat := 2\n"
+    expectCase "modified tracked input under an ignored directory" base "dirty" "dirty"
+    IO.FS.createDirAll (repository / "ig2")
+    IO.FS.writeFile (repository / "ig2/q.lean") "ignored\n"
+    expectCase "input under a collapsed ignored directory" #[repository / "ig2/q.lean"]
+      "dirty" "dirty" (·.contains "!! ig2/\x00")
+    IO.FS.createDirAll (repository / "N")
+    IO.FS.writeFile (repository / "N/n.lean") "untracked\n"
+    expectCase "input under an untracked directory" #[repository / "N/n.lean"] "dirty" "dirty"
+      (·.contains "?? N/n.lean")
+    success (← run repository "git" #["mv", "A/a.lean", "B.lean"])
+    expectCase "staged rename with the original declared" #[repository / "A/a.lean"]
+      "dirty" "dirty" (·.startsWith "R  B.lean\x00A/a.lean\x00")
+    IO.FS.rename (repository / "A/a.lean") (repository / "C.lean")
+    success (← run repository "git" #["add", "-N", "C.lean"])
+    expectCase "worktree rename with the original declared" #[repository / "A/a.lean"]
+      "dirty" "dirty" (·.startsWith " R C.lean\x00A/a.lean\x00")
+    IO.FS.removeFile (repository / "A/a.lean")
+    expectCase "deleted tracked input" base "dirty" "dirty"
+    IO.FS.writeFile (repository / "sp ä\nx.lean") "untracked\n"
+    expectCase "NUL-framed input name" #[repository / "sp ä\nx.lean"] "dirty" "dirty"
+    IO.FS.createDirAll (repository / "nest")
+    success (← run (repository / "nest") "git" #["init", "-q"])
+    IO.FS.writeFile (repository / "nest/q.lean") "nested\n"
+    expectCase "input inside an untracked nested repository" #[repository / "nest/q.lean"]
+      "clean" "dirty" (·.contains "?? nest/\x00")
+    let link := scratch / "link"
+    success (← run scratch "ln" #["-s", repository.toString, link.toString])
+    expectCase "input spelled through a symlinked root" #[link / "A/a.lean"] "clean" "clean"
+    IO.FS.writeFile (repository / "A/a.lean") "def a : Nat := 4\n"
+    expectCase "modified input spelled through a symlinked root" #[link / "A/a.lean"] "dirty" "dirty"
+    IO.FS.writeFile (repository / "A/a.lean") "def a : Nat := 4\n"
+    expectCase "modified relative input" #[FilePath.mk "A/a.lean"] "dirty" "dirty"
+    IO.FS.writeFile (scratch / "outside.lean") "outside\n"
+    expectCase "input outside the root" #[scratch / "outside.lean"] "refused" "refused"
+
 def check (group : String) : IO Unit := do
-  requireChecks [⟨"known snapshot group", #["all", "dependencies", "history"].contains group⟩]
+  requireChecks [⟨"known snapshot group",
+    #["all", "dependencies", "history", "git-status"].contains group⟩]
   let root ← rootDirectory
+  if group == "all" || group == "git-status" then gitStatusControls root
+  if group == "git-status" then return
   withScratch root "snapshot-history" fun scratch => do
     let dependency := scratch / "dependency"
     IO.FS.createDirAll (dependency / "Dep")
