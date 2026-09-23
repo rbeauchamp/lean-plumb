@@ -18,9 +18,13 @@ abbrev Status := StrictLean.Checker.Account.Status
 
 def statusText (status : Status) : String := status.spelling
 
-/-- Completed is scoped observation, never a synonym for whole-standard conformance. -/
+/-- Completed is scoped observation, never a synonym for whole-standard conformance. A
+completed envelope takes its mode from the status's account, not from `mode`. -/
 def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
     (findings : Array Finding) (unresolved : Array String) : Json :=
+  let mode := match status with
+    | .completed account => account.val.mode
+    | _ => mode
   Json.mkObj (RegistryCodec.identityFields producer ++ [
     ("scope", scope), ("mode", .str (RegistryCodec.modeText mode)),
     ("status", .str (statusText status)),
@@ -67,15 +71,17 @@ private def subjectJson : StrictLeanPolicy.JobSubject → Json
       ("body", toJson (key.body.start, key.body.stop)), ("closing", toJson (key.closing.start, key.closing.stop)),
       ("expectation", toJson (reprStr key.expectation))]
 
-/-- Machine rendering of the report account: a total projection of its fields. Contract
-entries keep their rule, implementation and requirement with the review they leave open;
-`unresolvedReview` names open obligations, never completed reviews. -/
+/-- Machine rendering of the report account (an unproved adapter): coverage, the acceptance
+theorem and job count, contracts, execution counts, fence kinds, trusted mechanisms and
+residual identifiers; mode, scope, surfaces and toolchain are rendered by `acceptedJson`.
+Contract entries keep their rule, implementation and requirement with the review they leave
+open; `unresolvedReview` names open obligations, never completed reviews. -/
 def accountJson (account : StrictLean.Checker.Account.Account) : Json :=
   let a := account.val
   let residuals (rs : List StrictLean.Checker.Account.Residual) := toJson (rs.map (·.spelling))
   Json.mkObj [
     ("coverage", toJson a.coverage.spelling),
-    ("checked", Json.mkObj [("relation", RegistryCodec.nameJson StrictLean.Checker.Account.relation),
+    ("checked", Json.mkObj [("theorem", RegistryCodec.nameJson StrictLean.Checker.Account.acceptanceTheorem),
       ("jobs", toJson a.jobs)]),
     ("contracts", toJson (a.contracts.map fun contract => Json.mkObj [
       ("rule", toJson StrictLean.RuleId.executableContract.spelling),

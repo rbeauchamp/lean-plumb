@@ -129,12 +129,12 @@ owns the accepted-result boundary and its JSON metadata semantics. Since #42, a 
 constructor requires an accepted report account (`StrictLeanCore.Account`), and the
 `acceptance` object gains an additive `account` member, still within result schema 1:
 `coverage` (only `freshWholeProject` is whole-project acceptance), `checked` (the
-relation `StrictLeanPolicy.accept_iff` and the job count), `contracts` (each SL1007
+`theorem` `StrictLeanPolicy.accept_iff`, whose right side is the checked relation, and the job count), `contracts` (each SL1007
 registration, its implementation and rendered requirement, with `unresolvedReview`
 `R-INTENT`, `R-INVARIANT`), per-environment `execution` counts, `fences` by expectation,
 `trusted` mechanisms and the run's `unresolvedReview` identifiers. No existing key changes;
-the rule-example projection already excludes `acceptance`, and consumers only test its
-presence. A listed identifier names an open review obligation, not a completed review. `classified`
+the rule-example projection already excludes `acceptance`, and the other consumers test
+only its presence or read `acceptance.fences`. A completed envelope's `mode` is the account's. A listed identifier names an open review obligation, not a completed review. `classified`
 distinguishes no-profile and compiler-teaching file runs from positive conformance. File scope retains its nullable foundation claim,
 execution claim and exact source even when there are no findings. File `scope.report`
 and project `scope.surfaces[*].report` retain the complete observed declaration and

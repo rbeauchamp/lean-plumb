@@ -209,14 +209,18 @@ Every success line and every `completed` status is rendered from one report acco
 account data that is the projection of some `AcceptedRun`, and `Status.completed`
 takes an `Account`; the refusal statuses carry none. `Status.completed_accepted`
 therefore proves that a `completed` status has an accepted run, complete for its plan
-and meeting every stage policy, behind it. `AccountContract` (`checkedAccount`) states
+and meeting every stage policy, behind it. That this run is the current request's is each
+caller's binding, checked by inspection, and a completed envelope takes its `mode` from the
+account. `AccountContract` (`checkedAccount`) states
 the account's meaning: mode, scope, surfaces, toolchain and job count are the run's
-own; coverage is fresh whole-project exactly for a fresh project claim; the listed
+own; coverage is `coverageOf` the claim's mode, so fresh whole-project exactly for a fresh
+project claim (`coverage_fresh_iff`); the listed
 `ExecutableContract` registrations are exactly the accepted inventory's; execution
 counts are `executionSummary` of each accepted environment; the fence counts partition
 the accepted fences by expectation; and the residual identifiers stay unresolved. The
-human lines (`Account.lines`, `Account.pass`) and `acceptance.account` JSON are total
-projections of it.
+human lines (`Account.lines`, `Account.pass`) and `acceptance.account` JSON render its
+fields; they are unproved adapter text, and checker verdict lines use `Account.pass` by
+inspection of the call sites.
 
 ### Frozen input coverage at operational entry points
 

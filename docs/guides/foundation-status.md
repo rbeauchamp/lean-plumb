@@ -527,8 +527,9 @@ report path evaluates acceptance again.
 
 - `AccountContract`, stated apart from its proof, fixes the account's meaning for every
   claim and accepted run. Mode, scope, surfaces, toolchain and job count are the accepted
-  report's own. `coverage` is `freshWholeProject` iff the claim is a fresh project claim,
-  which is always project-scoped (`fresh_scope`). `contracts` are exactly the census
+  report's own. `coverage` is `coverageOf` the claim's mode; `coverage_fresh_iff` derives
+  that it is `freshWholeProject` iff the claim is a fresh project claim, which is always
+  project-scoped (`fresh_scope`). `contracts` are exactly the census
   environments' SL1007 registrations: registration, module, implementation root and the
   collector's rendered requirement. `execution` is `executionSummary` of each accepted
   environment in order. The fence counts partition the accepted fences by expectation.
@@ -536,18 +537,24 @@ report path evaluates acceptance again.
   R-GRAPH is listed only for a serialized-graph claim.
 - `Account` is the subtype of data equal to `checkedAccount.run run` for some run.
   `Account.accepted` gives that run with `CompleteFor ∧ AllPolicyOK`, the relation of
-  `StrictLeanPolicy.accept_iff`.
+  `StrictLeanPolicy.accept_iff` (named by `acceptanceTheorem`).
 - `Status` (`completed (a : Account)`, `rejected`, `incomplete`, `classified`) replaces
   `ResultProtocol.Status`. `Status.completed_accepted` proves that a status spelled
-  `completed` holds an account and that account's run. Missing, stale, incomplete or
-  unsupported evidence has no `AcceptedRun`, so it cannot be rendered `completed`.
-- `Account.pass label` is the only success-line renderer, and `Account.lines` renders the
+  `completed` holds an account and that account's run. Missing, incomplete or unsupported
+  evidence has no `AcceptedRun`, so it cannot be rendered `completed`. That the run is the
+  current request's, not an earlier or unrelated accepted run, is each caller's binding,
+  checked by inspection; `resultJson` takes a completed envelope's `mode` from the account.
+- By inspection of the call sites, every checker verdict line is `Account.pass label`, and
+  `Account.lines` renders the
   checked relation, each contract with its open R-INTENT/R-INVARIANT, execution counts,
   fence kinds, trusted mechanisms and residual identifiers. `Coverage.text_eq_fresh_iff`
   proves only fresh whole-project coverage uses the whole-project wording. The former
   "exact Lake surfaces conform" is removed as an overstatement of a mechanical result.
-- `ResultProtocol.accountJson` renders the same fields as the additive
-  `acceptance.account` member within result schema 1. No existing key changed; the
+- `ResultProtocol.accountJson` renders the account as the additive `acceptance.account`
+  member within result schema 1: coverage, the acceptance theorem and job count, contracts,
+  execution counts, fence kinds, trusted mechanisms and residual identifiers (mode, scope,
+  surfaces and toolchain are already in `acceptance`). These renderers are unproved adapter
+  text. No existing key changed; the
   rule-example projection already drops `acceptance`, and the other consumers test
   only its presence or `acceptance.fences`. The top-level `unresolved` array keeps its
   meaning, missing mechanical evidence; review obligations are `unresolvedReview`.
@@ -569,14 +576,14 @@ obligation; no type records a completed review. Library-reuse and proof-economy 
 remain review, not hard errors.
 
 Evidence on Lean 4.34.0 (`293d5d0c`), Mathlib `5ed29652`. Ordinary acceptance covers 6
-claimed libraries, 50 owned modules and 6912 owned declarations, and recognizes
+claimed libraries, 50 owned modules and 6913 owned declarations, and recognizes
 `checkedAccount` and `checkedExecutionFailures` among the SL1007 registrations;
 `StrictLeanCore` execution coverage is 540 roots and 4656 boundaries (711 checked, 3945
 trusted), 0 unresolved. `#print axioms`: `checkedAccount`, `Account.accepted`,
-`Status.spelling_eq_completed_iff`, `Status.completed_accepted` and
+`coverage_fresh_iff`, `Status.spelling_eq_completed_iff`, `Status.completed_accepted` and
 `checkedExecutionFailures` are `{propext, Classical.choice, Quot.sound}`; `fresh_scope`
-and `Residual.mem_all` are `{propext}`; `Coverage.text_eq_fresh_iff` and
-`Residual.spelling_injective` use no axioms.
+and `Residual.mem_all` are `{propext}`; `coverageOf_fresh_iff`, `Coverage.text_eq_fresh_iff`
+and `Residual.spelling_injective` use no axioms.
 
 #43 closes this inventory after the selected work is integrated and reviewed,
 with final proof/compiler, applicable qualification, ordinary acceptance and CI

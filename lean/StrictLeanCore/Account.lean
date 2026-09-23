@@ -6,8 +6,8 @@ mechanical success projects this account, and the account is a function of one
 `AcceptedRun`: there is no second acceptance evaluator. It separates three things that a
 success must not blur:
 
-* the exact formal relation Lean checked (`relation`: `CompleteFor ∧ AllPolicyOK` for the
-  claim's plan), with each registered `ExecutableContract`'s implementation and rendered
+* the exact formal relation Lean checked (`CompleteFor ∧ AllPolicyOK` for the claim's
+  plan, the right side of `acceptanceTheorem`), with each registered `ExecutableContract`'s implementation and rendered
   requirement;
 * the trusted mechanisms and execution boundaries that relation assumes (`Trusted`, and
   the per-environment execution counts, whose trusted boundaries are reported, not verified);
@@ -16,8 +16,9 @@ success must not blur:
   module has no way to record one.
 
 `Status.completed` requires an `Account`, and every `Account` is the projection of some
-accepted run (`Account.accepted`). So no rendered status reads `completed` from missing,
-stale, incomplete or unsupported evidence. `Coverage` keeps local, incremental, file,
+accepted run (`Account.accepted`). So no rendered status reads `completed` without an
+accepted run: missing, incomplete or unsupported evidence has none. That the run is the
+current request's, rather than another accepted run, is each caller's binding. `Coverage` keeps local, incremental, file,
 documentation and editor feedback distinct from fresh whole-project acceptance
 (`AccountContract`). None of this authenticates the IO observations the run consumed. -/
 
@@ -41,6 +42,7 @@ def Residual.all : List Residual :=
 
 theorem Residual.mem_all (r : Residual) : r ∈ all := by cases r <;> decide
 
+/-- Distinct obligations have distinct machine identifiers. -/
 theorem Residual.spelling_injective : Function.Injective Residual.spelling := by
   intro a b h
   cases a <;> cases b <;> first | rfl | exact absurd h (by decide)
@@ -102,9 +104,9 @@ def Trusted.detail : Trusted → String
   | .extraction => "environment extraction, compiler and worker processes, and JSON transport"
   | .runtime => "native runtime and every execution boundary reported as trusted"
 
-/-- The exact relation an accepted run establishes, by name; `Account.accepted` proves it
-for the run behind any account. -/
-def relation : Lean.Name := ``StrictLeanPolicy.accept_iff
+/-- The theorem whose right side, `CompleteFor ∧ AllPolicyOK`, is the relation an accepted
+run establishes; `Account.accepted` proves that relation for the run behind any account. -/
+def acceptanceTheorem : Lean.Name := ``StrictLeanPolicy.accept_iff
 
 /-- One registered `ExecutableContract` of the accepted inventory: the registration, the
 implementation it names, and the collector's rendering of the requirement Lean checked about
@@ -153,8 +155,8 @@ def contractsOf (i : Census) : Array ContractAccount :=
     d.executableContract.map fun k => ⟨d.name, d.module, k.root, k.requirement⟩
 
 /-- Required meaning of the account, for every claim and accepted run. Mode, scope,
-surfaces, toolchain and job count are the accepted report's own. Coverage is fresh
-whole-project exactly for a fresh-project claim. The contracts are exactly the inventory's
+surfaces, toolchain and job count are the accepted report's own. Coverage is `coverageOf` the
+claim's mode (`coverage_fresh_iff`: fresh whole-project exactly for a fresh project claim). The contracts are exactly the inventory's
 registrations. Execution counts are `executionSummary` of each accepted environment, in
 order. The fence counts partition the accepted fences by expectation. Every residual
 obligation stays unresolved, R-GRAPH exactly when a serialized graph is claimed. -/
@@ -164,8 +166,7 @@ def AccountContract (project : {c : Claim} → AcceptedRun c → AccountData) : 
     (project run).surfaces = c.val.surfaces ∧
     (project run).toolchain = c.val.snapshot.toolchain ∧
     (project run).jobs = run.report.jobs.size ∧
-    ((project run).coverage = .freshWholeProject ↔
-      c.val.mode = .freshProject ∧ c.val.scope = .project) ∧
+    (project run).coverage = coverageOf c.val.mode ∧
     (∀ x, x ∈ (project run).contracts ↔
       ∃ e ∈ run.report.census.environments, ∃ d ∈ e.policy.declarations,
         ∃ k, d.executableContract = some k ∧ x = ⟨d.name, d.module, k.root, k.requirement⟩) ∧
@@ -208,17 +209,14 @@ private theorem fence_partition (fences : Array FenceKey) :
     cases expectation <;> simp [isPositive, isCompilerRejection, isPolicyRejection,
       isTrustedTeaching] <;> omega
 
-private theorem coverageOf_fresh_iff (m : EvidenceMode) :
+theorem coverageOf_fresh_iff (m : EvidenceMode) :
     coverageOf m = .freshWholeProject ↔ m = .freshProject := by
   cases m <;> decide
 
 /-- Registers `AccountContract` about the executed projection. -/
 theorem checkedAccount : StrictLean.ExecutableContract @accountImpl AccountContract := by
   refine ⟨fun c run => ?_⟩
-  refine ⟨rfl, rfl, rfl, rfl, rfl, ?_, ?_, rfl, ?_, rfl, ?_⟩
-  · show coverageOf c.val.mode = .freshWholeProject ↔ _
-    rw [coverageOf_fresh_iff]
-    exact ⟨fun h => ⟨h, fresh_scope c h⟩, And.left⟩
+  refine ⟨rfl, rfl, rfl, rfl, rfl, rfl, ?_, rfl, ?_, rfl, ?_⟩
   · intro x
     simp only [accountImpl, contractsOf, Array.mem_flatMap, Array.mem_filterMap,
       Option.map_eq_some_iff]
@@ -234,6 +232,14 @@ theorem checkedAccount : StrictLean.ExecutableContract @accountImpl AccountContr
       bne_iff_ne, ne_eq, beq_iff_eq]
     cases r <;> simp [AcceptedRun.report, Finalized.report, Accepted.report]
 
+/-- An executed account reads fresh whole-project coverage exactly for a fresh project claim. -/
+theorem coverage_fresh_iff {c : Claim} (run : AcceptedRun c) :
+    (checkedAccount.run run).coverage = .freshWholeProject ↔
+      c.val.mode = .freshProject ∧ c.val.scope = .project := by
+  show (accountImpl run).coverage = .freshWholeProject ↔ _
+  rw [(checkedAccount.evidence c run).2.2.2.2.2.1, coverageOf_fresh_iff]
+  exact ⟨fun h => ⟨h, fresh_scope c h⟩, And.left⟩
+
 /-- An account is the projection of some accepted run, never independently assembled data. -/
 def Account : Type :=
   { a : AccountData // ∃ c, ∃ run : AcceptedRun c, checkedAccount.run run = a }
@@ -243,7 +249,7 @@ def account {c : Claim} (run : AcceptedRun c) : Account :=
   ⟨checkedAccount.run run, c, run, rfl⟩
 
 /-- Every account is the projection of a run that is complete for its plan and meets every
-stage policy: the relation named by `relation`, for the run this account's data came from. -/
+stage policy: the right side of `acceptanceTheorem`, for the run this account's data came from. -/
 theorem Account.accepted (a : Account) :
     ∃ c, ∃ run : AcceptedRun c, checkedAccount.run run = a.val ∧
       CompleteFor run.plan run.result.table ∧ AllPolicyOK run.plan run.roles run.result.table := by
@@ -281,7 +287,7 @@ def Account.pass (label : String) (a : Account) : String :=
 execution counts, fence kinds, trusted mechanisms, and the unresolved review identifiers. -/
 def Account.lines (a : Account) : Array String :=
   let d := a.val
-  let checked := s!"checked: {relation} — each of the {d.jobs} required jobs has exactly one " ++
+  let checked := s!"checked: {acceptanceTheorem} — each of the {d.jobs} required jobs has exactly one " ++
     "completed observation meeting its stage policy (CompleteFor ∧ AllPolicyOK)"
   let contracts := d.contracts.map fun k =>
     s!"SL1007 contract {k.registration}: Lean checked the requirement about implementation " ++
