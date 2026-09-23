@@ -1,9 +1,8 @@
 # Session context: Strict Lean Project 8
 
 **Date:** 2026-09-22
-**Active branch:** `codex/strict-lean-7-integration` in a disposable verified worktree.
-**Refreshed main:** `ce929840a6128e83b2a8eb90d492110d19f2d1ba`, verified as an
-ancestor of the preserved branch; refresh live state before resuming.
+**Integrated main:** `b0f1ccb83596b703c1bf2a3ce5502642f417b1ee` (PR 45); refresh live
+state before resuming.
 **Current delivery state:** issue13 and its [corpus delivery](https://github.com/rbeauchamp/strict-lean/pull/31)
 are integrated. The [priority CI repair](https://github.com/rbeauchamp/strict-lean/pull/32)
 and foundation baseline38 are integrated. Issue7 remains open with native
@@ -23,17 +22,19 @@ records exact inputs, full65/79/72 corpus coverage, completed slot/parent cleanu
 stream-join/cleanup repair and independent source review justified the new run.
 Neither terminal marks nor the old failed run supply acceptance evidence.
 
-Previous no-mistakes run `01M2QNJRBW9M8WC4ZNZ3QQHG8G` is terminal failed with
-`daemon shutting down`. Live `axi sync --check` found a clean local-ahead caller,
-with pipeline/live remote at `90a38885fc111bb2aa51172503743e6c9d8beb28`; all
-pipeline commits remain ancestors. Its supported next action is a new full
-`axi run --intent ...`; Firstmate authorized it following the current local passes.
-The daemon is running and must not be restarted by this worker. Preserve all
+[PR 33](https://github.com/rbeauchamp/strict-lean/pull/33) (main `12a7045`) and
+[PR 45](https://github.com/rbeauchamp/strict-lean/pull/45) (main `b0f1ccb`) are merged
+with green exact-head and main CI. Issue7 remains open: the build-integration
+`diagnostics environments` and `diagnostics build-policy` partitions failed at the hard
+420-second deadline, which blocks its build-lint/incremental claim. The cause is the
+adopter-facing per-run Mathlib-wide dependency-capture cost; its follow-up is under
+investigation by Firstmate. The #10 handoff was posted as a dated comment because #10's
+body is at GitHub's size limit; acceptance of the comment in place of the body copy is
+pending the captain's decision. The closeout status in the
+[issue7 evidence](evidence/issue-7-verification.md) owns these facts. Preserve all
 commits, prior receipts and failure artifacts. Ordinary cold420 and required
 sequential producer420/history420 remain unchanged; see the
-[diagnostic budget record](evidence/issue-7-diagnostic-budget.md). Final-head local
-pipeline and hosted gates remain pending; issue7 and its
-[delivery](https://github.com/rbeauchamp/strict-lean/pull/33) are not ready for integration.
+[diagnostic budget record](evidence/issue-7-diagnostic-budget.md).
 
 [Project8](https://github.com/users/rbeauchamp/projects/8), the complete
 [live issue7](https://github.com/rbeauchamp/strict-lean/issues/7) and its native
