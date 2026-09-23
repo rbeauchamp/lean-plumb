@@ -1614,7 +1614,7 @@ private unsafe def runEnvironments (layout : SourceLayout) (repo : FilePath)
   IO.println "self-test public controls: completed (surface)"
 
 /-- Ordinary-build controls are a separate required partition so they do not
-share the clean-checkout serialized-graph check's CI time budget. -/
+share the clean-checkout environment controls' CI time budget. -/
 private def runBuildPolicy (repo : FilePath) (jobs : Nat)
     (failures : IO.Ref (Array String)) : IO Unit := do
   withScratch repo "checker-build-lint" fun scratch => do
