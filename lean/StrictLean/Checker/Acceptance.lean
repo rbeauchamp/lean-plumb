@@ -45,11 +45,10 @@ def sourceSnapshots (sources : Array ProducerReport.SourceBinding)
   return files
 
 /-- Positive maxima remain distinct from no-profile and compiler-trusting classification. -/
-def conformingProfile : Policy.Profile → Except String ConformingProfile
-  | .kernelOnly => .ok .kernelOnly
-  | .choiceFree => .ok .choiceFree
-  | .standardLogical => .ok .standardLogical
-  | .compilerTrusting => .error "compiler-trusting inspection is not a conforming claim"
+def conformingProfile (profile : Policy.Profile) : Except String ConformingProfile :=
+  match Policy.request (some profile) with
+  | .conforming conforming => .ok conforming
+  | _ => .error "compiler-trusting inspection is not a conforming claim"
 
 /-- Construct requested surface assignments solely from the frozen manifest and Lake
 inventory, before looking at returned declarations or policy results. -/

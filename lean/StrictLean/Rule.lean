@@ -111,6 +111,11 @@ def ruleForFailure : StrictLeanPolicy.DeclarationFailure → RuleId
   | .compilerTrusting => .compilerTrusting | .executableContract => .executableContract
   | .profileExceeded => .profileExceeded | .invalidInventory => .coverage
 
+/-- Distinct policy failures reach distinct rules, so the rule preserves the failure category. -/
+theorem ruleForFailure_injective : Function.Injective ruleForFailure := by
+  intro a b h
+  cases a <;> cases b <;> first | rfl | cases h
+
 /-- Total metadata for the reserved vocabulary. Planned detectors never claim availability. -/
 def descriptor : (id : RuleId) → RuleDescriptor id
   | .projectAxiom => {

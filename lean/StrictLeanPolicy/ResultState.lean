@@ -1,4 +1,5 @@
 import StrictLeanPolicy.Collections
+import StrictLean.Contract
 
 /-! Invariant-preserving finite result admission. The required key set and binding
 relation are parameters fixed by the caller's plan. This module proves representation
@@ -243,4 +244,181 @@ theorem collect_empty_lookup [DecidableRel bound] (inputs : List (κ × β))
   simpa [empty] using collect_lookup inputs .empty final h key value
 
 end ResultState
+
+/-! Indexed worker results: the complete requested slot sequence `0, …, count - 1`. -/
+
+/-- An insertion refusal from `ResultState.collect`, in supplied order, or the first
+requested slot that received no result. -/
+inductive IndexedFailure where
+  | admission (failure : AdmissionFailure)
+  | missing (slot : Nat)
+  deriving Repr, DecidableEq
+
+/-- Required relation of indexed result admission. Success returns exactly the array whose
+indexed pairs are a permutation of the supplied responses over every requested slot, with
+each payload bound to its slot. A duplicate, unknown or missing slot, a rebound payload or
+a shorter plan is therefore refused, and every array satisfying the relation is returned. -/
+def IndexedResultsContract
+    (run : {α : Type} → Nat → (Nat → α → Bool) → List (Nat × α) →
+      Except IndexedFailure (Array α)) : Prop :=
+  ∀ (α : Type) (count : Nat) (binding : Nat → α → Bool) (responses : List (Nat × α))
+    (out : Array α),
+    run count binding responses = .ok out ↔
+      out.size = count ∧ (∀ i (h : i < out.size), binding i out[i] = true) ∧
+      responses.Perm ((List.range count).zip out.toList)
+
+/-- The completed result at one requested slot, or that slot as missing. -/
+def slotResult {α : Type} (entries : Std.ExtTreeMap Nat α) (slot : Nat) :
+    Except IndexedFailure α :=
+  match entries[slot]? with
+  | some value => .ok value
+  | none => .error (.missing slot)
+
+/-- Admit indexed results through `ResultState.collect` over the fixed slot set, then
+project every requested slot in order. No response is filtered, merged or overwritten. -/
+def admitIndexedResults {α : Type} (count : Nat) (binding : Nat → α → Bool)
+    (responses : List (Nat × α)) : Except IndexedFailure (Array α) := do
+  let initial : ResultState (CanonicalSet.normalize (List.range count))
+    (fun key value => binding key value = true) := .empty
+  let final ← (initial.collect responses).mapError .admission
+  List.toArray <$> (List.range count).mapM (slotResult final.entries)
+
+/-- Pure `Except` traversal succeeds exactly with pointwise successful results. -/
+private theorem mapM_ok {α β ε : Type} (g : α → Except ε β) :
+    ∀ (l : List α) (out : List β), l.mapM g = .ok out ↔
+      out.length = l.length ∧ ∀ i (h : i < l.length) (h' : i < out.length), g l[i] = .ok out[i]
+  | [], out => by cases out <;> simp [pure, Except.pure]
+  | a :: l, out => by
+    have ih := mapM_ok g l
+    rw [List.mapM_cons]
+    cases ha : g a with
+    | error e =>
+      simp only [bind, Except.bind, reduceCtorEq, false_iff, not_and]
+      intro hl hi
+      have := hi 0 (by simp) (by simp [hl])
+      simp [ha] at this
+    | ok b =>
+      cases hr : l.mapM g with
+      | error e =>
+        simp only [bind, Except.bind, reduceCtorEq, false_iff, not_and]
+        intro hl hi
+        cases out with
+        | nil => simp at hl
+        | cons c cs =>
+          have := (ih cs).mpr ⟨by simpa using hl, fun i h h' => hi (i+1) (Nat.succ_lt_succ h) (Nat.succ_lt_succ h')⟩
+          rw [hr] at this; cases this
+      | ok bs =>
+        have hbs := (ih bs).mp hr
+        simp only [bind, Except.bind, pure, Except.pure, Except.ok.injEq]
+        constructor
+        · rintro rfl
+          refine ⟨by simp [hbs.1], fun i h h' => ?_⟩
+          cases i with
+          | zero => simpa using ha
+          | succ i => simpa using hbs.2 i (by simpa using h) (by simpa using h')
+        · rintro ⟨hl, hi⟩
+          cases out with
+          | nil => simp at hl
+          | cons c cs =>
+            have h0 := hi 0 (by simp) (by simp)
+            simp [ha] at h0
+            have := (ih cs).mpr ⟨by simpa using hl, fun i h h' => hi (i+1) (Nat.succ_lt_succ h) (Nat.succ_lt_succ h')⟩
+            rw [hr] at this
+            cases this
+            simp [h0]
+
+private theorem mem_zip_range {β : Type} (l : List β) (k : Nat) (v : β) :
+    (k, v) ∈ (List.range l.length).zip l ↔ ∃ h : k < l.length, l[k] = v := by
+  simp only [List.mem_iff_getElem, List.length_zip, List.length_range, Nat.min_self,
+    List.getElem_zip, List.getElem_range, Prod.mk.injEq]
+  constructor
+  · rintro ⟨i, h, rfl, rfl⟩; exact ⟨h, rfl⟩
+  · rintro ⟨h, rfl⟩; exact ⟨k, h, rfl, rfl⟩
+
+private theorem nodup_of_keys {β : Type} {l : List (Nat × β)} (h : (l.map Prod.fst).Nodup) : l.Nodup :=
+  List.Pairwise.of_map Prod.fst (fun _ _ hne heq => hne (heq ▸ rfl)) h
+
+/-- Exact success relation of the actual indexed admission, for every payload type. -/
+theorem admitIndexedResults_ok_iff {α : Type} (count : Nat) (binding : Nat → α → Bool)
+    (responses : List (Nat × α)) (out : Array α) :
+    admitIndexedResults count binding responses = .ok out ↔
+      out.size = count ∧ (∀ i (h : i < out.size), binding i out[i] = true) ∧
+      responses.Perm ((List.range count).zip out.toList) := by
+  let initial : ResultState (CanonicalSet.normalize (List.range count))
+    (fun key value => binding key value = true) := .empty
+  have unfold_ : admitIndexedResults count binding responses =
+      ((initial.collect responses).mapError IndexedFailure.admission).bind fun final =>
+        List.toArray <$> (List.range count).mapM (slotResult final.entries) := rfl
+  rw [unfold_]
+  cases hc : initial.collect responses with
+  | error f =>
+    simp only [Except.mapError, Except.bind, reduceCtorEq, false_iff]
+    rintro ⟨hs, hb, hp⟩
+    have keys : (responses.map Prod.fst).Perm (List.range count) := by
+      have := hp.map Prod.fst
+      rwa [List.map_fst_zip (by simp [hs])] at this
+    have batch : ResultState.BatchOK initial responses := by
+      refine ⟨keys.nodup_iff.mpr List.nodup_range, fun entry member => ⟨?_, ?_, ?_⟩⟩
+      · simpa using keys.mem_iff.mp (List.mem_map_of_mem member)
+      · simp [initial, ResultState.empty]
+      · have zipped := hp.mem_iff.mp member
+        rw [← hs] at zipped
+        rcases entry with ⟨k, v⟩
+        obtain ⟨hk, rfl⟩ := (mem_zip_range out.toList k v).mp (by simpa using zipped)
+        simpa using hb k (by simpa using hk)
+    obtain ⟨final, hf⟩ := (ResultState.collect_success_iff responses initial).mpr batch
+    rw [hf] at hc; cases hc
+  | ok final =>
+    have batch := (ResultState.collect_success_iff responses initial).mp ⟨final, hc⟩
+    have lookup := ResultState.collect_empty_lookup responses final hc
+    have slot : ∀ i v, slotResult final.entries i = .ok v ↔ (i, v) ∈ responses := by
+      intro i v
+      rw [← lookup i v]
+      unfold slotResult
+      cases final.entries[i]? <;> simp
+    have zipNodup (l : List α) (hl : l.length = count) : ((List.range count).zip l).Nodup :=
+      nodup_of_keys (by rw [List.map_fst_zip (by simp [hl])]; exact List.nodup_range)
+    simp only [Except.mapError, Except.bind]
+    constructor
+    · intro h
+      cases hm : (List.range count).mapM (slotResult final.entries) with
+      | error e => rw [hm] at h; cases h
+      | ok outL =>
+        rw [hm] at h
+        cases h
+        obtain ⟨hl, hi⟩ := (mapM_ok _ _ _).mp hm
+        simp only [List.length_range] at hl hi
+        have present (i : Nat) (h : i < count) : (i, outL[i]'(hl ▸ h)) ∈ responses :=
+          (slot i _).mp (by simpa using hi i (by simpa using h) (hl ▸ h))
+        refine ⟨by simpa using hl, fun i h => ?_, ?_⟩
+        · exact (batch.2 _ (present i (by simpa [hl] using h))).2.2
+        · apply (List.perm_ext_iff_of_nodup (nodup_of_keys batch.1) (zipNodup outL hl)).mpr
+          rintro ⟨k, v⟩
+          rw [← hl]
+          rw [mem_zip_range]
+          constructor
+          · intro member
+            have hk : k < count := by simpa using (batch.2 _ member).1
+            refine ⟨hl ▸ hk, ?_⟩
+            have first := (ResultState.collect_empty_lookup responses final hc k v).mpr member
+            have second := (ResultState.collect_empty_lookup responses final hc k _).mpr (present k hk)
+            rw [first] at second
+            exact (Option.some.inj second).symm
+          · rintro ⟨hk, rfl⟩
+            exact present k (hl ▸ hk)
+    · rintro ⟨hs, hb, hp⟩
+      have hm : (List.range count).mapM (slotResult final.entries) = .ok out.toList := by
+        refine (mapM_ok _ _ _).mpr ⟨by simp [hs], fun i h h' => ?_⟩
+        refine (slot _ _).mpr (hp.mem_iff.mpr ?_)
+        have member := (mem_zip_range out.toList i _).mpr ⟨h', rfl⟩
+        simpa [hs] using member
+      rw [hm]
+      rfl
+
+/-- Worker adapters call this registration's `run`, which is exactly `admitIndexedResults`.
+It concerns the decoded responses; transport, process and payload truth remain external. -/
+theorem checkedIndexedResults :
+    StrictLean.ExecutableContract @admitIndexedResults IndexedResultsContract :=
+  ⟨fun _ count binding responses out => admitIndexedResults_ok_iff count binding responses out⟩
+
 end StrictLeanPolicy

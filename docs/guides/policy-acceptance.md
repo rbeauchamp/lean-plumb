@@ -139,7 +139,9 @@ symlinked root spelling, a relative input and an input outside the root. These a
 scoped operational controls, not a proof of IO extraction or a full acceptance run.
 
 `Common.mapWorkQueue`, `admitIndexedWorkerResults` and documentation's task collector
-execute `ResultState.collect`; no result slot is overwritten. Group reconciliation
+execute `ResultState.collect`; no result slot is overwritten. The first two call
+`checkedIndexedResults`: success returns exactly the array whose indexed pairs are a
+permutation of the responses over every requested slot, each payload bound to its slot. Group reconciliation
 preserves each requested environment separately and never deduplicates job
 responses, replay occurrences or positive owned declarations. The full admission module/required/admitted
 inventories survive the infrastructure partition.

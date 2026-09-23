@@ -294,13 +294,9 @@ def mapWorkQueue (jobs : Nat) (items : Array α)
   let mut responses := #[]
   for outcome in outcomes do
     responses := responses ++ (← IO.ofExcept outcome)
-  let required := StrictLeanPolicy.CanonicalSet.normalize (List.range items.size)
-  let initial : StrictLeanPolicy.ResultState required (fun (_ : Nat) (_ : β) => True) := .empty
-  let state ← IO.ofExcept <| (initial.collect responses.toList).mapError fun failure =>
-    s!"internal error: work queue result admission: {repr failure}"
-  (Array.range items.size).mapM fun index => match state.entries[index]? with
-    | some value => pure value
-    | none => throw <| IO.userError "internal error: missing work queue result"
+  IO.ofExcept <| (StrictLeanPolicy.checkedIndexedResults.run items.size (fun _ _ => true)
+    responses.toList).mapError fun failure =>
+      s!"internal error: work queue result admission: {repr failure}"
 
 /-- Bounded concurrent map implemented in deterministic batches. -/
 def mapConcurrent (jobs : Nat) (items : Array α) (action : α → IO β) : IO (Array β) := do
@@ -356,21 +352,14 @@ def readWorkerPacket (request packet : Json) : Except String Json := do
 def indexedWorkerPayload [ToJson α] (values : Array α) : Json :=
   toJson (values.mapIdx fun i value => (i, toJson value))
 
-/-- The real batch adapter uses the proof-bearing state: unknown and repeated keys
-are refused before insertion; each payload must match its requested slot. -/
-def admitIndexedWorkerResults [FromJson α] (count : Nat) (binding : Nat → α → Bool)
+/-- Decode indexed worker results and admit them through `checkedIndexedResults`: success
+returns exactly one bound payload for each requested slot, in slot order. -/
+def admitIndexedWorkerResults {α : Type} [FromJson α] (count : Nat) (binding : Nat → α → Bool)
     (payload : Json) : Except String (Array α) := do
   let responses : Array (Nat × α) ← fromJson? payload
-  let required := StrictLeanPolicy.CanonicalSet.normalize (List.range count)
-  let bound := fun key value => binding key value = true
-  let initial : StrictLeanPolicy.ResultState required bound := .empty
-  let state ← (initial.collect responses.toList).mapError fun failure =>
-    s!"invalid worker result admission: {repr failure}"
-  let mut ordered := #[]
-  for key in [:count] do
-    let some value := state.entries[key]? | throw "worker result missing required key"
-    ordered := ordered.push value
-  return ordered
+  (StrictLeanPolicy.checkedIndexedResults.run count binding responses.toList).mapError fun
+    | .admission failure => s!"invalid worker result admission: {repr failure}"
+    | .missing slot => s!"worker result missing required key {slot}"
 
 /-- Await an isolated checker worker and decode its typed result. The child
 stays in the caller’s process group and its scratch files outlive its exit. -/
