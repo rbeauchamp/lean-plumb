@@ -105,10 +105,9 @@ observed divergence is an input under an untracked directory whose leading compo
 differ from the on-disk spelling only by case on a case-insensitive filesystem. The
 pathspec status reported it dirty in the input's spelling, while the unrestricted status
 spells the on-disk path, so it now reads clean. This affects only the reported dirty
-bit, never the captured bytes. Fields
-that are not UTF-8 are dropped: they cannot equal a declared input, and no `dir/`
-prefix of a UTF-8 input contains them. `lake exe qualify acceptance-snapshots
-git-status` checks G1-G3 against the retired pathspec decision.
+bit, never the captured bytes. Fields that are not UTF-8 are dropped: they cannot equal
+a declared input, and no `dir/` prefix of a UTF-8 input contains them.
+`lake exe qualify acceptance-snapshots git-status` checks G1-G3 against the retired pathspec decision.
 
 Only the Git status cost changes. Every declared input's bytes are still read and
 UTF-8-decoded, and the terminal recheck still recaptures them. Both are retained on
