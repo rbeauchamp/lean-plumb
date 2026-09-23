@@ -514,8 +514,6 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
               classification location
               (if fresh then .freshProject else .incrementalProject) (some surface.claim.toString)
             findings := findings.push finding
-          if let some contract := decl.executableContract then
-            IO.println s!"executable contract {decl.name}: {contract.root} requires {contract.requirement}"
         let executionInventory ← IO.ofExcept <| Policy.admitExecution report.execution
         failures := failures ++ Policy.executionFailures executionInventory surface.execution
         for failure in Policy.executionFailureRecords executionInventory surface.execution do
@@ -636,14 +634,13 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       observeProject ⟨inventory, sourceBindings, configuration, dependencies, snapshot, build,
         claim, accepted⟩
       if documentationPending then return 0
-      let acceptedReport := accepted.report
-      IO.println s!"accepted {acceptedReport.jobs.size} policy jobs for {acceptedReport.claim.val.mode.spelling}"
-      IO.println "Explicit proof requirements are checked by elaboration; contract adequacy and completeness require semantic review."
-      IO.println <| if acceptedReport.claim.val.mode == .freshProject then
-        "\naxiom gate: PASS — exact Lake surfaces conform"
-      else "\naxiom gate: PASS — incremental elaboration and current policy inspection"
+      -- Every success line below is a projection of this one accepted run's account.
+      let account := Account.account accepted
+      IO.println s!"accepted {account.val.jobs} policy jobs for {account.val.mode.spelling}"
+      for line in account.lines do IO.println line
+      IO.println s!"\n{account.pass "axiom gate"}"
       if buildLint then
-        IO.println s!"build policy linter: PASS ({acceptedReport.jobs.size} accepted policy jobs; {acceptedReport.claim.val.mode.spelling})"
+        IO.println s!"{account.pass "build policy linter"} ({account.val.jobs} accepted policy jobs; {account.val.mode.spelling})"
       return 0
 
 /-- Fresh audits copy the project into an owned isolated workspace. With `--with-docs`,
@@ -707,9 +704,10 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       let docs ← docFindings.get
       let previous ← IO.ofExcept <| (← IO.ofExcept (value.getObjVal? "diagnostics")).getArr?
       let value := value.setObjVal! "diagnostics" (toJson (previous ++ docs.map StrictLean.RegistryCodec.diagnosticJson))
-      let status := if combined.isSome then "completed" else if docs.isEmpty || docs.any (·.2.impact == .incomplete)
-        then "incomplete" else "rejected"
-      let value := value.setObjVal! "status" (.str status)
+      let status : ResultProtocol.Status := match combined with
+        | some ⟨_, receipt⟩ => .completed (Account.account receipt.project)
+        | none => if docs.isEmpty || docs.any (·.2.impact == .incomplete) then .incomplete else .rejected
+      let value := value.setObjVal! "status" (.str status.spelling)
       let value := value.setObjVal! "scope" (scope.setObjVal! "documentation" (.str (repo / "docs").toString))
       let value := value.setObjVal! "unresolved" (toJson (if combined.isSome then (#[] : Array String)
         else #["documentation requirements failed; see emitted diagnostics"]))
@@ -720,7 +718,10 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
         | none => value
       writeJson output value
     if let some ⟨_, receipt⟩ := combined then
-      IO.println s!"combined audit: accepted {receipt.project.report.jobs.size} project and {receipt.documentation.report.jobs.size} documentation jobs"
+      let account := Account.account receipt.project
+      IO.println s!"combined audit: accepted {account.val.jobs} project and {(Account.account receipt.documentation).val.jobs} documentation jobs"
+      for line in account.lines do IO.println line
+      IO.println s!"\n{account.pass "axiom gate"}"
       return 0
     return docsResult
 
@@ -903,8 +904,9 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
               return 0
             let some ⟨_, accepted⟩ := accepted
               | throw <| IO.userError "missing accepted evidence for file success"
-            let report := accepted.report
-            IO.println s!"\nfile audit: PASS ({report.jobs.size} accepted policy jobs, {report.claim.val.mode.spelling})"
+            let account := Account.account accepted
+            for line in account.lines do IO.println line
+            IO.println s!"\n{account.pass "file audit"} ({account.val.jobs} accepted policy jobs, {account.val.mode.spelling})"
             return 0
 
 private def optionValues (flag : String) : List String → List String

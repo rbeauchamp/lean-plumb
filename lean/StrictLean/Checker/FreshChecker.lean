@@ -268,7 +268,8 @@ unsafe def run (args : List String) : IO UInt32 := do
   if let some path := options.jsonOut then
     let value := (planJson plan checks).setObjVal! "mode" (.str "serializedGraph")
     let value := match accepted with
-      | some ⟨_, receipt⟩ => (value.setObjVal! "status" (.str "completed")).setObjVal!
+      | some ⟨_, receipt⟩ => (value.setObjVal! "status"
+          (.str (Account.Status.completed (Account.account receipt)).spelling)).setObjVal!
           "acceptance" (ResultProtocol.acceptedJson receipt)
       | none => value.setObjVal! "status" (.str (if options.planOnly then "planned" else "incomplete"))
     writeJson (resolve repo path) value
@@ -281,8 +282,9 @@ unsafe def run (args : List String) : IO UInt32 := do
     IO.println "fresh checker plan: coverage reconciled (planning only; no audit certificate)"
   else
     let some ⟨_, receipt⟩ := accepted | throw <| IO.userError "missing accepted graph evidence"
-    let report := receipt.report
-    IO.println s!"fresh checker: PASS — {report.census.modules.size} modules, {report.jobs.size} accepted serialized-graph jobs"
+    let account := Account.account receipt
+    for line in account.lines do IO.println line
+    IO.println s!"{account.pass "fresh checker"} ({receipt.report.census.modules.size} modules, {account.val.jobs} accepted serialized-graph jobs)"
   return 0
 
 end StrictLean.Checker.FreshChecker

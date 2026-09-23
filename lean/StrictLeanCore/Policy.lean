@@ -280,4 +280,38 @@ theorem executionRule_injective : Function.Injective executionRule := by
   intro a b h
   cases a <;> cases b <;> first | rfl | cases h
 
+/-- One failure's text: its registry rule's applicability and the decision's detail. -/
+def executionFailureLine (failure : StrictLeanPolicy.ExecutionFailure) : String :=
+  s!"{(descriptor (executionRule failure.id)).applicability}: {failure.detail}"
+
+/-- Required meaning of the rendered execution failures: line `k` renders the decision's
+record `k`, with no line added or dropped. The lines are therefore empty exactly when
+`ExecutionOK` holds, so rendering cannot hide a failure. -/
+def ExecutionFailuresContract
+    (render : StrictLeanPolicy.ExecutionInventory → StrictLeanPolicy.ExecutionClaim → Array String) : Prop :=
+  ∀ inventory claim,
+    (render inventory claim).size = (StrictLeanPolicy.executionFailureRecords inventory claim).size ∧
+    (∀ k (h : k < (render inventory claim).size)
+        (h' : k < (StrictLeanPolicy.executionFailureRecords inventory claim).size),
+      (render inventory claim)[k] =
+        executionFailureLine (StrictLeanPolicy.executionFailureRecords inventory claim)[k]) ∧
+    (render inventory claim = #[] ↔ StrictLeanPolicy.ExecutionOK inventory claim)
+
+private def executionFailuresImpl (inventory : StrictLeanPolicy.ExecutionInventory)
+    (claim : StrictLeanPolicy.ExecutionClaim) : Array String :=
+  (StrictLeanPolicy.executionFailureRecords inventory claim).map executionFailureLine
+
+/-- Registers `ExecutionFailuresContract` about the executed renderer. -/
+theorem checkedExecutionFailures :
+    StrictLean.ExecutableContract executionFailuresImpl ExecutionFailuresContract := by
+  refine ⟨fun inventory claim => ⟨by simp [executionFailuresImpl], fun k _ _ => by
+    simp [executionFailuresImpl], ?_⟩⟩
+  rw [← StrictLeanPolicy.executionFailureRecords_empty_iff]
+  simp [executionFailuresImpl]
+
+/-- The gate's failure subreasons, through `checkedExecutionFailures`. -/
+def executionFailures (inventory : StrictLeanPolicy.ExecutionInventory)
+    (claim : StrictLeanPolicy.ExecutionClaim) : Array String :=
+  checkedExecutionFailures.run inventory claim
+
 end StrictLean.Checker.Policy

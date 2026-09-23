@@ -3,6 +3,7 @@ import StrictLeanPolicy.Pattern
 import StrictLean.Checker.SourceAudit
 import StrictLean.Checker.Lake
 import StrictLean.Checker.RuleDiagnostics
+import StrictLeanCore.Account
 
 /-!
 Balanced Markdown fence discovery and exact, verbatim Lean-source auditing.
@@ -735,8 +736,9 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
       if failures != 0 then return 1
       let some accepted := accepted | throw <| IO.userError "missing accepted documentation evidence"
       observeAccepted claim accepted
-      let report := accepted.report
-      IO.println s!"accepted {report.jobs.size} documentation policy jobs for {report.claim.val.mode.spelling}"
+      let account := Account.account accepted
+      IO.println s!"accepted {account.val.jobs} documentation policy jobs for {account.val.mode.spelling}"
+      for line in account.lines do IO.println line
       return 0
   match outcome with
   | .ok result => return result

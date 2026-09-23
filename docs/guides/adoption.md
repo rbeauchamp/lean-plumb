@@ -120,7 +120,11 @@ report holds every owned declaration with its exact transitive axiom set and eve
 execution root with its boundaries. The verdict is the printed transcript and the exit
 status: each declaration failure is printed with its reason and that declaration's label,
 the run ends with `axiom gate: PASS` (exit 0) or `FAIL: N violation(s)` (exit 1), and
-`--verbose` prints every declaration's label.
+`--verbose` prints every declaration's label. A PASS names what it covers (only a fresh
+run is whole-project acceptance) and is preceded by its account: the relation Lean checked,
+each registered `ExecutableContract` with its implementation and requirement, execution
+counts, the trusted mechanisms, and the semantic-review obligations (`R-INTENT` and so on)
+that remain open. A PASS is mechanical; it does not complete that review.
 
 Two narrower commands are useful before a full run:
 

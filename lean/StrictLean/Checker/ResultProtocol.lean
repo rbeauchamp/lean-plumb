@@ -1,4 +1,5 @@
 import StrictLeanPolicy.Acceptance
+import StrictLeanCore.Account
 import StrictLean.Website
 import StrictLean.Checker.Producer
 import StrictLean.Checker.RuleDiagnostics
@@ -11,16 +12,19 @@ open Lean
 
 abbrev producer := StrictLean.Checker.Producer.identity
 
-inductive Status where
-  | completed | rejected | incomplete | classified
+/-- `Account.Status`: `completed` carries an accepted account, so it cannot be written from
+missing or incomplete evidence (`Account.Status.completed_accepted`). -/
+abbrev Status := StrictLean.Checker.Account.Status
 
-def statusText : Status → String
-  | .completed => "completed" | .rejected => "rejected"
-  | .incomplete => "incomplete" | .classified => "classified"
+def statusText (status : Status) : String := status.spelling
 
-/-- Completed is scoped observation, never a synonym for whole-standard conformance. -/
+/-- Completed is scoped observation, never a synonym for whole-standard conformance. A
+completed envelope takes its mode from the status's account, not from `mode`. -/
 def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
     (findings : Array Finding) (unresolved : Array String) : Json :=
+  let mode := match status with
+    | .completed account => account.val.mode
+    | _ => mode
   Json.mkObj (RegistryCodec.identityFields producer ++ [
     ("scope", scope), ("mode", .str (RegistryCodec.modeText mode)),
     ("status", .str (statusText status)),
@@ -67,6 +71,37 @@ private def subjectJson : StrictLeanPolicy.JobSubject → Json
       ("body", toJson (key.body.start, key.body.stop)), ("closing", toJson (key.closing.start, key.closing.stop)),
       ("expectation", toJson (reprStr key.expectation))]
 
+/-- Machine rendering of the report account (an unproved adapter): coverage, the acceptance
+theorem and job count, contracts, execution counts, fence kinds, trusted mechanisms and
+residual identifiers; mode, scope, surfaces and toolchain are rendered by `acceptedJson`.
+Contract entries keep their rule, implementation and requirement with the review they leave
+open; `unresolvedReview` names open obligations, never completed reviews. -/
+def accountJson (account : StrictLean.Checker.Account.Account) : Json :=
+  let a := account.val
+  let residuals (rs : List StrictLean.Checker.Account.Residual) := toJson (rs.map (·.spelling))
+  Json.mkObj [
+    ("coverage", toJson a.coverage.spelling),
+    ("checked", Json.mkObj [("theorem", RegistryCodec.nameJson StrictLean.Checker.Account.acceptanceTheorem),
+      ("jobs", toJson a.jobs)]),
+    ("contracts", toJson (a.contracts.map fun contract => Json.mkObj [
+      ("rule", toJson StrictLean.RuleId.executableContract.spelling),
+      ("registration", RegistryCodec.nameJson contract.registration),
+      ("module", RegistryCodec.nameJson contract.module),
+      ("implementation", RegistryCodec.nameJson contract.implementation),
+      ("requirement", toJson contract.requirement),
+      ("unresolvedReview", residuals StrictLean.Checker.Account.ContractAccount.unresolved)])),
+    ("execution", toJson (a.execution.mapIdx fun environment summary => Json.mkObj [
+      ("environment", toJson environment), ("roots", toJson summary.roots),
+      ("boundaries", toJson summary.boundaries), ("checked", toJson summary.checked),
+      ("trusted", toJson summary.trusted), ("unresolved", toJson summary.unresolved)])),
+    ("fences", Json.mkObj [("positive", toJson a.fences.positive),
+      ("compilerRejection", toJson a.fences.compilerRejection),
+      ("policyRejection", toJson a.fences.policyRejection),
+      ("trustedTeaching", toJson a.fences.trustedTeaching)]),
+    ("trusted", toJson (a.trusted.map fun boundary => Json.mkObj [
+      ("boundary", toJson boundary.spelling), ("detail", toJson boundary.detail)])),
+    ("unresolvedReview", residuals a.unresolved)]
+
 /-- Renderer accepts only a proof-bearing run and projects its exact report. The common
 snapshot is stored once; each subject inherits it. These rendered fields are observations,
 not serialized authority, and consumers must never deserialize them into Accepted. -/
@@ -100,7 +135,8 @@ def acceptedJson {claim : StrictLeanPolicy.Claim} (accepted : StrictLeanPolicy.A
     ("graphCoverage", toJson (report.census.graphCoverage.map fun (key, modules) => Json.mkObj [
       ("root", RegistryCodec.nameJson key.name.name), ("modules", toJson (modules.map fun (moduleKey : StrictLeanPolicy.ModuleKey) => RegistryCodec.nameJson moduleKey.name.name))])),
     ("jobs", toJson (report.jobs.mapIdx fun slot key => Json.mkObj [
-      ("slot", toJson slot), ("stage", toJson (reprStr key.stage)), ("subject", subjectJson key.subject)]))]
+      ("slot", toJson slot), ("stage", toJson (reprStr key.stage)), ("subject", subjectJson key.subject)])),
+    ("account", accountJson (StrictLean.Checker.Account.account accepted))]
 
 /-- The wrapper's composed-publication decision: a composed success is
 publishable only for a fully successful guarded action. Executed literally by
@@ -119,7 +155,8 @@ worker exits. The composed accepted result value (pure): the historical
 `writeAccepted` payload construction. -/
 def acceptedValue {claim : StrictLeanPolicy.Claim}
     (accepted : StrictLeanPolicy.AcceptedRun claim) (scope : Json) : Json :=
-  (resultJson scope accepted.report.claim.val.mode .completed #[] #[]).setObjVal!
+  (resultJson scope accepted.report.claim.val.mode
+    (.completed (StrictLean.Checker.Account.account accepted)) #[] #[]).setObjVal!
     "acceptance" (acceptedJson accepted)
 
 def writeAccepted {claim : StrictLeanPolicy.Claim} (path : System.FilePath)

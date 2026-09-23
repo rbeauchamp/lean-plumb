@@ -3,7 +3,8 @@ import StrictLeanCore.Policy
 
 /-! Operational adapter over the claimed `StrictLeanCore.Policy` projections: it binds
 scope admission to the frontend's source-coordinate check and renders policy results
-as text. Every decision it exposes is a registration's `run` from the claimed
+as text. Every decision it exposes, and the execution-failure text
+(`executionFailures`), is a registration's `run` from the claimed
 `StrictLeanCore` modules. -/
 
 namespace StrictLean.Checker.Policy
@@ -34,12 +35,6 @@ abbrev ExecutionFailure := StrictLeanPolicy.ExecutionFailure
 /-- The decision's own records, unchanged: kind, root, detail and order are preserved by
 identity rather than by a second record type. -/
 abbrev executionFailureRecords := StrictLeanPolicy.executionFailureRecords
-
-/-- Existing text subreasons derive from the registry and the same decision records. -/
-def executionFailures (inventory : ExecutionInventory)
-    (claim : ExecutionClaim) : Array String :=
-  (executionFailureRecords inventory claim).map fun failure =>
-    s!"{(descriptor (executionRule failure.id)).applicability}: {failure.detail}"
 
 /-- One-line rendering of a single execution boundary. -/
 def describeBoundary (boundary : StrictLean.Report.ExecutionBoundary) : String :=

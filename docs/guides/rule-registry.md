@@ -124,7 +124,17 @@ Result status is `completed`, `rejected`, `incomplete` or `classified`.
 `completed` records completion of scoped mechanical checks; it is not a serialized
 Lean proof or whole-standard semantic conformance. The
 [acceptance guide](policy-acceptance.md#1-observed-call-flow-and-every-success-boundary)
-owns the accepted-result boundary and its JSON metadata semantics. `classified`
+owns the accepted-result boundary and its JSON metadata semantics. Since #42, a result envelope's
+`completed` status is rendered only through `Account.Status`, whose `completed`
+constructor requires an accepted report account (`StrictLeanCore.Account`), and the
+`acceptance` object gains an additive `account` member, still within result schema 1:
+`coverage` (only `freshWholeProject` is whole-project acceptance), `checked` (the
+`theorem` `StrictLeanPolicy.accept_iff`, whose right side is the checked relation, and the job count), `contracts` (each SL1007
+registration, its implementation and rendered requirement, with `unresolvedReview`
+`R-INTENT`, `R-INVARIANT`), per-environment `execution` counts, `fences` by expectation,
+`trusted` mechanisms and the run's `unresolvedReview` identifiers. No existing key changes;
+the rule-example projection already excludes `acceptance`, and the other consumers test
+only its presence or read `acceptance.fences`. A completed envelope's `mode` is the account's. A listed identifier names an open review obligation, not a completed review. `classified`
 distinguishes no-profile and compiler-teaching file runs from positive conformance. File scope retains its nullable foundation claim,
 execution claim and exact source even when there are no findings. File `scope.report`
 and project `scope.surfaces[*].report` retain the complete observed declaration and
