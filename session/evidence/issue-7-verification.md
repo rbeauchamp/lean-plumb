@@ -1050,7 +1050,7 @@ The issue also names two further classes:
 
 ## Closeout: #10 handoff
 
-#10's body is at GitHub's 65,536-character limit, so the finalized API, coverage, mode semantics, commands, evidence revisions and remaining trust assumptions were delivered as a dated amendment comment, which is the deliverable: https://github.com/rbeauchamp/strict-lean/issues/10#issuecomment-5785859335 (also on #7 and #13).
+#10's body is at GitHub's 65,536-character limit, so the finalized API, coverage, mode semantics, commands, evidence revisions and remaining trust assumptions were posted as a dated comment: https://github.com/rbeauchamp/strict-lean/issues/10#issuecomment-5785859335 (also on #7 and #13). Whether this comment is accepted in place of the copy into #10's body is pending the captain's decision. Until then, the issue 7 checklist item to copy this material into #10's body stays open.
 
 ## Closeout: external-adopter and build-integration diagnostics at `96ed7423885d12c551dbf964cca62ccf280e59d7`
 
