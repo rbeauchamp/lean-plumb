@@ -345,15 +345,11 @@ private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : Str
   IO.println s!"driver span: save record transport: {(← IO.monoMsNow) - recordStart}ms"
   return record
 
+/-- Admit one real special production individually. Each is kept for an external
+boundary: the producer's own account of the request it ran under (wrong claim) or of
+its documentation classification (trusted and negative fences). What admission then
+concludes from any record is proved universally (`RuleExampleQualification.qualify_sound`). -/
 private def admitRecord (ctx : Context) (record : Json) (refusal : Option String := none) : IO Unit := do
-  if let .ok mutation := field record "mutation" then
-    let registration ← get (← get record "rawObservation") "registration"
-    let origin := ctx.rawDirectory / (← string registration "rule") / (← string registration "phase")
-    let controls := origin / "controls"
-    IO.FS.createDirAll controls
-    let label ← IO.ofExcept mutation.getStr?
-    save (controls / (label ++ ".json")) (Json.mkObj [
-      ("origin", .str (origin / "record.json").toString), ("mutation", mutation), ("record", record)])
   let current := ctx.rawDirectory / "current.json"
   let currentStart ← IO.monoMsNow
   save current (Json.mkObj [("checkerBefore", ctx.checkerBefore), ("checkerAfter", ← snapshotCached ctx.cache ctx.checkerPaths), ("records", toJson #[record])])
@@ -424,7 +420,10 @@ theorem sl5001_sl5002_same_shard (keys : Array String) (count : Nat)
 /-- Full corpus, explicit scoped selection, or one corpus shard; all records and admission
 controls are exported. No partial export is labelled a successfully qualified complete
 corpus. Every canonical record is admitted exactly once, by the terminal corpus admission;
-the refusal controls are admitted individually. Each production runs in its own fresh
+the three special refusal productions are admitted individually. Former derived admission
+mutations (relabelled demonstrations, stale displayed sources, dropped source accounts)
+and in-process per-record mutations are replaced by `qualify_sound`, which covers every
+record rather than sampled edits. Each production runs in its own fresh
 workspace, so no restored rerun repeats an earlier production (docs/standard/8 §8.8). -/
 def check (evidence : FilePath) (selection : Option (Array String))
     (suppliedAttempt : Option String := none) (shard : Option (Nat × Nat) := none) : IO Unit := do
@@ -547,27 +546,6 @@ def check (evidence : FilePath) (selection : Option (Array String))
       for task in ← pending.get do
         let _ ← IO.wait task
         pure ()
-    for record in records do
-      if (← string record "kind") == "diagnosticDemonstration" then
-        let relabelled := (record.setObjVal! "rule" (.str "SL1001")).setObjVal! "mutation" (.str "demonstration relabel")
-        admitRecord ctx relabelled (some "diagnostic demonstration mismatch")
-        controls := controls.push relabelled
-      if (← string record "phase") == "Violation" && #["SL2003", "SL2005"].contains (← string record "rule") then
-        let fixed ← IO.FS.readFile (root / "examples/rules" / (← string record "rule") / "Fixed.lean")
-        let original ← string record "source"
-        let mut stale := (record.setObjVal! "source" (.str fixed)).setObjVal! "mutation" (.str "displayed source and binding")
-        for side in #["before", "after"] do
-          let bound ← get stale side
-          let sources ← (← entries bound "sources").mapM fun s => do
-            return if (← string s "source") == original then s.setObjVal! "source" (.str fixed) else s
-          stale := stale.setObjVal! side (bound.setObjVal! "sources" (toJson sources))
-        admitRecord ctx stale (some "missing or mismatched producer source account")
-        controls := controls.push stale
-        let result ← get record "result"
-        let result ← IO.ofExcept (StrictLean.Checker.RuleExampleProjection.withoutSourceAccount result)
-        let missing := (record.setObjVal! "result" result).setObjVal! "mutation" (.str "missing sourceAccount")
-        admitRecord ctx missing (some "missing result source account")
-        controls := controls.push missing
     -- The fresh-project producer controls: the corpus `sharedTheoremTypeRules` records are the
     -- only fresh-project runs of those fixtures, so the producer oracle validates these
     -- same observations (one shared elaborated theorem type, as in the producer campaign).

@@ -40,7 +40,7 @@ the external process, compiler or filesystem boundary they observe.
 | `fence_evidence_checks.py` | `lake exe qualify fence-evidence` | Independent range, admission, policy and compiler failures inside positive fences, plus restoration. |
 | `frozen_exit_checks.py` | `lake exe qualify frozen-exits` | Frozen-input rechecks after imports and failed build/compilation operations. |
 | `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 36 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
-| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty source-owned phases for twenty rules (Fixed and Violation, each in its own fresh workspace), plus admission mutations and authentic wrong-claim/classification refusal controls: 43 productions and 10 individual control admissions, then one corpus admission of every record. `--shard K/N` selects every Nth rule by corpus position, keeping SL5001 and SL5002 in one shard. |
+| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty source-owned phases for twenty rules (Fixed and Violation, each in its own fresh workspace), plus authentic wrong-claim/classification refusal controls: 43 productions and 3 individual control admissions, then one corpus admission of every record. What admission concludes from any record is proved (`RuleExampleQualification.qualify_sound`), not sampled by mutation. `--shard K/N` selects every Nth rule by corpus position, keeping SL5001 and SL5002 in one shard. |
 | prototype `run.py` | `lake env lean --run examples/rule-reference-prototype/Run.lean` | Separately pinned Verso integration, native messages, Lake dependency dispatch and identical-output comparison. |
 | `acceptance_checks.py` | `lake exe qualify acceptance GROUP --evidence PATH` | Fence-compilation packet mutations with positive restoration. Group: `fences`. The former `surface`, `evidence`, `sources` and `process` groups mutated the removed surface-worker packet; project and documentation acceptance now run in one process with nothing serialized between them. |
 | `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies`, `lake exe qualify acceptance-snapshots history` and `lake exe qualify acceptance-snapshots git-status` | Ignored Git/non-Git dependency input coverage and mutation; SL3001 fresh/incremental/build-lint history refusal and restoration; dependency dirty decision against the retired pathspec status across Git collapse, rename, nested-repository, symlinked-root and outside-root cases. `all` runs all three under one deadline. |
@@ -95,9 +95,7 @@ Corpus records use a qualification-only view: top-level `acceptance` and
 `documentationAcceptance` payloads become null, while every key, required nested value
 and raw-tree shape remains unchanged. Exact detector bytes remain in
 `PATH.raw/ATTEMPT/RULE/PHASE/result.json`, with registered command/request/snapshots,
-stream files, terminal metadata and the compact original record. Derived admission
-mutations retain their exact submitted record, origin path and mutation label before
-admission under the original phase's `controls/` directory. During production the
+stream files, terminal metadata and the compact original record. During production the
 INCOMPLETE receipt points to these sidecars; the full aggregate is written once all
 records and controls are ready, and one corpus admission then admits every record. The
 runner does not re-read its own just-written sidecars; it requires unchanged terminal
@@ -185,6 +183,21 @@ by their source-level linkage. The proof is erased at execution.
   module, and, for an unsupported evaluator, leaves every root requested from the
   audited module with nonempty unresolved evidence. These replace the former 7 oracle
   mutations.
+- `Checker.RuleExampleQualification.qualify_sound`: every rule-example record that
+  `qualify` admits satisfies `RecordAdmissible`: its result carries the exact current
+  producer identity fields; the result mode is the record's parsed evidence mode; the
+  record's `before` and `after` source/configuration snapshots are equal; the result's
+  observed request decodes to exactly the frozen request the record binds; the exit code
+  is at most 1; every observed source is in the bound snapshot and one equals the
+  displayed source; a result source account is present unless the request is
+  diagnostic-only or documentation; the kind is one of positive, policy rejection or
+  diagnostic demonstration; and a demonstration satisfies `DemonstrationOK` for the
+  record's own rule and findings. The terminal corpus admission and every individual
+  admission run this `qualify`. It replaces the former 7 in-process mutations of each
+  record and the 7 derived admission subprocesses. Its axiom ceiling is checked by the
+  module's `collectAxioms` command; the module is in the excluded `StrictLean` library,
+  so acceptance's claimed-surface audit does not re-report it. It proves nothing about
+  the producer that wrote the record.
 - `Evidence.checkedValidation` and `checkedDocumentation`: exact conjunctions of decoded
   status/diagnostic/exit and transcript requirements, including distinct fence/project
   admission messages and the underlying IO reason. IO-only controls also consume the
@@ -202,12 +215,11 @@ by their source-level linkage. The proof is erased at execution.
   only entire matching string values change. Unmatched strings stay unchanged. Depth
   exhaustion explicitly refuses; the corpus uses a 64-level budget. Semantic module
   discovery for checker snapshots uses Lake's elaborated inventory, not a source glob.
-- `Checker.RuleExampleProjection.qualify_record` and its mutation/checker-source
-  variants prove exact `Except String Unit` equality for arbitrary producer JSON at
+- `Checker.RuleExampleProjection.qualify_record` and its checker-source
+  variant prove exact `Except String Unit` equality for arbitrary producer JSON at
   the adapter's canonical record constructor. `qualifyCorpus_records` extends this
   to the unchanged full corpus qualifier, including ordered scans, completeness and
-  first refusals. `withoutSourceAccount_view` covers the existing missing-source
-  control. Structural raw-tree laws avoid assuming parser well-formedness. These
+  first refusals. Structural raw-tree laws avoid assuming parser well-formedness. These
   separately checked operational-module proofs do not authenticate parsing,
   duplicate-key handling, serialization, hashes, filesystem custody or subprocesses.
 - `Website.hasFence_exact`: the fence guard detects exactly a contiguous triple backtick

@@ -27,6 +27,21 @@ namespace StrictLeanPolicy.Guards
 @[simp] theorem pure_eq_ok {a b : α} : (pure a : Except ε α) = .ok b ↔ a = b := by
   simp [pure, Except.pure]
 
+/-- A thrown error short-circuits the rest of a sequence. -/
+@[simp] theorem throw_bind {e : ε} {f : α → Except ε β} :
+    (throw e >>= f : Except ε β) = throw e := rfl
+
+/-- A guarded branch whose alternative throws succeeds exactly when the guard holds
+and the guarded branch succeeds. -/
+@[simp] theorem ite_throw_eq_ok {p : Prop} [Decidable p] {a : Except ε α} {e : ε} {b : α} :
+    (if p then a else throw e) = .ok b ↔ p ∧ a = .ok b := by
+  by_cases hp : p <;> simp [hp]
+
+/-- A unit-valued success has only one possible value. -/
+@[simp] theorem exists_punit_eq_ok {e : Except ε PUnit} :
+    (∃ x, e = .ok x) ↔ e = .ok ⟨⟩ :=
+  ⟨fun ⟨⟨⟩, h⟩ => h, fun h => ⟨_, h⟩⟩
+
 /-- A mapped error changes no success. -/
 @[simp] theorem mapError_eq_ok {x : Except ε α} {f : ε → ε'} {a : α} :
     x.mapError f = .ok a ↔ x = .ok a := by
@@ -39,6 +54,19 @@ private theorem list_forM_eq_ok {xs : List α} {g : α → Except ε PUnit} :
   | nil => simp [pure, Except.pure]
   | cons x xs ih =>
     simp only [List.forM_cons, bind_eq_ok, ih, List.mem_cons, forall_eq_or_imp]
+    constructor
+    · rintro ⟨⟨⟩, hx, hs⟩; exact ⟨hx, hs⟩
+    · rintro ⟨hx, hs⟩; exact ⟨_, hx, hs⟩
+
+/-- A list traversal succeeds exactly when the step succeeds on every element. -/
+theorem listForM_eq_ok {xs : List α} {g : α → Except ε PUnit} {u : PUnit} :
+    xs.forM g = .ok u ↔ ∀ x ∈ xs, g x = .ok ⟨⟩ := by
+  induction xs with
+  | nil => simp [List.forM, pure, Except.pure]
+  | cons x xs ih =>
+    show (g x >>= fun _ => xs.forM g) = _ ↔ _
+    rw [bind_eq_ok]
+    simp only [ih, List.mem_cons, forall_eq_or_imp]
     constructor
     · rintro ⟨⟨⟩, hx, hs⟩; exact ⟨hx, hs⟩
     · rintro ⟨hx, hs⟩; exact ⟨_, hx, hs⟩
