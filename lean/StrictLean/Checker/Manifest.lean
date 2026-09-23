@@ -2,6 +2,7 @@ import StrictLean.Checker.PolicyCodec
 import StrictLean.Checker.Common
 import StrictLean.Checker.Policy
 import StrictLeanPolicy.Guards
+import StrictLeanCore.Assembly
 import Lean.Elab.Command
 
 /-! Strict surface-manifest parsing. Unknowns and omissions fail closed. The pure `parse` is
@@ -17,30 +18,6 @@ namespace StrictLean.Checker.Manifest
 
 open Lean System
 open StrictLean.Checker.Policy StrictLeanPolicy.Guards
-
-structure Surface where
-  library : String
-  executables : Array String
-  claim : Profile
-  execution : ExecutionClaim
-  rationale : String
-  deriving Repr
-
-structure ExcludedLibrary where
-  library : String
-  rationale : String
-  deriving Repr
-
-structure ExcludedExecutable where
-  executable : String
-  rationale : String
-  deriving Repr
-
-structure Manifest where
-  surfaces : Array Surface
-  excludedLibraries : Array ExcludedLibrary
-  excludedExecutables : Array ExcludedExecutable
-  deriving Repr
 
 def defaultPath (repo : FilePath) : FilePath :=
   repo / "foundation_manifest.json"

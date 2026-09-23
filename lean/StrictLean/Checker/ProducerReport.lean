@@ -2,6 +2,7 @@ import StrictLean.Report
 import StrictLeanPolicy.Admission
 import StrictLeanPolicy.Guards
 import StrictLean.Contract
+import StrictLeanCore.Assembly
 import Lean.Elab.Command
 
 /-! Operational producer transport and key reconciliation. Kept outside the force-loaded
@@ -61,13 +62,6 @@ instance : FromJson DocumentationObservation := ⟨fun j => do
   return { modules := ← j.getObjValAs? _ "modules"
            materialDeclarations := ← j.getObjValAs? _ "materialDeclarations"
            declarations := ← j.getObjValAs? _ "declarations" }⟩
-
-/-- Completed history preserves the exact Lean-resolved source before/after the worker.
-Unavailable history has no successful source receipt or usable edge payload. -/
-inductive HistoryOutcome where
-  | completed (path before after : String) (replacements : Array (Name × Name))
-  | unavailable (detail : String)
-  deriving Repr
 
 instance : ToJson HistoryOutcome := ⟨fun
   | .completed path before after edges => Json.mkObj [

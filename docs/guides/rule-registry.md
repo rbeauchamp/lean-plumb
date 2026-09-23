@@ -1,8 +1,9 @@
 # Rule registry and diagnostic interface
 
-The implementation lives in `StrictLean.RuleId`, `StrictLean.Rule`,
+The implementation lives in `StrictLeanCore.RuleId`, `StrictLeanCore.Rule`,
 `StrictLean.Diagnostic`, `StrictLean.NameCodec`, `StrictLean.RegistryCodec`,
-`StrictLean.DiagnosticCodec` and `StrictLean.Website`. These modules supply one
+`StrictLean.DiagnosticCodec` and `StrictLean.Website`; the first two are on the claimed
+`StrictLeanCore` surface, whose declarations the gate audits. These modules supply one
 vocabulary to the existing checker, its native diagnostic prototype and the
 prototype website. The [coverage map](rule-coverage.md) defines the twenty
 reserved predicates and their residual semantic obligations.
@@ -62,7 +63,9 @@ strings with its finer typed categories.
 scope. A source location retains the exact text and byte offsets for both full
 and selection ranges. `admitSource` checks bounds, character boundaries, ordering
 and containment. `sourceFromReport` additionally requires the recorded codepoint
-and UTF-16 coordinates to agree with that text. Missing ranges have module
+and UTF-16 coordinates to agree with that text. `admitSource` and the conversion live in
+the claimed `StrictLeanCore.Source`; the UTF-16 column is Lean's `leanPosToLspPos`, supplied
+by `StrictLean.Diagnostic`. Missing ranges have module
 attribution; inconsistent supplied ranges fail instead of acquiring a fabricated
 location.
 

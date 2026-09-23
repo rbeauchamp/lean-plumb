@@ -1,4 +1,5 @@
 import StrictLeanPolicy.Collections
+import StrictLeanPolicy.Traversal
 import StrictLean.Contract
 
 /-! Invariant-preserving finite result admission. The required key set and binding
@@ -283,50 +284,6 @@ def admitIndexedResults {α : Type} (count : Nat) (binding : Nat → α → Bool
   let final ← (initial.collect responses).mapError .admission
   List.toArray <$> (List.range count).mapM (slotResult final.entries)
 
-/-- Pure `Except` traversal succeeds exactly with pointwise successful results. -/
-private theorem mapM_ok {α β ε : Type} (g : α → Except ε β) :
-    ∀ (l : List α) (out : List β), l.mapM g = .ok out ↔
-      out.length = l.length ∧ ∀ i (h : i < l.length) (h' : i < out.length), g l[i] = .ok out[i]
-  | [], out => by cases out <;> simp [pure, Except.pure]
-  | a :: l, out => by
-    have ih := mapM_ok g l
-    rw [List.mapM_cons]
-    cases ha : g a with
-    | error e =>
-      simp only [bind, Except.bind, reduceCtorEq, false_iff, not_and]
-      intro hl hi
-      have := hi 0 (by simp) (by simp [hl])
-      simp [ha] at this
-    | ok b =>
-      cases hr : l.mapM g with
-      | error e =>
-        simp only [bind, Except.bind, reduceCtorEq, false_iff, not_and]
-        intro hl hi
-        cases out with
-        | nil => simp at hl
-        | cons c cs =>
-          have := (ih cs).mpr ⟨by simpa using hl, fun i h h' => hi (i+1) (Nat.succ_lt_succ h) (Nat.succ_lt_succ h')⟩
-          rw [hr] at this; cases this
-      | ok bs =>
-        have hbs := (ih bs).mp hr
-        simp only [bind, Except.bind, pure, Except.pure, Except.ok.injEq]
-        constructor
-        · rintro rfl
-          refine ⟨by simp [hbs.1], fun i h h' => ?_⟩
-          cases i with
-          | zero => simpa using ha
-          | succ i => simpa using hbs.2 i (by simpa using h) (by simpa using h')
-        · rintro ⟨hl, hi⟩
-          cases out with
-          | nil => simp at hl
-          | cons c cs =>
-            have h0 := hi 0 (by simp) (by simp)
-            simp [ha] at h0
-            have := (ih cs).mpr ⟨by simpa using hl, fun i h h' => hi (i+1) (Nat.succ_lt_succ h) (Nat.succ_lt_succ h')⟩
-            rw [hr] at this
-            cases this
-            simp [h0]
-
 private theorem mem_zip_range {β : Type} (l : List β) (k : Nat) (v : β) :
     (k, v) ∈ (List.range l.length).zip l ↔ ∃ h : k < l.length, l[k] = v := by
   simp only [List.mem_iff_getElem, List.length_zip, List.length_range, Nat.min_self,
@@ -386,7 +343,7 @@ theorem admitIndexedResults_ok_iff {α : Type} (count : Nat) (binding : Nat → 
       | ok outL =>
         rw [hm] at h
         cases h
-        obtain ⟨hl, hi⟩ := (mapM_ok _ _ _).mp hm
+        obtain ⟨hl, hi⟩ := (StrictLeanPolicy.mapM_eq_ok _ _ _).mp hm
         simp only [List.length_range] at hl hi
         have present (i : Nat) (h : i < count) : (i, outL[i]'(hl ▸ h)) ∈ responses :=
           (slot i _).mp (by simpa using hi i (by simpa using h) (hl ▸ h))
@@ -408,7 +365,7 @@ theorem admitIndexedResults_ok_iff {α : Type} (count : Nat) (binding : Nat → 
             exact present k (hl ▸ hk)
     · rintro ⟨hs, hb, hp⟩
       have hm : (List.range count).mapM (slotResult final.entries) = .ok out.toList := by
-        refine (mapM_ok _ _ _).mpr ⟨by simp [hs], fun i h h' => ?_⟩
+        refine (StrictLeanPolicy.mapM_eq_ok _ _ _).mpr ⟨by simp [hs], fun i h h' => ?_⟩
         refine (slot _ _).mpr (hp.mem_iff.mpr ?_)
         have member := (mem_zip_range out.toList i _).mpr ⟨h', rfl⟩
         simpa [hs] using member

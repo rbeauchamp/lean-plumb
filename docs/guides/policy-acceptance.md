@@ -465,20 +465,31 @@ Mathlib import belongs in the pure policy library.
 
 `Checker/PolicyDomain.lean` remains a compatibility import. `Checker/Acceptance.lean`
 re-exports the pure definitions and assembles observations through them; it defines no
-duplicate policy. Operational `Checker/Policy.lean` is the adapter/legacy renderer;
+duplicate policy. The claimed `StrictLeanCore.Policy` holds the checker's pure claim,
+scope-admission, rule and execution-rule projections, `StrictLeanCore.Coordinates` and
+`StrictLeanCore.Source` the transcript-coordinate and source-range admission, and
+`StrictLeanCore.Assembly` the pure census assembly; operational `Checker/Policy.lean`
+only binds scope admission to the frontend coordinate check and renders text;
 `Checker/PolicyCodec.lean` handles worker/report JSON. Move transcript **data** shapes
 into the pure domain (including source/range/evaluator keys); `Frontend` imports them,
 never vice versa. `Report` can serialize typed domain observations; pretty strings are
 non-authoritative. Registry ID/payload/rendering stays owned by #12; it maps typed policy
 failures to the existing twenty IDs and preserves subreasons. The pure core does not
-import the registry, so no cycle forms when diagnostics import policy types.
+import the registry, so no cycle forms when diagnostics import policy types. The claimed
+`StrictLeanCore` library holds that registry (`RuleId`, `Rule`) and imports the policy
+library, never the reverse; it shares this section's import restrictions except the
+registry itself and Lean's pure `Lean.Data.Position` (`FileMap`), whose import closure has
+no `Lean.Environment`, `Lean.Meta` or `Lean.Elab` module. It does not import
+`Lean.Data.Lsp.Utf16`, whose closure contains `Lean.Environment`; the operational
+`StrictLean.Diagnostic` supplies that UTF-16 column function.
 
 The `lean_lib StrictLeanPolicy` has `.andSubmodules` discovery, a positive
 Standard-Logical manifest entry as an initial upper bound, and explicit ordinary
 acceptance build coverage. Report every declaration's **actual** least label and exact
 axioms; reduce the upper bound only after checking the complete import/proof closure.
-This root is separate from the excluded `StrictLean` glob. The narrow operational
-infrastructure partition and its authentication obligations are described in §1.
+This root, like `StrictLeanCore`'s `.submodules` root, is separate from the excluded
+`StrictLean` glob. The narrow operational infrastructure partition and its
+authentication obligations are described in §1.
 Audit, AuditApp/Main and the operational StrictLean exclusion remain. Teach tooling and
 guides the new library via Lake discovery, not hardcoded declaration/file lists.
 
