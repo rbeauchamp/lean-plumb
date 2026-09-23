@@ -58,6 +58,49 @@ theorem forM_eq_ok {xs : Array α} {g : α → Except ε PUnit} :
   rw [fold, list_forM_eq_ok]
   simp
 
+/-- List form of `foldlM_append_eq_ok`. -/
+private theorem list_foldlM_append_eq_ok {xs : List α} {f : α → Except ε (Array β)}
+    {init expected : Array β}
+    (h : xs.foldlM (fun acc x => return acc ++ (← f x)) init = .ok expected) :
+    (∀ x ∈ xs, ∃ ys, f x = .ok ys) ∧
+      ∀ y, y ∈ expected ↔ y ∈ init ∨ ∃ x ∈ xs, ∃ ys, f x = .ok ys ∧ y ∈ ys := by
+  induction xs generalizing init with
+  | nil =>
+    simp only [List.foldlM_nil, pure_eq_ok] at h
+    subst h
+    simp
+  | cons x xs ih =>
+    simp only [List.foldlM_cons, bind_eq_ok, pure_eq_ok] at h
+    obtain ⟨acc, ⟨ys, hx, rfl⟩, hrest⟩ := h
+    obtain ⟨hall, hmem⟩ := ih hrest
+    refine ⟨fun x' hx' => ?_, fun y => ?_⟩
+    · rcases List.mem_cons.mp hx' with rfl | hx'
+      · exact ⟨ys, hx⟩
+      · exact hall x' hx'
+    · rw [hmem, Array.mem_append]
+      constructor
+      · rintro ((h | h) | ⟨x', hx', ys', hf, hy⟩)
+        · exact .inl h
+        · exact .inr ⟨x, List.mem_cons_self, ys, hx, h⟩
+        · exact .inr ⟨x', List.mem_cons_of_mem _ hx', ys', hf, hy⟩
+      · rintro (h | ⟨x', hx', ys', hf, hy⟩)
+        · exact .inl (.inl h)
+        · rcases List.mem_cons.mp hx' with rfl | hx'
+          · rw [hx] at hf
+            cases hf
+            exact .inl (.inr hy)
+          · exact .inr ⟨x', hx', ys', hf, hy⟩
+
+/-- An accumulating array traversal that succeeds ran every step successfully, and its
+result holds exactly the initial members and the members every step returned. -/
+theorem foldlM_append_eq_ok {xs : Array α} {f : α → Except ε (Array β)}
+    {init expected : Array β}
+    (h : xs.foldlM (fun acc x => return acc ++ (← f x)) init = .ok expected) :
+    (∀ x ∈ xs, ∃ ys, f x = .ok ys) ∧
+      ∀ y, y ∈ expected ↔ y ∈ init ∨ ∃ x ∈ xs, ∃ ys, f x = .ok ys ∧ y ∈ ys := by
+  rw [← Array.foldlM_toList] at h
+  simpa using list_foldlM_append_eq_ok h
+
 variable {α : Type} [BEq α] [LawfulBEq α]
 
 /-- A duplicate-free list whose members all occur in `l₂` is no longer than `l₂`. -/

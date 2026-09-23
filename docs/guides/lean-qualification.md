@@ -156,17 +156,21 @@ by their source-level linkage. The proof is erased at execution.
   **not** prove that the observations were extracted truthfully or that Lean's JSON
   parser implements a separately formalized JSON specification.
 - `Checker.ProducerReport.validate_sound`: every producer report that
-  `Environment.validate` admits satisfies `Environment.Admissible`: a nonempty, unique,
-  loaded module census; a declaration census equal to the reported keys in order and
-  duplicate-free; execution results exactly for the requested roots; `ExecutionValid`
-  closures; unique located source bindings covering every claimed module and range; a
-  replay receipt admitting exactly its unique requirements; documentation observations
+  `Environment.validate` admits satisfies `Environment.Admissible`, which restates every
+  executed guard: a nonempty, unique, loaded module census; a declaration census equal
+  to the reported keys in order and duplicate-free; execution results exactly for the
+  requested roots; `ExecutionValid` closures; unique located source bindings covering
+  every claimed module and range; a replay receipt admitting exactly its unique
+  requirements and requiring every safe, total declaration; documentation observations
   for exactly the claimed modules and unique material selection; unique history
   requests with exactly one history per requested module; completed histories that are
-  located, source-stable and bound to the owned snapshot; unavailable histories that
-  leave every requested root unresolved; requested runtime replacements whose resolved
-  edges appear in completed histories; and root/boundary module attribution with exact
-  replacement-edge channels. `validate_eq_ok` decomposes the executed guard sequence
+  located, source-stable, bound to the owned snapshot and free of anonymous edge
+  endpoints; unavailable histories that leave every requested root unresolved;
+  requested runtime replacements whose resolved edges appear in completed histories;
+  root/boundary module attribution with exact replacement-edge channels; and, for every
+  current replacement reference, a reached, attributed, requested and recorded module
+  history, with the root's historical edges the canonical form of exactly those
+  completed-history edges. `validate_eq_ok` decomposes the executed guard sequence
   exactly, `validate_nonvacuous` exhibits an admitted report by kernel reduction, and
   `fromJson_admissible` extends soundness to the transport decoder. Producers,
   documentation groups and acceptance call `checkedValidate.run`, so each call site

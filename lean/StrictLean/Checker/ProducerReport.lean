@@ -350,12 +350,14 @@ def Environment.SourceEvidenceSound (r : Environment) : Prop :=
     ∀ range, d.ranges = some range → range.validFor s.content = true)
 
 /-- The replay receipt exists, admits exactly its unique requirements from its unique
-modules, and covers every claimed module. -/
+modules, covers every claimed module, and requires every safe total declaration. -/
 def Environment.AdmissionSound (r : Environment) : Prop :=
   ∃ receipt, r.admission = some receipt ∧ receipt.admitted = receipt.required ∧
     receipt.modules.toList.Nodup ∧ receipt.required.toList.Nodup ∧
     (∀ k ∈ receipt.required, k.1 ∈ receipt.modules) ∧
-    (∀ m ∈ r.census.modules, m ∈ receipt.modules)
+    (∀ m ∈ r.census.modules, m ∈ receipt.modules) ∧
+    ∀ d ∈ r.declarations,
+      d.isUnsafe = true ∨ d.isPartial = true ∨ (d.module, d.name) ∈ receipt.required
 
 /-- Documentation observations exist, cover exactly the claimed modules in order, and
 record exactly the unique census-declared material selection in order. -/
@@ -373,12 +375,13 @@ def Environment.HistoryRequestsSound (r : Environment) : Prop :=
     (∃ e ∈ r.execution, e.name = request.1) ∧ request.2 ∈ r.modules) ∧
   r.histories.map (·.1) = canonicalNames (r.census.historyRequests.map (·.2))
 
-/-- A completed history is located, source-stable and bound to the owned snapshot; an
-unavailable one is explained and leaves every root requested from its module with
-unresolved execution evidence. -/
+/-- A completed history is located, source-stable, has named edge endpoints and is bound
+to the owned snapshot; an unavailable one is explained and leaves every root requested
+from its module with unresolved execution evidence. -/
 def Environment.HistoriesSound (r : Environment) : Prop :=
   (∀ mod path before after edges, (mod, .completed path before after edges) ∈ r.histories →
     path ≠ "" ∧ before = after ∧
+    (∀ edge ∈ edges, edge.1 ≠ .anonymous ∧ edge.2 ≠ .anonymous) ∧
     ∀ source, r.sourceBindings.find? (·.moduleName == mod) = some source →
       path = source.path ∧ before = source.content) ∧
   (∀ mod detail, (mod, .unavailable detail) ∈ r.histories → detail ≠ "" ∧
@@ -408,11 +411,27 @@ def Environment.ClosureAccountSound (r : Environment) : Prop :=
     boundaryEdges root .runtimeReplacement =
       canonicalEdges (root.closure.historyEdges ++ root.closure.currentReplacementEdges)
 
+/-- Every current replacement reference is reached in a module whose history its root
+requested and recorded, and the root's historical edges are the canonical form of
+exactly the completed-history edges leaving those references. -/
+def Environment.HistoryEdgesSound (r : Environment) : Prop :=
+  ∀ root ∈ r.execution,
+    (∀ edge ∈ root.closure.currentReplacementEdges, ∃ v mod entry,
+      root.closure.visits.find? (·.name == edge.1) = some v ∧ v.moduleName = some mod ∧
+      (root.name, mod) ∈ r.census.historyRequests ∧ r.histories.find? (·.1 == mod) = some entry) ∧
+    ∃ recorded, canonicalEdges recorded = root.closure.historyEdges ∧
+      ∀ e, e ∈ recorded ↔ ∃ edge ∈ root.closure.currentReplacementEdges, e.1 = edge.1 ∧
+        ∃ v mod entryMod path before after edges,
+          root.closure.visits.find? (·.name == edge.1) = some v ∧ v.moduleName = some mod ∧
+          r.histories.find? (·.1 == mod) = some (entryMod, .completed path before after edges) ∧
+          e ∈ edges
+
 /-- Everything a successful transport validation establishes about a report. -/
 def Environment.Admissible (r : Environment) : Prop :=
   r.CensusSound ∧ r.ExecutionCensusSound ∧ ExecutionValid r.execution ∧
   r.SourceEvidenceSound ∧ r.AdmissionSound ∧ r.DocumentationSound ∧
-  r.HistoryRequestsSound ∧ r.HistoriesSound ∧ r.ReplacementsSound ∧ r.ClosureAccountSound
+  r.HistoryRequestsSound ∧ r.HistoriesSound ∧ r.ReplacementsSound ∧
+  r.ClosureAccountSound ∧ r.HistoryEdgesSound
 
 section Soundness
 attribute [local simp] and_assoc Bool.and_eq_true beq_iff_eq Array.isEmpty_eq_false_iff
@@ -447,12 +466,43 @@ theorem sourceEvidenceSound_of (r : Environment) (h : r.validateSourceEvidence =
   obtain ⟨s, hs, hm, hr⟩ := h₄ d hd
   exact ⟨s, hs, hm, (Option.all_eq_true _ _).mp hr⟩
 
+private theorem mem_of_foldl_insert {l : List (Name × Name)} {s : Std.HashSet (Name × Name)}
+    {k : Name × Name} (h : (l.foldl (fun s k => s.insert k) s).contains k = true) :
+    s.contains k = true ∨ k ∈ l := by
+  induction l generalizing s with
+  | nil => exact .inl h
+  | cons a t ih =>
+    rcases ih h with h | h
+    · rw [Std.HashSet.contains_insert] at h
+      simp only [Bool.or_eq_true, beq_iff_eq] at h
+      rcases h with rfl | h
+      · exact .inr List.mem_cons_self
+      · exact .inl h
+    · exact .inr (List.mem_cons_of_mem _ h)
+
+/-- The executed hash-set membership test decides membership in the required keys. -/
+private theorem mem_of_requiredSet_contains {required : Array (Name × Name)} {k : Name × Name}
+    (h : (required.foldl (fun s k => s.insert k) ({} : Std.HashSet (Name × Name))).contains k = true) :
+    k ∈ required := by
+  rw [← Array.foldl_toList] at h
+  rcases mem_of_foldl_insert h with h | h
+  · simp at h
+  · simpa using h
+
 theorem admissionSound_of (r : Environment) (receipt : AdmissionReceipt)
     (hr : r.admission = some receipt) (h : r.receiptOK receipt = true) : r.AdmissionSound := by
-  simp [Environment.receiptOK] at h
-  obtain ⟨h₁, h₂, h₃, h₄, h₅, -⟩ := h
-  exact ⟨receipt, hr, h₃, nodup_of_canonicalNames_size _ h₁,
-    nodup_of_canonicalEdges_size _ h₂, fun k hk => h₄ k.1 k.2 hk, h₅⟩
+  simp only [Environment.receiptOK, Bool.and_eq_true] at h
+  obtain ⟨⟨⟨⟨⟨h₁, h₂⟩, h₃⟩, h₄⟩, h₅⟩, h₆⟩ := h
+  simp at h₁ h₂ h₃ h₄ h₅
+  rw [Array.all_eq_true'] at h₆
+  refine ⟨receipt, hr, h₃, nodup_of_canonicalNames_size _ h₁,
+    nodup_of_canonicalEdges_size _ h₂, fun k hk => h₄ k.1 k.2 hk, h₅, fun d hd => ?_⟩
+  have h₆ := h₆ d hd
+  simp only [Bool.or_eq_true] at h₆
+  rcases h₆ with (hu | hp) | hc
+  · exact .inl hu
+  · exact .inr (.inl hp)
+  · exact .inr (.inr (mem_of_requiredSet_contains hc))
 
 theorem documentationSound_of (r : Environment) (docs : DocumentationObservation)
     (hd : r.documentation = some docs) (h : r.documentationOK docs = true) :
@@ -476,9 +526,13 @@ theorem historiesSound_of (r : Environment) (h : ∀ entry ∈ r.histories, r.va
   · intro mod path before after edges hmem
     have h := h _ hmem
     unfold Environment.validateHistory at h
+    have named : ∀ n : Name, n.isAnonymous = false → n ≠ .anonymous := by
+      rintro n hn rfl
+      cases hn
     cases hf : r.sourceBindings.find? (·.moduleName == mod) <;> simp [hf] at h
-    · exact ⟨h.1, h.2.1, by simp⟩
-    · refine ⟨h.1, h.2.1, fun source hs => ?_⟩
+    · exact ⟨h.1, h.2.1, fun edge he => (h.2.2 edge.1 edge.2 he).imp (named _) (named _), by simp⟩
+    · refine ⟨h.1, h.2.1, fun edge he => (h.2.2.1 edge.1 edge.2 he).imp (named _) (named _),
+        fun source hs => ?_⟩
       cases hs
       exact h.2.2.2
   · intro mod detail hmem
@@ -491,12 +545,73 @@ theorem historiesSound_of (r : Environment) (h : ∀ entry ∈ r.histories, r.va
 
 theorem validateRoot_eq_ok (r : Environment) (root : ExecutionRoot) (h : r.validateRoot root = .ok ()) :
     (∀ b ∈ root.boundaries, r.validateReplacementBoundary root b = .ok ()) ∧
-    r.attributionOK root = true ∧ boundaryChannelsOK root = true := by
+    r.attributionOK root = true ∧ boundaryChannelsOK root = true ∧
+    ∃ expected, root.closure.currentReplacementEdges.foldlM
+        (fun acc edge => return acc ++ (← r.recordedHistoryEdges root edge)) #[] = .ok expected ∧
+      canonicalEdges expected = root.closure.historyEdges := by
   unfold Environment.validateRoot at h
   simp only [bind_eq_ok] at h
   obtain ⟨⟨⟩, hb, rest⟩ := h
-  simp at rest
-  exact ⟨forM_eq_ok.mp hb, rest.1, rest.2.1⟩
+  simp [-bind_pure_comp] at rest
+  exact ⟨forM_eq_ok.mp hb, rest.1, rest.2.1, rest.2.2⟩
+
+/-- A recorded-history lookup succeeds only for a reached, attributed, requested and
+recorded replacement reference, and returns exactly its completed-history edges. -/
+theorem recordedHistoryEdges_eq_ok (r : Environment) (root : ExecutionRoot) (edge : Name × Name)
+    (ys : Array (Name × Name)) (h : r.recordedHistoryEdges root edge = .ok ys) :
+    ∃ v mod entryMod outcome,
+      root.closure.visits.find? (·.name == edge.1) = some v ∧ v.moduleName = some mod ∧
+      (root.name, mod) ∈ r.census.historyRequests ∧
+      r.histories.find? (·.1 == mod) = some (entryMod, outcome) ∧
+      ∀ e, e ∈ ys ↔ e.1 = edge.1 ∧
+        ∃ path before after edges, outcome = .completed path before after edges ∧ e ∈ edges := by
+  unfold Environment.recordedHistoryEdges at h
+  cases hv : root.closure.visits.find? (·.name == edge.1) with
+  | none => simp [hv] at h
+  | some v =>
+  cases hmod : v.moduleName with
+  | none => simp [hv, hmod] at h
+  | some mod =>
+  cases hfind : r.histories.find? (·.1 == mod) with
+  | none => simp [hv, hmod, hfind] at h
+  | some entry =>
+  obtain ⟨entryMod, outcome⟩ := entry
+  simp [hv, hmod, hfind] at h
+  refine ⟨v, mod, entryMod, outcome, rfl, hmod, h.1, hfind, fun e => ?_⟩
+  cases outcome <;> simp at h <;> obtain ⟨-, rfl⟩ := h <;> simp [and_comm]
+
+theorem historyEdgesSound_of (r : Environment)
+    (h : ∀ root ∈ r.execution, ∃ expected, root.closure.currentReplacementEdges.foldlM
+        (fun acc edge => return acc ++ (← r.recordedHistoryEdges root edge)) #[] = .ok expected ∧
+      canonicalEdges expected = root.closure.historyEdges) :
+    r.HistoryEdgesSound := by
+  intro root hroot
+  obtain ⟨expected, hf, hc⟩ := h root hroot
+  obtain ⟨hall, hmem⟩ := foldlM_append_eq_ok hf
+  refine ⟨fun edge he => ?_, expected, hc, fun e => ?_⟩
+  · obtain ⟨ys, hys⟩ := hall edge he
+    obtain ⟨v, mod, entryMod, outcome, hv, hm, hq, hh, -⟩ :=
+      recordedHistoryEdges_eq_ok r root edge ys hys
+    exact ⟨v, mod, (entryMod, outcome), hv, hm, hq, hh⟩
+  · rw [hmem]
+    constructor
+    · rintro (h | ⟨edge, he, ys, hys, hy⟩)
+      · simp at h
+      · obtain ⟨v, mod, entryMod, outcome, hv, hm, -, hh, hys⟩ :=
+          recordedHistoryEdges_eq_ok r root edge ys hys
+        obtain ⟨h₁, path, before, after, edges, rfl, he'⟩ := (hys e).mp hy
+        exact ⟨edge, he, h₁, v, mod, entryMod, path, before, after, edges, hv, hm, hh, he'⟩
+    · rintro ⟨edge, he, h₁, v, mod, entryMod, path, before, after, edges, hv, hm, hh, he'⟩
+      obtain ⟨ys, hys⟩ := hall edge he
+      obtain ⟨v', mod', entryMod', outcome, hv', hm', -, hh', hmem'⟩ :=
+        recordedHistoryEdges_eq_ok r root edge ys hys
+      rw [hv] at hv'
+      cases hv'
+      rw [hm] at hm'
+      cases hm'
+      rw [hh] at hh'
+      cases hh'
+      exact .inr ⟨edge, he, ys, hys, (hmem' e).mpr ⟨h₁, path, before, after, edges, rfl, he'⟩⟩
 
 
 theorem replacementBoundary_sound (r : Environment) (root : ExecutionRoot) (b : ExecutionBoundary)
@@ -545,7 +660,8 @@ theorem validate_sound (r : Environment) (h : r.validate = .ok ()) : r.Admissibl
     admissionSound_of r receipt hr hro, documentationSound_of r docs hdo hdok,
     historyRequestsSound_of r hq, historiesSound_of r hh,
     fun root hroot b hb hk => replacementBoundary_sound r root b ((roots root hroot).1 b hb) hk,
-    closureAccountSound_of r fun root hroot => (roots root hroot).2⟩
+    closureAccountSound_of r (fun root hroot => ⟨(roots root hroot).2.1, (roots root hroot).2.2.1⟩),
+    historyEdgesSound_of r fun root hroot => (roots root hroot).2.2.2⟩
 
 end Soundness
 
