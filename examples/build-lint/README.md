@@ -39,8 +39,9 @@ not carried by the return type, so an implementation of the same type that retur
 anything else cannot satisfy the unchanged requirement, and missing/weaker evidence cannot
 either. A passing build lists that registration with its implementation and requirement,
 and marks R-INTENT and R-INVARIANT unresolved: Lean checked the stated relation, not that it
-is the intended one or that every caller uses it. Replacing a registered executable with a noncomputable definition fails;
-classical evidence about a computable definition remains allowed under Standard-Logical.
+is the intended one or that every caller uses it. Replacing a registered executable with a
+noncomputable definition fails; classical evidence about a computable definition remains
+allowed under Standard-Logical.
 `Widget.Additional` is intentionally absent from the umbrella imports, but is discovered
 and inspected through the library's all-submodules glob.
 
