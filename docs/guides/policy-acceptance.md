@@ -97,10 +97,17 @@ Under G1 and G2 both decisions agree. Under G3 a declared input inside an untrac
 nested repository, and under G4 a declared input inside a modified submodule, is now
 dirty where the pathspec status called it clean. Neither input's bytes are part of the
 dependency's own revision, so the change only makes the reported bit conservative.
-Outside these two cases, request and report bytes are unchanged. Fields
-that are not UTF-8 are dropped: they cannot equal a declared input, and no `dir/`
-prefix of a UTF-8 input contains them. `lake exe qualify acceptance-snapshots
-git-status` checks G1-G3 against the retired pathspec decision.
+Outside these two cases, request and report bytes are unchanged, on the trusted premise
+that Git reports a path with the same case and Unicode form as the declared input.
+Membership compares bytes exactly. With Git 2.54 and `core.ignorecase`, literal
+pathspecs also matched tracked paths and final components byte for byte; the one
+observed divergence is an input under an untracked directory whose leading components
+differ from the on-disk spelling only by case on a case-insensitive filesystem. The
+pathspec status reported it dirty in the input's spelling, while the unrestricted status
+spells the on-disk path, so it now reads clean. This affects only the reported dirty
+bit, never the captured bytes. Fields that are not UTF-8 are dropped: they cannot equal
+a declared input, and no `dir/` prefix of a UTF-8 input contains them.
+`lake exe qualify acceptance-snapshots git-status` checks G1-G3 against the retired pathspec decision.
 
 Only the Git status cost changes. Every declared input's bytes are still read and
 UTF-8-decoded, and the terminal recheck still recaptures them. Both are retained on
