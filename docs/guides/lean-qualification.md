@@ -159,20 +159,36 @@ evidence (standard §0 "The Role of Testing").
 | standalone | snapshots, input inventory, receipts, frozen exits, documentation source, closure/configuration/fence evidence, timeout | Git, Lake, filesystem, elaboration-time IO, signals | External | kept |
 
 **Structural partition status.** Each structural copy's manifests derive from the actual
-repository manifest (`Manifest.structuralManifest`; `structural_libraries` and
-`structural_executables` prove the copy classifies exactly the actual library and executable
-names), so adding a library can no longer leave copies unclassified. Before this, every copy
+repository manifest. `Manifest.structuralManifest` builds the base manifest in memory, and
+`structural_libraries` and `structural_executables` prove that this base manifest classifies
+exactly the actual library and executable names. No theorem covers what the gate reads: the
+`Manifest.toJson` serialization, its re-parse by `Manifest.parse`, and the lib-only,
+claimed-exe and app-omitted-exe variants that rewrite the `AuditApp` surface after
+derivation. Those variants exclude every actual `AuditApp` executable they stop claiming,
+except app-omitted-exe, which leaves them unclassified on purpose. Before this, every copy
 failed early because the libraries `StrictLeanPolicy`, `StrictLeanVerification`,
 `StrictLeanQualification` and `StrictLeanCore` and the executables `qualify`, `ruleExamples`
 and `ruleExampleQualification` were unclassified, which masked a checker defect.
 `checkCorrespondenceProof` gave the kernel 200000 raw heartbeats, 1/1000 of Lean's default,
 so every definitionally equal `implemented_by` replacement timed out and was reported as
-trusted. Its budget is now Lean's default, and kernel resource exhaustion is no longer
-conflated with rejection: the replacement stays trusted, but its reason says the kernel
-ran out of resources before deciding definitional correspondence. With both fixed, `diagnostics structural` passes:
-806 s locally, down from 1015 s. That is still over the 420-second budget, which remains
-follow-up work. `StrictLeanPolicy` stays claimed in each copy because the checker probe's own
-imports resolve to it in a self-hosted copy; this partition is not a CI job.
+trusted. Its heartbeat budget is now Lean's per-declaration default
+(`Core.getMaxHeartbeats` of the default options), so a checker-added correspondence
+obligation costs no more than a declaration the adopter could write. Heartbeats count small
+allocations, not live memory, so the check also runs under Lean's runtime memory limit (the
+limit `lean -M` sets). The kernel compares it with the process's resident memory and raises
+`excessiveMemory`. The bound is 4 GiB for the whole worker process, set only while the check
+runs; it never exceeds a `max_memory` the shell set, and that limit is restored afterward.
+Derivation: acceptance runs at most three report workers at once, and only they run this
+check, so bounded workers hold at most 3 × 4 = 12 GiB. That leaves 4 GiB of a 16 GiB CI
+runner for the coordinator, Lake and the OS. The bound includes the worker's imported
+environment, about 2.1 GiB for the `Audit` import closure. A worker whose imports already
+exceed 4 GiB reports exhaustion instead of checking. Kernel resource exhaustion is not
+conflated with rejection: the replacement stays trusted, but its reason says the kernel ran
+out of resources before deciding definitional correspondence. With both fixed,
+`diagnostics structural` passes: 806 s locally, down from 1015 s. That is still over the
+420-second budget, which remains follow-up work. `StrictLeanPolicy` stays claimed in each
+copy because the checker probe's own imports resolve to it in a self-hosted copy; this
+partition is not a CI job.
 
 ## Organization
 

@@ -104,11 +104,31 @@ private def ownedDecls (env : Environment) (modules : List Name) :
     CommandElabM (Array (Name × ConstantInfo)) :=
   pure (ownedConstants env modules)
 
-/-- Kernel budget for one correspondence check: Lean's default `maxHeartbeats` (200000),
-expressed in the kernel's raw unit (`Core.getMaxHeartbeats` multiplies by 1000). The raw
-value 200000 was 1/1000 of that, so any sizeable audited environment timed out and every
-definitional correspondence was misreported as trusted. -/
-private def correspondenceHeartbeats : USize := 200000 * 1000
+/-- Kernel heartbeat budget for one correspondence check: Lean's per-declaration default
+(`maxHeartbeats` at its default value, in the kernel's raw unit), so a checker-added
+correspondence obligation costs no more than a declaration the adopter could write. -/
+private def correspondenceHeartbeats : USize := (Core.getMaxHeartbeats {}).toUSize
+
+/-- Process memory bound while the kernel decides one correspondence: 4 GiB. The acceptance
+audit runs at most three report workers at once and only they run this check, so three
+bounded workers hold at most 12 GiB and leave 4 GiB of a 16 GiB CI runner for the
+coordinator, Lake and the OS. The bound covers the whole worker, imported environment
+included; a worker whose imports already exceed it reports exhaustion instead of checking. -/
+private def correspondenceMemoryBytes : Nat := 4 * 1024 * 1024 * 1024
+
+/-- Lean's runtime memory limit in bytes (`lean -M`; `0` disables it). The kernel compares it
+with the process's resident memory at its system checks and raises `excessiveMemory`.
+`Lean.Shell` keeps its own binding of this runtime symbol private. -/
+@[extern "lean_internal_set_max_memory"]
+private opaque setMaxMemory (bytes : USize) : BaseIO Unit
+
+/-- Run `action` under the correspondence memory bound, never above the limit the shell set
+from `max_memory`, and restore that limit afterward. The runtime limit is process-wide. -/
+private def withCorrespondenceMemory (opts : Options) (action : IO α) : IO α := do
+  let outer := (opts.get? `max_memory).getD (0 : Nat) * 1024 * 1024
+  let bound := if outer == 0 then correspondenceMemoryBytes else min outer correspondenceMemoryBytes
+  setMaxMemory bound.toUSize
+  try action finally setMaxMemory outer.toUSize
 
 /-- Kernel resource exhaustion ends admission without a verdict on the proof. -/
 private def kernelExhausted : Kernel.Exception → Bool
@@ -131,7 +151,10 @@ private def checkCorrespondenceProof (levels : List Name) (required proof : Expr
     levelParams := levels
     type := required
     value := proof }
-  let checked ← match (← getEnv).addDeclCore correspondenceHeartbeats 1000 declaration none with
+  let env ← getEnv
+  let result ← withCorrespondenceMemory (← getOptions) <|
+    IO.lazyPure fun _ => env.addDeclCore correspondenceHeartbeats 1000 declaration none
+  let checked ← match result with
     | .ok checked => pure checked
     | .error e =>
       if kernelExhausted e then return none

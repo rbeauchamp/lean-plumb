@@ -806,9 +806,10 @@ private def structuralClaims : Array String := #["AuditApp", "StrictLeanPolicy"]
 `AuditApp` surface and the `StrictLeanPolicy` surface, with every other actual library
 and executable excluded. `StrictLeanPolicy` must stay claimed because the checker probe's
 own imports resolve to it inside a self-hosted copy. It is derived from the actual
-manifest, so `Manifest.structural_libraries` and `structural_executables` make its
-classified names exactly the actual ones: a newly added library or executable cannot be
-left unclassified. The mutations' intended reasons are surface-content-agnostic; the
+manifest, so `Manifest.structural_libraries` and `structural_executables` make the
+classified names of this in-memory manifest exactly the actual ones. Its JSON
+serialization and re-parse by the gate are not covered by those theorems. The mutations'
+intended reasons are surface-content-agnostic; the
 heavy-surface end-to-end coverage stays in the conditional tier's public-surface
 control and the standalone CI gate. -/
 private def structuralBase (repo : FilePath) : IO Manifest.Manifest := do
@@ -821,15 +822,18 @@ private def structuralBase (repo : FilePath) : IO Manifest.Manifest := do
 private def structuralManifestText (repo : FilePath) : IO String := do
   return (Manifest.toJson (← structuralBase repo)).compress
 
-/-- A structural manifest whose `AuditApp` surface claims exactly `executables`; the
-application executable is excluded when `excludeApp`, and otherwise left unclassified. -/
+/-- A structural manifest whose `AuditApp` surface claims exactly `executables`; the actual
+`AuditApp` executables it no longer claims are excluded when `excludeApp`, and otherwise
+left unclassified. -/
 private def auditAppVariant (repo : FilePath) (executables : Array String) (excludeApp : Bool) :
     IO String := do
   let base ← structuralBase repo
+  let released := (base.surfaces.filter (·.library == "AuditApp")).flatMap (·.executables)
+    |>.filter (!executables.contains ·)
   let surfaces := base.surfaces.map fun s =>
     if s.library == "AuditApp" then { s with executables } else s
   let excludedExecutables := if excludeApp then
-    base.excludedExecutables.push ⟨"auditApp", "application"⟩ else base.excludedExecutables
+    base.excludedExecutables ++ released.map (⟨·, "application"⟩) else base.excludedExecutables
   return (Manifest.toJson { base with surfaces, excludedExecutables }).compress
 
 /-- Structural mutation cluster: discovery of added modules, suppressed
@@ -1151,8 +1155,7 @@ private unsafe def structuralCorrespondence (layout : SourceLayout) (repo copy :
 
 /-- Structural qualification: the mutation clusters run in parallel, each in
 its own isolated project copy claiming the derived structural surfaces, so no
-two concurrent Lake builds ever share a build directory. Each cluster prints its
-elapsed time. -/
+two concurrent Lake builds ever share a build directory. -/
 private unsafe def structuralQualification (layout : SourceLayout) (repo scratch : FilePath) (jobs : Nat)
     : IO (Array String) := do
   let parts : Array (FilePath → FilePath → IO (Array String)) :=
@@ -1167,11 +1170,7 @@ private unsafe def structuralQualification (layout : SourceLayout) (repo scratch
         #["build", "AuditApp", "auditApp", "Fixtures.Mutations.DirectAxiom"]
       if !setup.succeeded then
         return #[s!"structural/setup: copy{index + 1} baseline did not build:\n{setup.output}"]
-      let started ← IO.monoMsNow
-      let result ← part repo copy
-      -- Deliberate per-cluster timing for the 420-second structural budget follow-up.
-      IO.println s!"phase structural part {index + 1}: {(← IO.monoMsNow) - started}ms"
-      return result
+      part repo copy
   return results.foldl (· ++ ·) #[]
 
 /-- Flush phase boundaries so CI timestamps and elapsed times identify the
