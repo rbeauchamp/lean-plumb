@@ -123,6 +123,41 @@ can remain buffered. Only terminal observations claim complete streams.
 The former launcher's separate 180-second diagnostic timer is replaced by the same
 single 420-second public qualification boundary; no timing result is a future bound.
 
+## Control inventory
+
+Each control is classified by what it can establish. **Proved** controls sampled a
+property of a pure Lean function that the checker executes. They are replaced by a
+theorem over that exact definition, which covers every input. **External** controls observe a
+boundary no Lean proof covers: a process, the compiler or elaborator, Lake, Git, the
+filesystem, serialization bytes or OS signals. The smallest set that exercises each such
+boundary is kept. **Counterexample aids** remain only where the universal statement is
+not yet proved. Each is labelled that way at its definition and is not correctness
+evidence (standard §0 "The Role of Testing").
+
+| Campaign | Control | Property it sampled | Class | Disposition |
+| --- | --- | --- | --- | --- |
+| producers | 12 documented-source runs, 2 standalone executables | real `axiomGate` incremental/build-lint detection and stale-artifact handling | External | kept |
+| producers | 8 transport mutations | `Environment.validate` refusals | Proved | `ProducerReport.validate_sound` |
+| history | 10 project/file invocations | real replacement-history, unsupported-evaluator and source-change behaviour | External | kept |
+| history | 17 history/closure/source transport mutations | `Environment.validate` refusals | Proved | `ProducerReport.validate_sound` |
+| history | 7 oracle mutations | history oracle refuses missing imported ownership / execution evidence | Proved | `History.validate_importedRootExecuted`, `validate_unsupported_unresolved` |
+| rule-examples | 40 Fixed/Violation productions | every published example yields exactly its documented diagnostics | External | kept |
+| rule-examples | 3 special productions (wrong claim, trusted and negative fences) | producer's own request/classification account | External | kept |
+| rule-examples | 7 in-process mutations of each record, 7 derived admission subprocesses | `qualify` refusals | Proved | `RuleExampleQualification.qualify_sound` |
+| checkerSelftest fixtures | in-process and CLI fixture verdicts | compiler, elaborator and public CLI over real fixtures | External | kept |
+| checkerSelftest fixtures | 11 execution-policy cases | failure kind per boundary/claim | Proved | `boundaryFailures_ids`, `rootFailures_ids`, `executionFailureRecords_empty_iff` |
+| checkerSelftest fixtures | 12 scanner cases | `Documentation.scan` marker/fence problems | Counterexample aid | follow-up: step-function scanner with proved problem coverage |
+| checkerSelftest fixtures | fence corpus, diagnostic-setup controls | fence compilation through real workers | External | kept |
+| checkerSelftest structural | in-process malformed, incomplete, wrong-version, unknown-key, bad-execution and excluded-empty manifest cases | `Manifest.parse` acceptance, field decoding, acceptance of empty exclusions and the diagnostic class of each refusal | Proved | `Manifest.parse_sound`, `parse_input`, `parse_emptyExclusions`, refusal-class theorems |
+| checkerSelftest structural | real manifest, missing file; public CLI missing, malformed, incomplete, wrong-version, unknown-key, bad-execution and unknown-library cases | file IO, the `axiomGate` CLI rendering of each refusal class, Lake inventory | External | kept |
+| checkerSelftest structural | Lake discovery, unlisted modules, executable classification, fresh-checker coverage | Lake inventory and build behaviour | External | kept |
+| checkerSelftest cli, environments, build-policy | CLI sweep, adopters, clean checkout, ordinary build | packaging, Lake and build integration | External | kept |
+| ordinary | `qualify registry`, `qualify native` | CLI argv/output invalidation; compiler messages and ranges | External | kept |
+| ordinary | `RegistryChecks.lean` codec and source cases | registry, diagnostic and source codecs | Proved in part (roundtrip theorems) | follow-up: state the remaining refusal cases as theorems |
+| standalone | `qualify environments` finalize mutations | `finalize` refusals | Proved relation (`finalize_iff`); instance membership sampled | follow-up |
+| standalone | `qualify acceptance fences` packet mutations | worker-packet admission through a real proxy | External transport; admission proved by #50 (`checkedIndexedResults`) | kept |
+| standalone | snapshots, input inventory, receipts, frozen exits, documentation source, closure/configuration/fence evidence, timeout | Git, Lake, filesystem, elaboration-time IO, signals | External | kept |
+
 ## Organization
 
 - `lean/StrictLeanQualification/`: a separate **positive Lake library**, discovered through
@@ -200,6 +235,45 @@ by their source-level linkage. The proof is erased at execution.
   module, and, for an unsupported evaluator, leaves every root requested from the
   audited module with nonempty unresolved evidence. These replace the former 7 oracle
   mutations.
+- `Checker.Manifest.parse_sound` and `parse_input`: every manifest the executed `parse`
+  accepts has nonempty surfaces, duplicate-free library and executable names across
+  surfaces and exclusions, well-formed target names, no compiler-trusting claim and a
+  nonempty rationale for every entry (`Manifest.Valid`). It comes from JSON whose top-level
+  and per-entry keys are all allowed and whose schema version is 2. Each of its three arrays
+  is, element by element in order, the decoding of the matching JSON array
+  (`SurfaceDecodes`, `ExcludedLibraryDecodes`, `ExcludedExecutableDecodes`): every
+  name and rationale is the JSON string, the claim is `Profile.parse?` of the JSON string, an
+  absent `executables` is empty and a present one is exactly its string array, and an absent
+  `execution` is `report` while a present one is `ExecutionClaim.parse?` of the JSON string.
+  `load` adds only the missing-file check and the read. With the refusal-class theorems
+  below, these replace the in-process malformed, incomplete, wrong-version, unknown-key and
+  bad-execution manifest cases.
+- Manifest refusal classes: each isolated defect yields exactly its documented message from
+  the executed `parse`. `parse_malformed`: unparseable JSON gives `manifest-malformed`.
+  `objectWithKeys_unknown` gives `manifest-schema: LOCATION has unknown key(s): KEYS` for
+  any object with a key outside the allowed set. With well-formed JSON
+  (`parse_topLevel_refuses`), `topLevel_unknownKey` passes that message through for the top
+  level, `topLevel_schemaVersion` gives `manifest-schema: schema-version must be exactly 2`
+  when the keys are allowed, and `topLevel_emptySurfaces` gives `manifest-incomplete:
+  surfaces must be a nonempty array` when the rest of the top level is accepted. After
+  accepted earlier surfaces (`parse_surface_refuses`), `parseSurface_unknownKey` passes the
+  unknown-key message through for that surface. When every check before `execution` accepts
+  it (`SurfacePrefixOK`, `parseSurface_execution_refuses`), an unrecognized execution string
+  (`surfaceExecution_unknown`) or a non-string value (`surfaceExecution_nonString`) gives the
+  `manifest-schema` execution message. Other refusals, including a missing required field
+  and an unknown key in an exclusion entry, are not classified by a theorem. The public
+  `axiomGate` CLI controls for the malformed, incomplete, wrong-version, unknown-key and
+  bad-execution cases stay as external controls of how the CLI renders these classes.
+- `Checker.Manifest.parse_emptyExclusions`: JSON meeting the top-level conditions above
+  with empty exclusion arrays is accepted whenever its surfaces array parses
+  (`parseAll parseSurface` succeeds), with exactly those surfaces. This completeness
+  statement replaces the in-process excluded-empty case; it does not prove that any
+  particular surface is accepted. Axioms of these theorems are bounded by the module's
+  `collectAxioms` command; the module is in the excluded `StrictLean` library.
+- `StrictLeanPolicy.boundaryFailures_ids` and `rootFailures_ids`: the failure kind of
+  every boundary and unresolved path for every claim. With
+  `executionFailureRecords_empty_iff` they replace the 11 in-memory execution-policy
+  cases. They are on the claimed `StrictLeanPolicy` surface.
 - `Checker.RuleExampleQualification.qualify_sound`: every rule-example record that
   `qualify` admits satisfies `RecordAdmissible`: its result carries the exact current
   producer identity fields; the result mode is the record's parsed evidence mode; the

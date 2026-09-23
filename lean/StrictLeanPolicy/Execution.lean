@@ -64,6 +64,30 @@ theorem executionFailureRecords_empty_iff (i : ExecutionInventory) (c : Executio
   simp [executionFailureRecords, rootFailures, ExecutionOK, Array.flatMap_eq_empty_iff,
     boundaryFailures_empty_iff]
 
+/-- Failure kind of one boundary: an unresolved boundary is `executionUnresolved` in every
+mode; otherwise only a checked claim over a non-checked, non-native-runtime boundary fails,
+as `executionBoundary`. A report claim never fails a resolved boundary. -/
+theorem boundaryFailures_ids (r : ExecutionRoot) (c : ExecutionClaim) (b : ExecutionBoundary) :
+    (boundaryFailures r c b).map (·.id) =
+      if b.correspondence = .unresolved then #[.executionUnresolved]
+      else if c = .checked ∧ b.correspondence ≠ .checked ∧ b.boundary ≠ .nativeRuntime then
+        #[.executionBoundary]
+      else #[] := by
+  unfold boundaryFailures
+  by_cases hu : b.correspondence = .unresolved <;> simp [hu]
+  by_cases hc : c = .checked <;> simp [hc]
+  by_cases hk : b.correspondence = .checked <;> simp [hk]
+  by_cases hn : b.boundary = .nativeRuntime <;> simp [hn]
+
+/-- A root's failure kinds: one `executionUnresolved` per unresolved path, in order, then
+each boundary's kinds. -/
+theorem rootFailures_ids (r : ExecutionRoot) (c : ExecutionClaim) :
+    (rootFailures r c).map (·.id) =
+      r.unresolved.map (fun _ => ExecutionFailureKind.executionUnresolved) ++
+        r.boundaries.flatMap (fun b => (boundaryFailures r c b).map (·.id)) := by
+  simp only [rootFailures, Array.map_append, Array.map_flatMap, Array.map_map]
+  rfl
+
 /-- Named execution-coverage counts rendered by gate output. -/
 structure ExecutionSummary where
   roots : Nat

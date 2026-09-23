@@ -249,17 +249,17 @@ def parseJsonOutput (what : String) (result : ProcessResult) : IO Json := do
   | .error error =>
       throw <| IO.userError s!"lake-query-malformed: {what}: {error}"
 
-def jsonStringArray (what : String) (value : Json) : IO (Array String) := do
-  let .arr values := value
-    | throw <| IO.userError s!"{what}: expected a JSON string array"
-  let mut result : Array String := #[]
-  for item in values do
-    let .str text := item
-      | throw <| IO.userError s!"{what}: expected a JSON string array"
+/-- A JSON array of unique nonempty strings. -/
+def stringArray (what : String) (value : Json) : Except String (Array String) := do
+  let .arr values := value | throw s!"{what}: expected a JSON string array"
+  values.foldlM (init := #[]) fun result item => do
+    let .str text := item | throw s!"{what}: expected a JSON string array"
     if text.isEmpty || result.contains text then
-      throw <| IO.userError s!"{what}: expected unique nonempty strings"
-    result := result.push text
-  return result
+      throw s!"{what}: expected unique nonempty strings"
+    return result.push text
+
+def jsonStringArray (what : String) (value : Json) : IO (Array String) :=
+  IO.ofExcept (stringArray what value)
 
 def lakeQuery (repo : FilePath) (target : String) : IO Json := do
   parseJsonOutput target <| ← runProcess repo "lake" #["query", target, "--json"]

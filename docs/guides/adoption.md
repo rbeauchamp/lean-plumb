@@ -152,8 +152,10 @@ style preference:
 Surface-level failures name the Lake fact. `build-failed` means the claimed surface did not
 elaborate warning-free from empty output (a zero exit with a warning still fails);
 `manifest-incomplete` means a root library or executable is neither claimed nor excluded,
-a manifested name is not a root target, or a required name or rationale is missing or
-malformed; `manifest-schema` means a manifest key, value, or schema version is invalid; `unexpected-project-module` means a claimed library imports an
+an excluded name is not a root target, or a required name or rationale is missing or
+malformed; a claimed surface library or executable that Lake does not discover fails
+earlier with `manifest surface missing from Lake discovery` or `manifest executable missing
+from Lake discovery`; `manifest-schema` means a manifest key, value, or schema version is invalid; `unexpected-project-module` means a claimed library imports an
 excluded module or owns a module outside every manifested library.
 
 ## 6. Optionally enforce during ordinary `lake build`

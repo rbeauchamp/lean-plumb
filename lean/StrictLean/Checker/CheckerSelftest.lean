@@ -30,7 +30,7 @@ re-paying it per verdict:
   changes, plus CI.
 
 With `--build-bound`, the closed partitions are `fixtures` (in-process fixtures,
-scanner, policy, and fence corpus), `structural` (structural/compiler-path and
+scanner, and fence corpus), `structural` (structural/compiler-path and
 manifest controls), `cli` (the complete CLI sweep), `environments` (packaging
 and fresh-state controls), and `build-policy` (ordinary-build enforcement).
 Each starts with the same baseline preparation.
@@ -468,6 +468,10 @@ private def smokeFixtureNames : Array String :=
     "Fixtures.Positive.ExternBoundary", "Fixtures.Positive.DependentCorrespondence",
     "Fixtures.Mutations.ConditionalCorrespondence"]
 
+/-- Counterexample aid, not correctness evidence (standard §0 "The Role of Testing"):
+concrete `Documentation.scan` inputs for each marker/fence problem class. A universal
+statement of the scanner's problem coverage is not yet proved; until it is, these cases
+only search for counterexamples. -/
 private def scannerQualification : Array String := Id.run do
   let cases : Array (String × String × String) := #[
     ("positive", "```lean\ntheorem ok : True := trivial\n```\n", ""),
@@ -493,82 +497,6 @@ private def scannerQualification : Array String := Id.run do
       failures := failures.push s!"scanner/{name}: missing problem containing {repr expectedProblem}"
   if !Documentation.matchesPattern "(?s)failed.*law|Fields missing" "prefix failed\nfor a law suffix" then
     failures := failures.push "scanner/pattern: ordered/alternative matching failed"
-  failures
-
-/-- In-memory adversarial coverage for execution-claim policy: trusted
-boundaries never fail a report-only claim, a checked-correspondence claim
-fails on every non-native trusted boundary, native-runtime primitives stay
-permitted-but-reported, and every unresolved path blocks in both modes. -/
-private def executionPolicyQualification : Array String := Id.run do
-  let boundary (name : Name) (kind : StrictLeanPolicy.BoundaryKind)
-      (state : StrictLeanPolicy.Correspondence) : StrictLean.Report.ExecutionBoundary := Id.run do
-    let origin : StrictLeanPolicy.NativeOrigin := ⟨`Init.Data.Float32,
-      "qualification-origin", "qualification-origin", rfl, by decide, rfl⟩
-    let detail := if kind == .opaqueComputation then some "kernel-checked-body" else some "qualification"
-    let account := (StrictLeanPolicy.admitBoundaryEvidence kind state detail
-      (if kind == .nativeRuntime && state == .trusted then some origin else none)).toOption
-    -- Failed control construction remains unresolved and cannot silently pass.
-    let account := account.getD (.unresolved (some "invalid control evidence"))
-    return {
-      occurrence := 0
-      name := name
-      «module» := if kind == .nativeRuntime then origin.moduleName else `Root
-      boundary := kind
-      account := account
-      owned := true
-      replacement := none }
-  let root (boundaries : Array StrictLean.Report.ExecutionBoundary)
-      (unresolved : Array String := #[]) : StrictLean.Report.ExecutionRoot :=
-    { name := `Root.f, «module» := `Root, boundaries, unresolved
-      closure := {
-        nodes := StrictLeanPolicy.canonicalNames (#[`Root.f] ++ boundaries.map (·.name))
-        visits := #[{ name := `Root.f, moduleName := some `Root, parent := none }] ++
-          boundaries.map (fun b => { name := b.name, moduleName := some b.module, parent := some 0 })
-        logicalEdges := StrictLeanPolicy.canonicalEdges (boundaries.map (fun b => (`Root.f, b.name))) } }
-  let cases : Array (String × StrictLean.Report.ExecutionRoot × ExecutionClaim × Option String) := #[
-    ("report/trusted-replacement",
-      root #[boundary `Root.g .runtimeReplacement .trusted], .report, none),
-    ("checked/trusted-replacement",
-      root #[boundary `Root.g .runtimeReplacement .trusted], .checked,
-      some "execution-trusted-boundary"),
-    ("checked/proved-replacement",
-      root #[boundary `Root.g .runtimeReplacement .checked], .checked, none),
-    ("checked/native-runtime-substrate",
-      root #[boundary `Float32.add .nativeRuntime .trusted], .checked, none),
-    ("checked/trusted-external",
-      root #[boundary `Root.ffi .external .trusted], .checked,
-      some "execution-trusted-boundary"),
-    ("checked/trusted-partial",
-      root #[boundary `Root.spin .partialComputation .trusted], .checked,
-      some "execution-trusted-boundary"),
-    ("checked/trusted-compiler-proof",
-      root #[boundary `Lean.ofReduceBool .compilerTrustedProof .trusted], .checked,
-      some "execution-trusted-boundary"),
-    ("checked/opaque-kernel-body",
-      root #[boundary `Root.pack .opaqueComputation .checked], .checked, none),
-    ("report/unresolved-path",
-      root #[] #["Root.missing: constant is not in the environment"], .report,
-      some "execution-unresolved"),
-    ("checked/unresolved-path",
-      root #[] #["Root.missing: constant is not in the environment"], .checked,
-      some "execution-unresolved"),
-    ("report/unresolved-boundary",
-      root #[boundary `Root.op .opaqueComputation .unresolved], .report,
-      some "execution-unresolved")
-  ]
-  let mut failures : Array String := #[]
-  for (name, value, claim, expected) in cases do
-    let .ok inventory := admitExecution #[value]
-      | failures := failures.push s!"execution/{name}: invalid control inventory"; continue
-    let reasons := uniqueSorted ((executionFailures inventory claim).map fun failure =>
-      (failure.splitOn ":").head?.getD failure)
-    match expected with
-    | none =>
-        if !reasons.isEmpty then
-          failures := failures.push s!"execution/{name}: unexpected failure {repr reasons.toList}"
-    | some reason =>
-        if reasons != #[reason] then
-          failures := failures.push s!"execution/{name}: expected {repr reason}, got {repr reasons.toList}"
   failures
 
 /-- The adversarial fence corpus shared by the in-process default-tier audit
@@ -770,6 +698,14 @@ private def expectManifestPublicFailure (repo : FilePath) (name : String)
   if result.output.contains expected then return none
   return some s!"manifest/public/{name}: wrong diagnostic:\n{result.output}"
 
+/-- External manifest controls only: the real repository manifest, a missing file, and the
+public `axiomGate` CLI rendering the malformed, incomplete, wrong-version, unknown-key and
+bad-execution refusal classes and a Lake-inventory refusal. The pure parser is proved for every
+input instead of sampled in process: `Manifest.parse_sound` and `Manifest.parse_input` for what
+it accepts, `Manifest.parse_emptyExclusions` for empty exclusions, and the refusal-class
+theorems (`parse_malformed`, `topLevel_emptySurfaces`, `topLevel_schemaVersion`,
+`objectWithKeys_unknown`, `parseSurface_execution_refuses` and their lifts) for the
+message of each of those defects. -/
 private def manifestQualification (repo scratch : FilePath) : IO (Array String) := do
   let mut failures : Array String := #[]
   let valid ← Manifest.load (Manifest.defaultPath repo)
@@ -783,53 +719,35 @@ private def manifestQualification (repo scratch : FilePath) : IO (Array String) 
     failures := failures.push failure
   let malformed := scratch / "malformed.json"
   IO.FS.writeFile malformed "{"
-  if let some failure ← expectManifestFailure "malformed" (Manifest.load malformed) "manifest-malformed" then
-    failures := failures.push failure
   if let some failure ← expectManifestPublicFailure repo "malformed" malformed "manifest-malformed" then
     failures := failures.push failure
   let incomplete := scratch / "incomplete.json"
   IO.FS.writeFile incomplete
     "{\"schema-version\":2,\"surfaces\":[],\"excluded-libraries\":[],\"excluded-executables\":[]}"
-  if let some failure ← expectManifestFailure "incomplete" (Manifest.load incomplete) "manifest-incomplete" then
+  if let some failure ← expectManifestPublicFailure repo "incomplete" incomplete
+      "manifest-incomplete: surfaces must be a nonempty array" then
     failures := failures.push failure
-  if let some failure ← expectManifestPublicFailure repo "incomplete" incomplete "manifest-incomplete" then
-    failures := failures.push failure
-  let excludedEmpty := scratch / "excluded-empty.json"
-  IO.FS.writeFile excludedEmpty <| "{\"schema-version\":2,\"surfaces\":[{" ++
-    "\"library\":\"Audit\",\"claim\":\"standard-logical\",\"rationale\":\"control\"}]," ++
-    "\"excluded-libraries\":[],\"excluded-executables\":[]}"
-  let parsed ← Manifest.load excludedEmpty
-  if parsed.surfaces.size != 1 || !parsed.excludedLibraries.isEmpty
-      || !parsed.excludedExecutables.isEmpty then
-    failures := failures.push "manifest/excluded-empty: empty exclusion arrays did not parse"
   let wrongVersion := scratch / "wrong-version.json"
   IO.FS.writeFile wrongVersion <| "{\"schema-version\":1,\"surfaces\":[{" ++
     "\"library\":\"Audit\",\"claim\":\"standard-logical\",\"rationale\":\"control\"}]," ++
     "\"excluded-libraries\":[],\"excluded-executables\":[]}"
-  if let some failure ← expectManifestFailure "wrong-version" (Manifest.load wrongVersion)
-      "schema-version" then
-    failures := failures.push failure
   if let some failure ← expectManifestPublicFailure repo "wrong-version" wrongVersion
-      "schema-version" then
+      "manifest-schema: schema-version must be exactly 2" then
     failures := failures.push failure
   let unknown := scratch / "unknown.json"
   IO.FS.writeFile unknown <| "{\"schema-version\":2,\"surfaces\":[{" ++
     "\"library\":\"Audit\",\"claim\":\"standard-logical\",\"rationale\":\"control\",\"extra\":true}]," ++
     "\"excluded-libraries\":[{\"library\":\"Fixtures\",\"rationale\":\"mutations\"}]," ++
     "\"excluded-executables\":[]}"
-  if let some failure ← expectManifestFailure "unknown" (Manifest.load unknown) "unknown key" then
-    failures := failures.push failure
-  if let some failure ← expectManifestPublicFailure repo "unknown" unknown "unknown key" then
+  if let some failure ← expectManifestPublicFailure repo "unknown" unknown
+      "manifest-schema: surfaces[0] has unknown key(s)" then
     failures := failures.push failure
   let badExecution := scratch / "bad-execution.json"
   IO.FS.writeFile badExecution <| "{\"schema-version\":2,\"surfaces\":[{" ++
     "\"library\":\"Audit\",\"claim\":\"standard-logical\",\"execution\":\"bogus\",\"rationale\":\"control\"}]," ++
     "\"excluded-libraries\":[],\"excluded-executables\":[]}"
-  if let some failure ← expectManifestFailure "bad-execution" (Manifest.load badExecution)
-      "execution" then
-    failures := failures.push failure
   if let some failure ← expectManifestPublicFailure repo "bad-execution" badExecution
-      "execution" then
+      "manifest-schema: surfaces[0].execution must be \"report\" or \"checked\"" then
     failures := failures.push failure
   let unknownLibrary := scratch / "unknown-library.json"
   IO.FS.writeFile unknownLibrary <| "{\"schema-version\":2,\"surfaces\":[{" ++
@@ -841,7 +759,7 @@ private def manifestQualification (repo scratch : FilePath) : IO (Array String) 
     "{\"executable\":\"freshChecker\",\"rationale\":\"tooling\"}," ++
     "{\"executable\":\"checkerSelftest\",\"rationale\":\"tooling\"}]}"
   if let some failure ← expectManifestPublicFailure repo "unknown-library" unknownLibrary
-      "manifest-incomplete" then
+      "manifest surface missing from Lake discovery" then
     failures := failures.push failure
   return failures
 
@@ -1512,7 +1430,7 @@ private unsafe def adopterQualification (repo scratch : FilePath) : IO (Array St
           s!"adopter/toml/fresh-plan: exact adopter coverage plan failed:\n{fresh.output}")
   failures.get
 
-/-- In-process fixture, scanner, policy, and fence-corpus controls. Imports
+/-- In-process fixture, scanner, and fence-corpus controls. Imports
 remain serialized, and transcript workers finish before parent imports. -/
 private unsafe def runFixtures (repo : FilePath) (jobs : Nat)
     (fixtures : Array FixtureSpec) (failures : IO.Ref (Array String)) : IO Unit := do
@@ -1526,7 +1444,6 @@ private unsafe def runFixtures (repo : FilePath) (jobs : Nat)
       s!" ({fixtures.size} in one process, one environment load per import closure)")
 
   for failure in scannerQualification do failures.modify (·.push failure)
-  for failure in executionPolicyQualification do failures.modify (·.push failure)
   withScratch repo "checker-fence-corpus" fun scratch => do
     let corpus ← timedPhase "in-process fence corpus" <|
       fenceCorpusQualification repo scratch jobs
@@ -1534,7 +1451,6 @@ private unsafe def runFixtures (repo : FilePath) (jobs : Nat)
     IO.println <| "self-test Markdown: " ++
       (if corpus.isEmpty then "PASS" else "FAIL") ++
       s!" (scanner controls + {fenceCorpusCases.size} in-process corpus cases)"
-  IO.println "self-test execution policy: completed (11 in-memory cases)"
 
 /-- Structural/compiler-path mutations and manifest controls retain their
 isolated copies, task joins, and complete failure accumulation. -/
@@ -1547,7 +1463,7 @@ private unsafe def runStructural (layout : SourceLayout) (repo : FilePath) (jobs
     timedPhase "manifest controls" <| withScratch repo "checker-manifest" fun scratch =>
       manifestQualification repo scratch
   for failure in ← IO.ofExcept (← IO.wait manifestTask) do failures.modify (·.push failure)
-  IO.println "self-test manifest: completed (valid + excluded-empty + 7 adversarial public cases)"
+  IO.println "self-test manifest: completed (valid + missing in-process; missing, malformed, incomplete, wrong-version, unknown-key, bad-execution and unknown-library public cases)"
 
   let structural ← IO.ofExcept (← IO.wait structuralTask)
   for failure in structural do failures.modify (·.push failure)
@@ -1824,7 +1740,7 @@ unsafe def run (args : List String) : IO UInt32 := do
   IO.println <| s!"checker self-test: PASS ({fixtures.size} fixed fixtures in-process; " ++
     (if options.buildBound then s!"{fixtures.size} real-CLI controls (including all smoke controls); "
       else s!"{smokeFixtureNames.size} real-CLI smoke controls; ") ++
-    s!"{fenceCorpusCases.size + publicOnlyFenceCases.size} Markdown cases plus import-setup controls; 11 execution-policy cases; 9 manifest cases; structural controls including explicit contract mutations; " ++
+    s!"{fenceCorpusCases.size + publicOnlyFenceCases.size} Markdown cases plus import-setup controls; 9 manifest cases; structural controls including explicit contract mutations; " ++
     s!"{CompilerPaths.caseCount} imported compiler-path mutations with fresh restorations; " ++
     (if options.buildBound then
       "build-bound tier: full real-CLI fixture sweep, end-to-end fence corpus, " ++
