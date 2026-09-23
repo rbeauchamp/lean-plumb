@@ -55,16 +55,16 @@ that every helper needs a separately named theorem.
 | ID | Definition and actual consumer | Existing guarantee and remaining obligation | Status / owner |
 | --- | --- | --- | --- |
 | F01 | [`ExecutableContract`, `run`, `run_eq`](../../lean/StrictLean/Contract.lean); [`Collect.executableContract?`](../../lean/StrictLean/Collect.lean) feeds collected declarations and policy `ContractOK`. | The field proves exactly `R f`; `run` is definitionally `f`. Recognition checks the elaborated closed registration and executable root, not intended adequacy or every caller. Preserve supported universes, full domain and root coverage; review the required relation independently. | **E/T**; #39, reporting #42. |
-| F02 | [`Inventory`, `admitInventory`, `admitExecution`](../../lean/StrictLeanPolicy/Admission.lean); [`Policy.admitScope`](../../lean/StrictLean/Checker/Policy.lean) is called by project/file/fence inspection. | Admitted values carry validity; exact admission retains input observations, and execution admission has a preservation theorem. The adapter first checks frontend coordinates, then admits inventory and computes roles. #39: `admitScope` runs `checkedScope` (`ScopeContract`): first coordinate refusal in transcript order, then exactly `admitInventory` with `authorize`; success iff every coordinate check and `InventoryValid` hold, retaining both arrays. Supplied transcripts are not authenticated. #41: `checkedScope` is on claimed `StrictLeanCore` and quantifies over every coordinate check; the adapter passes `Frontend.validateCoordinates`. | Core **E** (claimed), coordinate check and acquisition **T**; #41 done. |
-| F03 | [`policyFor`, `foundationFor`, `declarationFailure`](../../lean/StrictLeanPolicy/Decision.lean); `Policy.ruleForMember`, `labelOfMember`, `classifyMember` (#40) in project/file gates, with `ruleFor`, `reasonFor`, `labelOf` kept for arbitrary input; [`Linter.Rules.declarations`](../../lean/StrictLean/Linter/Rules.lean) for local feedback. | Existing equivalences cover membership, policy, all six classification outcomes and ordered first failure. #39: `request` runs `checkedRequest` (`RequestContract`, by spelling); `ruleFor` runs `checkedRule` (`RuleContract`) over `policyFor`, with `ruleForFailure_injective` and `reasonFor_eq_some_iff`. #40: per-declaration callers iterate the admitted inventory and run the member forms `checkedMemberFailure`/`checkedMemberFoundation`/`checkedMemberRule`, equal to `policyFor`/`foundationFor`/`ruleFor` on every member, without the membership scan. Environment collection remains separate. #41: these projections, `labelOf`/`labelOfMember` and the registry they map to are on claimed `StrictLeanCore`; `classify`/`classifyMember` stay adapter renderers. | Core and projections **E** (claimed), collection **T**; #41 done. |
+| F02 | [`Inventory`, `admitInventory`, `admitExecution`](../../lean/StrictLeanPolicy/Admission.lean); [`Policy.admitScope`](../../lean/StrictLean/Checker/Policy.lean) is called by project/file/fence inspection. | Admitted values carry validity; exact admission retains input observations, and execution admission has a preservation theorem. The adapter first checks frontend coordinates, then admits inventory and computes roles. #39: `admitScope` runs `checkedScope` (`ScopeContract`): first coordinate refusal in transcript order, then exactly `admitInventory` with `authorize`; success iff every coordinate check and `InventoryValid` hold, retaining both arrays. Supplied transcripts are not authenticated. #41: `checkedScope` is on claimed `StrictLeanCore` and quantifies over every coordinate check; the adapter passes `Frontend.validateCoordinates`, a pure check that has no contract (see #41 delivery). | Core **E** (claimed); coordinate check unproved; acquisition **T**; #41 (this delivery). |
+| F03 | [`policyFor`, `foundationFor`, `declarationFailure`](../../lean/StrictLeanPolicy/Decision.lean); `Policy.ruleForMember`, `labelOfMember`, `classifyMember` (#40) in project/file gates, with `ruleFor`, `reasonFor`, `labelOf` kept for arbitrary input; [`Linter.Rules.declarations`](../../lean/StrictLean/Linter/Rules.lean) for local feedback. | Existing equivalences cover membership, policy, all six classification outcomes and ordered first failure. #39: `request` runs `checkedRequest` (`RequestContract`, by spelling); `ruleFor` runs `checkedRule` (`RuleContract`) over `policyFor`, with `ruleForFailure_injective` and `reasonFor_eq_some_iff`. #40: per-declaration callers iterate the admitted inventory and run the member forms `checkedMemberFailure`/`checkedMemberFoundation`/`checkedMemberRule`, equal to `policyFor`/`foundationFor`/`ruleFor` on every member, without the membership scan. Environment collection remains separate. #41: these projections, `labelOf`/`labelOfMember` and the registry they map to are on claimed `StrictLeanCore`; `classify`/`classifyMember` stay adapter renderers. | Core and projections **E** (claimed), collection **T**; #41 (this delivery). |
 | F04 | [`executionFailureRecords`, `executionSummary`](../../lean/StrictLeanPolicy/Execution.lean); `Policy.executionFailureRecords`, `executionFailures` and gate rendering. | Empty pure failures iff `ExecutionOK` for every admitted finite inventory and mode. #39: `Policy.executionFailureRecords` is the decision's own records (identity); `executionRule` is injective; `executionSummary` runs `checkedSummary` (`SummaryContract`). Counts describe observations of a conservative account, not a minimal native call graph. #41: `executionRule` is on claimed `StrictLeanCore`; `executionFailures` text stays an adapter renderer. | Decision, projection and counts **E**, extraction **T**; reporting #42. |
 | F05 | [`CensusOK`, `requiredJobs`, `Plan`, `admitPlan`](../../lean/StrictLeanPolicy/Plan.lean); [`accept`, `Accepted.report`](../../lean/StrictLeanPolicy/Acceptance.lean). | Coordinator-fixed requests retain the full claim and separate environment inventories. Plan fields require exact derived jobs and claim; accepted evidence requires completeness and policy for those inputs. The actual freeze/finish callers consume this evidence. Final delivery evidence remains open. | Core and linkage **E/T**; delivery **#7 only**. |
-| F06 | [`ResultState.insertResult`, `collect`](../../lean/StrictLeanPolicy/ResultState.lean); [`finalize`](../../lean/StrictLeanPolicy/Acceptance.lean); [`Common.admitIndexedWorkerResults`](../../lean/StrictLean/Checker/Common.lean). | Insertion and full-sequence collection retain unknown, duplicate and binding refusals. `finalize_iff` relates actual raw occurrences to exact required-slot policy coverage; split IO collection/acceptance carries equality to this finalizer. #39: `admitIndexedWorkerResults` and `mapWorkQueue` run `checkedIndexedResults` (`IndexedResultsContract`). Packet decoding and worker execution remain distinct. #41: the decision was already claimed; the adapter only decodes JSON and renders refusal text. | Collection, finalization and worker projection **E**, transport **T**; #41 done. |
-| F07 | [`evaluate`, `checkedEvaluation`](../../lean/StrictLeanQualification/Checks.lean); [`Qualification.requireChecks`](../../lean/StrictLean/Qualification/Support.lean) calls `checkedEvaluation.run`. | Exact success iff all supplied assertions hold, first false assertion, and append/bind composition are already proved and consumed. The empty list succeeds. The evaluator cannot establish that an adapter supplied all needed assertions or truthful IO observations. Retain the implementation and inspect changed callers; do not rebuild a generic assertion framework. #40: success and first-refusal now reuse the shared `forM_eq_ok`/`forM_eq_error` laws, also used by `admitScope`, via `evaluate_eq_forM`; statements unchanged. #41 moved those laws to claimed `StrictLeanPolicy.Traversal`. | **E/T**; boundary account #41 done. |
+| F06 | [`ResultState.insertResult`, `collect`](../../lean/StrictLeanPolicy/ResultState.lean); [`finalize`](../../lean/StrictLeanPolicy/Acceptance.lean); [`Common.admitIndexedWorkerResults`](../../lean/StrictLean/Checker/Common.lean). | Insertion and full-sequence collection retain unknown, duplicate and binding refusals. `finalize_iff` relates actual raw occurrences to exact required-slot policy coverage; split IO collection/acceptance carries equality to this finalizer. #39: `admitIndexedWorkerResults` and `mapWorkQueue` run `checkedIndexedResults` (`IndexedResultsContract`). Packet decoding and worker execution remain distinct. #41: the decision was already claimed; the adapter only decodes JSON and renders refusal text. | Collection, finalization and worker projection **E**, transport **T**; #41 (this delivery). |
+| F07 | [`evaluate`, `checkedEvaluation`](../../lean/StrictLeanQualification/Checks.lean); [`Qualification.requireChecks`](../../lean/StrictLean/Qualification/Support.lean) calls `checkedEvaluation.run`. | Exact success iff all supplied assertions hold, first false assertion, and append/bind composition are already proved and consumed. The empty list succeeds. The evaluator cannot establish that an adapter supplied all needed assertions or truthful IO observations. Retain the implementation and inspect changed callers; do not rebuild a generic assertion framework. #40: success and first-refusal now reuse the shared `forM_eq_ok`/`forM_eq_error` laws, also used by `admitScope`, via `evaluate_eq_forM`; statements unchanged. #41 moved those laws to claimed `StrictLeanPolicy.Traversal`. | **E/T**; boundary account #41 (this delivery). |
 | F08 | [`AuditApp.RequiredContracts`, `checkedExecutable`](../../lean/AuditApp/Limiter.lean); [`Main`](../../lean/Main.lean) invokes the contract with `requiredContracts`. | Admission, updates, frames, exact success/refusal and strict composition concern the actual runner. The intrinsic bound alone would not prove those relations. [`Refinement`](../../lean/AuditApp/Refinement.lean) relates that runner to finite abstract paths. Retain as the reference pattern; it is not a theorem about checker orchestration or OS effects. | **E/T**; reuse #39; no selected application rewrite. |
 | F09 | [`CanonicalSet` decisions and `ExactlyOne`](../../lean/StrictLeanPolicy/Collections.lean), used by admission/role/plan predicates; [`Economy.sumTo_csimp`](../../lean/Audit/Economy.lean) illustrates proved replacement. | Std supplies extensional collections and laws; adjacent-order and singleton-head equivalences already avoid redundant work. The arithmetic example proves one universal identity and an equality of executable definitions. Preserve duplicate-rejection versus set-normalization semantics and separate kernel reduction from compiler replacement. #40 retained these unchanged (see #40 delivery). | **E/T**; #40 review complete. |
 | F10 | [`AxiomGate.auditSurfaceAt`, `auditSurface`, `auditFile`, `run`](../../lean/StrictLean/Checker/AxiomGate.lean); [`Documentation.auditBuiltProject`](../../lean/StrictLean/Checker/Documentation.lean), [`DocFenceAudit.run`](../../lean/StrictLean/Checker/DocFenceAudit.lean); sample [`policy` target](../../examples/build-lint/lakefile.lean). | Actual project/file/fence/build-lint success consumes accepted evidence; project-with-docs consumes same-snapshot `CombinedAccepted`. The [success-call-site map](policy-acceptance.md) distinguishes workers/help/local feedback and incremental modes from fresh conformance. The private fence finalizer consumes unchanged admitted task output. | Linkage **E/T**; delivery **#7 only**, reporting #42. |
-| F11 | [`Workspace.withRootWorkspace`](../../lean/StrictLean/Checker/Workspace.lean), `Lake.surfaceInventory`, [`SourceBinding`](../../lean/StrictLean/Checker/SourceBinding.lean), [`Admission.validate`](../../lean/StrictLean/Checker/Admission.lean), [`Frontend`](../../lean/StrictLean/Checker/Frontend.lean), [`ProducerReport`](../../lean/StrictLean/Checker/ProducerReport.lean). | Existing source/configuration, complete inventory, compiler and replay observations are bound to the accepted request and terminally reconciled. Policy validity does not authenticate their observations, filesystem, external processes or native code. Qualification and the [boundary table](policy-acceptance.md) remain required; no wholesale proof of these mechanisms is selected. #41 lists these as the remaining adapters of the narrowed exclusion. | Bound integration implemented; acquisition **T**; #7, explicit adapter boundary #41 done. |
+| F11 | [`Workspace.withRootWorkspace`](../../lean/StrictLean/Checker/Workspace.lean), `Lake.surfaceInventory`, [`SourceBinding`](../../lean/StrictLean/Checker/SourceBinding.lean), [`Admission.validate`](../../lean/StrictLean/Checker/Admission.lean), [`Frontend`](../../lean/StrictLean/Checker/Frontend.lean), [`ProducerReport`](../../lean/StrictLean/Checker/ProducerReport.lean). | Existing source/configuration, complete inventory, compiler and replay observations are bound to the accepted request and terminally reconciled. Policy validity does not authenticate their observations, filesystem, external processes or native code. Qualification and the [boundary table](policy-acceptance.md) remain required; no wholesale proof of these mechanisms is selected. #41 lists these as the remaining adapters of the narrowed exclusion. | Bound integration implemented; acquisition **T**; #7, explicit adapter boundary #41 (this delivery). |
 | F12 | [`ResultProtocol`](../../lean/StrictLean/Checker/ResultProtocol.lean), [`RuleDiagnostics`](../../lean/StrictLean/Checker/RuleDiagnostics.lean), existing gate/fence renderers and [`rule coverage`](rule-coverage.md). | Public accepted projections consume `AcceptedRun.report`; typed diagnostics or serialized success flags cannot reconstruct acceptance. Exact scope, executable identity, foundation/execution boundaries and residual-review presentation remain #42's selected reporting work. Positive/rejection/teaching/incomplete distinctions remain. | Global linkage **E**, projection **R/T**; #7 then #42. |
 
 ## Read-back of the essential relations
@@ -252,7 +252,7 @@ retained for the reasons given.
 | --- | --- | --- |
 | 1. `CompleteFor` / `PlanOK` | Retained | Already derived from `p.valid` (`completeFor_iff_slots`); role receipts are retained, not reauthorized. Nothing left to remove. |
 | 2. Inventory membership in `policyFor`/`foundationFor` callers | **Replaced** | Every product per-declaration caller iterated the inventory it had just admitted, yet each call re-decided `d ∈ i.declarations`. The new member forms take the membership proof from iteration (`for h : d in inventory.declarations`), so no scan runs. `policyFor`/`foundationFor` are unchanged for arbitrary input, including invalid-inventory precedence. |
-| 3a. Pure `Except` traversal proofs | **Replaced** | `Policy`'s private `forM_ok`/`forM_first` repeated the induction behind `evaluate_success`/`evaluate_error`. Both now reuse `StrictLeanQualification.forM_eq_ok`/`forM_eq_error`; `evaluate_eq_forM` identifies the unchanged recursive `evaluate` with `checks.forM Check.step`. `forM_first` (one direction) became the `←` half of an exact first-refusal equivalence. |
+| 3a. Pure `Except` traversal proofs | **Replaced** | `Policy`'s private `forM_ok`/`forM_first` repeated the induction behind `evaluate_success`/`evaluate_error`. Both now reuse `StrictLeanQualification.forM_eq_ok`/`forM_eq_error` (now `StrictLeanPolicy.Traversal`, #41); `evaluate_eq_forM` identifies the unchanged recursive `evaluate` with `checks.forM Check.step`. `forM_first` (one direction) became the `←` half of an exact first-refusal equivalence. |
 | 3b. `evaluate_append` via core `List.forM_append` | Retained | The core law is for any lawful monad; using it raises this theorem's exact set from `{propext}` to `{propext, Quot.sound}`. The five-line induction keeps `{propext}`. |
 | 3c. Worker fold `mapM_ok`, `Template.mapM_related` | Retained | They prove different conclusions: indexed pointwise versus `List.Forall₂`. A shared `Forall₂` form would import Batteries into `StrictLeanPolicy` solely to shorten proofs. #39 already gave both worker callers one permutation characterization. |
 | 3d. `Std.Do`/`mvcgen` | Not adopted | The selected programs are pure `Except` traversals, and the laws above discharge them directly. |
@@ -335,7 +335,7 @@ for arbitrary input. The new core registrations are on the claimed `StrictLeanPo
 surface. `checkedMemberRule` shares the #39 `Policy` limit: it is kernel-checked by
 `lake build` but not audited by the gate until #41. The shared traversal laws live in
 `StrictLeanQualification.Checks`, which `Checker/Policy.lean` imports; a #41 move of
-`checkedScope` into a claimed policy module must move or restate them. (#41 did both.) No scenario control was added.
+`checkedScope` into a claimed policy module must move or restate them. (#41 moved both.) No scenario control was added.
 The contracts are the correctness evidence; qualification detects, it does not prove.
 
 ### #41: bring the selected pure adapters into the conforming surface
@@ -371,22 +371,38 @@ namespaces are unchanged, so no caller changed its call.
 | `forM_eq_ok`, `forM_eq_error` | [`StrictLeanPolicy.Traversal`](../../lean/StrictLeanPolicy/Traversal.lean) | Moved from `StrictLeanQualification.Checks`, which now imports them. Statements are unchanged. The module imports only `Init`. |
 | `checkedSummary`, `checkedIndexedResults`, `checkedMemberFailure`, `checkedMemberFoundation`; #7's `Plan`, `ResultState`, `accept`, `finalize`, `combineAccepted` | `StrictLeanPolicy` | Already claimed, so not moved again. |
 
-The narrowed exclusion keeps these adapters. Each one either observes something
-external or only renders text around a claimed decision:
+The narrowed exclusion keeps the following. The first two items are pure code that
+this delivery leaves unclaimed, and they remain open obligations. The rest observe
+something external or only render text around a claimed decision.
 
-- `Checker/Policy.lean` supplies `Frontend.validateCoordinates` to `admitScope`. That
-  check reads transcript bytes through Lean's `FileMap` and `sourceFromReport`, which uses
-  LSP UTF-16 conversion in the excluded `Diagnostic`. The module also keeps the text
-  renderers `executionFailures`, `describeBoundary`, `classify` and `classifyMember`,
-  with `classifyMember_eq`.
+- `Frontend.validateCoordinates` is the check `Policy.admitScope` passes to the core. It
+  is a pure refusal decision over in-memory transcript data, and it has no contract.
+  It stays excluded because it uses Lean's `FileMap` and `sourceFromReport` (LSP UTF-16
+  conversion in the excluded `Diagnostic`), which are outside §5's Init/Std imports.
+  #39 already made `ScopeContract` conditional on this check. Ordinary acceptance and
+  the fixtures partition run it on genuine transcripts, but no control targets its
+  refusals and nothing proves it. This remains an open obligation, not an external
+  observation.
+- `Checker/Acceptance` also holds pure assembly: `surfaceAssignments`,
+  `configuredTargets`, `discoveredTargets`, `historyObservations` and
+  `conformingProfile` (a match on the claimed `request`). They decide which modules,
+  targets and profiles the claimed census contains, working over the excluded
+  `Manifest`, `Lake` and producer-report record types. They are not #7's accepted
+  assembly, which is the claimed `accept`/`finalize`. The claimed `TargetPartitionOK`
+  rechecks that their three outputs agree with each other. It cannot check that
+  they match the manifest file or Lake. Claiming them needs those record types
+  moved first, so they are handed on to #43's reconciliation as unclaimed pure code.
+- `Checker/Policy.lean` keeps the text renderers `executionFailures`,
+  `describeBoundary`, `classify` and `classifyMember`, with `classifyMember_eq`.
 - `Common.admitIndexedWorkerResults` and `mapWorkQueue` decode worker JSON and render
   refusal text around the claimed `checkedIndexedResults`.
-- `Checker/Acceptance` (`freeze`, `observations`, `finish`, `frozenEnvironmentRoles`,
-  `conformingProfile`) assembles Manifest, Lake and producer-report records into the
-  claimed census and plan. The claimed `accept`/`finalize` make the decision.
+- `Checker/Acceptance`'s `freeze`, `observations` and `finish` read IO-derived
+  records and hand them to the claimed plan and finalizer. `frozenEnvironmentRoles`
+  already has its equality to recomputation (`frozenEnvironmentRoles_eq`).
   `ResultProtocol`'s JSON projections are #42's reporting work.
 - The F11 mechanisms stay trusted: Workspace, Lake inventory, SourceBinding, Admission
-  replay, Frontend, ProducerReport and Probe. They use `IO`, `Environment` or `Meta`.
+  replay, Frontend transcript production, ProducerReport and Probe. They use `IO`,
+  `Environment` or `Meta`.
 - The #51/#52 transport-admission theorems were not in the #39 selection. They keep
   their in-module `collectAxioms` ceiling.
 
@@ -431,23 +447,35 @@ adapter renderers remain kernel-checked by `lake build` only. No scenario contro
 added: the contracts are the correctness evidence, and the existing controls qualify
 detection.
 
-Evidence (local, warm, observations only; this section's head is named in its PR):
+Evidence (local, warm, observations only) on Lean sources identical to this delivery; only this table differed afterwards:
 
 | Check | Result |
 | --- | --- |
-| `./scripts/verify.sh` | EVIDENCE-ORDINARY |
-| `./scripts/verify.sh docs` | EVIDENCE-DOCS |
-| `diagnostics structural` | EVIDENCE-STRUCTURAL |
-| `diagnostics fixtures` | EVIDENCE-FIXTURES |
-| `diagnostics environments` | EVIDENCE-ENVIRONMENTS |
+| `./scripts/verify.sh` | PASS, 108 s. 6 claimed libraries, 45 owned modules, 6022 declarations; the four `StrictLeanCore` registrations recognized |
+| `./scripts/verify.sh docs` | PASS, 79 s (70/70, 23/23, 1/1) |
+| `diagnostics structural` | FAIL, 229 s; pre-existing, identical 37 failure labels on main `fa62dd1` (300 s); see below |
+| `checkerSelftest --forced-collector-only` | PASS, 226 s (fresh positive, excluded-source refusal, restored) |
+| `diagnostics fixtures` | PASS, 121 s |
+| `diagnostics environments` | PASS, 278 s |
 
-The structural partition covers the changed import boundary. It runs the real
-manifest with the new surface through positive, contamination and restored controls.
-The fixtures partition runs policy fixtures through `admitScope` and `ruleForMember`.
-The environments partition covers packaging, including external adoption of the
-changed Lake package. `cli` and `build-policy` were not run: they reach the same
-definitions through front doors this change does not touch. CI Diagnostics runs
-producers, history and both rule-example shards.
+The `structural` partition fails on this change with 37 failures. Main `fa62dd1`
+fails with the same 37 failure labels. Its `structuralManifestText` omits libraries
+that the repository now has, so most controls are refused as an unclassified library
+(SL2002) before reaching their intended diagnostic. The rest (the unknown-library
+wording, correspondence and init-module-origin controls) fail the same way on main.
+It therefore gives no import-boundary evidence for this change. For the
+changed import boundary, the existing `checkerSelftest --forced-collector-only`
+control uses the real manifest, including `StrictLeanCore`. It runs a fresh positive,
+then refuses a claimed module that imports an excluded `StrictLean` module, then
+runs a restored positive. Its mutation targets `AuditApp`, not `StrictLeanCore`. It
+covers the new surface only because the gate applies one import check to every
+claimed library.
+
+The fixtures partition runs the policy fixtures through `admitScope` and
+`ruleForMember`. The environments partition covers packaging, including external
+adoption of the changed Lake package. `cli` and `build-policy` were not run: they reach
+the same definitions through front doors this change does not touch. CI Diagnostics
+runs producers, history and both rule-example shards.
 
 ### #42 and #43: report and reconcile the established scope
 
