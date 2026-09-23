@@ -728,7 +728,7 @@ private def manifestQualification (repo scratch : FilePath) : IO (Array String) 
     "{\"executable\":\"freshChecker\",\"rationale\":\"tooling\"}," ++
     "{\"executable\":\"checkerSelftest\",\"rationale\":\"tooling\"}]}"
   if let some failure ← expectManifestPublicFailure repo "unknown-library" unknownLibrary
-      "manifest-incomplete" then
+      "manifest surface missing from Lake discovery" then
     failures := failures.push failure
   return failures
 
