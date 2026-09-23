@@ -204,7 +204,7 @@ The success owners above consume the dependent package, and typed
 an ergonomic boundary, not hostile in-process unforgeability. `acceptance` JSON is
 rendered metadata only: a parent decodes raw production and recomputes evidence.
 
-Every success line and every `completed` status is rendered from one report account,
+Every checker verdict line and every `completed` status is rendered from one report account,
 `Account.account run` in claimed `StrictLeanCore.Account`. `Account` is the subtype of
 account data that is the projection of some `AcceptedRun`, and `Status.completed`
 takes an `Account`; the refusal statuses carry none. `Status.completed_accepted`
