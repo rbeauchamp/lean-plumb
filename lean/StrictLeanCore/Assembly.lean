@@ -6,9 +6,10 @@ import StrictLeanPolicy.Traversal
 Lake inventory, producer history and frozen environment records. Contracts cover what
 nothing downstream decides again: each surface's profile and execution claim and its
 module order (`conformingProfile`, `surfaceAssignments`), exact history copies
-(`histories`), and which record supplies documentation-presence evidence
-(`checkedEnvironmentEvidence`). The claimed `accept` binds every other observation to its
-job (`ResultBound`, `PolicyOK`, `StageOK`). Manifest parsing, Lake loading and environment
+(`histories`), and, as soundness only, which record within the selected environment
+supplies documentation-presence evidence (`checkedEnvironmentEvidence`). The claimed
+`accept` binds every other stage's observation to its job (`ResultBound`, `PolicyOK`,
+`StageOK`). Manifest parsing, Lake loading and environment
 extraction stay in the operational adapters; these definitions do not authenticate those
 observations. -/
 
@@ -337,8 +338,9 @@ def discoveredTargets (inventory : Lake.SurfaceInventory) : Array DiscoveredTarg
   inventory.executables.map (fun exe => ⟨.executable, exe.executable, #[exe.root]⟩)
 
 /-- One completed producer history outcome, copied exactly: its module, path, source
-snapshots before and after, and replacement edges. Unsupported evaluators travel in the
-frontend transcript (`replacementHistoryUnsupported`), so none is recorded here. -/
+snapshots before and after, and replacement edges. None is recorded as unsupported: the
+operational history worker refuses a module with unsupported evaluators, so its outcome
+is unavailable and refused. -/
 def HistoryCopied (entry : Name × ProducerReport.HistoryOutcome) (observation : HistoryObservation) :
     Prop :=
   ∃ path before after replacements,
@@ -507,10 +509,10 @@ private theorem filter_single {p : α → Bool} {values : Array α} {value : α}
   rw [h] at this
   simpa using this
 
-/-- Required documentation-presence evidence. Acceptance checks only that a docstring is
-present, not which record supplied it, so this binding is not decided again there: success
-reports exactly the presence of the only record with the job's module name, or with its
-module and declaration names. Every other stage's record is bound to its subject by
+/-- Required documentation-presence evidence, as soundness: acceptance checks only that a
+docstring is present, not which record supplied it, so this binding is not decided again
+there. A success reports the presence of the only record with the job's module name, or
+with its module and declaration names; a refusal fails closed. Every other stage's record is bound to its subject by
 `LocalStageOK`. -/
 def DocumentationEvidenceContract
     (evidence : FrozenEnvironment → Stage → LocalJobSubject → Except String JobEvidence) :

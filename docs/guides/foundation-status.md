@@ -58,7 +58,7 @@ that every helper needs a separately named theorem.
 | F02 | [`Inventory`, `admitInventory`, `admitExecution`](../../lean/StrictLeanPolicy/Admission.lean); [`Policy.admitScope`](../../lean/StrictLean/Checker/Policy.lean) is called by project/file/fence inspection. | Admitted values carry validity; exact admission retains input observations, and execution admission has a preservation theorem. The adapter first checks frontend coordinates, then admits inventory and computes roles. #39: `admitScope` runs `checkedScope` (`ScopeContract`): first coordinate refusal in transcript order, then exactly `admitInventory` with `authorize`; success iff every coordinate check and `InventoryValid` hold, retaining both arrays. Supplied transcripts are not authenticated. #41: `checkedScope` is on claimed `StrictLeanCore` and quantifies over every coordinate check; the adapter passes `Frontend.validateCoordinates`, a pure check that has no contract (see #41 delivery). | Core **E** (claimed); coordinate check unproved; acquisition **T**; #41 (this delivery). |
 | F03 | [`policyFor`, `foundationFor`, `declarationFailure`](../../lean/StrictLeanPolicy/Decision.lean); `Policy.ruleForMember`, `labelOfMember`, `classifyMember` (#40) in project/file gates, with `ruleFor`, `reasonFor`, `labelOf` kept for arbitrary input; [`Linter.Rules.declarations`](../../lean/StrictLean/Linter/Rules.lean) for local feedback. | Existing equivalences cover membership, policy, all six classification outcomes and ordered first failure. #39: `request` runs `checkedRequest` (`RequestContract`, by spelling); `ruleFor` runs `checkedRule` (`RuleContract`) over `policyFor`, with `ruleForFailure_injective` and `reasonFor_eq_some_iff`. #40: per-declaration callers iterate the admitted inventory and run the member forms `checkedMemberFailure`/`checkedMemberFoundation`/`checkedMemberRule`, equal to `policyFor`/`foundationFor`/`ruleFor` on every member, without the membership scan. Environment collection remains separate. #41: these projections, `labelOf`/`labelOfMember` and the registry they map to are on claimed `StrictLeanCore`; `classify`/`classifyMember` stay adapter renderers. | Core and projections **E** (claimed), collection **T**; #41 (this delivery). |
 | F04 | [`executionFailureRecords`, `executionSummary`](../../lean/StrictLeanPolicy/Execution.lean); `Policy.executionFailureRecords`, `executionFailures` and gate rendering. | Empty pure failures iff `ExecutionOK` for every admitted finite inventory and mode. #39: `Policy.executionFailureRecords` is the decision's own records (identity); `executionRule` is injective; `executionSummary` runs `checkedSummary` (`SummaryContract`). Counts describe observations of a conservative account, not a minimal native call graph. #41: `executionRule` is on claimed `StrictLeanCore`; `executionFailures` text stays an adapter renderer. | Decision, projection and counts **E**, extraction **T**; reporting #42. |
-| F05 | [`CensusOK`, `requiredJobs`, `Plan`, `admitPlan`](../../lean/StrictLeanPolicy/Plan.lean); [`accept`, `Accepted.report`](../../lean/StrictLeanPolicy/Acceptance.lean). | Coordinator-fixed requests retain the full claim and separate environment inventories. Plan fields require exact derived jobs and claim; accepted evidence requires completeness and policy for those inputs. The actual freeze/finish callers consume this evidence. Final delivery evidence remains open. #41: the pure census assembly is on claimed `StrictLeanCore`. `surfaceAssignments`, `conformingProfile`, `histories` and documentation-evidence selection have contracts; `accept` decides the rest of `observations` again. | Core and linkage **E/T**; delivery **#7 only**. |
+| F05 | [`CensusOK`, `requiredJobs`, `Plan`, `admitPlan`](../../lean/StrictLeanPolicy/Plan.lean); [`accept`, `Accepted.report`](../../lean/StrictLeanPolicy/Acceptance.lean). | Coordinator-fixed requests retain the full claim and separate environment inventories. Plan fields require exact derived jobs and claim; accepted evidence requires completeness and policy for those inputs. The actual freeze/finish callers consume this evidence. Final delivery evidence remains open. #41: the pure census assembly is on claimed `StrictLeanCore`. `surfaceAssignments`, `conformingProfile`, `histories` and documentation-evidence selection have contracts. `accept` decides the other stages of `observations` again; the environment lookup for documentation slots is uncontracted. | Core and linkage **E/T**; delivery **#7 only**. |
 | F06 | [`ResultState.insertResult`, `collect`](../../lean/StrictLeanPolicy/ResultState.lean); [`finalize`](../../lean/StrictLeanPolicy/Acceptance.lean); [`Common.admitIndexedWorkerResults`](../../lean/StrictLean/Checker/Common.lean). | Insertion and full-sequence collection retain unknown, duplicate and binding refusals. `finalize_iff` relates actual raw occurrences to exact required-slot policy coverage; split IO collection/acceptance carries equality to this finalizer. #39: `admitIndexedWorkerResults` and `mapWorkQueue` run `checkedIndexedResults` (`IndexedResultsContract`). Packet decoding and worker execution remain distinct. #41: the decision was already claimed; the adapter only decodes JSON and renders refusal text. | Collection, finalization and worker projection **E**, transport **T**; #41 (this delivery). |
 | F07 | [`evaluate`, `checkedEvaluation`](../../lean/StrictLeanQualification/Checks.lean); [`Qualification.requireChecks`](../../lean/StrictLean/Qualification/Support.lean) calls `checkedEvaluation.run`. | Exact success iff all supplied assertions hold, first false assertion, and append/bind composition are already proved and consumed. The empty list succeeds. The evaluator cannot establish that an adapter supplied all needed assertions or truthful IO observations. Retain the implementation and inspect changed callers; do not rebuild a generic assertion framework. #40: success and first-refusal now reuse the shared `forM_eq_ok`/`forM_eq_error` laws, also used by `admitScope`, via `evaluate_eq_forM`; statements unchanged. #41 moved those laws to claimed `StrictLeanPolicy.Traversal`. | **E/T**; boundary account #41 (this delivery). |
 | F08 | [`AuditApp.RequiredContracts`, `checkedExecutable`](../../lean/AuditApp/Limiter.lean); [`Main`](../../lean/Main.lean) invokes the contract with `requiredContracts`. | Admission, updates, frames, exact success/refusal and strict composition concern the actual runner. The intrinsic bound alone would not prove those relations. [`Refinement`](../../lean/AuditApp/Refinement.lean) relates that runner to finite abstract paths. Retain as the reference pattern; it is not a theorem about checker orchestration or OS effects. | **E/T**; reuse #39; no selected application rewrite. |
@@ -373,8 +373,8 @@ namespaces are unchanged, so no caller changed its call.
 | `surfaceAssignments` (`checkedSurfaceAssignments`, `SurfaceAssignmentsContract`) | `StrictLeanCore.Assembly` | New contract: success exactly with one `SurfaceAssigned` claim surface per manifest surface, in order. That relation fixes the library name, the execution claim, the profile of the manifest's spelling, and the modules: the first same-named Lake library's modules followed by each claimed executable's first same-named root. The implementation was restated as a per-surface `mapM` with the same refusals and messages. Nothing downstream rechecks profile or execution. |
 | `configuredTargets`, `discoveredTargets` | `StrictLeanCore.Assembly` | Moved unchanged, without a contract. They are total field projections of the manifest and Lake records, so a contract would restate them. The claimed `TargetPartitionOK` checks them against each other and against the contracted claim surfaces. |
 | `FrozenEnvironment`, `Frozen`, `frozenEnvironmentRoles` (`_eq`), `modulePresence` (`_iff`), `observations` | `StrictLeanCore.Assembly` | Moved unchanged except as below, without a new contract of their own. The claimed `accept` decides again every stage but documentation presence. `ResultBound` and `PolicyOK` fix key, snapshot and completion, and `StageOK`/`LocalStageOK` bind each record to its job's subject and census; for example, a declaration must be in the inventory with the key's module and name. For those stages a wrong choice is refused, and the remaining risk is a spurious refusal. |
-| Evidence selection, now `checkedEnvironmentEvidence` (`DocumentationEvidenceContract`) | `StrictLeanCore.Assembly` | New contract, because `LocalStageOK` checks only that a docstring is present, not whose it is. Success reports exactly the presence of the only record with the job's module name, or with its module and declaration names. `observations` runs this registration. |
-| History assembly, now `histories` (`checkedHistories`, `HistoriesContract`); `ProducerReport.HistoryOutcome` | `StrictLeanCore.Assembly` | New contract: success exactly when every outcome completed, with one exact copy (module, path, before and after sources, replacement edges) per outcome in order. An unavailable history is refused, never dropped. `HistoryOK` cannot tell whether the replacement edges were copied faithfully, so this is not decided again downstream. `historyObservations` now only concatenates the reports' outcomes and runs this. The unsupported-evaluator list stays empty here; frontend transcripts carry it. |
+| Evidence selection, now `checkedEnvironmentEvidence` (`DocumentationEvidenceContract`) | `StrictLeanCore.Assembly` | New soundness contract, because `LocalStageOK` checks only that a docstring is present, not whose it is. A success reports the presence of the only record with the job's module name, or with its module and declaration names; a refusal fails closed. `observations` runs this registration. Its earlier step, picking the frozen environment by exact request key, is not covered by a contract and is not decided again for these slots. |
+| History assembly, now `histories` (`checkedHistories`, `HistoriesContract`); `ProducerReport.HistoryOutcome` | `StrictLeanCore.Assembly` | New contract: success exactly when every outcome completed, with one exact copy (module, path, before and after sources, replacement edges) per outcome in order. An unavailable history is refused, never dropped. `HistoryOK` cannot tell whether the replacement edges were copied faithfully, so this is not decided again downstream. `historyObservations` now only concatenates the reports' outcomes and runs this. The unsupported-evaluator list stays empty here: the operational `--replacement-history-worker` refuses a module with unsupported evaluators, so such a history arrives unavailable and is refused. |
 | Manifest records (`Manifest.Surface`, `Manifest`, exclusions) and Lake inventory records (`Lake.SurfaceInventory` and parts) | `StrictLeanCore.Assembly` | Data types moved so the contracts can state them. Parsing and Lake loading stay in `Checker/Manifest.lean` and `Checker/Lake.lean`. |
 | `mapM_eq_ok` | `StrictLeanPolicy.Traversal` | Was private `mapM_ok` in `ResultState`. It is now shared by `checkedIndexedResults`, `checkedSurfaceAssignments` and `checkedHistories`; the statement is unchanged. |
 | `checkedSummary`, `checkedIndexedResults`, `checkedMemberFailure`, `checkedMemberFoundation`; #7's `Plan`, `ResultState`, `accept`, `finalize`, `combineAccepted` | `StrictLeanPolicy` | Already claimed, so not moved again. |
@@ -417,17 +417,18 @@ environment-census qualification. `conformingProfile` is called by the file gate
 
 Coverage, from ordinary acceptance on Lean 4.34.0 and Mathlib `5ed29652`:
 
-- 6 claimed libraries, 45 owned modules and 6022 owned declarations. #40's head
+- 6 claimed libraries, 46 owned modules and 6399 owned declarations. #40's head
   `e2d00b5` had 41 modules and 5446 declarations.
 - The excluded `StrictLean` library has 71 modules, down from 73.
-- `StrictLeanCore` has 3 modules and 576 attributed declarations: `Policy` 187,
-  `Rule` 293, `RuleId` 96.
-- Exact axiom sets across those 576: 520 `{}`, 11 `{propext}`, 1 `{propext, Quot.sound}`
-  and 44 `{propext, Classical.choice, Quot.sound}`.
-- The gate recognizes `checkedScope`, `checkedRequest`, `checkedRule` and
-  `checkedMemberRule` on `StrictLeanCore`.
-- Execution coverage for `StrictLeanCore`: 221 roots and 663 boundaries (154 checked,
-  509 trusted), 0 unresolved. The trusted boundaries are reported Lean core and runtime
+- `StrictLeanCore` has 4 modules and 953 attributed declarations: `Assembly` 376,
+  `Policy` 188, `Rule` 293, `RuleId` 96.
+- Exact axiom sets across those 953: 729 `{}`, 90 `{propext}`, 10
+  `{propext, Quot.sound}` and 124 `{propext, Classical.choice, Quot.sound}`.
+- The gate recognizes eight registrations on `StrictLeanCore`: `checkedScope`,
+  `checkedRequest`, `checkedRule`, `checkedMemberRule`, `checkedConformingProfile`,
+  `checkedSurfaceAssignments`, `checkedHistories` and `checkedEnvironmentEvidence`.
+- Execution coverage for `StrictLeanCore`: 375 roots and 2331 boundaries (368 checked,
+  1963 trusted), 0 unresolved. The trusted boundaries are reported Lean core and runtime
   mechanisms, not verified ones.
 
 Named axiom sets, from `#print axioms`:
@@ -435,50 +436,62 @@ Named axiom sets, from `#print axioms`:
 | Set | Declarations |
 | --- | --- |
 | `{}` | `Profile.parse?_eq_some_iff`, `executionRule_injective`, `ruleForFailure_injective`, `RuleId.parse_spelling`, `RuleId.all_nodup` |
-| `{propext}` | `RuleId.spelling_injective`, `RuleId.mem_all` |
+| `{propext}` | `RuleId.spelling_injective`, `RuleId.mem_all`, `modulePresence_iff` |
 | `{propext, Quot.sound}` | `forM_eq_ok`, `forM_eq_error`, `RuleId.route_injective`; `evaluate_success`, `evaluate_error`, `checkedEvaluation` (unchanged) |
-| `{propext, Classical.choice, Quot.sound}` | `checkedScope`, `checkedRequest`, `checkedRule`, `checkedMemberRule`, `reasonFor_eq_some_iff`, `applicability_ruleForFailure_injective`, `labelOf_member` |
+| `{propext, Classical.choice, Quot.sound}` | `checkedScope`, `checkedRequest`, `request_contract`, `checkedRule`, `checkedMemberRule`, `reasonFor_eq_some_iff`, `applicability_ruleForFailure_injective`, `labelOf_member`, `checkedConformingProfile`, `checkedSurfaceAssignments`, `checkedHistories`, `checkedEnvironmentEvidence`, `frozenEnvironmentRoles_eq`, `mapM_eq_ok` |
 
-These are the same sets as before the move.
+Moved declarations keep the sets they had before the move.
 
-Limits. The core contracts concern supplied declarations, transcripts, and manifest and
-Lake records. They do not authenticate the coordinate check, manifest parsing, Lake
-loading, transcript acquisition, environment extraction, compiler or worker processes,
-JSON transport, or native code. Report mode reports the
-trusted runtime boundaries; it does not verify them. `classifyMember_eq` and the
-adapter renderers remain kernel-checked by `lake build` only. No scenario control was
-added: the contracts are the correctness evidence, and the existing controls qualify
+Limits. The core contracts concern supplied declarations, transcripts, and manifest,
+Lake and history records. They do not authenticate the coordinate check, manifest
+parsing, Lake loading, transcript acquisition, environment extraction, compiler or
+worker processes, JSON transport, or native code. Report mode reports the trusted
+runtime boundaries; it does not verify them. `classifyMember_eq` and the adapter
+renderers remain kernel-checked by `lake build` only. No scenario control was added:
+the contracts are the correctness evidence, and the existing controls qualify
 detection.
 
-Evidence (local, warm, observations only) on Lean sources identical to this delivery; only this table differed afterwards:
+Evidence (local, warm, observations only). "Final" means the Lean sources of this
+delivery. `16d694b` preceded the history and documentation-evidence contracts and a
+docstring edit:
 
-| Check | Result |
-| --- | --- |
-| `./scripts/verify.sh` | PASS, 108 s. 6 claimed libraries, 45 owned modules, 6022 declarations; the four `StrictLeanCore` registrations recognized |
-| `./scripts/verify.sh docs` | PASS, 79 s (70/70, 23/23, 1/1) |
-| `diagnostics structural` | FAIL, 229 s; pre-existing, identical 37 failure labels on main `fa62dd1` (300 s); see below |
-| `checkerSelftest --forced-collector-only` | PASS, 226 s (fresh positive, excluded-source refusal, restored) |
-| `diagnostics fixtures` | PASS, 121 s |
-| `diagnostics environments` | PASS, 278 s |
+| Check | Lean sources | Result |
+| --- | --- | --- |
+| `./scripts/verify.sh` | final | PASS, 120 s. 6 claimed libraries, 46 owned modules, 6399 declarations; the eight `StrictLeanCore` registrations recognized |
+| `./scripts/verify.sh docs` | final | PASS, 101 s (70/70, 23/23, 1/1); only this table changed afterwards |
+| `checkerSelftest --forced-collector-only` | final | PASS, 256 s (fresh positive, excluded-source refusal, restored) |
+| `diagnostics fixtures` | `16d694b` | PASS, 109 s |
+| `diagnostics environments` | `16d694b` | PASS, 204 s |
+| `diagnostics build-policy` | `16d694b` | PASS, 266 s |
+| `diagnostics structural` | `16d694b` | FAIL, 211 s; pre-existing: the same 37 failure labels as main `fa62dd1` (300 s) |
 
-The `structural` partition fails on this change with 37 failures. Main `fa62dd1`
-fails with the same 37 failure labels. Its `structuralManifestText` omits libraries
-that the repository now has, so most controls are refused as an unclassified library
-(SL2002) before reaching their intended diagnostic. The rest (the unknown-library
-wording, correspondence and init-module-origin controls) fail the same way on main.
-It therefore gives no import-boundary evidence for this change. For the
-changed import boundary, the existing `checkerSelftest --forced-collector-only`
+The `structural` partition fails with 37 failures, and main `fa62dd1` fails with the
+same 37 failure labels. Its `structuralManifestText` omits libraries that the
+repository now has, so most controls are refused as an unclassified library (SL2002)
+before reaching their intended diagnostic. The rest (the unknown-library wording,
+correspondence and init-module-origin controls) fail the same way on main. It
+therefore gives no import-boundary evidence for this change.
+
+For the changed import boundary, the existing `checkerSelftest --forced-collector-only`
 control uses the real manifest, including `StrictLeanCore`. It runs a fresh positive,
-then refuses a claimed module that imports an excluded `StrictLean` module, then
-runs a restored positive. Its mutation targets `AuditApp`, not `StrictLeanCore`. It
-covers the new surface only because the gate applies one import check to every
-claimed library.
+then refuses a claimed module that imports the excluded `StrictLean.Collect`, then runs
+a restored positive. Its mutation targets `AuditApp`, not `StrictLeanCore`. It covers
+the new surface only because the gate applies one import check to every claimed
+library.
 
 The fixtures partition runs the policy fixtures through `admitScope` and
 `ruleForMember`. The environments partition covers packaging, including external
-adoption of the changed Lake package. `cli` and `build-policy` were not run: they reach
-the same definitions through front doors this change does not touch. CI Diagnostics
-runs producers, history and both rule-example shards.
+adoption of the changed Lake package. The build-policy partition runs `--build-lint`
+through the project gate's census assembly. `cli` was not run: the file gate reaches
+the same definitions through a front door this change does not touch. Ordinary
+acceptance runs the final history and evidence assembly on the real project. That
+includes the environment-census qualification's omitted, duplicate and rebound
+environment and source-binding mutations. CI Diagnostics runs producers, history and
+both rule-example shards.
+
+Economy candidate for #43, not changed here: `StrictLeanPolicy.Guards.listForM_eq_ok`
+and `forM_eq_ok` (array form) overlap `StrictLeanPolicy.forM_eq_ok`. `ProducerReport`
+now names the `Guards` form explicitly.
 
 ### #42 and #43: report and reconcile the established scope
 
