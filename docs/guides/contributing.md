@@ -61,6 +61,13 @@ checker behavior:
 | `history` | [Source-bound replacement history qualification](engine-producers.md). |
 | `rule-examples`, `rule-examples 1/2`, `rule-examples 2/2` | [Source-owned corpus and diagnostic demonstrations](rule-examples.md); a shard runs half of the rules. |
 
+Known over-budget partition: `environments` does not currently finish within its 420-second
+limit. The timeout is its `clean-checkout/fresh-checker` phase, which runs `freshChecker`
+from a copy with no build directory: a cold build plus a fresh audit of every claimed root,
+comparable to ordinary acceptance. Dependency capture is a few seconds of that phase and
+is not the cause. The follow-up is to give that phase its own partition or bound it
+separately. Until then, an `environments` timeout is recorded as INCOMPLETE, never as PASS.
+
 Omitting `PARTITION` requests the `checkerSelftest` campaign; the `producers`, `history` and
 `rule-examples` campaigns remain separate explicit selections. Each invocation uses the
 same deadline; choose affected checks rather than treating every campaign as a routine
