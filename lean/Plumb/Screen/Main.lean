@@ -164,7 +164,8 @@ def claimJson (s : ClaimScreen) : Json :=
         | .judged _ => .null
       Json.mkObj [("clause", .str text), ("classes", Json.arr (e.classes.map (.str ·.spelling)).toArray),
         ("discharge", discharge)]).toArray),
-    (EvidenceClass.openReview.spelling, Json.arr (unresolved.map (.str ·.spelling)).toArray)]
+    ("openReview", Json.mkObj [("class", .str EvidenceClass.openReview.spelling),
+      ("obligations", Json.arr (unresolved.map (.str ·.spelling)).toArray)])]
 
 unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
   if args.modules.isEmpty then throw <| IO.userError "screen requires at least one --module"

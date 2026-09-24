@@ -16,11 +16,11 @@ severity (`Plumb.Severity`), and every class label a report prints is the spelli
 A claim's screen status is `screened` or `escalated`; there is no constructor for a checked
 or reviewed intent, so no screen, however high its probabilities, records the claim as
 checked or its R-INTENT review as completed. Only the implication of a formally discharged
-clause is checked: Lean's kernel re-checked the discharge theorem's proof against its type in
-the loaded environment, the adapter compared its hypothesis with the claim by the kernel's
-definitional equality, and its axioms are recorded and bounded by the Standard-Logical
-foundation. The declarations that proof uses are trusted as built into their imported
-`.olean` files. Its English-to-Lean correspondence is still a screened judgment. None of this
+clause is checked: Lean's kernel re-checked the discharge theorem's own proof term against its
+type in the loaded environment, the adapter compared its hypothesis with the claim by the
+kernel's definitional equality, and its axioms are recorded and bounded by the Standard-Logical
+foundation. The declarations that proof uses are trusted as admitted by the build of their
+imported `.olean` files; the screen does not re-check them. Its English-to-Lean correspondence is still a screened judgment. None of this
 authenticates the service, the network or the process that carried the request. -/
 
 namespace Plumb.Checker.Screening
@@ -219,7 +219,7 @@ def ClaimScreen.lines (policy : Policy) (s : ClaimScreen) : Array String :=
     match e with
     | .discharged thm formal axioms j =>
       #[s!"  clause \"{text}\" [{e.label}]: `{thm}` proves the claim implies `{formal}` " ++
-          s!"(proof re-checked by the kernel; axioms: {if axioms.isEmpty then "none" else ", ".intercalate (axioms.map toString)})",
+          s!"(own proof term re-checked by the kernel, dependencies trusted as built; axioms: {if axioms.isEmpty then "none" else ", ".intercalate (axioms.map toString)})",
         answer "  correspondence of the formal clause to the English" j]
     | .judged j => #[answer s!"clause \"{text}\" [{e.label}] coverage" j]
   #[s!"{s.claim}: intent {(s.status policy).spelling}; " ++
