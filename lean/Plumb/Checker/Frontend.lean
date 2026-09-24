@@ -284,8 +284,8 @@ private unsafe def newConstants (before after : Environment) : Array Name :=
 
 /-- Elaborate one exact source from a fresh frontend state and return the
 first-introduction transcript. Any diagnostic error or concurrent source
-change fails the call. Plumb's local feedback is off, as in the audit build
-(`Lake.auditLeanOptions`). -/
+change fails the call. Plumb's local feedback is always off here, as in the `lint`
+driver's claimed build (`Lake.auditLeanOptions`). -/
 private unsafe def buildCore (moduleName : Name) (sourcePath : System.FilePath)
     (history : Bool := false) : IO Transcript := do
   unsafe Lean.enableInitializersExecution
