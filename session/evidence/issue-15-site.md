@@ -92,7 +92,7 @@ explanation accuracy) reported no blocker. Repairs:
 - Link resolution: RFC 3986 scheme detection (a relative link containing `://` was treated as
   external; `javascript://` escaped refusal), `<base href>` reduced to its directory, `>` inside
   quoted attributes; each counterexample is now a `#guard` control that must report an error.
-- Deployment: a `deploy-gate` job refuses a dirty artifact, another commit, or a revision no
+- Deployment: a gate step in the `deploy` job, immediately before `deploy-pages`, refuses a dirty artifact, another commit, or a revision no
   longer at the head of `main` (a manual re-run of an older run could otherwise republish it);
   hidden files are refused by the artifact check; the verifier retries only on HTTP 200, varies
   its query per attempt and takes the page URL from the environment. Nightly corpus shards

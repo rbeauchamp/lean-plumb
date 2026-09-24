@@ -16,7 +16,7 @@ Nothing on a rule page is a hand-maintained copy of the linter. Each part has on
 | Rule identity, title, category, scope, subreason, modes, availability, lifecycle, message form, clauses, route, help URL | [`PlumbCore.Rule`](../../lean/PlumbCore/Rule.lean) (`descriptor`, closed `RuleId`) | Projected by the page constructors; the index iterates `RuleId.all`. |
 | Explanation sections (problem, action, trigger, rationale, fixes, proof shape, established and not established, configuration, limitations, correction, residual obligations, checklist rows, sources) | [`PlumbCore.Guide`](../../lean/PlumbCore/Guide.lean) (`guide`, one exhaustive definition over `RuleId`) | Rendered in a fixed section order. A new rule without an explanation does not compile. |
 | Violating and corrected inputs, findings, statuses | [`examples/rules/<ID>/`](../../examples/rules/) and [`corpus.json`](../../examples/rules/corpus.json), run by the rule-example campaign | The builder reads the campaign's exports for the same commit and renders the recorded bytes and findings. |
-| Open review obligations and trusted mechanisms | Each rule's `residuals` in `Guide` (the obligations [rule-coverage.md](rule-coverage.md) ties to its checklist rows), typed as the checker's `Residual`; `Residual.all` and `Trusted` from [`PlumbCore.Account`](../../lean/PlumbCore/Account.lean) | Every page also states that each accepted result lists all residual obligations as open. The per-rule selection is reviewed, not derived. |
+| Open review obligations and trusted mechanisms | Each rule's `residuals` in `Guide` (the obligations [rule-coverage.md](rule-coverage.md) associates with it), typed as the checker's `Residual`; `Residual.all` and `Trusted` from [`PlumbCore.Account`](../../lean/PlumbCore/Account.lean) | Every page also states that each accepted result lists all residual obligations as open. The per-rule selection is reviewed, not derived. |
 | Page construction, escaping, filters, diffs, link checking | [`PlumbCore.Site`](../../lean/PlumbCore/Site.lean), [`SitePage`](../../lean/PlumbCore/SitePage.lean), [`SiteDocs`](../../lean/PlumbCore/SiteDocs.lean) (claimed, proved) | Pure functions the builder executes. |
 | Evidence admission, generation, rendering, assembly, artifact check | [`Plumb.Site`](../../lean/Plumb/Site/) (`lake exe site`, operational) | Writes `website/Generated/`, runs Verso, writes `_site/`. |
 | Rendering and styles | [`website/`](../../website/): pinned Verso package, `PlumbSite` extension (raw-HTML block and CSS) | `website/Generated/` is generated and ignored by Git. |
@@ -85,7 +85,10 @@ lake exe cache get                                   # root setup (Mathlib artif
 ```
 
 Any change to a module source, the corpus or the Lake configuration makes earlier shard
-exports stale; the site build refuses them, so rerun both shards. A worktree with uncommitted
+exports stale; the site build refuses them, so rerun both shards. The checker embeds its commit when
+`lean/Plumb/Checker/Producer.lean` is compiled, and Lake reuses that build after a new commit;
+the site build then refuses the evidence as another commit's. Delete
+`.lake/build/lib/lean/Plumb/Checker/Producer.*` before rerunning the shards. CI builds fresh. A worktree with uncommitted
 changes produces a labelled local preview without a `rev/` edition. The artifact expects to be
 served at `/lean-plumb/`; any static file server works if `_site/` is mounted at that path
 (for example a directory containing only a `lean-plumb` link to `_site`).
@@ -100,14 +103,13 @@ CI runs on every pull request and on `main`:
 3. `site`: builds the site tooling, then `./scripts/verify.sh site` over this run's exports,
    and uploads the checked `_site/` as `site-<commit>` (preview) and, on `main`, as the Pages
    artifact. Pull requests never publish.
-4. `deploy-gate` (`main` only, after `verify` and `site`):
+4. `deploy` (`main` only, after `verify` and `site`): first
    [`Plumb.Site.Deployment`](../../lean/Plumb/Site/Deployment.lean) `gate` refuses an artifact
    built from uncommitted changes or from another commit, and a commit that is no longer the
-   head of `main` (`git ls-remote`).
-5. `deploy`: `actions/deploy-pages` publishes exactly that artifact to the `github-pages`
-   environment (which allows `main` only). Only this job has `pages: write` and
-   `id-token: write`; the others have `contents: read`.
-6. `verify-deployment`: `Deployment verify` fetches the live `build.json` with a per-attempt
+   head of `main` (`git ls-remote`); then, in the same job, `actions/deploy-pages` publishes
+   exactly that artifact to the `github-pages` environment (which allows `main` only). Only
+   this job has `pages: write` and `id-token: write`; the others have `contents: read`.
+5. `verify-deployment`: `Deployment verify` fetches the live `build.json` with a per-attempt
    query string until it equals the artifact's bytes, then requires every rule page of every
    edition to be served with the artifact's exact bytes and an unpublished route to return the
    artifact's `404.html` with HTTP 404. It compares only those files.
@@ -116,7 +118,10 @@ Each run on `main` cancels older runs of `main`, the gate refuses to publish a r
 no longer the head of `main` (for example a manual re-run of an older run), and deployments are
 serialized in the `github-pages` concurrency group. A push that lands between an older run's
 gate and its deployment cancels that run, and its own run deploys afterwards; the remaining
-window is GitHub's cancellation latency. The `site` job and the corpus shards are not yet
+window is GitHub's cancellation latency. Because the gate runs in the deploy job, re-running only
+that job re-runs the gate. Re-running an older run while a newer one is in progress cancels the
+newer run and then refuses the older revision, so nothing is published and the site stays on its
+previous deployment until the next push to `main`. The `site` job and the corpus shards are not yet
 required status checks (only `verify` is); until the operator adds them, a change that breaks
 the site can merge and `main` stops deploying until it is fixed. The site can lag `main` while checks run
 or after they fail; each page states its commit. Repository Pages settings use **GitHub

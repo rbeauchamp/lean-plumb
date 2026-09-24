@@ -174,7 +174,7 @@ def guide : RuleId → Guide
       proofShape := [
         "The replacement proof proves the same proposition. Kernel reduction (`decide`, `rfl`) is permitted, subject to the surface's foundation profile."]
       established := [
-        "No positive declaration depends on an authenticated native-proof axiom."]
+        "No positive declaration depends on a compiler-trusting axiom: an authenticated native-proof axiom or the built-in `Lean.trustCompiler`, `Lean.ofReduceBool` or `Lean.ofReduceNat`."]
       notEstablished := [
         "Performance of the kernel replacement proof; cost claims are separate (R-COST)."]
       configuration := [

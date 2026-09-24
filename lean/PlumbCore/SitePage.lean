@@ -227,7 +227,8 @@ private def changedFix (ident : Identity) (c : ChangedFile) : Except String Stri
   let full := match c.fixed with
     | some f => if f.fixture.isSome then shownHtml ident f else ""
     | none => "<p>" ++ code c.path ++ " is removed by the correction.</p>"
-  let terminator := if before == after && c.violation.map (·.text) != c.fixed.map (·.text) then
+  let terminator := if c.violation.isSome && c.fixed.isSome && before == after &&
+      c.violation.map (·.text) != c.fixed.map (·.text) then
       "<p>Only the final line terminator differs.</p>" else ""
   return "<p>Change to " ++ code c.path ++ ":</p>" ++ diffHtml d.val ++ terminator ++ full
 
@@ -285,7 +286,7 @@ def ruleSections (ident : Identity) (id : RuleId) (g : Guide) (ex : String)
   ("Required proof shape", "proof-shape", paragraphs ident g.proofShape),
   ("What a passing result establishes", "established",
     paragraphs ident g.established ++ "It does not establish:\n\n" ++ bullets ident g.notEstablished ++
-    "Review obligations the rule-coverage map ties to this rule's checklist rows (identifiers of the checker's `Residual` account):\n\n" ++
+    "Review obligations the rule-coverage map associates with this rule (identifiers of the checker's `Residual` account):\n\n" ++
     String.join (g.residuals.map fun r => "* `" ++ r.spelling ++ "`: " ++ residualText r ++ "\n") ++ "\n" ++
     "Every accepted result lists all residual obligations as open, whatever rules it checked: " ++
       String.intercalate ", " ((Residual.all.filter (· != .graph)).map fun r => "`" ++ r.spelling ++ "`") ++

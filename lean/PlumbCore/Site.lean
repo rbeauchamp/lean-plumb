@@ -455,7 +455,8 @@ def resolve (page : Page) (link : String) : Target :=
         let baseUrl := match page.base with
           | none => some page.path
           | some b => if b.startsWith "/" then underBase b else some (directory page.path ++ b)
-        baseUrl.map fun u => if pathPart.isEmpty then u else directory u ++ pathPart
+        -- Normalize the base first, so a trailing `..` or `.` segment denotes its directory.
+        (baseUrl.bind normalize).map fun u => if pathPart.isEmpty then u else directory u ++ pathPart
     match absolute with
     | none => .invalid s!"link outside {basePath}"
     | some raw =>
@@ -517,6 +518,9 @@ scanned as markup. The string operations do not reduce in the kernel. -/
 #guard linkErrors [Page.ofHtml "dev/index.html" "<a href=\"javascript://x\">x</a>"] != []
 #guard linkErrors [Page.ofHtml "dev/rules/a.html" "<base href=\"x\"><a href=\"missing.html\">x</a>"] != []
 #guard linkErrors [Page.ofHtml "dev/index.html" "<a title=\"a>b\" href=\"missing/\">x</a>"] != []
+#guard linkErrors [Page.ofHtml "dev/rules/a.html" "<base href=\"..\"><a href=\"x\">x</a>",
+  Page.ofOther "dev/rules/x"] != []
+#guard linkErrors [Page.ofHtml "dev/rules/a.html" "<base href=\"..\"><a href=\"x\">x</a>", Page.ofOther "dev/x"] == []
 
 /-! ## Normative clause anchors -/
 
