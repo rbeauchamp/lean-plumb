@@ -20,7 +20,8 @@ the English clause is judged. The re-check covers only the discharge's own proof
 declarations it uses are trusted as admitted by the build of their imported `.olean` files and
 are not re-checked here, so a dependency built under `debug.skipKernelTC` is not caught by the
 screen (only Plumb's fresh acceptance of a claimed surface re-admits it). A marker
-that fails any of these conditions leaves that clause a refused discharge, with the reason:
+that fails any of these conditions, or a clause that contains `(discharged by` but does not end
+with a well-formed reference, leaves that clause a refused discharge, with the reason:
 it is neither checked nor judged, and its claim escalates to review. It never downgrades to a
 judged clause, and every other clause and claim is still screened. -/
 
