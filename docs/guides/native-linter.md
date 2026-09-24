@@ -3,20 +3,20 @@
 The native component (#25, a blocker of ENGINE-01 #13) uses the root package's
 [supported toolchain](../../README.md#supported-toolchain).
 Its native public import supports legacy files and Lean `module` files.
-Its imports require Lean/Std and Strict Lean's neutral policy modules;
-they do not import Mathlib, `StrictLean.Report` or `StrictLean.Probe`.
+Its imports require Lean/Std and Plumb's neutral policy modules;
+they do not import Mathlib, `Plumb.Report` or `Plumb.Probe`.
 The root development dependency on Mathlib is locked in the
 [root manifest](../../lake-manifest.json).
 
 ## Use while editing
 
-Import `StrictLean.Linter` from a project's chosen common import. It registers
+Import `Plumb.Linter` from a project's chosen common import. It registers
 Lean command and module linters. No project build or external process runs in
 those callbacks. Lean owns asynchronous snapshots, cancellation and replacement
-of messages after edits; Strict Lean has no global last-seen cursor.
+of messages after edits; Plumb has no global last-seen cursor.
 
 Local messages are ordinary Lean warnings with structured codes such as
-`StrictLean.SL1001`, actual declaration ranges and development rule-reference
+`Plumb.PL1001`, actual declaration ranges and development rule-reference
 URLs. `warningAsError` promotes these warnings uniformly. The development links
 identify the intended version; this component does not publish their pages.
 For module/project findings, the canonical primary location stays module/project
@@ -24,10 +24,10 @@ scoped. Lean's UI hosts module findings at the actual end of the in-memory file;
 configuration refusals use the owning command's actual position. Neither assigns
 the finding to an invented declaration.
 
-`linter.strictLean` defaults to true. It follows Lean's `linter.all` option
+`linter.plumb` defaults to true. It follows Lean's `linter.all` option
 semantics; an explicit per-linter setting takes precedence. Disabling local
 feedback cannot disable a mandatory project predicate. The optional string
-`strictLean.localFoundation` accepts `classification-only` (default),
+`plumb.localFoundation` accepts `classification-only` (default),
 `kernel-only`, `choice-free` or `standard-logical`. It requests local foundation
 feedback, not a Lake surface claim. An unsupported request is a local configuration
 violation on each affected nonterminal command snapshot, including declaration-free
@@ -58,17 +58,17 @@ accepted project evidence or forges an inventory-bound Roles receipt.
 
 | Interface | What it establishes | What remains outside it |
 | --- | --- | --- |
-| Command hook / `Collect.commandDeclarations` | Records for constant binders in this command's Lean information trees; actual policy decisions SL1001–SL1007 when required evidence is available. | Elaborators can add constants without binder information. This is not a complete declaration census. |
+| Command hook / `Collect.commandDeclarations` | Records for constant binders in this command's Lean information trees; actual policy decisions PL1001–PL1007 when required evidence is available. | Elaborators can add constants without binder information. This is not a complete declaration census. |
 | `Collect.currentModule` | All constants in Lean's current-module map, including private/generated/unused and binder-less declarations. | The caller establishes completion; a partially elaborated environment is still partial. |
-| Module hook | SL5001 metadata presence and SL5002 presence for explicitly registered public declarations in the completed local map. | It does not repeat all command policy diagnostics or certify complete local declaration-policy coverage. |
+| Module hook | PL5001 metadata presence and PL5002 presence for explicitly registered public declarations in the completed local map. | It does not repeat all command policy diagnostics or certify complete local declaration-policy coverage. |
 | `Collect.declaration name .snapshot` | Canonical semantic facts for that exact current/imported declaration, with Lean ownership, ranges, transitive axioms and contract shape. | Native replay and generated-role authentication are omitted. |
 | `Collect.declaration name .replayCandidate` | The same constructor with existing replay/equation/parent observations used by `Probe`. | Observations still require fresh transcripts and the existing authorization/admission checks. |
 
 The local adapter calls the executed pure policy and shares its total failure-to-ID
 mapping with the project checker. It defers potential generated-role exceptions
-as SL2005 incomplete feedback rather than guessing authorization or emitting an
+as PL2005 incomplete feedback rather than guessing authorization or emitting an
 unsupported violation. Recoverable compiler errors can leave real hole-bearing
-declarations; those observations can still produce SL1002 while preserving the
+declarations; those observations can still produce PL1002 while preserving the
 original compiler error. Unavailable collection is reported honestly.
 
 No local result has an `Accepted` or project-PASS constructor. Fresh source
@@ -81,13 +81,13 @@ and #15 the published Verso website.
 
 ## Documentation presence
 
-Use `@[strict_lean_material]` on a public declaration that states a material
-normative claim. Its persistent Lean tag selects the SL5002 obligation. Private
+Use `@[plumb_material]` on a public declaration that states a material
+normative claim. Its persistent Lean tag selects the PL5002 obligation. Private
 names follow Lean's own visibility representation and do not enter that public
 selector. `Lean.findDocString?` accepts ordinary, Verso and inherited docstrings.
 There is no minimum length, heading convention or adequacy inference.
 
-SL5001 uses both Markdown and Verso module-doc metadata. The imported-module
+PL5001 uses both Markdown and Verso module-doc metadata. The imported-module
 observer requires normal server/private documentation metadata to be loaded;
 project callers use Lean imports with `importAll := true`, `loadExts := true`
 and `level := .private`. Unknown module identity is unavailable evidence, not
@@ -118,13 +118,13 @@ proofs are documented separately in [policy-proofs.md](policy-proofs.md).
 
 ## Reuse and attribution
 
-The shared record constructor is extracted from Strict Lean's existing Probe;
+The shared record constructor is extracted from Plumb's existing Probe;
 it retains the same pure data domain. It directly reuses Lean's
 [`getNewDecls`](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Linter/Util.lean),
 [`getDeclsInCurrModule`](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Linter/EnvLinter/Frontend.lean),
 command/module linter hooks, declaration ranges, axiom collection and docstring
 APIs. Direct message publication follows Lean's logger semantics while retaining
-Strict Lean's own rule URL instead of Lean's manual widget. No upstream code is
+Plumb's own rule URL instead of Lean's manual widget. No upstream code is
 copied or forked. See [design-influences.md](design-influences.md) for the separate
 policy-design influences and their exact attribution boundary.
 

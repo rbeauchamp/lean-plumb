@@ -1,7 +1,7 @@
 # Typed policy domain and admission
 
-`StrictLeanPolicy` is the public, pure library used by the checker. Import
-`StrictLeanPolicy` for its current domain and admission APIs. The normative meaning
+`PlumbPolicy` is the public, pure library used by the checker. Import
+`PlumbPolicy` for its current domain and admission APIs. The normative meaning
 of the rules remains in [the standard](../standard/README.md); the
 [policy proofs guide](policy-proofs.md) describes the semantic guarantees. The
 [acceptance contract](policy-acceptance.md) specifies complete-result integration.
@@ -42,7 +42,7 @@ Lean/Lake observations retain structural names through discovery, reports,
 transcripts and worker requests. The operational reporter converts compiler
 categories directly to the closed domain. `Checker.Policy` adapts admitted data to
 the sole rule-ID registry and existing text subreasons through the claimed
-`StrictLeanCore.Policy` projections; it does not accept free arrays authorizing
+`PlumbCore.Policy` projections; it does not accept free arrays authorizing
 generated roles. Execution failures and summaries use the same
 admitted execution inventory.
 
@@ -123,7 +123,7 @@ with the source's Apache-2.0 credit in `Checker.PolicyCodec`.
 
 Con-leche's [PropWhen][propwhen] and [Installed][installed] informed canonical
 representation and complete indexed assembly. This library does not import
-con-leche code or claim its proofs establish Strict Lean policy.
+con-leche code or claim its proofs establish Plumb policy.
 
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean

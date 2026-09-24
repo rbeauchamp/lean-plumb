@@ -1,9 +1,9 @@
 ---
 name: pr-review-toolkit
-description: Review Strict Lean diffs, proof claims, and conformance; use for requested reviews and repository delivery review.
+description: Review Plumb diffs, proof claims, and conformance; use for requested reviews and repository delivery review.
 ---
 
-# Strict Lean Review Toolkit
+# Plumb for Lean Review Toolkit
 
 Determine whether the scoped claims follow from the Lean definitions, proofs, and checker
 evidence. [AGENTS.md](../../../AGENTS.md) owns repository workflow and verification policy;

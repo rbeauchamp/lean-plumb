@@ -1,24 +1,24 @@
 import Rule
-import StrictLean.Probe
-import StrictLean.Checker.RuleDiagnostics
+import Plumb.Probe
+import Plumb.Checker.RuleDiagnostics
 import Lean.Linter.EnvLinter.Basic
-/-! Bounded API probe, not the product engine. Reuses Strict Lean's actual report and policy.
+/-! Bounded API probe, not the product engine. Reuses Plumb's actual report and policy.
 The direct Message adapter follows Lean.Log, credit Lean authors; canonical metadata and
 proof-boundary motivation credit con-leche. See README.md for pinned citations. -/
 open Lean Elab Command
 open RulePrototype
 namespace RulePrototype
 /-- Preserve named diagnostic code, bypass the core logger's hard-coded manual URL. -/
-def emitRule (source : String) (d : StrictLean.Report.Declaration) : CommandElabM Unit := do
-  let location ← IO.ofExcept <| StrictLean.Checker.RuleDiagnostics.declarationLocation d
+def emitRule (source : String) (d : Plumb.Report.Declaration) : CommandElabM Unit := do
+  let location ← IO.ofExcept <| Plumb.Checker.RuleDiagnostics.declarationLocation d
     (some ⟨source, ← IO.FS.readFile source⟩)
-  let finding ← IO.ofExcept <| StrictLean.Checker.RuleDiagnostics.declarationFinding
-    .projectAxiom (← IO.ofExcept (StrictLean.Checker.RuleDiagnostics.declarationName d)) rule.title location .editorSnapshot (some "standard-logical")
+  let finding ← IO.ofExcept <| Plumb.Checker.RuleDiagnostics.declarationFinding
+    .projectAxiom (← IO.ofExcept (Plumb.Checker.RuleDiagnostics.declarationName d)) rule.title location .editorSnapshot (some "standard-logical")
   let native ← IO.ofExcept finding.2.nativeMessage
   -- The named diagnostic already carries the canonical help URL. No project-owned
   -- JavaScript widget is needed for the textual diagnostic/page integration probe.
   let msg := native.data.tagWithErrorName
-    (Name.str `StrictLean finding.1.spelling)
+    (Name.str `Plumb finding.1.spelling)
   logMessage { native with data := ← addMessageContext msg }
 syntax (name := strictProbe) "#strict_probe" ident str : command
 elab_rules : command | `(#strict_probe $_:ident $_:str) => pure ()
@@ -28,11 +28,11 @@ initialize addLinter {
   run := fun stx => do
     if stx.getKind != ``strictProbe then return
     let `(#strict_probe $mod:ident $source:str) := stx | return
-    let report ← StrictLean.Probe.environmentReport [mod.getId]
+    let report ← Plumb.Probe.environmentReport [mod.getId]
       (includeExecution := false) (includeModuleOrigins := false)
-    let scope ← IO.ofExcept <| StrictLean.Checker.Policy.admitScope report.declarations
+    let scope ← IO.ofExcept <| Plumb.Checker.Policy.admitScope report.declarations
     for d in report.declarations do
-      if StrictLean.Checker.Policy.reasonFor d (some .standardLogical) scope == some rule.applicability then
+      if Plumb.Checker.Policy.reasonFor d (some .standardLogical) scope == some rule.applicability then
         emitRule source.getString d
 }
 -- Verify the supported type without pretending an independent dummy test is the detector.

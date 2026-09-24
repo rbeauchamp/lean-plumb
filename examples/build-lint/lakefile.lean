@@ -3,7 +3,7 @@ open Lake DSL
 
 package build_lint_adopter
 
-require strict_lean from "../.."
+require plumb from "../.."
 
 lean_lib Widget where
   globs := #[.andSubmodules `Widget]
@@ -12,8 +12,8 @@ lean_lib Widget where
 manifested surface. The job deliberately has no cached success artifact. -/
 @[default_target]
 target policy pkg : Unit := do
-  let some checkerPackage ← findPackageByName? `strict_lean
-    | error "build policy: missing strict_lean dependency"
+  let some checkerPackage ← findPackageByName? `plumb
+    | error "build policy: missing plumb dependency"
   let some checker := checkerPackage.findLeanExe? `axiomGate
     | error "build policy: missing axiomGate executable"
   let binary ← checker.fetch

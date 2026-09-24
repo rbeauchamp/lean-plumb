@@ -17,8 +17,8 @@ each step are in [docs/standard/8 §8.11](../standard/8-tooling-and-machine-audi
 
 ## 1. Require the checker package
 
-The repository is named `strict-lean`, the Lake package is `strict_lean`, and
-imports use `StrictLean.*`.
+The repository is named `lean-plumb`, the Lake package is `plumb`, and
+imports use `Plumb.*`.
 Use the repository URL below with those package and module identifiers.
 
 Pin the package to an exact revision. A git dependency and a local path resolve through the
@@ -27,16 +27,16 @@ same Lake workspace discovery; use whichever your project already uses for depen
 `lakefile.lean`:
 
 ```text
-require «strict_lean» from git
-  "https://github.com/rbeauchamp/strict-lean" @ "<exact commit>"
+require «plumb» from git
+  "https://github.com/rbeauchamp/lean-plumb" @ "<exact commit>"
 ```
 
 `lakefile.toml`:
 
 ```toml
 [[require]]
-name = "strict_lean"
-git = "https://github.com/rbeauchamp/strict-lean"
+name = "plumb"
+git = "https://github.com/rbeauchamp/lean-plumb"
 rev = "<exact commit>"
 ```
 
@@ -166,7 +166,7 @@ excluded module or owns a module outside every manifested library.
 
 The [standalone example](../../examples/build-lint/) shows how to make a `policy` target the sole
 default target so that every `lake build` re-inspects the manifested surface, even for
-cached modules. `import StrictLean.Contract` gives a proof-bearing registration
+cached modules. `import Plumb.Contract` gives a proof-bearing registration
 tying an executable to its exact required predicate. See
 [docs/standard/8 §8.12](../standard/8-tooling-and-machine-audit.md#812-opt-in-enforcing-build-linter) for
 scope, cache semantics, and limits. The incremental build does not replace the isolated

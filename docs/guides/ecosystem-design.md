@@ -1,6 +1,6 @@
 # Ecosystem research and Lean-native design
 
-DESIGN-01 (#20), researched 2026-09-15 against Strict Lean
+DESIGN-01 (#20), researched 2026-09-15 against Plumb
 `79851f567ac8c1000575b707630e7ea593bfccb0`. This is an implementation-ready design,
 not a claim that the remaining engine, editor adapters or public website have shipped.
 The [architecture](linter-architecture.md) records package boundaries;
@@ -34,7 +34,7 @@ not an exhaustive ranking of every popular tool. No star/download count selects 
 Sources are primary documentation and inspected implementation/configuration snapshots.
 Immutable references below identify source-dependent claims. Rolling documentation was
 read on the research date; it is not asserted to match every released binary. Captured
-upstream development revisions are research evidence, not new Strict Lean dependencies.
+upstream development revisions are research evidence, not new Plumb dependencies.
 
 - **Source evidence:** exact APIs, configured integration and documented behavior.
 - **Observed:** the small pinned Lean API compilation and Lake help inspection in §Verification.
@@ -69,13 +69,13 @@ Batteries-only environment-linter description does not exhaust this newer core p
 The pinned Mathlib configuration supplies weak linter options to builds and selects
 `batteries/runLinter` with `Mathlib` as its driver argument. Its CI deliberately also obtains
 best-effort lint feedback after a failed build. That is useful feedback, not evidence that
-a failed build was accepted. Strict Lean must preserve the distinction rather than reuse
+a failed build was accepted. Plumb must preserve the distinction rather than reuse
 a best-effort report as a complete result. [Build configuration][mathlib-lake], [CI][mathlib-ci].
 
 Experienced Lean users also interact with expected types, tactic goals, elaborator errors,
 hover information, declaration navigation and proof suggestions. The official VS Code
 manual places interactive diagnostics in the infoview and explains that unprocessed source
-has no available elaboration information yet. Strict Lean should contribute messages there,
+has no available elaboration information yet. Plumb should contribute messages there,
 with authentic ranges and scope, rather than demand a separate dashboard before users can
 understand a problem. This is documented workflow evidence, not a survey of all Lean users.
 [VS Code manual][vscode].
@@ -90,7 +90,7 @@ checking. [Pinned Std root][std], [Std tree maps][std-map].
 
 ### Two important working contexts
 
-| Context | Existing workflow and useful Strict Lean contribution | Boundary |
+| Context | Existing workflow and useful Plumb contribution | Boundary |
 | --- | --- | --- |
 | Theorem/library development | Edit a statement/proof, inspect goals and types, use existing tactics and library lemmas, inspect axiom dependencies, build and undergo library review. Add precise policy findings beside this evidence. | An unfinished proof is normal during editing. Completed detection of its hole is a violation; unfinished collection is incomplete. Final positive acceptance excludes holes. A compiled proof does not establish that its statement captures the intended mathematics. |
 | Functional application development | Use Lean types and compilation, Lake executable targets, ordinary execution and explicit specifications/proofs where promised. Add registered-contract and execution-boundary explanations without forcing a Mathlib import. | Runtime effects and imported/native code have their documented trust boundaries. Successful evaluation is not a universal correctness argument. |
@@ -131,8 +131,8 @@ no new normative rule, theorem or relaxation.
 
 | System / mechanism examined | Useful lesson and decision | Lean-specific limit / rejected transfer |
 | --- | --- | --- |
-| Lean core, Batteries, Mathlib | **Adopt** native messages, semantic inspection, module-aware work and Lake dispatch. Maintain a predicate-by-predicate upstream reuse account. | Default scans, `nolint` and generated/private-declaration filters do not establish Strict Lean's required coverage. Reuse matching tests, not their entire selection policy. [Core][env], [Batteries][batteries] |
-| Ruff | **Adopt** a searchable code/name/message catalog, explicit availability and clear fix metadata. **Adapt** visible configuration provenance. | Prefix selection, nearest-file configuration and suppression are useful choices in Ruff, not Strict Lean conformance authority. Do not automatically enable future upstream rules. [Rules][ruff-rules], [configuration][ruff-config] |
+| Lean core, Batteries, Mathlib | **Adopt** native messages, semantic inspection, module-aware work and Lake dispatch. Maintain a predicate-by-predicate upstream reuse account. | Default scans, `nolint` and generated/private-declaration filters do not establish Plumb's required coverage. Reuse matching tests, not their entire selection policy. [Core][env], [Batteries][batteries] |
+| Ruff | **Adopt** a searchable code/name/message catalog, explicit availability and clear fix metadata. **Adapt** visible configuration provenance. | Prefix selection, nearest-file configuration and suppression are useful choices in Ruff, not Plumb conformance authority. Do not automatically enable future upstream rules. [Rules][ruff-rules], [configuration][ruff-config] |
 | Pyrefly | **Adopt** clear local/workspace scope, useful related evidence and consistent interpretation across editor/CLI. Reuse Lean's existing snapshot machinery. | Its inspected architecture chooses module-centric computation rather than a universal fine-grained query model. Do not copy a new engine or infer a Lean latency promise from Python performance reports. [IDE][pyrefly-ide], [architecture][pyrefly-arch] |
 | ESLint | **Adopt** metadata/message IDs, documentation links, validated options and separation of suggestions from fixes. **Adapt** an inspectable effective configuration. | A runtime plugin marketplace, alternate parser and inherited JavaScript configuration are unnecessary for the closed initial Lean registry. [Rule API][eslint], [config inspection][eslint-config] |
 | Clippy | **Adopt** placing a check at the compiler stage with the information it needs and invoking it through the ecosystem's build tool. | Rust AST/HIR passes do not map one-to-one onto Lean elaboration. Opinionated/pedantic lints and `allow` are not mandatory technical Lean requirements. [Passes][clippy], [usage][clippy-use] |
@@ -164,10 +164,10 @@ callers, scope/omission policy and version contract before selecting reuse.
 
 | Candidate | Reuse decision and intended boundary | Why custom work remains / owner |
 | --- | --- | --- |
-| Lean command/module hooks, environment queries, FileMap, native messages | Reusable extension facilities; preserve required context, snapshot and cancellation behavior. | Adapter from exact Strict Lean observations to existing messages; no new parser/typechecker/server. #13/#14 |
+| Lean command/module hooks, environment queries, FileMap, native messages | Reusable extension facilities; preserve required context, snapshot and cancellation behavior. | Adapter from exact Plumb observations to existing messages; no new parser/typechecker/server. #13/#14 |
 | Init/Std collections, structural Lean names, existing law-bearing interfaces | Reuse definitions and applicable laws. Match duplicate/order/key semantics before selecting a collection; do not infer canonicality from a container name. | Pure policy retains its own domain distinctions and proofs of actual acceptance predicates. #5/#6 |
-| Batteries/Mathlib linter predicates | Reuse a test only after its exact selector, assumptions, dependencies and result meaning match; these are often specialized to library conventions. | Their default/private/generated/omission policies are not Strict Lean's census. Keep mandatory scope and missing-evidence checks outside reused selection. #13 |
-| Existing Strict Lean registry, codecs, collector primitives and admission | Preserve their established responsibilities and qualification. Move neutral definitions to a safe shared dependency where needed, retaining compatibility re-exports. | Fix the public-import dependency boundary described in the companion guide; do not duplicate codecs or weaken contamination checks. #5/#13/#14 |
+| Batteries/Mathlib linter predicates | Reuse a test only after its exact selector, assumptions, dependencies and result meaning match; these are often specialized to library conventions. | Their default/private/generated/omission policies are not Plumb's census. Keep mandatory scope and missing-evidence checks outside reused selection. #13 |
+| Existing Plumb registry, codecs, collector primitives and admission | Preserve their established responsibilities and qualification. Move neutral definitions to a safe shared dependency where needed, retaining compatibility re-exports. | Fix the public-import dependency boundary described in the companion guide; do not duplicate codecs or weaken contamination checks. #5/#13/#14 |
 | Existing Lean server and infoview, Verso generator/renderer | Reuse supported presentation and project facilities; keep the proven separate documentation pin. | External-help fallback, concise human renderer and generated rule index are small product-specific pieces. #14/#15 |
 | Ruff/Pyrefly/Clippy/Roslyn analysis engines | Specialized for their source languages and compiler models; use evidenced design ideas. | Importing or porting their engines would duplicate Lean semantics. No cross-language engine dependency selected. |
 | ESLint rule API and HLint hints | Useful component-design examples; public extension contracts are distinct from private built-in rule internals. | Lean-native adapters and rules use Lean's own extension points. No wholesale copy or assumed rewrite equivalence. |
@@ -183,12 +183,12 @@ than rebuilding the surrounding framework.
 | Decision | Selected design and rationale | Alternative and cost | Owner |
 | --- | --- | --- | --- |
 | D1 Semantic host | Lean-native package hooks and Lake driver, shared with the existing checker. Leans on the ecosystem above. | Standalone parser/server duplicates semantics and user setup; rejected for this delivery. | #13/#14 |
-| D2 Pure core and collection | Preserve separate `StrictLeanPolicy`, one typed registry, immutable claim/snapshot keys and complete required-job assembly. Reuse current collectors; add an actual current-document bridge. | A UI-specific policy evaluator or serializable “accepted=true” creates conflicting authorities; rejected. | #5–#7/#13 |
+| D2 Pure core and collection | Preserve separate `PlumbPolicy`, one typed registry, immutable claim/snapshot keys and complete required-job assembly. Reuse current collectors; add an actual current-document bridge. | A UI-specific policy evaluator or serializable “accepted=true” creates conflicting authorities; rejected. | #5–#7/#13 |
 | D3 Feedback scope | Snapshot-local findings are useful immediately; completed project checks have their own result. Mark pending/incomplete evidence and discard stale findings. | Run a full build after each command: unnecessary repeated work and poor integration; rejected. | #13/#14 |
 | D4 Rule scope | Preserve all twenty selected predicates and nine residual accounts. Mandatory project requirements remain mandatory. Keep upstream advisory linters identifiable as upstream. | Enable every ecosystem lint or invent a style tier to resemble another tool; rejected. | #13/#10 |
 | D5 Configuration | One explicit project manifest selected by the existing project/manifest arguments; expose effective configuration and origin. Lean-local options govern local feedback only. | Automatic nearest-file inheritance or silent rule/profile weakening creates ambiguous claims; rejected. | #5/#14 |
 | D6 Presentation | Concise problem/cause/action first; expandable evidence; native names and related locations; stable help fallback and deterministic CLI order. Preserve transport identity and all observations. | Dense serialized internals as the default infoview experience; revise the current prototype renderer in #14. | #14/#15 |
-| D7 Actions | Ship navigation/explanation and human-authored remediation first. Initial Strict Lean release has no automatic source-rewriting fix or fix-all. | General rewrite engine with asserted “safe fixes” lacks a justified semantic contract; deferred until a specific transformation is justified. | #14/#15 |
+| D7 Actions | Ship navigation/explanation and human-authored remediation first. Initial Plumb release has no automatic source-rewriting fix or fix-all. | General rewrite engine with asserted “safe fixes” lacks a justified semantic contract; deferred until a specific transformation is justified. | #14/#15 |
 | D8 Website | Keep pinned Verso and checked-source generation; add generated searchable/filterable rule index and purpose-led pages. Server-rendered links work without search JavaScript. | Rebuild in a familiar web stack only to match another site's styling: no evidenced benefit over the proven prototype. | #15 |
 | D9 Scheduling/cache | Use Lean snapshots and share work within a fixed environment; rerun policy for changed configuration and never cache an accepted verdict. | Cross-environment certificate cache or custom incremental engine needs linkage proofs and measured benefit not established here. | #13/#7 |
 | D10 Adoption | Native import for local feedback plus explicit Lake driver/build setup for project enforcement. Publish exact supported commands, current scope and toolchain pin. | Treat installing an editor extension or `lake check-lint` success as completed strict analysis; rejected. | #14/#10 |
@@ -280,7 +280,7 @@ Mathlib, Astral, the Pyrefly team, ESLint, Rust/Clippy, Microsoft, Neil Mitchell
 supply distinct precedents. Con-leche's Joachim Breitner and contributors (Lean FRO) remain
 credited for canonical and complete indexed representations via [PropWhen][propwhen] and
 [Installed][installed]. No upstream code or proof is copied by this design; no endorsement
-or proof of Strict Lean is implied. Con-ron remains excluded.
+or proof of Plumb is implied. Con-ron remains excluded.
 
 [command]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Elab/Command.lean
 [env]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/Lean/Linter/EnvLinter/Basic.lean

@@ -1,4 +1,4 @@
-# Strict Lean
+# Plumb for Lean
 
 This standard specifies requirements for mathematical proofs and verified functional programs in Lean.
 

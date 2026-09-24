@@ -1,4 +1,4 @@
-import StrictLean.Contract
+import Plumb.Contract
 
 /-!
 Proof-bearing core of the `AuditApp` complete-application dogfooding surface:
@@ -22,7 +22,7 @@ prelude. The bespoke types are `Limiter` (the proof-bearing state), `Op`,
 `Fits` (this application's per-prefix precondition, which no Core/Std/Mathlib
 declaration states), `CheckedRun` (an abbreviation for the checked run type),
 and `RequiredContracts` (the `Prop`-valued bundle of this application's
-required contract propositions, consumed through `StrictLean.Contract`);
+required contract propositions, consumed through `Plumb.Contract`);
 the operations and their theorems are this application's own semantics.
 Mathlib is deliberately not imported by this module: its pure limiter operations
 and proofs use the prelude and the contract interface, with arithmetic discharged
@@ -494,7 +494,7 @@ theorem executeChecked_exact (contracts : RequiredContracts) (capacity : Nat)
 /-- Register the actual executable and require its complete admission/runner
 relation. This reuses `executeChecked_exact`; no second implementation is used.
 The build linter also checks executability and compiler/runtime boundaries. -/
-theorem checkedExecutable : StrictLean.ExecutableContract executeChecked
+theorem checkedExecutable : Plumb.ExecutableContract executeChecked
     (fun execute => ∀ (contracts : RequiredContracts) capacity ops,
       execute contracts capacity ops = if 0 < capacity then
         some (runChecked ops ⟨capacity, 0, Nat.zero_le capacity⟩) else none) :=
