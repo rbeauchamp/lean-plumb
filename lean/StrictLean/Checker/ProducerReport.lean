@@ -116,6 +116,21 @@ instance : ToJson Environment := ⟨fun r => Json.mkObj [
   ("admission", toJson r.admission), ("documentation", toJson r.documentation),
   ("histories", toJson r.histories), ("sourceBindings", toJson r.sourceBindings)]⟩
 
+/-- Result-file rendering: the transport fields except `modules` and `moduleOrigins`, which
+list every module of the imported environment (the whole import closure) and are
+recomputable from the pinned inputs. Owned modules remain in `census.modules`. Checker
+decisions use the in-memory report; worker transport keeps the full `ToJson` shape. -/
+def Environment.resultJson (r : Environment) : Json := Json.mkObj [
+  ("toolchain", toJson r.toolchain), ("declarations", toJson r.declarations),
+  ("execution", toJson r.execution), ("census", toJson r.census),
+  ("admission", toJson r.admission), ("documentation", toJson r.documentation),
+  ("histories", toJson r.histories), ("sourceBindings", toJson r.sourceBindings)]
+
+/-- The result rendering is independent of the import closure (kernel-checked by `rfl`). -/
+theorem Environment.resultJson_imports_independent (r : Environment) (modules : Array Name)
+    (moduleOrigins : Array StrictLeanPolicy.ModuleOrigin) :
+    Environment.resultJson { r with modules, moduleOrigins } = r.resultJson := rfl
+
 /-- Every owned source binding is unique, located, loaded and covers each claimed
 module and each declaration's ranges. -/
 def Environment.sourceEvidenceOK (r : Environment) : Bool :=

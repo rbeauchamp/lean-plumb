@@ -560,7 +560,7 @@ report path evaluates acceptance again.
   surfaces and toolchain are already in `acceptance`). These renderers are unproved adapter
   text. No existing key changed; the
   rule-example projection already drops `acceptance`, and the other consumers test
-  only its presence or `acceptance.fences`. The top-level `unresolved` array keeps its
+  only its presence. The top-level `unresolved` array keeps its
   meaning, missing mechanical evidence; review obligations are `unresolvedReview`.
 - `executionFailures` moved to claimed `StrictLeanCore.Policy` and runs
   `checkedExecutionFailures` (`ExecutionFailuresContract`).

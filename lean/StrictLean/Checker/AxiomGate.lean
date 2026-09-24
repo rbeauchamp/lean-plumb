@@ -416,6 +416,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       let mut findings : Array StrictLean.Finding := #[]
       let mut totalDeclarations := 0
       let mut surfaceReports : Array Json := #[]
+      let mut resultSurfaces : Array Json := #[]
       for (surface, outcome) in inspections do
         let inspection ← IO.ofExcept outcome
         if let .error failure := inspection then
@@ -548,7 +549,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
                 IO.println s!"    {Policy.describeBoundary boundary}"
               for item in root.unresolved do
                 IO.println s!"    unresolved {item}"
-        surfaceReports := surfaceReports.push <| Json.mkObj [
+        let surfaceJson (report : Json) := Json.mkObj [
           ("library", Json.str surface.library),
           ("claim", Json.str surface.claim.toString),
           ("execution", Json.str surface.execution.spelling),
@@ -556,8 +557,11 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           ("authorizedNativeAxioms", Json.arr <| native.map (Json.str ∘ Name.toString)),
           ("authorizedUnsafeRecHelpers", Json.arr <| unsafeHelpers.map (Json.str ∘ Name.toString)),
           ("frontendTranscripts", Json.arr <| transcripts.map toJson),
-          ("report", toJson report)
+          ("report", report)
         ]
+        surfaceReports := surfaceReports.push (surfaceJson (toJson report))
+        -- Legacy output keeps the full report; the result omits the import closure.
+        resultSurfaces := resultSurfaces.push (surfaceJson report.resultJson)
 
       let ownedModules := manifest.surfaces.foldl (fun count surface =>
         match surfaces.find? (·.name == surface.library) with
@@ -614,7 +618,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           Json.mkObj [("module", toJson s.moduleName), ("path", toJson s.path), ("source", toJson s.content)]
         let resultScope := Json.mkObj [("project", toJson reportRoot.toString), ("manifest", manifestJson manifest),
             ("modules", toJson (surfaces.flatMap (·.modules))), ("declarations", toJson totalDeclarations),
-            ("sources", toJson sources), ("surfaces", toJson surfaceReports),
+            ("sources", toJson sources), ("surfaces", toJson resultSurfaces),
             ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
             ("libraries", toJson (libraries.map libraryInfoJson)),
             ("completedStages", toJson #["claimedSourceBuild", "ownedAdmission", "declarationPolicy", "executionInspection"])]
@@ -890,7 +894,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
             if let some output := resultOut then
               let resultScope := Json.mkObj [("file", toJson path.toString), ("source", toJson source),
                   ("execution", toJson execution.toString), ("claim", toJson (claim.map Profile.toString)),
-                  ("declarations", toJson declarations.size), ("report", toJson inspected.report),
+                  ("declarations", toJson declarations.size), ("report", inspected.report.resultJson),
                   ("authorizedNativeAxioms", toJson native), ("authorizedUnsafeRecHelpers", toJson unsafeHelpers),
                   ("frontendTranscripts", toJson inspected.transcripts),
                   ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
@@ -926,7 +930,7 @@ private def optionValues (flag : String) : List String → List String
 unsafe def run (args : List String) : IO UInt32 := do
   let destinations := (optionValues "--json-out" args).eraseDups.map FilePath.mk
   let invalidate (path : FilePath) :=
-    writeJson path (Json.mkObj (StrictLean.RegistryCodec.identityFields ResultProtocol.producer ++ [
+    writeJson path (Json.mkObj (ResultProtocol.identityFields ++ [
       ("scope", Json.null), ("mode", Json.null), ("status", .str "incomplete"),
       ("diagnostics", toJson (#[] : Array Json)),
       ("unresolved", toJson #["configuration has not been validated"])]))

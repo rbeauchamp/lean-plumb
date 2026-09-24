@@ -50,7 +50,7 @@ unsafe def inspectNegative (repo path output : FilePath) : IO UInt32 := do
           ("configuration", toJson configuration), ("configurationRoot", toJson repo.toString),
           ("claim", toJson (some "standard-logical" : Option String)), ("execution", Json.null),
           ("diagnosticOnly", toJson true), ("compilerOutput", toJson compilation.process.output),
-          ("report", toJson inspected.report), ("frontendTranscripts", toJson inspected.transcripts)], findings)
+          ("report", inspected.report.resultJson), ("frontendTranscripts", toJson inspected.transcripts)], findings)
   ResultProtocol.write output scopeJson .freshFile
     (if findings.isEmpty then .classified else .rejected) findings
   let value ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile output)

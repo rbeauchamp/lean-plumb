@@ -92,9 +92,10 @@ structure ProducerIdentity where
   sourceRevision : String
   deriving BEq
 
-/-- Identity is supplied by the build/collector, not inferred from diagnostic text. -/
-def identityFields (p : ProducerIdentity) : List (String × Json) := [
-  ("schemaVersion", toJson (1 : Nat)), ("producerVersion", toJson p.producerVersion),
+/-- Identity is supplied by the build/collector, not inferred from diagnostic text.
+Registry and result envelopes carry independent schema versions. -/
+def identityFields (p : ProducerIdentity) (schemaVersion : Nat := 1) : List (String × Json) := [
+  ("schemaVersion", toJson schemaVersion), ("producerVersion", toJson p.producerVersion),
   ("toolchain", toJson p.toolchain), ("sourceRevision", toJson p.sourceRevision)]
 
 def registryJson (p : ProducerIdentity) : Json :=

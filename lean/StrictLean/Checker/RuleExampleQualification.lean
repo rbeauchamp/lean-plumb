@@ -246,7 +246,7 @@ def qualifyKind (record result : Json) (bound : ExampleBinding) (observedRequest
 exact expectation list and source stability are jointly required. No exit-only acceptance. -/
 def qualify (record : Json) : Except String Unit := do
   let result ← field record "result"
-  (RegistryCodec.identityFields ResultProtocol.producer).forM (checkIdentity result)
+  ResultProtocol.identityFields.forM (checkIdentity result)
   let mode ← RegistryCodec.parseMode (← string record "mode")
   unless (← string result "mode") == mode.spelling do throw "wrong example evidence mode"
   let bound ← binding record mode
@@ -265,7 +265,7 @@ open StrictLeanPolicy.Guards
 theorem qualify_parts (record : Json) (h : qualify record = .ok ()) :
     ∃ result mode bound observedRequest code actual status kind displayed,
       field record "result" = .ok result ∧
-      (∀ entry ∈ RegistryCodec.identityFields ResultProtocol.producer, checkIdentity result entry = .ok ()) ∧
+      (∀ entry ∈ ResultProtocol.identityFields, checkIdentity result entry = .ok ()) ∧
       (string record "mode" >>= RegistryCodec.parseMode) = .ok mode ∧
       string result "mode" = .ok mode.spelling ∧
       binding record mode = .ok bound ∧
@@ -398,7 +398,7 @@ theorem qualifyKind_sound {record result : Json} {bound : ExampleBinding} {req :
 def RecordAdmissible (record : Json) : Prop :=
   ∃ result mode bound code displayed kind actual,
     field record "result" = .ok result ∧
-    (∀ entry ∈ RegistryCodec.identityFields ResultProtocol.producer,
+    (∀ entry ∈ ResultProtocol.identityFields,
       ∃ value, field result entry.1 = .ok value ∧ (value == entry.2) = true) ∧
     (string record "mode" >>= RegistryCodec.parseMode) = .ok mode ∧
     string result "mode" = .ok mode.spelling ∧

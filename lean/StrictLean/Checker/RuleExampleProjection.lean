@@ -51,9 +51,9 @@ theorem requestAccount_congr (a b : Json) (bound : StrictLean.Website.ExampleBin
   simp only [requestAccount, h "request" (by decide) (by decide), effectiveAccount_congr a b _ h]
 
 theorem identity_congr (ra rb : Json) (h : ResultRel ra rb) :
-    (RegistryCodec.identityFields ResultProtocol.producer).forM (checkIdentity ra) =
-      (RegistryCodec.identityFields ResultProtocol.producer).forM (checkIdentity rb) := by
-  simp only [RegistryCodec.identityFields, List.forM, checkIdentity,
+    ResultProtocol.identityFields.forM (checkIdentity ra) =
+      ResultProtocol.identityFields.forM (checkIdentity rb) := by
+  simp only [ResultProtocol.identityFields, RegistryCodec.identityFields, List.forM, checkIdentity,
     h "schemaVersion" (by decide) (by decide), h "producerVersion" (by decide) (by decide),
     h "toolchain" (by decide) (by decide), h "sourceRevision" (by decide) (by decide)]
 
