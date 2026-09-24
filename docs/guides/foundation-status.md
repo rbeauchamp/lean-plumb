@@ -611,11 +611,13 @@ the #38 baseline. The foundation deliveries are #38 (PR #44), #7 (PR #33 with #4
 Each row was read against its actual definitions, statements, hypotheses and call sites. No
 selected obligation is missing: every selected relation has a definition, a theorem about the
 executed definition, and callers that run it; F11's acquisition mechanisms stay trusted by
-design, as #38 selected. One known nonconformance with standard §8.6, found after scope
-selection, is separately scoped as [#63](https://github.com/rbeauchamp/lean-plumb/issues/63)
-and does not block this closure: `Probe.replacementCorrespondence` classifies a correspondence
-comparison that did not complete (kernel resource exhaustion or timeout) as `trusted` rather
-than `unresolved`. The F04 execution counts reported here are qualified by it. The
+design, as #38 selected. One nonconformance with standard §8.6, found after scope selection, was separately scoped as
+[#63](https://github.com/rbeauchamp/lean-plumb/issues/63) and did not block this closure:
+`Probe.replacementCorrespondence` classified a correspondence comparison that did not complete
+(kernel resource exhaustion or timeout) as `trusted` rather than `unresolved`. The F04
+execution counts reported here were qualified by it. #63 is now resolved: the comparison is
+classified by `PlumbPolicy.DefeqComparison.classify`, and `classify_trusted_iff` proves that
+only a completed negative comparison is trusted. The
 reconciliation found stale guide text, which the rows above now
 correct. It also found four places where a caller reached a proved relation by inspection
 instead of through its registration or type. They are now closed by reduction to existing
@@ -637,8 +639,8 @@ statement, since `checkedSummary.run` reduces to `executionSummary` (`run_eq` is
 
 Remaining linkage checked by inspection, not by theorem, in addition to #41's adapter list above.
 None is a selected obligation left open: each is IO dataflow, adapter rendering, or Project 8 scope.
-The separately scoped §8.6 nonconformance #63 is not linkage; it is listed with the remaining
-obligations preserved for Project 8 below.
+The separately scoped §8.6 nonconformance #63, now resolved, was not linkage; it is recorded
+with the obligations preserved for Project 8 below.
 
 - **Current-request binding.** Each success caller builds its claim from its own captured inputs,
   freezes the plan and finishes it in the same procedure, so the `AcceptedRun c` it renders is
@@ -699,14 +701,16 @@ baseline, stable diagnostics keep their rule, payload, location, mode, claim and
   stage of the plan is unchanged, and no rule, claim or exclusion was relaxed. `PlumbCore`
   execution coverage reads 540 roots and 5511 boundary observations (817 checked, 4694 trusted),
   0 unresolved; #42 recorded 4656 boundaries at its earlier head `642d756`. These are
-  observation counts of a conservative account, not a measure of assurance. Until #63 is
-  fixed, a correspondence comparison that did not complete (kernel resource exhaustion or
-  timeout) is counted as trusted rather than unresolved, so these counts, including
-  0 unresolved, may overstate what was decided.
-- **Remaining obligations.** [#63](https://github.com/rbeauchamp/lean-plumb/issues/63)
-  (standard §8.6): classify an incomplete correspondence comparison as `unresolved`. Its fix
-  follows [PR #60](https://github.com/rbeauchamp/lean-plumb/pull/60), which changes the same
-  `Probe.lean` correspondence path; this closure does not change it.
+  observation counts of a conservative account, not a measure of assurance. They were taken
+  before #63 was resolved, when a correspondence comparison that did not complete (kernel
+  resource exhaustion or timeout) was counted as trusted rather than unresolved, so these
+  counts, including 0 unresolved, may overstate what was decided. After the fix, local acceptance
+  reported the same `PlumbCore` counts, again with 0 unresolved, so in that run no trusted
+  boundary came from an incomplete comparison.
+- **Resolved obligation.** [#63](https://github.com/rbeauchamp/lean-plumb/issues/63)
+  (standard §8.6): an incomplete correspondence comparison is now classified `unresolved`. The
+  fix followed [PR #60](https://github.com/rbeauchamp/lean-plumb/pull/60), which changed the
+  same `Probe.lean` correspondence path; this closure did not change it.
 
 Evidence (arm64 macOS and CI, observations only). The local rows below (`lake build`,
 `./scripts/verify.sh` 157 s, `./scripts/verify.sh docs` 90 s, rule-examples 1/2 105 s and 2/2

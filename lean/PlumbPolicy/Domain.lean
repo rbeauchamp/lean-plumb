@@ -132,6 +132,40 @@ theorem Correspondence.canonical (s : String) (x : Correspondence) (h : parse? s
   unfold parse? at h
   split at h <;> cases h <;> rfl
 
+/-- Outcome of the checker-initiated kernel-definitional comparison of a runtime replacement
+with its reference. `completed (some detail)` is a completed positive comparison: the kernel
+admitted the reflexivity proof within Standard-Logical foundations, recorded as `detail`.
+`completed none` is a completed comparison without such evidence. `incomplete` means the
+kernel stopped before deciding (resource exhaustion or interruption). -/
+inductive DefeqComparison where
+  | completed (admitted : Option String)
+  | incomplete
+  deriving Repr, DecidableEq
+
+/-- Standard §8.6 classification, total over the comparison outcome: completed positive is
+checked, completed negative leaves the replacement trusted, and a comparison that could not
+complete is unresolved. -/
+def DefeqComparison.classify : DefeqComparison → Correspondence × Option String
+  | .completed (some detail) => (.checked, some s!"kernel-defeq; {detail}")
+  | .completed none => (.trusted, some "no kernel-checked unconditional correspondence proof")
+  | .incomplete => (.unresolved, some <| "no kernel-checked unconditional correspondence proof; " ++
+      "kernel resources exhausted before deciding definitional correspondence")
+
+/-- Only a completed negative comparison is trusted; no comparison that did not complete is. -/
+theorem DefeqComparison.classify_trusted_iff (o : DefeqComparison) :
+    o.classify.1 = .trusted ↔ o = .completed none := by
+  rcases o with (_ | _) | _ <;> simp [classify]
+
+/-- Only a completed comparison with admitted evidence is checked. -/
+theorem DefeqComparison.classify_checked_iff (o : DefeqComparison) :
+    o.classify.1 = .checked ↔ ∃ detail, o = .completed (some detail) := by
+  rcases o with (_ | _) | _ <;> simp [classify]
+
+/-- Exactly the comparisons that did not complete are unresolved. -/
+theorem DefeqComparison.classify_unresolved_iff (o : DefeqComparison) :
+    o.classify.1 = .unresolved ↔ o = .incomplete := by
+  rcases o with (_ | _) | _ <;> simp [classify]
+
 /-- Supported FoundationClass values; parsing cannot manufacture an unknown constructor. -/
 inductive FoundationClass where
   | «kernelOnly»
