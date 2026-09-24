@@ -61,9 +61,18 @@ def Guide.WellFormed (g : Guide) : Prop :=
 instance (g : Guide) : Decidable g.WellFormed := by
   unfold Guide.WellFormed; infer_instance
 
+/-- Shared statement: what Plumb's local linter options change in project runs. -/
+private def localOptions : String :=
+  "`set_option linter.plumb false` and `plumb.localFoundation` never waive it: `lake lint`, the build-lint `policy` target and `axiomGate` still apply the rule. Where Plumb's local linter reports a finding during a project build (`axiomGate` and the `policy` target keep it on by default; under `lake lint` a source `set_option linter.plumb true` turns it back on), that finding is a build warning, so the result is INCOMPLETE under PL2003 instead of carrying this rule's finding. Switching the local linter off changes which finding is reported, never whether the result is accepted. Hiding the diagnostic does not establish the property it checks."
+
 /-- Shared statement: local options never create a strict exception. -/
 private def noLocalException : String :=
-  "No source option, attribute or command-line flag makes this rule pass on a claimed surface. `set_option linter.plumb false` and `plumb.localFoundation` change only local editor feedback; `lake lint`, the build-lint `policy` target and `axiomGate` still apply the rule. Hiding the diagnostic does not establish the property it checks."
+  "No source option, attribute or command-line flag makes this rule pass on a claimed surface. " ++ localOptions
+
+/-- Shared statement for the rules scoped by `@[plumb_material]`, where the registration
+attribute selects the checked declarations. -/
+private def noLocalOption : String :=
+  "No source option or command-line flag makes this rule pass on a claimed surface. " ++ localOptions
 
 /-- Shared statement: where the rule runs. -/
 private def projectCommands : String :=
@@ -243,7 +252,7 @@ def guide : RuleId → Guide
         "The helper exception is conservative: elaborators defined in the audited module, `run_tac` or `by_elab` in the recursion's proofs make the checker reject a definition Lean accepts.",
         "Editor feedback may be pending until the project command completes the fresh-frontend check."]
       correction := "The correction keeps identity's domain and body and removes the unnecessary `unsafe` marker."
-      residuals := [.qualify, .cost]
+      residuals := [.qualify, .cost, .intent]
       checklist := ["COMP-02", "THEOREM-05"]
       sources := ["lean/PlumbPolicy/Decision.lean", "lean/Plumb/Checker/Frontend.lean", "lean/PlumbCore/Policy.lean"] }
   | .executableContract => {
@@ -269,7 +278,7 @@ def guide : RuleId → Guide
       limitations := [
         "Term-parameterized and partial-application registrations are unsupported shapes, not proofs of incorrectness; restate them as closed full-domain contracts."]
       correction := "The correction moves the complete natural-number domain inside the identity contract's predicate, retaining the same pointwise equality."
-      residuals := [.intent, .invariant]
+      residuals := [.intent, .invariant, .qualify]
       checklist := ["BUILD-03", "THEOREM-07", "DOGFOOD-05"]
       sources := ["lean/Plumb/Contract.lean", "lean/Plumb/Probe.lean", "lean/PlumbCore/Policy.lean"] }
   | .environment => {
@@ -326,7 +335,7 @@ def guide : RuleId → Guide
         "Executable-only packages are valid Lean projects but unsupported by manifest schema 2.",
         "The editor never guesses an omitted project scope."]
       correction := "The correction removes the unknown manifest key without changing the selected source, profile or execution requirement."
-      residuals := [.qualify, .intent]
+      residuals := [.qualify, .intent, .invariant]
       checklist := ["DECL-04", "SCOPE-05", "BUILD-04"]
       sources := ["lean/Plumb/Checker/Manifest.lean", "lean/Plumb/Checker/Lake.lean", "lean/Plumb/Findings.lean"] }
   | .sourceBuild => {
@@ -351,7 +360,7 @@ def guide : RuleId → Guide
         "`warningAsError := false` in the source cannot hide a warning from the audit. Disabling a linter (for example `set_option linter.unusedVariables false`) can stop it from emitting, which makes this rule pass without discharging the property the linter checks; do not do it.",
         projectCommands]
       limitations := [
-        "Plumb's own live editor findings are not counted as build warnings by `lake lint`, which turns `linter.plumb` off for its build and reports those rules itself."]
+        "`lake lint` builds with `linter.plumb` weakly off, so Plumb's own local findings are not build warnings there and its policy stages report those rules; a source `set_option linter.plumb true` turns the local linter back on (issue #69). `axiomGate` and the build-lint `policy` target keep ordinary options, so in a module that imports `Plumb.Linter` a local Plumb finding is a build warning and makes the result INCOMPLETE under this rule."]
       correction := "The correction removes a dead lambda binding while preserving identity's complete natural-number behavior. No warning or linter is disabled."
       residuals := [.qualify]
       checklist := ["DECL-01", "BUILD-01"]
@@ -433,7 +442,7 @@ def guide : RuleId → Guide
         "This page's example is a diagnostic demonstration: the violating run is INCOMPLETE by design and is not accepted negative evidence. Its corrected counterpart passed a completed positive check.",
         "The editor may defer execution analysis to the project command."]
       correction := "The correction removes a no-effect custom evaluator command that prevents history authentication; the reference, replacement and correspondence theorem are unchanged."
-      residuals := [.qualify, .invariant]
+      residuals := [.qualify, .invariant, .intent]
       checklist := ["COMP-03", "SCOPE-05"]
       sources := ["lean/Plumb/Probe.lean", "lean/PlumbCore/Policy.lean", "lean/Plumb/Checker/RuleDiagnostics.lean"] }
   | .executionBoundary => {
@@ -447,7 +456,7 @@ def guide : RuleId → Guide
       fixes := [
         "State and prove `theorem f_eq (x) : f x = g x` (either direction, any prefix of the domain with congruence) for the full domain, including implicit and instance arguments.",
         "Replace `implemented_by` with a proof-backed `@[csimp]` equality where it fits.",
-        "If an external or unsafe boundary is intended, keep the surface in `report` mode, where it is reported as trusted and not failed."]
+        "If an external boundary is intended (an `extern` implementation, or unsafe or partial code in an unclaimed dependency), claim `report` execution, where it is reported as trusted and not failed. An owned `unsafe` or `partial` declaration on a claimed surface still fails PL1006 in either mode."]
       proofShape := [
         "`∀ xs, f.{us} xs = g.{us} xs` over the reference's complete dependent domain, closed, with no additional hypotheses, admitted by the kernel. An actual domain hypothesis is legitimate; an extra premise such as `False` is not."]
       established := [
@@ -461,7 +470,7 @@ def guide : RuleId → Guide
       limitations := [
         "Proof search is deliberately incomplete: a candidate whose remaining premises cannot be instantiated supplies no evidence, and the boundary stays trusted."]
       correction := "The correction adds the missing equality between the reference and its replacement on the full natural-number domain, keeping the checked execution claim and both implementations."
-      residuals := [.intent, .invariant]
+      residuals := [.intent, .invariant, .qualify]
       checklist := ["COMP-03", "COMP-04", "SCOPE-03"]
       sources := ["lean/Plumb/Probe.lean", "lean/PlumbCore/Policy.lean", "docs/standard/8-tooling-and-machine-audit.md"] }
   | .fenceStructure => {
@@ -548,7 +557,7 @@ def guide : RuleId → Guide
       trigger := [
         "A teaching fence must elaborate warning-free and the checker must authenticate at least one compiler-trusting declaration in it, using the same fresh-frontend evidence as PL1004. If none is found, or authentication fails, the fence is rejected with applicability `trusted-example`."]
       rationale := [
-        "Teaching fences are the only place compiler-trusting proofs may appear, and they never count as conforming positives. A marker on an ordinary example would hide it from positive checking."]
+        "Conforming claims reject compiler-trusting proofs (PL1004). A teaching fence is how the documentation shows one: it is classified and never counts as a conforming positive. A marker on an ordinary example would hide it from positive checking."]
       fixes := [
         "Remove the marker from an example that is an ordinary kernel proof; it is then checked as a positive example.",
         "For a genuine teaching example, keep the `native_decide` proof and import only the module that provides it (for example `import Init`)."]
@@ -608,7 +617,7 @@ def guide : RuleId → Guide
         "That every material declaration is registered, or that the docstring is faithful and adequate (R-DOC); registration completeness is semantic review.",
         "Docstrings of unregistered, private or trivial declarations, which the standard recommends but does not require."]
       configuration := [
-        noLocalException,
+        noLocalOption,
         "Registration is `@[plumb_material]` from `Plumb.MaterialClaim`. Removing a registration from a material declaration changes the reviewed claim, not only this rule's result.",
         projectCommands]
       limitations := [
@@ -635,7 +644,10 @@ def guide : RuleId → Guide
       notEstablished := [
         "That the intent states what the requirement owner needs, or that the declaration meets it (R-INTENT, R-DOC). There is no intent detector, length threshold or similarity check.",
         "Code fences in the docstring are not tracked: a `# Intent` line inside a fenced block counts as an Intent heading."]
-      configuration := [noLocalException, projectCommands]
+      configuration := [
+        noLocalOption,
+        "The rule checks only declarations registered with `@[plumb_material]` from `Plumb.MaterialClaim`. Removing a registration from a material declaration changes the reviewed claim, not only this rule's result.",
+        projectCommands]
       limitations := [
         "Setext headings and closing sequences such as `# Intent #` are not recognized as Intent headings."]
       correction := "The correction adds a nonempty `# Intent` section, structured with a `## Requirement` subsection, to the registered theorem's existing docstring; the explanation, registration, proposition and proof are unchanged."

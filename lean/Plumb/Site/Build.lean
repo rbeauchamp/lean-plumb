@@ -7,7 +7,8 @@ import PlumbCore.SiteDocs
 Operational builder of the published rule reference (issue #15). It admits the rule-example
 corpus evidence, generates the Verso sources from the registry (`PlumbCore.Rule`), the rule
 explanations (`PlumbCore.Guide`) and the admitted records, renders them with the pinned
-Verso package in `website/`, assembles the GitHub Pages artifact and checks it.
+Verso package in `website/`, assembles the GitHub Pages artifact with every snapshot of the
+site archive and checks it.
 
 ## Main declarations
 
@@ -16,6 +17,7 @@ Verso package in `website/`, assembles the GitHub Pages artifact and checks it.
   proved `ruleExampleQualification` executable, and its recorded checker, corpus and
   configuration bytes equal the current sources.
 - `exampleOf`: the display form of one rule's two admitted records.
+- `fetchArchive`: the snapshots of the site archive, read with the deployment gate's reader.
 - `build`: generation, Verso rendering, assembly and `checkArtifact`.
 
 ## Boundaries
@@ -242,16 +244,33 @@ def writeTree (destination : FilePath) (files : List (String × ByteArray)) : IO
     if let some parent := path.parent then IO.FS.createDirAll parent
     IO.FS.writeBinFile path bytes
 
+/-- Scratch directory of the fetched site archive; its `tree/rev/<commit>/` holds each snapshot. -/
+def archiveDirectory (root : FilePath) : FilePath := root / "tmp/site-archive"
+
+/-- Fetch the site archive of the published repository with `Plumb.Site.Deployment`, the same
+reader the deployment gate uses, and return its snapshot commits. An absent archive branch is
+the empty archive; an unreachable repository fails the build. -/
+def fetchArchive (root : FilePath) : IO (List Commit) := do
+  let dir := archiveDirectory root
+  let fetched ← run root "lean" #["--run", "lean/Plumb/Site/Deployment.lean", "archive", repository, dir.toString] cleanEnv
+  requireChecks [⟨s!"site archive\n{fetched.stdout}{fetched.stderr}", fetched.exitCode == 0⟩]
+  let revisions ← IO.ofExcept (fromJson? (α := List String) (← get (← readJson (dir / "archive.json")) "revisions"))
+  revisions.mapM fun r => match Commit.parse? r with
+    | some c => pure c
+    | none => throw <| IO.userError s!"site archive: not a commit identifier: {r}"
+
 /-- Everything generated for one build, retained for the artifact check. -/
 structure Generated where
   ident : Identity
+  /-- The snapshots of the site archive, in archive order. -/
+  archived : List Commit
   examples : List (RuleId × Example)
   summaries : List EvidenceSummary
   shards : List Json
 
 /-- Admit both shards and derive every rule's example. The two shards must select disjoint
 rules whose union is the registry, and contain one fix and one violation record per rule. -/
-def evidence (root : FilePath) (ident : Identity) (shardPaths : List FilePath) : IO Generated := do
+def evidence (root : FilePath) (ident : Identity) (archived : List Commit) (shardPaths : List FilePath) : IO Generated := do
   let inventory ← Plumb.Checker.Lake.surfaceInventory root
   let paths ← Plumb.Qualification.RuleExamples.sourcePaths root (inventory.moduleSources.map Prod.snd)
   let current ← Plumb.Qualification.RuleExamples.snapshot paths
@@ -287,7 +306,7 @@ def evidence (root : FilePath) (ident : Identity) (shardPaths : List FilePath) :
       | some i => s!"{i + 1}/{shardPaths.length}" | none => "?"
     examples := examples ++ [(id, ex)]
     summaries := summaries ++ [{ summary with shard }]
-  return { ident, examples, summaries, shards }
+  return { ident, archived, examples, summaries, shards }
 
 /-- Generate every Verso module of the manual into `website/Generated`. -/
 def generate (root : FilePath) (g : Generated) : IO Unit := do

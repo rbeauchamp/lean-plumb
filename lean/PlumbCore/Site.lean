@@ -1,5 +1,6 @@
 import PlumbCore.Account
 import Plumb.Contract
+import Std.Data.HashMap
 
 /-! # Rule-reference site: identity, routes and pure output checks
 
@@ -12,6 +13,11 @@ decision it takes about that data is a function here.
 - `Edition`, `Edition.pageFile`, `pageFiles`: the route of every rule page in a published
   edition, derived only from the closed `RuleId`; `pageFiles_nodup` and `mem_pageFiles`
   make the page inventory duplicate-free and total over the registry.
+- `artifactRevisions`, `mem_artifactRevisions`, `archived_subset_artifactRevisions`,
+  `artifactRevisions_mono`: the revision snapshots of an artifact are exactly the archived
+  snapshots plus the current clean build's, so an artifact never drops an archived snapshot
+  and appending to the archive never removes one from a later artifact. `artifactBudget` bounds
+  the artifact's size.
 - `escape`, `escape_safe`: HTML text escaping; escaped text contains none of the markup
   characters `<`, `>`, `"`, `'` or the backtick that would end a Verso code fence.
 - `htmlBlock`, `htmlBlock_ok`: the only way the generator inserts raw HTML into Verso source (by inspection of the generator; guide prose and clause labels enter as Verso markup).
@@ -19,7 +25,8 @@ decision it takes about that data is a function here.
   set of filter combinations for which the no-match notice is shown.
 - `admitDiff`: a line diff admitted only when it reproduces both compared texts.
 - `Tag`, `scanTags`, `LinkOK`, `linkErrors`, `linkErrors_nil_iff`: link validation of an
-  output tree against the project base path.
+  output tree against the project base path, through an index of the pages by path
+  (`mem_pageIndex`, `linkOKIn_pageIndex`).
 
 ## Assumptions and boundaries
 
@@ -97,6 +104,56 @@ theorem pageFiles_nodup (e : Edition) : (pageFiles e).Nodup :=
 /-- The page inventory contains every registered rule. -/
 theorem mem_pageFiles (e : Edition) (id : RuleId) : e.pageFile id ∈ pageFiles e :=
   List.mem_map_of_mem (RuleId.mem_all id)
+
+/-! ## Retained revision snapshots -/
+
+/-- The revision snapshots of an artifact: every snapshot of the site archive, then the
+snapshot of the current build when it is clean (`some c`) and not yet archived. -/
+def artifactRevisions (archived : List Commit) (current : Option Commit) : List Commit :=
+  match current with
+  | some c => if c ∈ archived then archived else archived ++ [c]
+  | none => archived
+
+/-- An artifact has exactly the archived snapshots and the current clean build's snapshot. -/
+theorem mem_artifactRevisions (archived : List Commit) (current : Option Commit) (c : Commit) :
+    c ∈ artifactRevisions archived current ↔ c ∈ archived ∨ current = some c := by
+  cases current with
+  | none => simp [artifactRevisions]
+  | some d =>
+    by_cases h : d ∈ archived
+    · simp only [artifactRevisions, h, ite_true, Option.some.injEq]
+      exact ⟨Or.inl, fun hc => hc.elim id (fun e => e ▸ h)⟩
+    · simp [artifactRevisions, h, eq_comm]
+
+/-- No archived snapshot is dropped from an artifact. -/
+theorem archived_subset_artifactRevisions (archived : List Commit) (current : Option Commit) :
+    archived ⊆ artifactRevisions archived current :=
+  fun _ h => (mem_artifactRevisions _ _ _).mpr (Or.inl h)
+
+/-- A larger archive yields a larger artifact: appending to the archive never removes a
+snapshot from a later artifact. -/
+theorem artifactRevisions_mono {archived archived' : List Commit} (h : archived ⊆ archived')
+    (current : Option Commit) :
+    artifactRevisions archived current ⊆ artifactRevisions archived' current := by
+  intro c hc
+  rw [mem_artifactRevisions] at hc ⊢
+  exact hc.imp (fun m => h m) id
+
+/-- A duplicate-free archive yields a duplicate-free snapshot list. -/
+theorem artifactRevisions_nodup {archived : List Commit} (h : archived.Nodup)
+    (current : Option Commit) : (artifactRevisions archived current).Nodup := by
+  cases current with
+  | none => exact h
+  | some d =>
+    by_cases hd : d ∈ archived
+    · simpa [artifactRevisions, hd] using h
+    · simp only [artifactRevisions, hd, ite_false]
+      exact List.nodup_append.mpr ⟨h, (by simp), fun a ha b hb => by
+        simp at hb; subst hb; exact fun e => hd (e ▸ ha)⟩
+
+/-- Upper bound on an artifact's total file bytes. It is below GitHub Pages' 1 GB limit on a
+published site, which archived snapshots approach linearly in the number of deployments. -/
+def artifactBudget : Nat := 900000000
 
 /-! ## HTML text -/
 
@@ -481,10 +538,79 @@ instance (pages : List Page) (page : Page) (link : String) : Decidable (LinkOK p
   unfold LinkOK
   split <;> infer_instance
 
+/-- Scanned pages grouped by artifact path, so a link target is found without scanning every
+page. -/
+def pageIndex (pages : List Page) : Std.HashMap String (List Page) :=
+  pages.foldl (fun m p => m.insert p.path (p :: m.getD p.path [])) ∅
+
+private theorem mem_foldl_index (pages : List Page) (m : Std.HashMap String (List Page))
+    (path : String) (t : Page) :
+    t ∈ (pages.foldl (fun m p => m.insert p.path (p :: m.getD p.path [])) m).getD path [] ↔
+      t ∈ m.getD path [] ∨ (t ∈ pages ∧ t.path = path) := by
+  induction pages generalizing m with
+  | nil => simp
+  | cons p ps ih =>
+    rw [List.foldl_cons, ih, Std.HashMap.getD_insert]
+    by_cases h : p.path = path
+    · subst h
+      simp only [beq_self_eq_true, ite_true, List.mem_cons]
+      constructor
+      · rintro ((rfl | hm) | ⟨hm, hp⟩)
+        · exact Or.inr ⟨Or.inl rfl, rfl⟩
+        · exact Or.inl hm
+        · exact Or.inr ⟨Or.inr hm, hp⟩
+      · rintro (hm | ⟨rfl | hm, hp⟩)
+        · exact Or.inl (Or.inr hm)
+        · exact Or.inl (Or.inl rfl)
+        · exact Or.inr ⟨hm, hp⟩
+    · have hb : (p.path == path) = false := by simpa using h
+      simp only [hb, Bool.false_eq_true, ite_false, List.mem_cons]
+      constructor
+      · rintro (hm | ⟨hm, hp⟩)
+        · exact Or.inl hm
+        · exact Or.inr ⟨Or.inr hm, hp⟩
+      · rintro (hm | ⟨rfl | hm, hp⟩)
+        · exact Or.inl hm
+        · exact absurd hp h
+        · exact Or.inr ⟨hm, hp⟩
+
+/-- The index lists exactly the pages with each path. -/
+theorem mem_pageIndex (pages : List Page) (path : String) (t : Page) :
+    t ∈ (pageIndex pages).getD path [] ↔ t ∈ pages ∧ t.path = path := by
+  rw [pageIndex, mem_foldl_index]
+  simp
+
+/-- `LinkOK`, decided through an index of the pages. -/
+def linkOKIn (index : Std.HashMap String (List Page)) (page : Page) (link : String) : Bool :=
+  match resolve page link with
+  | .external => true
+  | .invalid _ => false
+  | .internal file fragment =>
+    (index.getD file [] ++ index.getD (file ++ "/index.html") []).any fun target =>
+      fragment == "" || !target.html || target.ids.contains fragment
+
+theorem linkOKIn_pageIndex (pages : List Page) (page : Page) (link : String) :
+    linkOKIn (pageIndex pages) page link = true ↔ LinkOK pages page link := by
+  unfold linkOKIn LinkOK
+  split
+  · simp
+  · simp
+  · rename_i file fragment _
+    simp only [List.any_eq_true, List.mem_append, mem_pageIndex, Bool.or_eq_true,
+      beq_iff_eq, Bool.not_eq_true', List.contains_iff_mem]
+    constructor
+    · rintro ⟨t, (⟨ht, hp⟩ | ⟨ht, hp⟩), hf⟩
+      · exact ⟨t, ht, Or.inl hp, by simpa [or_assoc] using hf⟩
+      · exact ⟨t, ht, Or.inr hp, by simpa [or_assoc] using hf⟩
+    · rintro ⟨t, ht, (hp | hp), hf⟩
+      · exact ⟨t, Or.inl ⟨ht, hp⟩, by simpa [or_assoc] using hf⟩
+      · exact ⟨t, Or.inr ⟨ht, hp⟩, by simpa [or_assoc] using hf⟩
+
 /-- Every unresolved link, reported with its page. -/
 def linkErrors (pages : List Page) : List String :=
+  let index := pageIndex pages
   pages.flatMap fun page => page.links.filterMap fun link =>
-    if LinkOK pages page link then none else some s!"{page.path}: unresolved link {link}"
+    if linkOKIn index page link then none else some s!"{page.path}: unresolved link {link}"
 
 /-- The executed check returns no error exactly when every scanned link of every scanned
 page resolves. -/
@@ -494,11 +620,11 @@ theorem linkErrors_nil_iff (pages : List Page) :
   constructor
   · intro h page hp link hl
     have := h page hp link hl
-    by_cases hn : LinkOK pages page link
-    · exact hn
+    by_cases hn : linkOKIn (pageIndex pages) page link = true
+    · exact (linkOKIn_pageIndex pages page link).mp hn
     · simp [hn] at this
   · intro h page hp link hl
-    simp [h page hp link hl]
+    simp [(linkOKIn_pageIndex pages page link).mpr (h page hp link hl)]
 
 /-- Registered contract of the executed link check. -/
 theorem checkedLinkErrors : Plumb.ExecutableContract linkErrors (fun run =>

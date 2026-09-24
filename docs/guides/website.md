@@ -20,7 +20,8 @@ Nothing on a rule page is a hand-maintained copy of the linter. Each part has on
 | Page construction, escaping, filters, diffs, link checking | [`PlumbCore.Site`](../../lean/PlumbCore/Site.lean), [`SitePage`](../../lean/PlumbCore/SitePage.lean), [`SiteDocs`](../../lean/PlumbCore/SiteDocs.lean) (claimed, proved) | Pure functions the builder executes. |
 | Evidence admission, generation, rendering, assembly, artifact check | [`Plumb.Site`](../../lean/Plumb/Site/) (`lake exe site`, operational) | Writes `website/Generated/`, runs Verso, writes `_site/`. |
 | Rendering and styles | [`website/`](../../website/): pinned Verso package, `PlumbSite` extension (raw-HTML block and CSS) | `website/Generated/` is generated and ignored by Git. |
-| Publication | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `site`, `deploy` and `verify-deployment` jobs. |
+| Published revision snapshots | The append-only `site-archive` branch (`rev/<commit>/` directories only), read by [`Plumb.Site.Deployment`](../../lean/Plumb/Site/Deployment.lean) | Copied verbatim into every artifact. |
+| Publication | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `site`, `deploy-gate`, `archive`, `deploy` and `verify-deployment` jobs. |
 
 The normative standard stays in `docs/standard/`. Rule pages link each rule's registry clauses
 at the build commit, resolved to the section heading in that file; the site does not republish
@@ -55,16 +56,26 @@ fails and removes `_site/`:
   the final line terminator is stated in words. The check requires the escaped text of every displayed fixture and finding
   detail in the rendered page. A file is attributed to a fixture only when its bytes are identical.
 - **Links and base path.** Every `href` and `src` attribute the tokenizer finds in each
-  generated HTML file is resolved against its page and `<base href>`, following RFC 3986 for
+  HTML file of the artifact, archived snapshots included, is resolved against its page and `<base href>`, following RFC 3986 for
   schemes; `linkErrors_nil_iff` proves an empty result means each of those links reaches an
   existing artifact file (and fragment) under `/lean-plumb/`. CSS and JavaScript files,
   `srcset` and `meta refresh` targets are not scanned. External links are not fetched.
 - **Registry validation.** The registry's own `axiomGate --validate-site` accepts the page
   inventory, the pages whose example content the check verified, each rule's advertised
   availability from its descriptor, and every rule ID the examples emitted.
-- **Editions and identity.** `dev/` and `rev/<commit>/` are byte-identical and contain no
-  hidden files (the Pages upload drops them); `build.json` records the commit, toolchain, linter
-  version, Verso revision and per-rule evidence.
+- **Editions and identity.** `dev/` and the current `rev/<commit>/` are byte-identical apart from
+  the snapshot's `build.json` (unless that commit is already archived, when the archived copy is
+  kept), and the artifact contains no hidden files (the Pages upload drops
+  them); `build.json` records the commit, toolchain, linter version, Verso revision, per-rule
+  evidence and the archived snapshots it retains, and each snapshot's own `build.json` records
+  the build that produced it.
+- **Retained snapshots.** The `rev/` children are exactly `artifactRevisions` of the fetched
+  archive and the current clean build (`mem_artifactRevisions`), and every archived snapshot is
+  byte-identical to the archive. Each archived snapshot is a set of regular files whose
+  `build.json` names its own commit as a clean build. The link check covers the whole tree,
+  so a link from an old snapshot to a page that no longer exists fails the build.
+- **Size.** The artifact is at most `artifactBudget` (900 MB) of file bytes, below GitHub Pages'
+  1 GB limit on a published site.
 
 These are statements about the builder's own output. The HTML tokenizer (`scanTags`) is a
 small scanner of that output: the link theorem covers the links it extracts, not every link a
@@ -89,7 +100,9 @@ exports stale; the site build refuses them, so rerun both shards. The checker em
 `lean/Plumb/Checker/Producer.lean` is compiled, and Lake reuses that build after a new commit;
 the site build then refuses the evidence as another commit's. Delete
 `.lake/build/lib/lean/Plumb/Checker/Producer.*` before rerunning the shards. CI builds fresh. A worktree with uncommitted
-changes produces a labelled local preview without a `rev/` edition. The artifact expects to be
+changes produces a labelled local preview without its own `rev/` snapshot. Every build reads the
+site archive from `https://github.com/rbeauchamp/lean-plumb`, so it needs network access and
+includes every published snapshot. The artifact expects to be
 served at `/lean-plumb/`; any static file server works if `_site/` is mounted at that path
 (for example a directory containing only a `lean-plumb` link to `_site`).
 
@@ -100,62 +113,115 @@ CI runs on every pull request and on `main`:
 1. `verify`: ordinary acceptance and the documentation step, each within 420 seconds.
 2. `rule-examples` (two shards): the corpus campaign; each uploads its export. The diagnostics
    workflow also runs both shards nightly on `main`.
-3. `site`: builds the site tooling, then `./scripts/verify.sh site` over this run's exports,
-   and uploads the checked `_site/` as `site-<commit>` (preview) and, on `main`, as the Pages
-   artifact. Pull requests never publish.
+3. `site`: builds the site tooling, then `./scripts/verify.sh site` over this run's exports and
+   the current site archive, and uploads the checked `_site/` as `site-<commit>` (preview) and,
+   on `main`, as the Pages artifact. Pull requests never publish.
 4. `deploy-gate` (`main` only, after `verify` and `site`, unprivileged):
    [`Plumb.Site.Deployment`](../../lean/Plumb/Site/Deployment.lean) `gate` refuses an artifact
    built from uncommitted changes or from another commit, and a commit that is no longer the
-   head of `main` (`git ls-remote`).
-5. `deploy`: a dependency-free step asks the GitHub API (default token, `contents: read`)
-   whether this commit is still the head of `main` and refuses otherwise; then
-   `actions/deploy-pages` publishes exactly the validated artifact to the `github-pages`
-   environment (which allows `main` only). Only this job has `pages: write` and
-   `id-token: write`; the others have `contents: read`.
-6. `verify-deployment`: `Deployment verify` fetches the live `build.json` with a per-attempt
+   head of `main` (`git ls-remote`). It fetches the archive again and refuses unless the
+   artifact's `rev/` snapshots are exactly the archived ones, byte for byte, plus this commit's,
+   which must not be archived yet. It then writes the next archive commit (the archive head plus
+   this commit's snapshot; an orphan commit for the first snapshot) as a Git bundle and reports
+   the parent and the new commit as job outputs.
+5. `archive` (`contents: write`): applies the bundle to the fetched archive head and pushes
+   `site-archive` without force. It runs no provisioning or project code, only checkout,
+   artifact download and `git`.
+6. `deploy`: dependency-free steps ask the GitHub API (default token, `contents: read`)
+   whether `site-archive` is the commit the gate wrote and whether this commit is still the head
+   of `main`, and refuse otherwise; then `actions/deploy-pages` publishes exactly the validated
+   artifact to the `github-pages` environment (which allows `main` only). Only this job has
+   `pages: write` and `id-token: write`; only `archive` can write repository contents; the
+   others have `contents: read`.
+7. `verify-deployment`: `Deployment verify` fetches the live `build.json` with a per-attempt
    query string until it equals the artifact's bytes, then requires every rule page of every
-   edition to be served with the artifact's exact bytes and an unpublished route to return the
-   artifact's `404.html` with HTTP 404. It compares only those files.
+   edition and the `build.json` of every revision snapshot to be served with the artifact's
+   exact bytes, and an unpublished route to return the artifact's `404.html` with HTTP 404. It
+   compares only those files.
 
 Each run on `main` cancels older runs of `main`, the gate refuses to publish a revision that is
 no longer the head of `main` (for example a manual re-run of an older run), and deployments are
 serialized in the `github-pages` concurrency group. A push that lands between an older run's
 gate and its deployment cancels that run, and its own run deploys afterwards; the remaining
-window is GitHub's cancellation latency. Because the deploy job repeats the head-of-`main` check itself, re-running only that job
-re-checks it.
+window is GitHub's cancellation latency. Because the deploy job repeats the archive and
+head-of-`main` checks itself, re-running only that job re-checks them. A commit whose snapshot
+is already archived is refused by the gate (its snapshot is published by the next push to
+`main`); so re-running all jobs of a run whose `archive` job succeeded fails at the gate, while
+re-running only its failed jobs reuses the gate's result.
 
-The deploy job runs no checkout, toolchain provisioning or project code. Anything those steps
+The deploy and archive jobs run no toolchain provisioning or project code. Anything those steps
 fetch and execute (the Elan installer, Lake, the Mathlib cache tool, the checker) could request
-the job's OIDC token and deploy arbitrary content, so the Lean gate runs in the unprivileged
-`deploy-gate` job and the privileged job keeps only the runner's `gh` client and the pinned
-`deploy-pages` action. Re-running an older run while a newer one is in progress cancels the
-newer run and then refuses the older revision, so nothing is published and the site stays on its
-previous deployment until the next push to `main`. The `site` job and the corpus shards are not yet
-required status checks (only `verify` is); until the operator adds them, a change that breaks
-the site can merge and `main` stops deploying until it is fixed. The site can lag `main` while checks run
-or after they fail; each page states its commit. Repository Pages settings use **GitHub
-Actions** as the source. There is no custom domain, paid hosting or release; publishing the
-site is not a software release. Actions are pinned by commit SHA.
+the deploy job's OIDC token and deploy arbitrary content, or use the archive job's write token,
+so the Lean gate runs in the unprivileged `deploy-gate` job. The deploy job keeps only the
+runner's `gh` client and the pinned `deploy-pages` action; the archive job keeps checkout,
+artifact download and `git`, and can only fast-forward `site-archive`. Re-running an older run
+while a newer one is in progress cancels the newer run and then refuses the older revision, so
+nothing is published and the site stays on its previous deployment until the next push to
+`main`. The `site` job and the corpus shards are not yet required status checks (only `verify`
+is); until the operator adds them, a change that breaks the site can merge and `main` stops
+deploying until it is fixed. The site can lag `main` while checks run or after they fail; each
+page states its commit. Repository Pages settings use **GitHub Actions** as the source. There
+is no custom domain, paid hosting or release; publishing the site is not a software release.
+Actions are pinned by commit SHA.
+
+## Retention
+
+Each deployment replaces the whole Pages site, so published `rev/<commit>/` snapshots are kept
+in the `site-archive` branch and copied into every later artifact. Invariant: **a published
+snapshot is never dropped by a later deployment.** The argument:
+
+1. The archive is append-only: its only writer, the `archive` job, pushes without force, so a
+   push that is not a fast-forward of the current head fails.
+2. A snapshot is archived before it is deployed: `deploy` needs `archive`.
+3. A deployed artifact contains exactly the archive at deploy time: the gate checks that the
+   artifact's snapshots are the archived ones, byte for byte, plus its own, the archive commit
+   the job pushed consists of those snapshots, and the deploy job checks that the archive head
+   is still that commit immediately before deploying. `mem_artifactRevisions` and
+   `archived_subset_artifactRevisions` state the builder's side exactly; `artifactRevisions_mono`
+   states that a larger archive never yields a smaller artifact.
+4. Deployments are serialized, so every earlier deployment finished, and archived its
+   snapshots, before a later one checks the archive head.
+
+Hence every snapshot an earlier deployment published is in the archive when a later deployment
+checks it, and so in that deployment. A failed deploy after a successful `archive` leaves an
+archived, validated snapshot that is not yet published; the next deployment publishes it. The
+residual window is the time between the deploy job's archive check and `deploy-pages`
+completing; within it only another run's `archive` job could write, and that run's own
+deployment waits for this one and then contains every snapshot. Rules 1 and 4 rest on GitHub
+(the workflow's non-force push and the concurrency group); a repository rule forbidding force
+pushes and deletion of `site-archive` would enforce rule 1 against every writer and is an
+operator setting that is not yet configured. An unreachable archive fails the build and the
+gate; an absent branch is the empty archive.
+
+The archive grows linearly with deployments to `main`: one snapshot is about 190 files and
+about 1.9 MB (an estimate for the current build, not a measurement of the archive), so
+GitHub Pages' 1 GB limit on a published site would be reached after roughly 500 deployments.
+The build refuses an artifact above `artifactBudget` (900 MB of file bytes); reaching it stops
+deployment rather than dropping snapshots. Link checking, byte comparison and deployment
+verification also grow linearly; the site build's 420-second deadline may be reached before the
+size budget, which likewise fails rather than drops a snapshot. Pruning snapshots would change
+the documented meaning of their routes and needs a separate decision.
 
 ## Routes and versions
 
 | Route | Meaning |
 | --- | --- |
 | `/lean-plumb/dev/rules/<ID>/` | Latest successfully deployed `main`; the linter's help links. |
-| `/lean-plumb/rev/<commit>/rules/<ID>/` | Snapshot of the deployed commit. Only the current deployment's snapshot is published; each deployment replaces the whole site. |
+| `/lean-plumb/rev/<commit>/rules/<ID>/` | Snapshot of a published commit, kept byte for byte by every later deployment (see [retention](#retention)). |
 | `/lean-plumb/v/<version>/rules/<ID>/` | Reserved for released packages. None exist. |
 | any other path | The not-available page (HTTP 404): it names the GitHub source of every revision and never redirects to the latest rules. |
 
 Rule IDs are never reused for a changed rule. A retired rule keeps a page (its `Lifecycle` says
-so). Publishing released-version pages requires a release, which is separately authorized, and
-a retention mechanism for their artifacts, which does not exist yet.
+so). Publishing released-version pages requires a release, which is separately authorized; their
+pages would need the same kind of retention as revision snapshots.
 
 ## Budgets
 
 `./scripts/verify.sh site` runs under the same hard 420-second deadline as every
 `verify.sh` mode; it is separate from, and never a partition of, the two acceptance commands.
 In CI the site tooling is built in the preceding step (20-minute step limit) and Verso is
-provisioned from cache (20-minute step limit on a miss). Observed timings are recorded in the
+provisioned from cache (20-minute step limit on a miss). The site build's work grows with the
+number of archived snapshots ([retention](#retention)). Observed timings are recorded in the
 delivery evidence of the change that measured them; they are observations, not guarantees.
 
 ## Changing a rule

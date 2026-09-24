@@ -193,8 +193,8 @@ of Lean's JSON parser, FileMap implementation or complete diagnostic decoder.
 Development help URLs are
 `https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/`; `Plumb.Site.Build.helpUrl_dev`
 proves each is the site's development page route of its rule. Released `/v/<package-version>/`
-publication awaits a release; the deployed commit's `/rev/<commit>/` snapshot is published
-with each deployment ([website guide](website.md)). This unreleased producer advertises
+publication awaits a release; each published commit's `/rev/<commit>/` snapshot is published
+with its deployment and kept by every later one ([website guide](website.md#retention)). This unreleased producer advertises
 development links only.
 
 The site builder (`lake exe site build`, run by `./scripts/verify.sh site`) generates every

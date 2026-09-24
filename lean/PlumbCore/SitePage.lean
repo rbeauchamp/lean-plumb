@@ -124,7 +124,7 @@ def editionHtml (ident : Identity) (route : String) : String :=
   link (basePath ++ "dev/" ++ route) (code (basePath ++ "dev/" ++ route)) ++
   (if ident.dirty then ". This local preview has no snapshot route. See " else
   ". Snapshot route for this commit: " ++ link (basePath ++ "rev/" ++ rev ++ "/" ++ route) (code (basePath ++ "rev/" ++ shortRevision ident.revision ++ "…/" ++ route)) ++
-  ", kept only while this commit is the deployed revision. See ") ++ link (basePath ++ "dev/versions/") "versions and evidence" ++ ".</p></aside>"
+  ". Once this commit is published, its snapshot is kept by every later deployment. See ") ++ link (basePath ++ "dev/versions/") "versions and evidence" ++ ".</p></aside>"
 
 private def row (header value : String) : String :=
   "<tr><th scope=\"row\">" ++ header ++ "</th><td>" ++ value ++ "</td></tr>"

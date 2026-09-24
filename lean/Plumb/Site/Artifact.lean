@@ -3,18 +3,31 @@ import Plumb.Site.Build
 /-! # Rule-reference artifact assembly and check
 
 Renders the generated manual with the pinned Verso package, assembles the GitHub Pages
-artifact (`index.html`, `404.html`, `build.json`, `dev/` and, for a clean checkout,
-`rev/<commit>/`) and checks the assembled tree before it can be uploaded.
+artifact (`index.html`, `404.html`, `build.json`, `dev/`, every snapshot of the site archive
+and, for a clean checkout, `rev/<commit>/`) and checks the assembled tree before it can be
+uploaded.
 
 ## Main declarations
 
 - `render`: run the website package's Verso executable (trusted process boundary).
-- `assemble`: write the artifact tree.
-- `checkArtifact`: the complete finite check of an assembled tree: exact top-level layout,
-  byte-identical editions, one page per registered rule and no other rule route, page
-  content equal to the admitted example text, every scanned link resolving under the project
-  base path (`linkErrors_nil_iff`), and the registry's own site validator
+- `assemble`: write the artifact tree; archived snapshots are copied verbatim.
+- `checkArtifact`: the complete finite check of an assembled tree: size within
+  `artifactBudget`, exact layout whose `rev/` children are exactly `artifactRevisions` of the
+  archive and the current build, archived snapshots byte-identical to the archive,
+  byte-identical current editions, one page per registered rule and no other rule route, page
+  content equal to the admitted example text, every scanned link of the whole tree resolving
+  under the project base path (`linkErrors_nil_iff`), and the registry's own site validator
   (`axiomGate --validate-site`) over the observed pages and emitted rule IDs.
+
+## Retention
+
+A published snapshot is never dropped by a later deployment: the archive is append-only (the
+workflow pushes it only without force); a snapshot is archived before it is deployed (the CI
+`archive` job precedes `deploy`); every deployed artifact contains every archived snapshot
+(`archived_subset_artifactRevisions`, checked here against the fetched archive, again by the
+deployment gate, and by the deploy job's check that the archive head is the gate's commit);
+and deployments are serialized. The pure part is proved in `PlumbCore.Site`; Git, GitHub and
+the workflow's ordering are trusted.
 
 ## Boundaries
 
@@ -54,36 +67,54 @@ def notFound (ident : Identity) : String :=
   page "Page not available — Plumb for Lean" (
     "<h1>This page is not published</h1>" ++
     "<p>The address does not name a published page of the Plumb for Lean rule reference.</p>" ++
-    "<p>Released-version pages (<code>" ++ basePath ++ "v/…</code>) and revision snapshots (<code>" ++ basePath ++
-    "rev/…</code>) that are not part of the current deployment are unavailable. They are never redirected to the latest rules, whose meaning may differ from the version you linked.</p>" ++
+    "<p>Released-version pages (<code>" ++ basePath ++ "v/…</code>) are not published because no package has been released, and revision snapshots (<code>" ++ basePath ++
+    "rev/…</code>) exist only for commits whose site was published. An unavailable page is never redirected to the latest rules, whose meaning may differ from the version you linked.</p>" ++
     "<p>The explanations and checked examples of any revision are in its source on GitHub: <code>" ++ escape repository ++
     "/tree/&lt;commit&gt;/examples/rules/&lt;ID&gt;/</code> and <code>" ++ escape repository ++ "/blob/&lt;commit&gt;/lean/PlumbCore/Guide.lean</code>.</p>" ++
     "<p><a href=\"" ++ basePath ++ "dev/rules/\">Current development rule index</a>, built from commit <a href=\"" ++ escape (treeUrl ident) ++
     "\"><code>" ++ escape (shortRevision ident.revision) ++ "</code></a>.</p>")
 
-/-- The machine-readable identity of an artifact. The deployment check compares the live copy
-with these exact bytes. -/
-def buildJson (g : Generated) : Json :=
-  Json.mkObj [
+private def shardField (j : Json) (k : String) : Json := (j.getObjVal? k).toOption.getD .null
+
+/-- The identity of one build. -/
+def identityFields (g : Generated) : List (String × Json) := [
     ("schemaVersion", toJson (1 : Nat)), ("site", .str siteBase), ("revision", .str g.ident.revision.val),
     ("dirty", .bool g.ident.dirty), ("toolchain", .str g.ident.toolchain),
     ("producerVersion", .str g.ident.producerVersion), ("versoRevision", .str g.ident.versoRevision),
-    ("editions", toJson (if g.ident.dirty then ["dev/"] else ["dev/", Edition.root (.rev g.ident.revision)])),
     ("rules", toJson (g.summaries.map fun s => Json.mkObj [
       ("id", .str s.rule.spelling), ("route", .str s.rule.route), ("helpUrl", .str (devUrl s.rule)),
       ("example", .str s.kind), ("violationStatus", .str s.violationStatus), ("fixedStatus", .str s.fixedStatus),
       ("emitted", toJson (s.emitted.map RuleId.spelling)), ("corpusShard", .str s.shard)])),
     ("evidence", toJson (g.shards.map fun s => Json.mkObj [
-      ("shard", (field s "shard").toOption.getD .null), ("attempt", (field s "attempt").toOption.getD .null),
-      ("selected", (field s "selected").toOption.getD .null)]))]
-where field (j : Json) (k : String) := j.getObjVal? k
+      ("shard", shardField s "shard"), ("attempt", shardField s "attempt"),
+      ("selected", shardField s "selected")]))]
 
-/-- Write the artifact tree from the rendered edition. -/
-def assemble (out : FilePath) (g : Generated) (edition : List (String × ByteArray)) : IO Unit := do
+/-- The `build.json` of a revision snapshot: the identity of the build that produced it. -/
+def snapshotJson (g : Generated) : Json := Json.mkObj (identityFields g)
+
+/-- The current build's revision snapshot, if it is clean. -/
+def currentSnapshot (g : Generated) : Option Commit :=
+  if g.ident.dirty then none else some g.ident.revision
+
+/-- The machine-readable identity of an artifact: the build's identity, its editions and the
+archived snapshots it retains. The deployment check compares the live copy with these exact bytes. -/
+def buildJson (g : Generated) : Json :=
+  Json.mkObj (identityFields g ++ [
+    ("editions", toJson (["dev/"] ++ (currentSnapshot g).toList.map (fun c => Edition.root (.rev c)))),
+    ("archived", toJson (g.archived.map (·.val)))])
+
+/-- Write the artifact tree: the rendered edition as `dev/`, every archived snapshot copied
+verbatim from the archive, and the current clean build's snapshot unless it is archived. -/
+def assemble (out : FilePath) (g : Generated) (edition : List (String × ByteArray)) (archive : FilePath) : IO Unit := do
   if ← out.pathExists then IO.FS.removeDirAll out
   IO.FS.createDirAll out
   writeTree (out / "dev") edition
-  unless g.ident.dirty do writeTree (out / Edition.root (.rev g.ident.revision)) edition
+  for c in g.archived do
+    writeTree (out / Edition.root (.rev c)) (← snapshotTree (archive / "rev" / c.val))
+  if let some c := currentSnapshot g then
+    unless g.archived.contains c do
+      writeTree (out / Edition.root (.rev c)) edition
+      IO.FS.writeFile (out / Edition.root (.rev c) / "build.json") ((snapshotJson g).pretty ++ "\n")
   IO.FS.writeFile (out / "index.html") landing
   IO.FS.writeFile (out / "404.html") (notFound g.ident)
   IO.FS.writeFile (out / "build.json") ((buildJson g).pretty ++ "\n")
@@ -93,21 +124,37 @@ private def utf8 (path : String) (bytes : ByteArray) : IO String :=
   | some s => pure s
   | none => throw <| IO.userError s!"{path}: output is not UTF-8"
 
-/-- Check an assembled artifact against the build that produced it. -/
-def checkArtifact (root out : FilePath) (g : Generated) : IO Unit := do
+/-- Check an assembled artifact against the build that produced it and the archive it retains. -/
+def checkArtifact (root out : FilePath) (g : Generated) (archive : FilePath) : IO Unit := do
   let files ← snapshotTree out
-  let rev := Edition.root (.rev g.ident.revision)
+  let size := files.foldl (fun n f => n + f.2.size) 0
+  requireChecks [⟨s!"artifact size {size} bytes is within the budget of {artifactBudget} bytes", size ≤ artifactBudget⟩]
+  let revisions := artifactRevisions g.archived (currentSnapshot g)
+  let revisionSet : Std.HashSet String := revisions.foldl (fun s c => s.insert c.val) {}
+  let snapshotOf (p : String) : Option (String × String) := match p.splitOn "/" with
+    | "rev" :: c :: rest@(_ :: _) => some (c, String.intercalate "/" rest)
+    | _ => none
   let allowed (p : String) := p == "index.html" || p == "404.html" || p == "build.json" ||
-    p.startsWith "dev/" || (!g.ident.dirty && p.startsWith rev)
+    p.startsWith "dev/" || (snapshotOf p).any (revisionSet.contains ·.1)
   let unexpected := files.filter (fun f => !allowed f.1) |>.map (·.1)
-  requireChecks [⟨s!"artifact has only the published layout; unexpected: {unexpected.take 5}", unexpected.isEmpty⟩]
+  requireChecks [⟨s!"artifact has only the published layout and the snapshots {revisions.map (·.val)}; unexpected: {unexpected.take 5}", unexpected.isEmpty⟩]
   -- The Pages upload drops hidden files, so the checked tree must not contain any.
   let hidden := files.filter (fun f => (f.1.splitOn "/").any (·.startsWith ".")) |>.map (·.1)
   requireChecks [⟨s!"artifact has no hidden files (the Pages upload would drop them): {hidden.take 5}", hidden.isEmpty⟩]
-  let strip (prefix_ : String) := files.filterMap fun (p, b) => (p.dropPrefix? prefix_).map fun r => (r.toString, b)
-  let dev := strip "dev/"
-  unless g.ident.dirty do
-    requireChecks [⟨"development and revision editions are byte-identical", dev == strip rev⟩]
+  let dev := files.filterMap fun (p, b) => (p.dropPrefix? "dev/").map fun r => (r.toString, b)
+  let mut snapshots : Std.HashMap String (Array (String × ByteArray)) := {}
+  for (p, b) in files do
+    if let some (c, rest) := snapshotOf p then
+      snapshots := snapshots.insert c ((snapshots.getD c #[]).push (rest, b))
+  for c in g.archived do
+    requireChecks [⟨s!"archived snapshot rev/{c.val}/ is copied byte for byte",
+      (snapshots.getD c.val #[]).toList == (← snapshotTree (archive / "rev" / c.val))⟩]
+  if let some c := currentSnapshot g then
+    unless g.archived.contains c do
+      let snapshot := (snapshots.getD c.val #[]).toList
+      requireChecks [
+        ⟨"development and revision editions are byte-identical", snapshot.filter (·.1 != "build.json") == dev⟩,
+        ⟨"revision snapshot records this build", snapshot.lookup "build.json" == some ((snapshotJson g).pretty ++ "\n").toUTF8⟩]
   let spellings := RuleId.all.map RuleId.spelling
   let ruleDirs := (dev.filterMap fun (p, _) => match p.splitOn "/" with
     | "rules" :: d :: _ :: _ => some d | _ => none).eraseDups
@@ -156,24 +203,27 @@ def checkArtifact (root out : FilePath) (g : Generated) : IO Unit := do
   let recorded ← IO.FS.readFile (out / "build.json")
   requireChecks [⟨"build identity", recorded == (buildJson g).pretty ++ "\n"⟩]
 
-/-- Complete build: admit evidence, generate, render, assemble and check. -/
+/-- Complete build: read the site archive, admit evidence, generate, render, assemble and check. -/
 def build (evidencePaths : List FilePath) (out : FilePath) : IO Unit := do
   -- Invalidate an earlier artifact before any step can fail.
   if ← out.pathExists then IO.FS.removeDirAll out
   let root ← rootDirectory
   let ident ← identity root
-  let g ← evidence root ident evidencePaths
+  let archived ← fetchArchive root
+  let archive := archiveDirectory root / "tree"
+  let g ← evidence root ident archived evidencePaths
   generate root g
   let edition ← render root (root / "tmp/site-render")
   try
-    assemble out g edition
-    checkArtifact root out g
+    assemble out g edition archive
+    checkArtifact root out g archive
   catch error =>
     -- An unchecked artifact never remains where it could be served or uploaded.
     if ← out.pathExists then IO.FS.removeDirAll out
     throw error
   IO.FS.removeDirAll (root / "tmp/site-render")
-  IO.println s!"site: PASS ({RuleId.all.length} rule pages per edition, {(← snapshotTree out).length} files, commit {ident.revision.val}{if ident.dirty then " with uncommitted changes" else ""}); artifact {out}"
+  IO.FS.removeDirAll (archiveDirectory root)
+  IO.println s!"site: PASS ({RuleId.all.length} rule pages per edition, {archived.length} archived snapshot(s) retained, {(← snapshotTree out).length} files, commit {ident.revision.val}{if ident.dirty then " with uncommitted changes" else ""}); artifact {out}"
   IO.println "The artifact check observes local files only; publication is verified against the deployed site."
 
 end Plumb.Site.Build

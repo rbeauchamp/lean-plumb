@@ -95,7 +95,7 @@ def versionsPage (ident : Identity) (evidence : List EvidenceSummary) : Except S
   return header [] "Versions and evidence" "versions" (some "versions") (split := false) ++ notice ++ "\n" ++ identity ++ "\n" ++
     "# Routes\n%%%\ntag := \"versions-routes\"\nnumber := false\n%%%\n\n" ++
     "* `" ++ siteBase ++ "dev/rules/<ID>/` is the development explanation. It always shows the most recent successfully deployed revision of `main`; the linter's diagnostics link here.\n" ++
-    "* `" ++ siteBase ++ "rev/<commit>/rules/<ID>/` is the snapshot of one deployed commit. Each deployment publishes the snapshot of its own commit; earlier snapshots are not retained by the current GitHub Pages deployment.\n" ++
+    "* `" ++ siteBase ++ "rev/<commit>/rules/<ID>/` is the snapshot of one published commit. Each deployment publishes the snapshot of its own commit and every earlier published snapshot, byte for byte: a snapshot is archived before it is deployed, the archive is append-only, and a deployment must contain every archived snapshot.\n" ++
     "* `" ++ siteBase ++ "v/<version>/rules/<ID>/` is reserved for immutable pages of released packages. No package has been released, so no such page exists.\n\n" ++
     "A route that is not published shows the site's not-available page, which names the source of every revision on GitHub. It never redirects to the latest rules: an old link cannot silently acquire changed semantics. Rule IDs are never reused for a changed rule; a retired rule keeps a page that says so.\n\n" ++
     "# Evidence\n%%%\ntag := \"versions-evidence\"\nnumber := false\n%%%\n\n" ++
@@ -103,7 +103,7 @@ def versionsPage (ident : Identity) (evidence : List EvidenceSummary) : Except S
     table ++ "\n" ++
     "A diagnostic demonstration shows an INCOMPLETE result by design; it is not accepted negative evidence. The corpus campaign is scoped qualification of the detectors for these inputs, not a proof that the detectors are correct for every input.\n\n" ++
     "# Hosting limits\n%%%\ntag := \"versions-hosting\"\nnumber := false\n%%%\n\n" ++
-    "The site is a static GitHub Pages project site. It uses no cookies, accounts or analytics. Search and the page table of contents use Verso's bundled JavaScript; every explanation, link and the rule catalogue work without it. A deployment can lag `main` while checks run or after they fail; each page states the commit it was built from.\n"
+    "The site is a static GitHub Pages project site. It uses no cookies, accounts or analytics. Search and the page table of contents use Verso's bundled JavaScript; every explanation, link and the rule catalogue work without it. A deployment can lag `main` while checks run or after they fail; each page states the commit it was built from. Every published snapshot is kept, so the site grows with each deployment; the build refuses an artifact larger than " ++ toString (artifactBudget / 1000000) ++ " MB, below GitHub Pages' 1 GB limit on a published site. Removing snapshots would change what their routes mean and needs a separate decision.\n"
 
 /-- The credits and licenses page. -/
 def creditsPage (ident : Identity) : Except String String := do

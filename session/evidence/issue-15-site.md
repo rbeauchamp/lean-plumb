@@ -119,6 +119,8 @@ the current head of `main`, refusal for a moved `main`, another commit and a dir
   acceptance is outstanding.
 - **Required checks.** Only `verify` is a required status check; adding `site` and the corpus
   shards is an operator decision.
-- Released-version (`v/`) pages and retention of earlier `rev/` snapshots need a release and a
-  retention mechanism; neither exists.
+- Released-version (`v/`) pages need a release, which is not authorized. Published `rev/`
+  snapshots are retained through the append-only `site-archive` branch (review round 2); that
+  mechanism is unobserved until the first deployments to `main`, and a repository rule
+  protecting `site-archive` from force pushes and deletion is an operator setting not yet made.
 - Semantic accuracy of the 21 explanations is review (R-DOC, R-INTENT), not established by the build.

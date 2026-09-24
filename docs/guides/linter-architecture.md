@@ -222,17 +222,18 @@ elaboration: the PL1001 axiom fixture elaborates and is then rejected by the act
 Canonical public base: `https://rbeauchamp.github.io/lean-plumb/`.
 Paths: `/lean-plumb/dev/rules/<ID>/` for latest successfully deployed development documentation;
 `/lean-plumb/v/<package-version>/rules/<ID>/` for immutable released-package help (none exists);
-`/lean-plumb/rev/<commit>/rules/<ID>/` for the deployed commit's snapshot. Every page states its
+`/lean-plumb/rev/<commit>/rules/<ID>/` for each published commit's snapshot. Every page states its
 commit; a local preview with uncommitted changes says so and has no snapshot route. Publishing a
 release is a separate authorized action. Each GitHub Pages deployment replaces the whole site, so
-earlier `rev/` snapshots are not retained, and released-version pages will need a retention
-mechanism when releases exist. Retire IDs with explanatory tombstones; never redirect an old ID to
+published `rev/` snapshots are retained in the append-only `site-archive` branch and copied
+verbatim into every later artifact ([website guide](website.md#routes-and-versions));
+released-version pages will need the same kind of retention when releases exist. Retire IDs with explanatory tombstones; never redirect an old ID to
 changed semantics. Unpublished routes get the not-available page, which names the GitHub source of
 every revision and never falls back to the latest rules.
 
 The builder admits the evidence, generates and renders the manual, assembles byte-identical
-`dev/` and `rev/<commit>/` editions with `index.html`, `404.html` and `build.json`, and checks the
-tree: exact layout, one page per registered rule, admitted example text in each page, every
+`dev/` and `rev/<commit>/` editions and every archived snapshot with `index.html`, `404.html` and
+`build.json`, and checks the tree: size budget, exact layout, archived snapshots unchanged, one page per registered rule, admitted example text in each page, every
 scanned link resolving under the base path, and the registry's `--validate-site`. Pinned
 dependencies are cached by toolchain and lock digest; no accepted verdict is cached. Assets are
 relative to each edition (Verso's `<base href>`).
@@ -241,7 +242,9 @@ CI runs the ordinary 420-second acceptance job, the two rule-example shards and 
 build/check on every PR and `main`, saving the validated artifact as `site-<commit>`. On `main`,
 after the same revision's acceptance and site jobs pass, it uploads that artifact with
 `actions/upload-pages-artifact` and deploys it with `actions/deploy-pages` in the `github-pages`
-environment; only the deploy job has `pages: write` and `id-token: write`. Action SHAs are pinned
+environment, after an unprivileged gate has checked the artifact against the site archive and a
+provisioning-free `archive` job has pushed its snapshot there; only the deploy job has `pages:
+write` and `id-token: write`, and only the `archive` job has `contents: write`. Action SHAs are pinned
 to the current official releases. One run per ref (a newer `main` run cancels an older one), an
 unprivileged gate and a dependency-free re-check in the deploy job that refuse a revision no
 longer at the head of `main`, and a serialized deployment group keep an
