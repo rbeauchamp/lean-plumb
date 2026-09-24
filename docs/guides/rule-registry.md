@@ -116,15 +116,21 @@ its dependencies. Schema 1 serialized, inside `acceptance.snapshot.configuration
 the captured text of every Lake dependency (for a one-theorem project requiring this
 package: all of Mathlib, about 110 MB of a 116 MB file) and listed every module of each
 imported environment. Schema 2 renders the snapshot with `ResultProtocol.snapshotJson`:
-the audited sources in full, the configuration by URI (its project files remain in
-`scope.configuration`), and each dependency by package, nominal revision, input-scoped
-`dirty` status and file URIs. It omits `acceptance.environments[*].importedModules` and
+the audited sources in full, the configuration by URI, and each dependency by package,
+nominal revision and input-scoped `dirty` status. The project configuration files remain
+in full in `scope.configuration` of axiomGate and ruleExamples results; the freshChecker
+`serializedGraph` output has no `scope`, so it carries no configuration text, and no
+consumer reads it there. It omits `acceptance.environments[*].importedModules` and
 the report's `modules` and `moduleOrigins` import-closure lists (owned modules remain in
 `census.modules`). The run still freezes and rechecks those exact bytes in memory before
-any success; only their serialization changes. A clean dependency's text is recoverable
-from its pinned revision; a dirty dependency's frozen text is not recorded. Kernel-checked
-`rfl`/`simp` theorems (`snapshotJson_configuration_independent`,
-`snapshotJson_dependency_text_independent`, `environmentJson_imports_independent`,
+any success; only their serialization changes. A clean dependency is identified by its
+pinned revision. A dirty dependency, including any path dependency without its own Git
+revision (which the checker records as dirty), is rendered only as
+`{package, revision, dirty: true}`: it carries no content identity, and its frozen text is
+not recorded. The size bound rests on `snapshotJson_configuration_independent`: the
+snapshot rendering does not depend on `configuration.source`, which holds every
+dependency's captured text. Kernel-checked `rfl` theorems
+(`snapshotJson_configuration_independent`, `environmentJson_imports_independent`,
 `Environment.resultJson_imports_independent`) state that the rendering does not depend
 on those inputs. The remaining content is the project's own sources, configuration,
 declarations, execution inventory from its owned roots, jobs and diagnostics, plus a

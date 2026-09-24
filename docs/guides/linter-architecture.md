@@ -84,9 +84,10 @@ Acceptance requires required coverage and completed admission, not merely an emp
 Cancelled/stale/unsupported/unknown results cannot construct accepted evidence. Editor snapshots
 never construct a fresh whole-project result.
 
-The implemented output schema is versioned independently from manifest schema 2. Schema 1
-for registry/diagnostic export from #12 has: top-level schemaVersion, producerVersion, toolchain,
-sourceRevision, rules (registry export) or scope/mode/status/diagnostics/unresolved (result export).
+The implemented output schemas are versioned independently from manifest schema 2: registry
+export is at schema 1 and result envelopes are at schema 2 (see [rule registry](rule-registry.md)).
+Both have top-level schemaVersion, producerVersion, toolchain and sourceRevision, plus rules
+(registry export) or scope/mode/status/diagnostics/unresolved (result export).
 Encode `Name` reversibly, retain source positions, deterministically order exported collections,
 reject duplicate identities at admission, and prove claimed decoder/encoder laws for actual
 functions. JSON is transport; proof-bearing validated values are the in-process authority.

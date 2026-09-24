@@ -12,8 +12,9 @@ open Lean
 
 abbrev producer := StrictLean.Checker.Producer.identity
 
-/-- Result schema 2 renders frozen inputs other than the audited sources by identity
-(`snapshotJson`) and omits imported-environment module lists (`acceptedJson`,
+/-- Result schema 2 omits the frozen configuration and dependency text from the snapshot
+(`snapshotJson`: a clean dependency is identified by its pinned revision, a dirty one only
+by package and `dirty` status) and omits imported-environment module lists (`acceptedJson`,
 `ProducerReport.Environment.resultJson`). Schema 1 embedded them. -/
 def schemaVersion : Nat := 2
 
@@ -110,35 +111,32 @@ def accountJson (account : StrictLean.Checker.Account.Account) : Json :=
       ("boundary", toJson boundary.spelling), ("detail", toJson boundary.detail)])),
     ("unresolvedReview", residuals a.unresolved)]
 
-/-- Result rendering of a frozen snapshot: the audited sources in full, every other input
-by identity. `configuration.source` serializes the project configuration (rendered in
-full as `scope.configuration`) and every Lake dependency's captured source and
-configuration text, which for any Mathlib-dependent project is all of Mathlib. Acceptance
-compares those exact bytes in memory (`StrictLeanPolicy.Snapshot`) and rechecks them
-before success; the result records the configuration URI and each dependency's package,
-nominal revision, input-scoped `dirty` status and file URIs. A clean dependency's text is
-recoverable from its pinned revision; a dirty one's frozen text is not recorded. -/
+/-- Result rendering of a frozen snapshot: the audited sources in full, the configuration
+by URI, and each dependency by package, nominal revision and input-scoped `dirty` status.
+`configuration.source` serializes the project configuration and every Lake dependency's
+captured source and configuration text, which for any Mathlib-dependent project is all of
+Mathlib. Acceptance compares those exact bytes in memory (`StrictLeanPolicy.Snapshot`) and
+rechecks them before success; they are not rendered here. The project configuration is
+rendered in full as `scope.configuration` only by axiomGate and ruleExamples results; the
+freshChecker serialized-graph output has no `scope`, so it carries no configuration text,
+and no consumer reads it there. A clean dependency is identified by its pinned revision. A
+dirty dependency, including any path dependency without its own Git revision, is rendered
+only as package, revision and `dirty: true`: it carries no content identity, and its frozen
+text is not recorded. -/
 def snapshotJson (snapshot : StrictLeanPolicy.Snapshot) : Json :=
   Json.mkObj [("sources", toJson (snapshot.sources.map sourceJson)),
     ("configuration", Json.mkObj [("uri", toJson snapshot.configuration.uri)]),
     ("toolchain", toJson (reprStr snapshot.toolchain)),
     ("dependencies", toJson (snapshot.dependencies.map fun dependency => Json.mkObj [
       ("package", toJson dependency.package), ("revision", toJson dependency.nominalRevision),
-      ("dirty", toJson dependency.dirty), ("files", toJson (dependency.files.map (·.uri)))]))]
+      ("dirty", toJson dependency.dirty)]))]
 
 /-- The rendering is independent of the serialized configuration and dependency text, so
-its size is independent of the dependencies' content (kernel-checked by `rfl`/`simp`). -/
+its size is independent of the dependencies' content (kernel-checked by `rfl`). -/
 theorem snapshotJson_configuration_independent (snapshot : StrictLeanPolicy.Snapshot)
     (source : String) :
     snapshotJson { snapshot with configuration := { snapshot.configuration with source } } =
       snapshotJson snapshot := rfl
-
-theorem snapshotJson_dependency_text_independent (snapshot : StrictLeanPolicy.Snapshot)
-    (text : StrictLeanPolicy.SourceSnapshot → String) :
-    snapshotJson { snapshot with dependencies := snapshot.dependencies.map fun dependency =>
-        { dependency with files := dependency.files.map fun file => { file with source := text file } } } =
-      snapshotJson snapshot := by
-  simp [snapshotJson, Function.comp_def]
 
 /-- One environment's assigned, infrastructure, admission, declaration and root inventory
 and its file binding. Merely imported modules (`importedModules`, `origins`,
