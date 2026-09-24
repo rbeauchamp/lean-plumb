@@ -10,11 +10,14 @@ is a Markdown ATX heading line whose text is exactly `Intent`, followed by the l
 before the next heading line (of any level) or the end of the docstring. The section
 is *nonempty* when one of those lines contains a non-whitespace character.
 
-Heading lines follow CommonMark's ATX form without a closing sequence: at most three
-spaces of indentation, one to six `#`, then a space or tab (or the end of the line);
-the heading text is the remainder with surrounding whitespace removed. Fenced code
-blocks are not tracked, so a heading-shaped line inside a fence still counts as a
-heading. The recognition is case-sensitive.
+Heading lines follow CommonMark's ATX form without a closing sequence: after trailing
+whitespace (including a carriage return) is removed, at most three spaces of indentation,
+one to six `#`, then a space or tab (or the end of the line); the heading text is the
+remainder with surrounding whitespace removed. Setext headings and closing sequences
+(`# Intent #`) are not recognized. This line grammar is a definition: the theorems below
+characterize the section structure over it, and `intentHeading_examples` checks
+instances. Fenced code blocks are not tracked, so a heading-shaped line inside a fence
+still counts as a heading. The recognition is case-sensitive.
 
 This is presence and linkage only. The docstring is linked to its declaration by
 Lean's `findDocString?`; nothing here judges whether the intent is adequate, whether
@@ -29,6 +32,10 @@ def isSpace (c : Char) : Bool := c.isWhitespace
 def trim (line : List Char) : List Char :=
   ((line.dropWhile isSpace).reverse.dropWhile isSpace).reverse
 
+/-- Remove trailing whitespace, including a carriage return before the line feed. -/
+def trimEnd (line : List Char) : List Char :=
+  (line.reverse.dropWhile isSpace).reverse
+
 /-- Remove at most `n` leading spaces (CommonMark permits three before a heading). -/
 def dropIndent : Nat → List Char → List Char
   | n + 1, ' ' :: rest => dropIndent n rest
@@ -36,7 +43,7 @@ def dropIndent : Nat → List Char → List Char
 
 /-- The text of an ATX heading line, or `none` when the line is not a heading. -/
 def headingText? (line : List Char) : Option (List Char) :=
-  let body := dropIndent 3 line
+  let body := dropIndent 3 (trimEnd line)
   let level := (body.takeWhile (· == '#')).length
   if 1 ≤ level ∧ level ≤ 6 then
     match body.dropWhile (· == '#') with
@@ -52,6 +59,7 @@ def isIntentHeading (line : List Char) : Bool := headingText? line == some "Inte
 
 /-- A line with at least one non-whitespace character. -/
 def isContent (line : List Char) : Bool := line.any (!isSpace ·)
+
 /-- Split at every line feed: the current (first) line and the lines after it. -/
 def splitLinesAux : List Char → List Char × List (List Char)
   | [] => ([], [])
@@ -198,6 +206,17 @@ theorem newline_not_mem_splitLines (cs : List Char) : ∀ line ∈ splitLines cs
 theorem intentSection_example :
     IntentSection (docLines "Claim.\n\n## Intent\nWhy the claim is required.") :=
   (hasIntentSection_iff _).mp (by decide)
+
+/-- Kernel-checked instances of the documented line grammar (not a universal
+characterization of it): any level from one to six, trailing whitespace and a CRLF
+carriage return are accepted; a missing separator, four spaces of indentation, a
+closing sequence, and a different case are refused. -/
+theorem intentHeading_examples :
+    isIntentHeading "# Intent".toList = true ∧ isIntentHeading "###### Intent  ".toList = true ∧
+    isIntentHeading "   # Intent\r".toList = true ∧ isHeading "#\r".toList = true ∧
+    isIntentHeading "#Intent".toList = false ∧ isIntentHeading "    # Intent".toList = false ∧
+    isIntentHeading "# Intent #".toList = false ∧ isIntentHeading "# intent".toList = false := by
+  decide
 
 /-- An Intent heading followed directly by another heading has an empty section. -/
 theorem empty_intentSection_refused :

@@ -7,6 +7,8 @@ contracts for both interpretations. `demo_final` describes the retained total
 the strict `runChecked` interpreter called by the shell: it stops at the third
 grant and retains the first two grants' state. Admission facts describe the
 scripted initial capacity. Nothing here claims a property of the IO boundary.
+`demo_checked_error` is a material claim with an Intent section (unregistered; see
+`AuditApp.Limiter`).
 -/
 
 namespace AuditApp
@@ -40,7 +42,11 @@ theorem demo_final : (run demoScript demoInitial).inUse = 2 := by decide
 
 /-- The strict demonstration stops at the third grant. This instance of the
 universal error contract identifies the retained successful prefix; unlike
-`run`, it never processes the subsequent release and grant. -/
+`run`, it never processes the subsequent release and grant.
+
+# Intent
+The demonstration the executable runs must stop at its third grant, keeping the two
+slots already granted, rather than continuing past the refusal. -/
 theorem demo_checked_error :
     runChecked demoScript demoInitial =
       (.error (), run [.grant, .grant] demoInitial) := by

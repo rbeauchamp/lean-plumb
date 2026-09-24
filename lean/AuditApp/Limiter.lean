@@ -14,7 +14,11 @@ executable calls `executeChecked` and the strict interpreter; `run` remains
 the total fold used to specify successful prefixes. No declaration is promoted
 to a native-runtime or external-system claim, and no hypothesis is hidden:
 assumptions appear as binders or proof fields. This module imports nothing
-beyond Lean's prelude and the proof-requiring executable-contract interface.
+beyond Lean's prelude and the proof-requiring executable-contract interface. Its material
+claims `RequiredContracts`, `requiredContracts` and `checkedExecutable` carry Intent sections
+(docs/standard/5 §5.2). They are not registered with `@[plumb_material]`: this repository's
+positive libraries may import only `Plumb.Contract` from the excluded checker library, so
+PL5002/PL5003 do not check them here and their Intent sections are reviewed semantically.
 
 Reuse account (docs/standard/1 §1.4, docs/standard/3 §3.2.5): the state, interpreter, and
 monad stack reuse `Option`, `List.foldl`, `ExceptT`, and `StateM` from the
@@ -397,7 +401,17 @@ theorem requestedCapacity_exact (args : List String) :
 /-- Explicit required propositions for the actual application definitions. These
 fields specify admission, each update, dispatch, and composition; their adequacy
 is reviewed against the application's intended behavior. The state's bound is
-already enforced by `Limiter`, so it needs no duplicate field theorem. -/
+already enforced by `Limiter`, so it needs no duplicate field theorem.
+
+# Intent
+A slot limiter must never hand out more slots than the capacity it was created with.
+Creation must refuse a zero capacity and start idle; a grant must take exactly one free
+slot or be refused only when none is free; a release must free one slot when any is in
+use; a reset must free every slot; no operation may change the capacity. A script must
+apply its operations in order, and the strict runner must stop at the first refused
+grant, keeping exactly the state reached before it. The command-line capacity is the
+first argument read as a natural number, defaulting to 2. Timing, fairness and the IO
+shell are deliberately out of scope. -/
 structure RequiredContracts : Prop where
   admission : ∀ capacity, admit capacity = if 0 < capacity then
     some ⟨capacity, 0, Nat.zero_le capacity⟩ else none
@@ -437,7 +451,11 @@ structure RequiredContracts : Prop where
 
 /-- Evidence required by the application entrypoint. Deleting or weakening an
 assigned proof cannot inhabit its unchanged field proposition. Equivalent
-proofs are welcome; neither theorem names nor declaration counts are the rule. -/
+proofs are welcome; neither theorem names nor declaration counts are the rule.
+
+# Intent
+The application may run only when every required behavior of its limiter is proved
+about the definitions it executes. -/
 theorem requiredContracts : RequiredContracts where
   admission := admit_exact
   grant_success := grant_some
@@ -493,7 +511,11 @@ theorem executeChecked_exact (contracts : RequiredContracts) (capacity : Nat)
 
 /-- Register the actual executable and require its complete admission/runner
 relation. This reuses `executeChecked_exact`; no second implementation is used.
-The build linter also checks executability and compiler/runtime boundaries. -/
+The build linter also checks executability and compiler/runtime boundaries.
+
+# Intent
+The function the executable calls must admit exactly the positive capacities, start
+each admitted limiter idle at that capacity, and then run the script strictly. -/
 theorem checkedExecutable : Plumb.ExecutableContract executeChecked
     (fun execute => ∀ (contracts : RequiredContracts) capacity ops,
       execute contracts capacity ops = if 0 < capacity then

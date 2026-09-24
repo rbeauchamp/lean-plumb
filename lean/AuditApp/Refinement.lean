@@ -10,7 +10,8 @@ existential. The worked instance covers `step`, `run`, and the returned state
 of `runChecked`, including refusal. It observes only capacity and occupancy,
 not operation labels, error outputs, timing, or native execution. Natural
 counts have exact unbounded Lean semantics; compiler/runtime execution remains
-trusted. No fairness, progress, or liveness result is claimed.
+trusted. No fairness, progress, or liveness result is claimed. `reachable_safe` and `prefix_safe`
+are material claims with Intent sections (unregistered; see `AuditApp.Limiter`).
 -/
 
 namespace AuditApp.Refinement
@@ -128,7 +129,12 @@ theorem observations {cap a : Nat} {c : Limiter} (h : R cap c a) :
   exact Prod.ext h.1 (by omega)
 
 /-- Every finite reachable concrete endpoint has a reachable, invariant-satisfying
-abstract witness and respects the original admitted capacity. -/
+abstract witness and respects the original admitted capacity.
+
+# Intent
+However many operations run after admission, the limiter keeps its admitted capacity
+and never has more slots in use than that capacity. Only finite runs are covered;
+progress and liveness are not required. -/
 theorem reachable_safe {cap : Nat} {c₀ c : Limiter} (admission : admit cap = some c₀)
     (path : Relation.ReflTransGen StepC c₀ c) :
     ∃ a, Relation.ReflTransGen (StepA cap) cap a ∧ R cap c a ∧ Inv cap a ∧
@@ -159,7 +165,11 @@ theorem runChecked_path (ops : List Op) (c : Limiter) :
     · exact (ih (step c op)).head ⟨op, rfl⟩
 
 /-- Safety transfer applies to every prefix length of every script, including
-its returned refusal state. Lengths beyond the script select the whole script. -/
+its returned refusal state. Lengths beyond the script select the whole script.
+
+# Intent
+Every state the strict runner can return, after any prefix of any script and whether
+it completes or stops at a refused grant, must satisfy the capacity bound. -/
 theorem prefix_safe {cap : Nat} {c : Limiter} (admission : admit cap = some c)
     (ops : List Op) (n : Nat) :
     ∃ a, Relation.ReflTransGen (StepA cap) cap a ∧

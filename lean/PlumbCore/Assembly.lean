@@ -510,8 +510,9 @@ private theorem filter_single {p : α → Bool} {values : Array α} {value : α}
   rw [h] at this
   simpa using this
 
-/-- Required documentation-presence evidence, as soundness: acceptance checks only that a
-docstring is present, not which record supplied it, so this binding is not decided again
+/-- Required documentation-presence evidence, as soundness: acceptance checks the supplied
+docstring (presence for a module; for a registered declaration, a nonempty Intent section via
+`MaterialDocumentationOK`), not which record supplied it, so this binding is not decided again
 there. A success reports the presence of the only record with the job's module name, or
 with its module and declaration names; a refusal fails closed. Every other stage's record is bound to its subject by
 `LocalStageOK`. -/

@@ -127,7 +127,11 @@ unavailable-analysis demonstrations are described in [rule examples](rule-exampl
 Run `./scripts/verify.sh diagnostics producers` for the bounded operational campaign.
 It runs twelve source-owned controls: for the incremental and build-lint entrypoints and each
 of PL5001/PL5002, one workspace runs Fixed, then Violation over that Fixed build (so a stale
-build must not hide the violation), then Fixed again from a cleared build. Each invocation
+build must not hide the violation), then Fixed again from a cleared build. PL5003 is not in
+this campaign: it shares the same gate documentation loop, whose evidence mode is a parameter,
+but its observed evidence is the fresh-project [PL5003](../../examples/rules/PL5003/) corpus
+pair and the native `MissingIntent` control. No incremental or build-lint PL5003 run is
+claimed. Each invocation
 checks exact stable ID, detail, primary location, related locations and result status,
 and requires unique output and exact embedded source/selector/type/axiom evidence.
 Transport admission of every report is proved rather than sampled by mutation; see

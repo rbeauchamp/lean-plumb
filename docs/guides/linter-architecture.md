@@ -94,10 +94,11 @@ functions. JSON is transport; proof-bearing validated values are the in-process 
 
 ## Exact initial enforcement and evidence
 
-The coverage map fixes **20 rule IDs**, including existing declaration, execution, workspace,
-warning and fence capabilities and two narrowly scoped documentation-presence additions.
+The coverage map fixes **21 rule IDs**, including existing declaration, execution, workspace,
+warning and fence capabilities and three narrowly scoped documentation-presence additions
+(PL5001–PL5003; PL5003 was added for #57).
 #12 introduces identity and rendering without silently changing detection. #13 connects all
-existing conditions to typed IDs and implements the two documentation gaps. Each rule page
+existing conditions to typed IDs and implements the first two documentation gaps. Each rule page
 states whether a condition is an established violation or missing evidence, what passes, and
 what remains semantic review. Internal infrastructure errors are incomplete results, never
 fabricated source violations or ordinary successful empty reports.
