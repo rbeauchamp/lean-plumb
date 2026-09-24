@@ -110,13 +110,19 @@ private def ownedDecls (env : Environment) (modules : List Name) :
 correspondence obligation costs no more than a declaration the adopter could write. -/
 private def correspondenceHeartbeats : USize := (Core.getMaxHeartbeats {}).toUSize
 
-/-- Resident memory one correspondence check may add to its process: 1 GiB. The limit is set
-to the process's peak resident size when the check starts plus this allowance. That peak is
-at least the current resident size, so the limit never fires on memory the process already
-held (its imported environment included); it fires only after the check itself has grown
-resident memory by the allowance. At most three report workers run at once, so the checks
-add at most 3 GiB to the audit's footprint on a 16 GiB CI runner. -/
+/-- Resident memory the correspondence checks of one process may add above its peak resident
+size at its first check: 1 GiB. The limit is fixed once per process, at that first check, to
+that peak plus this allowance. The peak is at least the resident size then, so the first
+check never fires on memory the process already held (its imported environment included).
+Every later check in the process runs under the same limit, so no number of checks, exhausted
+or not, raises the process's resident memory during a check above it; a later check that
+starts at or above the limit exhausts at once and fails closed. At most three report workers
+run at once, so the checks add at most 3 GiB to their pre-check peaks on a 16 GiB CI
+runner. -/
 private def correspondenceMemoryBytes : Nat := 1024 * 1024 * 1024
+
+/-- This process's correspondence memory limit in bytes, fixed at its first check. -/
+private initialize correspondenceLimit : IO.Ref (Option Nat) ← IO.mkRef none
 
 /-- Lean's runtime memory limit in bytes (`lean -M`; `0` disables it). The kernel compares it
 with the process's resident memory at its system checks and raises `excessiveMemory`.
@@ -124,13 +130,19 @@ with the process's resident memory at its system checks and raises `excessiveMem
 @[extern "lean_internal_set_max_memory"]
 private opaque setMaxMemory (bytes : USize) : BaseIO Unit
 
-/-- Run `action` with the correspondence allowance above the process's current peak resident
-size (libuv reports it in KiB), never above the limit the shell set from `max_memory`, and
-restore that limit afterward. The runtime limit is process-wide. -/
+/-- Run `action` under this process's correspondence limit, fixing it at the first call from
+the peak resident size (libuv reports it in KiB), never above the limit the shell set from
+`max_memory`, and restore that limit afterward. The runtime limit is process-wide, and a
+process runs its correspondence checks sequentially. -/
 private def withCorrespondenceMemory (opts : Options) (action : IO α) : IO α := do
   let outer := (opts.get? `max_memory).getD (0 : Nat) * 1024 * 1024
-  let peak := (← Std.Internal.UV.System.getrusage).maxRSS.toNat * 1024
-  let bound := peak + correspondenceMemoryBytes
+  let bound ← match ← correspondenceLimit.get with
+    | some bound => pure bound
+    | none => do
+      let peak := (← Std.Internal.UV.System.getrusage).maxRSS.toNat * 1024
+      let bound := peak + correspondenceMemoryBytes
+      correspondenceLimit.set (some bound)
+      pure bound
   let bound := if outer == 0 then bound else min outer bound
   setMaxMemory bound.toUSize
   try action finally setMaxMemory outer.toUSize

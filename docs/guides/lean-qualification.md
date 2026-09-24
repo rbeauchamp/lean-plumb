@@ -176,14 +176,23 @@ trusted. Its heartbeat budget is now Lean's per-declaration default
 obligation costs no more than a declaration the adopter could write. Heartbeats count small
 allocations, not live memory, so the check also runs under Lean's runtime memory limit (the
 limit `lean -M` sets). The kernel compares it with the process's resident memory and raises
-`excessiveMemory`. The limit is the process's peak resident size when the check starts plus a
-1 GiB allowance, set only while the check runs; it never exceeds a `max_memory` the shell set,
-and that limit is restored afterward. Derivation: the kernel fires only when current resident
-memory reaches the limit, and the starting peak is at least the starting resident memory, so
-it fires only after the check itself has grown resident memory by 1 GiB, never on memory the
-process already held. An absolute limit would not: a file-mode audit that imports `Lean`
-already peaks above 4 GiB before this check. At most three report workers run at once, so
-the checks add at most 3 × 1 = 3 GiB to the audit's footprint on a 16 GiB CI runner. Kernel resource exhaustion is not
+`excessiveMemory`. The limit is fixed once per process, at its first correspondence check, to
+the process's peak resident size then plus a 1 GiB allowance. It is set only while a check
+runs, never exceeds a `max_memory` the shell set, and that limit is restored afterward.
+Guarantee: while any correspondence check runs, the kernel stops it once the process's
+resident memory exceeds its first-check peak by 1 GiB, however many checks the process runs
+and whether or not earlier ones exhausted. Derivation, argued from the Lean runtime source
+rather than observed on Linux: the kernel throws only when current resident memory reaches
+the limit, and the first-check peak is at least the resident memory then, so the first check
+never fires on memory the process already held (a file-mode audit that imports `Lean`
+already peaks above 4 GiB, which an absolute limit would hit). The limit does not re-read the
+peak, so a check that exhausts cannot raise the next check's limit; a limit based on the
+rising lifetime peak would let each exhausted check add another 1 GiB. The cost is fail-closed:
+Lean's allocator may keep an exhausted check's pages resident, so a later check that starts
+at or above the limit exhausts at once and its replacement stays trusted. At most three
+report workers run at once, each running its checks sequentially, so correspondence checks
+hold the audit's resident memory within 3 × 1 = 3 GiB above those workers' first-check peaks
+on a 16 GiB CI runner; memory used outside the checks is not bounded by this limit. Kernel resource exhaustion is not
 conflated with rejection: the replacement stays trusted, but its reason says the kernel ran
 out of resources before deciding definitional correspondence. With both fixed,
 `diagnostics structural` passed locally in 806 s, down from 1015 s (observed before the
