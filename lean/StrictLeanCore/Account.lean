@@ -191,7 +191,7 @@ private def accountImpl {c : Claim} (run : AcceptedRun c) : AccountData :=
     surfaces := report.claim.val.surfaces, toolchain := report.claim.val.snapshot.toolchain
     jobs := report.jobs.size, coverage := coverageOf report.claim.val.mode
     contracts := contractsOf report.census
-    execution := report.census.environments.map (executionSummary ·.execution)
+    execution := report.census.environments.map (checkedSummary.run ·.execution)
     fences := ⟨fences.countP isPositive, fences.countP isCompilerRejection,
       fences.countP isPolicyRejection, fences.countP isTrustedTeaching⟩
     trusted := Trusted.all
