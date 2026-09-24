@@ -76,6 +76,12 @@ lean_exe «ruleExamples» where
 lean_exe «ruleExampleQualification» where
   root := `Plumb.Checker.RuleExampleQualificationMain
 
+lean_exe «intentScreen» where
+  -- Opt-in probabilistic intent screen (docs/guides/intent-screening.md). Never part of
+  -- offline acceptance; it calls a network service only when explicitly run.
+  root := `Plumb.Screen.Main
+  supportInterpreter := true
+
 lean_exe «auditApp» where
   root := `Main
   supportInterpreter := true

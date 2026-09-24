@@ -78,6 +78,10 @@
     {
       "executable": "ruleExampleQualification",
       "rationale": "Source-owned rule receipt admission tooling; not a conforming program surface."
+    },
+    {
+      "executable": "intentScreen",
+      "rationale": "Opt-in probabilistic intent screen (docs/guides/intent-screening.md). Its root module belongs to the excluded Plumb library; it calls an external judgment service only when explicitly run, is never part of offline acceptance, and its screened results are not conforming evidence. Its pure decisions are proved in the claimed PlumbPolicy.Screening and PlumbCore.Screening modules."
     }
   ]
 }
