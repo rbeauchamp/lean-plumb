@@ -1,11 +1,13 @@
 import StrictLean.Checker.Snapshot
 import StrictLean.Checker.SourceBinding
+import StrictLeanCore.Account
 
 /-! Link between the two required verification steps: ordinary project acceptance and
 the separately timed documentation-fence audit. Each step computes one location-independent
 content identity from its own fresh captures of the root sources, configuration,
 dependency inputs and Markdown documents. Ordinary acceptance records the identity only
-after its accepted success; the documentation step refuses unless its own identity is
+after its accepted success has passed every freshness recheck with exit code 0; the
+documentation step refuses unless its own identity is
 equal. The SHA-256 digest is computed by the trusted external `shasum` tool; equality
 establishes identical captured inputs, not authenticity of the tool or the filesystem. -/
 namespace StrictLean.Checker.AcceptanceLink
@@ -60,10 +62,18 @@ def identity (scratch projectRoot docsRoot : FilePath)
 def invalidate (path : FilePath) : IO Unit :=
   writeJson path (Json.mkObj [("schemaVersion", toJson (1 : Nat)), ("status", .str "incomplete")])
 
-/-- Written only after accepted ordinary success. -/
-def record (path : FilePath) (digest : String) (jobs : Nat) : IO Unit :=
+/-- The identity of one accepted run's captured inputs, computed before its success line
+and held, unrecorded, until the run's outer freshness recheck has passed. -/
+structure Pending where
+  digest : String
+  account : Account.Account
+
+/-- Written only after accepted ordinary success. It cannot be called without a `Pending`, whose
+`Account` is a projection of some `AcceptedRun`; that it is this run's account, and that
+`digest` matches it, is the caller's binding. -/
+def record (path : FilePath) (pending : Pending) : IO Unit :=
   writeJson path (Json.mkObj [("schemaVersion", toJson (1 : Nat)), ("status", .str "accepted"),
-    ("identity", .str digest), ("acceptedJobs", toJson jobs)])
+    ("identity", .str pending.digest), ("acceptedJobs", toJson pending.account.val.jobs)])
 
 /-- Refuse unless ordinary acceptance recorded an accepted success over equal inputs.
 The `status: accepted` record lives in a writable `tmp/` file and is trusted as written
