@@ -12,6 +12,14 @@ open Lean
 
 abbrev producer := StrictLean.Checker.Producer.identity
 
+/-- Result schema 2 renders frozen inputs other than the audited sources by identity
+(`snapshotJson`) and omits imported-environment module lists (`acceptedJson`,
+`ProducerReport.Environment.resultJson`). Schema 1 embedded them. -/
+def schemaVersion : Nat := 2
+
+/-- Envelope identity of every result file. -/
+def identityFields : List (String × Json) := RegistryCodec.identityFields producer schemaVersion
+
 /-- `Account.Status`: `completed` carries an accepted account, so it cannot be written from
 missing or incomplete evidence (`Account.Status.completed_accepted`). -/
 abbrev Status := StrictLean.Checker.Account.Status
@@ -25,7 +33,7 @@ def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
   let mode := match status with
     | .completed account => account.val.mode
     | _ => mode
-  Json.mkObj (RegistryCodec.identityFields producer ++ [
+  Json.mkObj (identityFields ++ [
     ("scope", scope), ("mode", .str (RegistryCodec.modeText mode)),
     ("status", .str (statusText status)),
     ("diagnostics", toJson (findings.map RegistryCodec.diagnosticJson)),
@@ -102,9 +110,63 @@ def accountJson (account : StrictLean.Checker.Account.Account) : Json :=
       ("boundary", toJson boundary.spelling), ("detail", toJson boundary.detail)])),
     ("unresolvedReview", residuals a.unresolved)]
 
+/-- Result rendering of a frozen snapshot: the audited sources in full, every other input
+by identity. `configuration.source` serializes the project configuration (rendered in
+full as `scope.configuration`) and every Lake dependency's captured source and
+configuration text, which for any Mathlib-dependent project is all of Mathlib. Acceptance
+compares those exact bytes in memory (`StrictLeanPolicy.Snapshot`) and rechecks them
+before success; the result records the configuration URI and each dependency's package,
+nominal revision, input-scoped `dirty` status and file URIs. A clean dependency's text is
+recoverable from its pinned revision; a dirty one's frozen text is not recorded. -/
+def snapshotJson (snapshot : StrictLeanPolicy.Snapshot) : Json :=
+  Json.mkObj [("sources", toJson (snapshot.sources.map sourceJson)),
+    ("configuration", Json.mkObj [("uri", toJson snapshot.configuration.uri)]),
+    ("toolchain", toJson (reprStr snapshot.toolchain)),
+    ("dependencies", toJson (snapshot.dependencies.map fun dependency => Json.mkObj [
+      ("package", toJson dependency.package), ("revision", toJson dependency.nominalRevision),
+      ("dirty", toJson dependency.dirty), ("files", toJson (dependency.files.map (·.uri)))]))]
+
+/-- The rendering is independent of the serialized configuration and dependency text, so
+its size is independent of the dependencies' content (kernel-checked by `rfl`/`simp`). -/
+theorem snapshotJson_configuration_independent (snapshot : StrictLeanPolicy.Snapshot)
+    (source : String) :
+    snapshotJson { snapshot with configuration := { snapshot.configuration with source } } =
+      snapshotJson snapshot := rfl
+
+theorem snapshotJson_dependency_text_independent (snapshot : StrictLeanPolicy.Snapshot)
+    (text : StrictLeanPolicy.SourceSnapshot → String) :
+    snapshotJson { snapshot with dependencies := snapshot.dependencies.map fun dependency =>
+        { dependency with files := dependency.files.map fun file => { file with source := text file } } } =
+      snapshotJson snapshot := by
+  simp [snapshotJson, Function.comp_def]
+
+/-- One environment's assigned, infrastructure, admission, declaration and root inventory
+and its file binding. Merely imported modules (`importedModules`, `origins`,
+`importedSources`: the whole import closure) are decided in memory and not rendered. -/
+def environmentJson (environment : StrictLeanPolicy.EnvironmentCensus) : Json :=
+  Json.mkObj [
+    ("index", toJson environment.request.key.index),
+    ("modules", toJson (environment.request.modules.map fun key => RegistryCodec.nameJson key.name.name)),
+    ("infrastructureModules", toJson (environment.infrastructureModules.map fun key => RegistryCodec.nameJson key.name.name)),
+    ("admissionModules", toJson (environment.admissionModules.map fun key => RegistryCodec.nameJson key.name.name)),
+    ("admissionDeclarations", toJson (environment.admissionDeclarations.map declarationKeyJson)),
+    ("declarations", toJson (environment.declarations.map declarationKeyJson)),
+    ("roots", toJson (environment.roots.map declarationKeyJson)),
+    ("fileSource", environment.fileSource.map (fun binding => Json.mkObj [
+      ("requested", sourceJson binding.requested), ("compiled", sourceJson binding.compiled)]) |>.getD .null)]
+
+/-- The rendering is independent of the import closure (kernel-checked by `rfl`). -/
+theorem environmentJson_imports_independent (environment : StrictLeanPolicy.EnvironmentCensus)
+    (importedModules : Array StrictLeanPolicy.ModuleKey) (origins : Array StrictLeanPolicy.ModuleOrigin)
+    (importedSources : Array (StrictLeanPolicy.ModuleKey × StrictLeanPolicy.SourceSnapshot)) :
+    environmentJson { environment with importedModules, origins, importedSources } =
+      environmentJson environment := rfl
+
 /-- Renderer accepts only a proof-bearing run and projects its exact report. The common
-snapshot is stored once; each subject inherits it. These rendered fields are observations,
-not serialized authority, and consumers must never deserialize them into Accepted. -/
+snapshot is rendered once, by `snapshotJson`; each subject inherits it. Each environment
+lists its assigned, admission, declaration, root and infrastructure inventory, not the
+modules it merely imports. These rendered fields are observations, not serialized
+authority, and consumers must never deserialize them into Accepted. -/
 def acceptedJson {claim : StrictLeanPolicy.Claim} (accepted : StrictLeanPolicy.AcceptedRun claim) : Json :=
   let report := accepted.report
   let snapshot := report.claim.val.snapshot
@@ -114,23 +176,9 @@ def acceptedJson {claim : StrictLeanPolicy.Claim} (accepted : StrictLeanPolicy.A
     ("surfaces", toJson (report.claim.val.surfaces.map fun surface => Json.mkObj [
       ("target", toJson surface.target), ("modules", toJson (surface.modules.map fun n => RegistryCodec.nameJson n.name)),
       ("profile", toJson surface.profile.spelling), ("execution", toJson surface.execution.spelling)])),
-    ("snapshot", Json.mkObj [("sources", toJson (snapshot.sources.map sourceJson)),
-      ("configuration", sourceJson snapshot.configuration), ("toolchain", toJson (reprStr snapshot.toolchain)),
-      ("dependencies", toJson (snapshot.dependencies.map fun dependency => Json.mkObj [
-        ("package", toJson dependency.package), ("revision", toJson dependency.nominalRevision),
-        ("dirty", toJson dependency.dirty), ("files", toJson (dependency.files.map sourceJson))]))]),
+    ("snapshot", snapshotJson snapshot),
     ("modules", toJson (report.census.modules.map fun key => RegistryCodec.nameJson key.name.name)),
-    ("environments", toJson (report.census.environments.map fun environment => Json.mkObj [
-      ("index", toJson environment.request.key.index),
-      ("modules", toJson (environment.request.modules.map fun key => RegistryCodec.nameJson key.name.name)),
-      ("importedModules", toJson (environment.importedModules.map fun key => RegistryCodec.nameJson key.name.name)),
-      ("infrastructureModules", toJson (environment.infrastructureModules.map fun key => RegistryCodec.nameJson key.name.name)),
-      ("admissionModules", toJson (environment.admissionModules.map fun key => RegistryCodec.nameJson key.name.name)),
-      ("admissionDeclarations", toJson (environment.admissionDeclarations.map declarationKeyJson)),
-      ("declarations", toJson (environment.declarations.map declarationKeyJson)),
-      ("roots", toJson (environment.roots.map declarationKeyJson)),
-      ("fileSource", environment.fileSource.map (fun binding => Json.mkObj [
-        ("requested", sourceJson binding.requested), ("compiled", sourceJson binding.compiled)]) |>.getD .null)])),
+    ("environments", toJson (report.census.environments.map environmentJson)),
     ("graphRoots", toJson (report.census.graphRoots.map fun key => RegistryCodec.nameJson key.name.name)),
     ("graphCoverage", toJson (report.census.graphCoverage.map fun (key, modules) => Json.mkObj [
       ("root", RegistryCodec.nameJson key.name.name), ("modules", toJson (modules.map fun (moduleKey : StrictLeanPolicy.ModuleKey) => RegistryCodec.nameJson moduleKey.name.name))])),

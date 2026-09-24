@@ -103,15 +103,35 @@ lake exe axiomGate --with-docs --json-out tmp/result.json
 lake exe axiomGate --with-docs --legacy-json-out tmp/legacy-report.json
 ```
 
-`--json-out` now writes **result schema 1**. `--legacy-json-out` preserves the
+`--json-out` now writes **result schema 2**. `--legacy-json-out` preserves the
 previous file/project report format, including its path-remapping behavior. The
 two options are mutually exclusive. Internal worker transport remains separately
 versioned by its existing protocol; the new structural-name field is internal
 collection data and is removed from the legacy export. Manifest schema 2 is
-unchanged. The ordinary verification command deliberately requests legacy output
-for its existing archived report consumer.
+unchanged. No repository check or CI step consumes legacy output; registry CLI
+qualification exercises only its mutual exclusion with `--json-out`.
 
-Registry and result envelopes contain `schemaVersion`, `producerVersion`,
+Result schema 2 keeps result size proportional to the audited project rather than to
+its dependencies. Schema 1 serialized, inside `acceptance.snapshot.configuration.source`,
+the captured text of every Lake dependency (for a one-theorem project requiring this
+package: all of Mathlib, about 110 MB of a 116 MB file) and listed every module of each
+imported environment. Schema 2 renders the snapshot with `ResultProtocol.snapshotJson`:
+the audited sources in full, the configuration by URI (its project files remain in
+`scope.configuration`), and each dependency by package, nominal revision, input-scoped
+`dirty` status and file URIs. It omits `acceptance.environments[*].importedModules` and
+the report's `modules` and `moduleOrigins` import-closure lists (owned modules remain in
+`census.modules`). The run still freezes and rechecks those exact bytes in memory before
+any success; only their serialization changes. A clean dependency's text is recoverable
+from its pinned revision; a dirty dependency's frozen text is not recorded. Kernel-checked
+`rfl`/`simp` theorems (`snapshotJson_configuration_independent`,
+`snapshotJson_dependency_text_independent`, `environmentJson_imports_independent`,
+`Environment.resultJson_imports_independent`) state that the rendering does not depend
+on those inputs. The remaining content is the project's own sources, configuration,
+declarations, execution inventory from its owned roots, jobs and diagnostics, plus a
+constant-size record per dependency; this is an argument from construction, not a
+theorem about serialized byte counts.
+
+Registry (schema 1) and result (schema 2) envelopes contain `schemaVersion`, `producerVersion`,
 `toolchain` and `sourceRevision`. Registry output contains the canonical `rules`.
 Result output contains `scope`, `mode`, `status`, `diagnostics` and `unresolved`.
 The producer revision is captured when `ResultProtocol` is elaborated, with Git
@@ -127,14 +147,14 @@ Lean proof or whole-standard semantic conformance. The
 owns the accepted-result boundary and its JSON metadata semantics. Since #42, a result envelope's
 `completed` status is rendered only through `Account.Status`, whose `completed`
 constructor requires an accepted report account (`StrictLeanCore.Account`), and the
-`acceptance` object gains an additive `account` member, still within result schema 1:
+`acceptance` object gains an additive `account` member (then within result schema 1):
 `coverage` (only `freshWholeProject` is whole-project acceptance), `checked` (the
 `theorem` `StrictLeanPolicy.accept_iff`, whose right side is the checked relation, and the job count), `contracts` (each SL1007
 registration, its implementation and rendered requirement, with `unresolvedReview`
 `R-INTENT`, `R-INVARIANT`), per-environment `execution` counts, `fences` by expectation,
 `trusted` mechanisms and the run's `unresolvedReview` identifiers. No existing key changes;
 the rule-example projection already excludes `acceptance`, and the other consumers test
-only its presence or read `acceptance.fences`. A completed envelope's `mode` is the account's. A listed identifier names an open review obligation, not a completed review. `classified`
+only its presence. A completed envelope's `mode` is the account's. A listed identifier names an open review obligation, not a completed review. `classified`
 distinguishes no-profile and compiler-teaching file runs from positive conformance. File scope retains its nullable foundation claim,
 execution claim and exact source even when there are no findings. File `scope.report`
 and project `scope.surfaces[*].report` retain the complete observed declaration and

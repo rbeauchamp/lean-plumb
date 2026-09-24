@@ -63,9 +63,10 @@ record retains exact diagnostic identities, optional subreasons and locations; t
 registry adapter must validate its vocabulary and authenticate its observations.
 
 The rendered `acceptance.environments` array retains each environment's ordinal,
-module assignment, declaration/root/replay inventory and optional file binding.
-Local job subjects contain that ordinal and their local subject; the common exact
-snapshot is rendered once. These fields are projections of accepted evidence,
+module assignment, infrastructure modules, declaration/root/replay inventory and optional
+file binding, not the modules it merely imports. Local job subjects contain that ordinal
+and their local subject; the common snapshot is rendered once, with the audited sources
+in full and other inputs by identity ([result schema 2](rule-registry.md)). These fields are projections of accepted evidence,
 not a wire format from which a caller can reconstruct proof authority.
 
 ## Compatibility and evidence
