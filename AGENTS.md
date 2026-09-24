@@ -164,8 +164,10 @@ claim still needs its actual evidence.
 CI runs `./scripts/verify.sh` then `./scripts/verify.sh docs` in one job after provisioning
 pinned toolchain and dependency caches. The diagnostics workflow runs the producers, history
 and two rule-example shards as parallel jobs when the checker, rules, rule examples, Lake
-configuration or manifests change, on `main`, and nightly. Merge requires passing CI on
-the reviewed PR head, applicable focused review and diagnostics.
+configuration or manifests change, on `main`, and nightly. The lint-driver workflow runs
+`diagnostics lint-driver` likewise when the `lake lint` driver, Lake dispatch or adopter
+fixtures change. Merge requires passing CI on the reviewed PR head, applicable focused
+review and diagnostics.
 Preserve PR, signature, history, and conversation protections. Finish authorized publication,
 exact-head merge, and owned branch cleanup. Skill/handoff-only edits need proportionate
 checks when Lean inputs and claims are unchanged.

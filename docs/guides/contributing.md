@@ -81,9 +81,12 @@ for evidence requirements. Diagnostics do not replace a failed acceptance run.
 The [diagnostics workflow](../../.github/workflows/diagnostics.yml) runs `producers`,
 `history` and both `rule-examples` shards as parallel jobs, each with its own hard
 420-second limit. It runs when the checker, rules, rule examples, Lake configuration or
-manifests change, on every push to `main`, and nightly. These campaigns are
-capability-triggered diagnostics (standard §8.8), not a partition of ordinary
-acceptance.
+manifests change, on every push to `main`, and nightly.
+The [lint-driver workflow](../../.github/workflows/lint-driver.yml) runs `lint-driver`
+under the same limit when the `lake lint` driver, Lake dispatch or the adopter fixtures in
+`examples/lake-lint-toml` and `examples/build-lint` change, on every push to `main`, and
+nightly. These campaigns are capability-triggered diagnostics (standard §8.8), not a
+partition of ordinary acceptance.
 
 
 ## Implementation and qualification layout

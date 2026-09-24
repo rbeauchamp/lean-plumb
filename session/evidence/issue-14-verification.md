@@ -31,6 +31,12 @@ then reconciling with main; it was not force-applied.
   (`lakefile.toml`, imports `Plumb.Linter`).
 - Qualification: the `lint-driver` build-bound partition (`LintQualification`),
   `scripts/verify.sh diagnostics lint-driver`.
+- Hosted: `.github/workflows/lint-driver.yml` runs that partition under the same 420 s limit
+  when the driver, Lake dispatch, `Plumb.Linter` or the adopter fixtures change, on `main`, and
+  nightly. Issue 14 asks for maintained adopter fixtures, which needs automation, and the
+  fixtures cross Lake dispatch, process and filesystem boundaries that the driver's proofs do
+  not cover; the path filter keeps the verification-slimming intent by running the job only
+  when those surfaces change.
 - Docs: adoption guide §6–7, standard 8 §8.12 and 9 `BUILD-01`, architecture, native linter,
   policy acceptance, foundation status (editor-linter gap closed), design influences (Lean/Lake
   interface credit), review skill, and the issue 13 status correction in `engine-producers.md`.
@@ -99,8 +105,8 @@ git-dependency layout is covered by this argument, not by a sampled control. The
 workspace re-resolved a path dependency's packages in the checker checkout, which needed the
 network and could pick another toolchain.
 
-Decision: `lake lint` never reports a result for a project other than the workspace that
-dispatched it. Lake v4.34.0 runs the driver without changing its working directory, so
+Decision: `lake lint` never audits the working directory in place of a `-d`/`--dir` workspace.
+Lake v4.34.0 runs the driver without changing its working directory, so
 `lake -d DIR lint` from inside another Lean project built the worker in, and audited, that
 other project, and could print `PASS` while `DIR` had a PL1001 violation. The driver now
 refuses with exit 2 (`INVALID CONFIGURATION`: run `lake lint` from the project root without
@@ -120,10 +126,9 @@ driver run outside Lake, is refused (fail closed). The `toml/foreign-dir` contro
 phase 104 s), 16 controls, all completed: lean/positive, lean/explain-config, lean/violation,
 lean/cached-violation, lean/builtin-only, lean/builtin-and-driver, lean/configuration,
 lean/invocation, lean/incomplete, lean/fresh-restored, toml/absent-worker, toml/positive,
-toml/foreign-dir, toml/editor-opt-out, toml/live-finding, toml/fresh-restored. Hosted CI does
-not run this partition; it stays outside the diagnostics matrix under the
-verification-slimming decision. A working directory outside any Lean project, or one whose
-workspace fails to load, stops the driver with exit 3 before the comparison (observed at
+toml/foreign-dir, toml/editor-opt-out, toml/live-finding, toml/fresh-restored. A working
+directory outside any Lean project, or one whose workspace fails to load, stops the driver
+with exit 3 before the comparison (observed at
 `c5ced6d` from `/tmp`: `plumb lint: INCOMPLETE: cannot find Lean project root`, exit 3).
 Observed earlier on macOS arm64 at this change, with `--explain-config` so no audit runs:
 from this checkout's root, `lake env .lake/build/bin/lint --explain-config` (Lake's same
@@ -157,10 +162,6 @@ Observed at `1153e48`, and still current:
   deploys it; #10 verifies the live route.
 - A concise human renderer (DESIGN-01's preferred presentation). The canonical text is
   unchanged.
-- `lint-driver` in the hosted diagnostics matrix. Like `build-policy`, it stays a local,
-  capability-triggered campaign under the verification-slimming decision; the driver's
-  classification is proved, and the campaign qualifies only Lake dispatch and the adopter
-  boundaries.
 - PL2002 local-configuration refusals repeat on every following command snapshot, as
   documented. Deduplicating them is not implemented.
 - Mathlib adopters, other editors, latency.

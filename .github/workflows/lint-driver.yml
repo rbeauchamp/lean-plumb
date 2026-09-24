@@ -1,0 +1,59 @@
+name: Lint driver
+
+# The `lake lint` dispatch and the maintained adopter fixtures (docs/standard/8 §8.8).
+# They cross Lake, process and filesystem boundaries that the driver's proofs do not
+# cover, so this campaign runs when those surfaces change, always on main, and nightly.
+# It is a diagnostic, not a partition of ordinary acceptance.
+on:
+  pull_request:
+    paths:
+      - examples/lake-lint-toml/**
+      - examples/build-lint/**
+      - lean/Plumb/Checker/Lint.lean
+      - lean/Plumb/Checker/LintMain.lean
+      - lean/Plumb/Checker/LintQualification.lean
+      - lean/Plumb/Checker/BuildLintQualification.lean
+      - lean/Plumb/Checker/CheckerSelftest.lean
+      - lean/Plumb/Checker/Lake.lean
+      - lean/Plumb/Checker/Workspace.lean
+      - lean/Plumb/Checker/AxiomGate.lean
+      - lean/Plumb/Checker/Common.lean
+      - lean/Plumb/Checker/Frontend.lean
+      - lean/PlumbCore/Lint.lean
+      - lean/PlumbCore/EditorPolicy.lean
+      - lean/Plumb/Linter.lean
+      - lean/Plumb/Linter/**
+      - lakefile.lean
+      - lake-manifest.json
+      - lean-toolchain
+      - scripts/verify.sh
+      - .github/workflows/lint-driver.yml
+      - .github/actions/provision/**
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-driver-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  campaign:
+    name: diagnostics lint-driver
+    runs-on: ubuntu-24.04
+    # Provisioning has its own allowance; verify.sh enforces exactly 420 seconds.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
+      - name: Qualify (same command and seven-minute limit as local)
+        run: ./scripts/verify.sh diagnostics lint-driver
