@@ -9,8 +9,8 @@ on:
 permissions:
   contents: read
 
-# One run per ref: a newer push to main cancels an older run, including its deployment,
-# so an obsolete revision cannot replace a newer published one.
+# One run per ref: a newer push to main cancels an older run, including its deployment.
+# The deploy-gate job additionally refuses a re-run of an older revision (docs/guides/website.md).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -131,11 +131,32 @@ jobs:
         with:
           path: _site
 
-  # Publish exactly the artifact validated above, only for main and only after the same
-  # revision's acceptance job passed.
-  deploy:
+  # Publish only a clean artifact of the current head of main, after the same revision's
+  # acceptance and site jobs passed.
+  deploy-gate:
     needs: [verify, site]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
+      - name: Receive the validated artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: site-${{ github.sha }}
+          path: _site
+
+      - name: Refuse a dirty artifact or a revision that is no longer the head of main
+        run: lean --run lean/Plumb/Site/Deployment.lean gate _site
+
+  # Publish exactly the artifact validated above.
+  deploy:
+    needs: deploy-gate
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -154,7 +175,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
-  # Observe that the live site serves this run's exact artifact.
+  # Observe that the live site serves this run's artifact: build.json, every rule page of
+  # every edition and the not-available page (the files Deployment.lean compares).
   verify-deployment:
     needs: deploy
     runs-on: ubuntu-24.04
@@ -173,4 +195,6 @@ jobs:
           path: _site
 
       - name: Compare the live site with the artifact
-        run: lean --run lean/Plumb/Site/Deployment.lean _site ${{ needs.deploy.outputs.page_url }}
+        env:
+          PLUMB_PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: lean --run lean/Plumb/Site/Deployment.lean verify _site

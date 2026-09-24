@@ -17,7 +17,7 @@ credits page.
 
 Links to repository documents point at the build revision on GitHub; whether GitHub serves
 them is outside this module. The version policy text describes the publishing workflow in
-`.github/workflows/site.yml`; that the workflow behaves so is an operational observation.
+`.github/workflows/ci.yml`; that the workflow behaves so is an operational observation.
 -/
 
 namespace Plumb.Site
@@ -99,7 +99,7 @@ def versionsPage (ident : Identity) (evidence : List EvidenceSummary) : Except S
     "* `" ++ siteBase ++ "v/<version>/rules/<ID>/` is reserved for immutable pages of released packages. No package has been released, so no such page exists.\n\n" ++
     "A route that is not published shows the site's not-available page, which names the source of every revision on GitHub. It never redirects to the latest rules: an old link cannot silently acquire changed semantics. Rule IDs are never reused for a changed rule; a retired rule keeps a page that says so.\n\n" ++
     "# Evidence\n%%%\ntag := \"versions-evidence\"\nnumber := false\n%%%\n\n" ++
-    "Every example on this site was produced for this exact commit by the rule-example corpus campaign, admitted by its proved qualifier, and checked against the commit's checker, corpus and configuration sources before the site was generated. The site build refuses stale, incomplete or partial evidence.\n\n" ++
+    "Every example on this site was produced for this exact commit by the rule-example corpus campaign, admitted by the rule-example qualifier (whose admission relations are proved; capture and process authenticity are trusted), and checked against the commit's checker, corpus and configuration sources before the site was generated. The site build refuses stale, incomplete or partial evidence.\n\n" ++
     table ++ "\n" ++
     "A diagnostic demonstration shows an INCOMPLETE result by design; it is not accepted negative evidence. The corpus campaign is scoped qualification of the detectors for these inputs, not a proof that the detectors are correct for every input.\n\n" ++
     "# Hosting limits\n%%%\ntag := \"versions-hosting\"\nnumber := false\n%%%\n\n" ++

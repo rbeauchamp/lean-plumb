@@ -148,6 +148,9 @@ def run (args : List String) : IO Unit := do
   if let some (path, text) := invalidated then
     IO.FS.createDirAll "tmp"
     IO.FS.writeFile path text
+  -- A site artifact from an earlier run must not survive a failed build.
+  if selection.val == .site then
+    if ← System.FilePath.pathExists siteOutput then IO.FS.removeDirAll siteOutput
   for command in [Command.mk "git" #["diff", "--check"],
       Command.mk "git" #["diff", "--cached", "--check"],
       Command.mk "shellcheck" #["scripts/verify.sh"]] ++ commands selection.val do

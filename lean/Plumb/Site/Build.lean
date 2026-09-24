@@ -31,7 +31,8 @@ namespace Plumb.Site.Build
 
 open Lean System Plumb.Site Plumb.Qualification PlumbQualification.Evidence
 
-/-- The linter's emitted help URL is exactly the development page route of the site. -/
+/-- The linter's emitted help URL is exactly the development page route of the site. Kernel-checked
+when the `site` executable is built; this module is in the excluded operational `Plumb` library. -/
 theorem helpUrl_dev (id : RuleId) : Plumb.helpUrl id = devUrl id := rfl
 
 private def get (j : Json) (key : String) : IO Json := IO.ofExcept (field j key)
@@ -167,7 +168,8 @@ private def requestText (request : Json) (mode : String) : IO String := do
   let subject := displayText project (← str request "subject")
   let claim := match field request "claim" with | .ok (.str c) => c | _ => "none"
   let execution := match field request "execution" with | .ok (.str e) => e | _ => "report"
-  return match kind with
+  let entry := "; run by the qualification runner's ruleExamples entry, which executes the same detector with dependency Git facts captured once for the campaign"
+  return (· ++ entry) <| match kind with
     | "file" => s!"fresh single-file audit (axiomGate --file) of {subject} with claim {claim} and execution {execution}; evidence mode {mode}"
     | "policyNegative" => s!"single-file policy inspection of {subject} that keeps Lean's original compiler warning; evidence mode {mode}"
     | "documentation" => s!"documentation fence audit of {subject}; evidence mode {mode}"
@@ -274,7 +276,7 @@ def evidence (root : FilePath) (ident : Identity) (shardPaths : List FilePath) :
         ⟨s!"{id.spelling}/{phase}: result producer version", has result "producerVersion" (.str producer.producerVersion)⟩,
         ⟨s!"{id.spelling}/{phase}: result source revision is this commit",
           has result "sourceRevision" (.str ident.revision.val) ||
-          has result "sourceRevision" (.str (ident.revision.val ++ ":unreleased-worktree"))⟩]
+          (ident.dirty && has result "sourceRevision" (.str (ident.revision.val ++ ":unreleased-worktree")))⟩]
       return r
     let violation ← byPhase "Violation"
     let fixed ← byPhase "Fixed"

@@ -78,10 +78,12 @@ prerequisite. Run `./scripts/verify.sh serialized-graph` only for the separate s
 claim. See the [verification sequence](../standard/9-compliance-audit.md#repository-verification-sequence)
 for evidence requirements. Diagnostics do not replace a failed acceptance run.
 
-The [diagnostics workflow](../../.github/workflows/diagnostics.yml) runs `producers`,
-`history` and both `rule-examples` shards as parallel jobs, each with its own hard
-420-second limit. It runs when the checker, rules, rule examples, Lake configuration or
-manifests change, on every push to `main`, and nightly.
+The [diagnostics workflow](../../.github/workflows/diagnostics.yml) runs `producers` and
+`history` as parallel jobs, each with its own hard 420-second limit, when the checker, rules,
+rule examples, Lake configuration or manifests change, on every push to `main`, and nightly;
+it also runs both `rule-examples` shards nightly. [CI](../../.github/workflows/ci.yml) runs both
+shards on every pull request and push to `main`, where they feed `./scripts/verify.sh site`
+([website guide](website.md)).
 The [lint-driver workflow](../../.github/workflows/lint-driver.yml) runs `lint-driver`
 under the same limit when the `lake lint` driver or anything it imports changes, or the
 adopter fixtures in `examples/lake-lint-toml` and `examples/build-lint` change, on every push

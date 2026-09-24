@@ -30,16 +30,17 @@ Labels: **proved** (kernel-checked in the build), **observed** (a run on this ma
 | --- | --- |
 | One page route per rule per edition, no duplicates, every rule present | `Plumb.Site.pageFiles_nodup`, `mem_pageFiles`, `Edition.pagePath_injective` |
 | One generated Verso module per rule, no duplicates | `ruleModules_nodup` |
-| Emitted help URL = development page route | `Plumb.Site.Build.helpUrl_dev` (`rfl`) |
+| Emitted help URL = development page route | `Plumb.Site.Build.helpUrl_dev` (`rfl`; in the excluded `Plumb` library, kernel-checked when `lake exe site` is built, not by ordinary acceptance) |
 | Escaped text contains no `<`, `>`, `"`, `'` or backtick | `escape_safe`, `escape_no_backtick` |
 | Raw HTML enters Verso only fenced and backtick-free | `htmlBlock_ok` |
 | No-match notice exactly for empty filter states | `mem_emptySelections` |
 | Link check empty iff every scanned link resolves | `linkErrors_nil_iff`, `checkedLinkErrors` |
 | Every rule page has the nine required sections in order | `ruleSections_headings` (`rfl`) |
-| Every rule explanation has every required section | `guide_wellFormed` (`decide +kernel` over all 21 rules) |
+| Every rule explanation's required fields are nonempty strings or lists | `guide_wellFormed` (`decide +kernel` over all 21 rules) |
 
-Their exact axiom sets are checked by ordinary acceptance under the Standard-Logical claim of
-`PlumbCore`. They do not cover Verso rendering, the tokenizer's completeness, browsers,
+Apart from `helpUrl_dev`, their exact axiom sets are checked by ordinary acceptance under the
+Standard-Logical claim of `PlumbCore`. The link check's tokenizer controls (including the review
+counterexamples below) are evaluated `#guard` observations of the compiled function, not proofs. They do not cover Verso rendering, the tokenizer's completeness, browsers,
 GitHub Pages or the network.
 
 ## Observed locally
@@ -83,11 +84,40 @@ Served `_site/` at `/lean-plumb/` with a local static server that answers missin
 The VS Code click-through against the deployed site is #10's verification (the #14 journey
 reached the dev route while it returned 404 before deployment).
 
+## Independent review and repairs
+
+Three fresh-context reviews of `b48c30e` (proof and builder fidelity; CI and deployment;
+explanation accuracy) reported no blocker. Repairs:
+
+- Link resolution: RFC 3986 scheme detection (a relative link containing `://` was treated as
+  external; `javascript://` escaped refusal), `<base href>` reduced to its directory, `>` inside
+  quoted attributes; each counterexample is now a `#guard` control that must report an error.
+- Deployment: a `deploy-gate` job refuses a dirty artifact, another commit, or a revision no
+  longer at the head of `main` (a manual re-run of an older run could otherwise republish it);
+  hidden files are refused by the artifact check; the verifier retries only on HTTP 200, varies
+  its query per attempt and takes the page URL from the environment. Nightly corpus shards
+  restored in the diagnostics workflow.
+- Builder: a failed check removes `_site/`; `verify.sh site` removes an earlier `_site/` first;
+  the uncommitted-changes revision suffix is accepted only for a dirty build; `--validate-site`
+  receives descriptor availability and the pages whose content was checked.
+- Content: `lake exe axiomGate` is fresh by default; PL2003 project findings are INCOMPLETE
+  and disabling a linter does hide the warning (so the page says not to); PL1003/PL1004 include
+  the built-in `trustCompiler`/`ofReduceBool`/`ofReduceNat` family; PL1002 editor failure is
+  PL2005; PL5003 fenced headings count; PL1006 unsafe-mode, dependency-package and elaborator
+  wording; residual lists labelled as the rule-coverage mapping plus the all-residuals statement;
+  strict-impact editor note; smaller established/checklist corrections.
+
+Deployment controls observed locally with `Deployment.lean`: `gate` PASS for a clean artifact of
+the current head of `main`, refusal for a moved `main`, another commit and a dirty artifact;
+`verify` PASS against a local server serving a copy, refusal after one rule page was altered.
+
 ## Outstanding
 
 - **Publication.** The live site is deployed by the first `main` run after merge; the
   `verify-deployment` job compares it with the artifact. Until that run passes, live-link
   acceptance is outstanding.
+- **Required checks.** Only `verify` is a required status check; adding `site` and the corpus
+  shards is an operator decision.
 - Released-version (`v/`) pages and retention of earlier `rev/` snapshots need a release and a
   retention mechanism; neither exists.
 - Semantic accuracy of the 21 explanations is review (R-DOC, R-INTENT), not established by the build.

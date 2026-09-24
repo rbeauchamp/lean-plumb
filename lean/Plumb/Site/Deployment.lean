@@ -2,24 +2,28 @@ import Lean
 
 /-! # Deployed rule-reference verification
 
-Compares the live GitHub Pages site with the exact artifact the site workflow validated and
-uploaded. It imports only Lean's core so the deployment job can run it with the pinned
-toolchain alone:
+Gates and verifies publication of the artifact the CI `site` job validated. It imports only
+Lean's core so the deployment jobs can run it with the pinned toolchain alone:
 
 ```text
-lean --run lean/Plumb/Site/Deployment.lean ARTIFACT_DIR PAGE_URL
+lean --run lean/Plumb/Site/Deployment.lean gate ARTIFACT_DIR     # before deploying
+lean --run lean/Plumb/Site/Deployment.lean verify ARTIFACT_DIR   # after deploying
 ```
 
-It requires `PAGE_URL` to be the artifact's recorded site, the live `build.json` to equal the
-artifact's bytes (retrying while the deployment propagates), every rule page of every edition
-listed in `build.json` to be served with the artifact's exact bytes, and an unpublished route
-to be answered with HTTP 404 and the artifact's `404.html`.
+`gate` requires the artifact to be built from a clean checkout of `GITHUB_SHA` and that commit
+to still be the head of `main` (`git ls-remote`), so a re-run of an older run cannot publish over
+a newer revision. A newer push after the gate is still deployed later, because each run on `main`
+cancels older ones and deployments are serialized. `verify` requires `PLUMB_PAGE_URL` to be the
+artifact's recorded site, the live `build.json` to equal the artifact's bytes (retrying while the
+deployment propagates), every rule page of every edition listed in `build.json` to be served with
+the artifact's exact bytes, and an unpublished route to be answered with HTTP 404 and the
+artifact's `404.html`. It compares only those files.
 
 ## Boundaries
 
-This is an observation of the live site at one time through `curl`, not a proof: GitHub
-Pages, its CDN and the network are external. Requests carry a query string so that a cached
-copy of an earlier deployment cannot satisfy the comparison.
+These are observations at one time through `git` and `curl`, not proofs: GitHub, Pages, its
+CDN and the network are external. Requests carry a per-attempt query string so that a cached
+copy is unlikely to satisfy the comparison; whether the CDN keys on it is not established.
 -/
 
 namespace Plumb.Site.Deployment
@@ -36,6 +40,25 @@ def fetch (url : String) (path : FilePath) : IO Nat := do
 private def field (j : Json) (key : String) : IO Json := IO.ofExcept (j.getObjVal? key)
 private def str (j : Json) (key : String) : IO String := do IO.ofExcept (← field j key).getStr?
 
+private def env (name : String) : IO String := do
+  match ← IO.getEnv name with
+  | some v => if v.isEmpty then fail s!"{name} is empty" else pure v
+  | none => fail s!"{name} is not set"
+
+/-- Refuse to publish unless the artifact is a clean build of `GITHUB_SHA` and that commit is
+still the head of `main`. -/
+def gate (artifact : FilePath) : IO Unit := do
+  let build ← IO.ofExcept (Json.parse (← IO.FS.readFile (artifact / "build.json")))
+  let sha ← env "GITHUB_SHA"
+  unless (← field build "dirty") == .bool false do fail "the artifact was built from uncommitted changes"
+  unless (← str build "revision") == sha do fail s!"the artifact is for {← str build "revision"}, not {sha}"
+  let repository := (← env "GITHUB_SERVER_URL") ++ "/" ++ (← env "GITHUB_REPOSITORY")
+  let out ← IO.Process.output { cmd := "git", args := #["ls-remote", repository, "refs/heads/main"] }
+  unless out.exitCode == 0 do fail s!"cannot read the head of main: {out.stderr}"
+  let head := ((out.stdout.splitOn "\t").headD "").trimAscii.toString
+  unless head == sha do fail s!"main has moved to {head}; not publishing the older {sha}"
+  IO.println s!"deployment gate: PASS (clean artifact of {sha}, the current head of main)"
+
 def run (artifact : FilePath) (pageUrl : String) : IO Unit := do
   let recorded ← IO.FS.readBinFile (artifact / "build.json")
   let build ← IO.ofExcept (Json.parse (← IO.FS.readFile (artifact / "build.json")))
@@ -50,10 +73,11 @@ def run (artifact : FilePath) (pageUrl : String) : IO Unit := do
   -- The deployment is atomic; wait until the live identity is this artifact's.
   let mut matched := false
   for attempt in [1:21] do
-    let status ← fetch (site ++ "build.json" ++ probe) (scratch / "build.json")
-    if status == 200 && (← IO.FS.readBinFile (scratch / "build.json")) == recorded then
-      matched := true
-      break
+    let status ← fetch (site ++ "build.json" ++ probe ++ s!"-{attempt}") (scratch / "build.json")
+    if status == 200 then
+      if (← IO.FS.readBinFile (scratch / "build.json")) == recorded then
+        matched := true
+        break
     IO.println s!"attempt {attempt}: live build.json is not this artifact yet (HTTP {status}); waiting"
     IO.sleep 15000
   unless matched do fail s!"the live site does not serve the artifact of {revision}"
@@ -81,5 +105,8 @@ end Plumb.Site.Deployment
 
 def main (args : List String) : IO UInt32 := do
   match args with
-  | [artifact, pageUrl] => Plumb.Site.Deployment.run artifact pageUrl; return 0
-  | _ => IO.eprintln "usage: lean --run lean/Plumb/Site/Deployment.lean ARTIFACT_DIR PAGE_URL"; return 2
+  | ["gate", artifact] => Plumb.Site.Deployment.gate artifact; return 0
+  | ["verify", artifact] =>
+    let some pageUrl ← IO.getEnv "PLUMB_PAGE_URL" | IO.eprintln "PLUMB_PAGE_URL is not set"; return 2
+    Plumb.Site.Deployment.run artifact pageUrl; return 0
+  | _ => IO.eprintln "usage: lean --run lean/Plumb/Site/Deployment.lean (gate | verify) ARTIFACT_DIR"; return 2

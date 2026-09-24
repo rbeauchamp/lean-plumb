@@ -137,7 +137,8 @@ def lifecycleText {id : RuleId} : Lifecycle id → String
       "Retired in " ++ version ++ " (introduced " ++ introduced ++ ")" ++
       (match replacement with | some r => "; replaced by " ++ r.val.spelling | none => "")
 
-/-- The rule's registry metadata. Every value is projected from `descriptor id`. -/
+/-- The rule's facts: identity and metadata projected from `descriptor id`, the resolved clause
+links, the checklist rows of its explanation, and the strict-impact statement shared by every rule. -/
 def factsHtml (id : RuleId) (clauses : List Clause) (checklist : List String) : String :=
   let d := descriptor id
   "<table class=\"plumb-facts\"><caption>Rule facts from the registry</caption><tbody>" ++
@@ -145,7 +146,7 @@ def factsHtml (id : RuleId) (clauses : List Clause) (checklist : List String) : 
   row "Category" (escape d.category.label) ++
   row "Scope" (escape d.scope.label) ++
   row "Subreason" (code d.applicability) ++
-  row "Strict impact" "Error whenever the rule applies. An established violation makes the result FAIL; missing or unsupported evidence makes it INCOMPLETE. Neither is accepted." ++
+  row "Strict impact" "Error in every project and documentation audit where the rule applies. An established violation makes the result FAIL; missing or unsupported evidence makes it INCOMPLETE. Neither is accepted. The editor shows local findings as warnings; they are not project results." ++
   row "Evidence modes" (escape (joinComma (d.evidenceModes.map modeLabel))) ++
   row "Availability" (escape d.availability.label) ++
   row "Lifecycle" (escape (lifecycleText d.lifecycle)) ++
@@ -226,7 +227,9 @@ private def changedFix (ident : Identity) (c : ChangedFile) : Except String Stri
   let full := match c.fixed with
     | some f => if f.fixture.isSome then shownHtml ident f else ""
     | none => "<p>" ++ code c.path ++ " is removed by the correction.</p>"
-  return "<p>Change to " ++ code c.path ++ ":</p>" ++ diffHtml d.val ++ full
+  let terminator := if before == after && c.violation.map (·.text) != c.fixed.map (·.text) then
+      "<p>Only the final line terminator differs.</p>" else ""
+  return "<p>Change to " ++ code c.path ++ ":</p>" ++ diffHtml d.val ++ terminator ++ full
 
 def exampleKindText : String → String
   | "policyRejection" => "Checked policy rejection: the violating input was completed by the checker and rejected with the findings below; the corrected input passed a completed positive check."
@@ -282,8 +285,11 @@ def ruleSections (ident : Identity) (id : RuleId) (g : Guide) (ex : String)
   ("Required proof shape", "proof-shape", paragraphs ident g.proofShape),
   ("What a passing result establishes", "established",
     paragraphs ident g.established ++ "It does not establish:\n\n" ++ bullets ident g.notEstablished ++
-    "Open review obligations a passing result leaves for this rule (from the checker's `Residual` account):\n\n" ++
+    "Review obligations the rule-coverage map ties to this rule's checklist rows (identifiers of the checker's `Residual` account):\n\n" ++
     String.join (g.residuals.map fun r => "* `" ++ r.spelling ++ "`: " ++ residualText r ++ "\n") ++ "\n" ++
+    "Every accepted result lists all residual obligations as open, whatever rules it checked: " ++
+      String.intercalate ", " ((Residual.all.filter (· != .graph)).map fun r => "`" ++ r.spelling ++ "`") ++
+      " (and `R-GRAPH` for a serialized-graph claim). A listed identifier is an open obligation, never a completed review.\n\n" ++
     "Every accepted result also relies on these trusted mechanisms (the checker's `Trusted` account), which no rule verifies:\n\n" ++
     String.join (Trusted.all.map fun t => "* `" ++ t.spelling ++ "`: " ++ t.detail ++ "\n") ++ "\n"),
   ("Configuration and exceptions", "configuration", paragraphs ident g.configuration),
@@ -386,8 +392,5 @@ def indexHtml (exampleKind : RuleId → String) : String :=
   "<tr class=\"plumb-no-match\"><td colspan=\"5\">No registered rule matches the selected filters. Use <strong>Reset filters</strong> to show every rule.</td></tr>" ++
   "</tbody></table></div><style>" ++ filterCss ++ "</style></div>"
 
-/-- Every registered rule has exactly one index row. -/
-theorem indexRows (exampleKind : RuleId → String) :
-    (RuleId.all.map fun id => ruleRow id (exampleKind id)).length = RuleId.all.length := by simp
 
 end Plumb.Site

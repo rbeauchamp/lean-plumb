@@ -14,7 +14,7 @@ decision it takes about that data is a function here.
   make the page inventory duplicate-free and total over the registry.
 - `escape`, `escape_safe`: HTML text escaping; escaped text contains none of the markup
   characters `<`, `>`, `"`, `'` or the backtick that would end a Verso code fence.
-- `htmlBlock`, `htmlBlock_ok`: the only way raw HTML enters generated Verso source.
+- `htmlBlock`, `htmlBlock_ok`: the only way the generator inserts raw HTML into Verso source (by inspection of the generator; guide prose and clause labels enter as Verso markup).
 - `Selection`, `emptySelections`, `mem_emptySelections`: the index filters and the exact
   set of filter combinations for which the no-match notice is shown.
 - `admitDiff`: a line diff admitted only when it reproduces both compared texts.
@@ -333,6 +333,13 @@ def parseAttributes : Nat → List Char → List (String × String)
         (key, decodeEntities (String.ofList value)) :: parseAttributes fuel (body.drop value.length)
     | _ => (key, "") :: parseAttributes fuel rest
 
+/-- The text of a tag up to its closing `>`, skipping `>` inside quoted attribute values. -/
+def tagBody : List Char → Option Char → List Char
+  | [], _ => []
+  | c :: rest, none =>
+    if c == '>' then [] else c :: tagBody rest (if c == '"' || c == '\'' then some c else none)
+  | c :: rest, some q => c :: tagBody rest (if c == q then none else some q)
+
 /-- Tokenizer state: ordinary markup, or raw text of a comment or script/style element. -/
 inductive ScanMode where
   | markup | comment | raw (element : String)
@@ -351,7 +358,7 @@ def scanTags (html : String) : List Tag :=
         (if ((chunk.drop 3).toString.splitOn "-->").length > 1 then .markup else .comment, tags)
       else if chunk.startsWith "/" || chunk.startsWith "!" || chunk.startsWith "?" then (.markup, tags)
       else
-        let body := ((chunk.splitOn ">").headD "").toList
+        let body := tagBody chunk.toList none
         let name := String.ofList (body.takeWhile (fun c => !(isSpace c || c == '/' || c == '>'))) |>.toLower
         if name.isEmpty then (.markup, tags) else
         let rest := body.drop name.length
@@ -414,28 +421,41 @@ inductive Target where
   | invalid (reason : String)
   deriving DecidableEq
 
-/-- Resolve a link in the page at `from`. Scheme URLs are external. A root-relative path
-must lie under `basePath`. Relative references resolve against the page's `<base href>`
-when present. Directory targets denote their `index.html`. -/
+/-- The RFC 3986 scheme of a URI reference: a letter followed by letters, digits, `+`, `-` or
+`.`, ending at a `:` that precedes any `/`, `?` or `#`. Every other reference is relative. -/
+def scheme? (link : String) : Option String :=
+  let head := link.toList.takeWhile (fun c => c != ':' && c != '/' && c != '?' && c != '#')
+  match head with
+  | c :: rest =>
+    if (link.toList.drop head.length).head? == some ':' && c.isAlpha &&
+        rest.all (fun d => d.isAlphanum || d == '+' || d == '-' || d == '.') then
+      some (String.ofList head).toLower
+    else none
+  | [] => none
+
+/-- Resolve a link in the page at `from`. A reference with a scheme is external, except that
+`javascript:` and `data:` references are refused. A root-relative path must lie under
+`basePath`. Relative references resolve against the page's `<base href>` (itself resolved
+against the page, then reduced to its directory) when present. Directory targets denote their
+`index.html`. -/
 def resolve (page : Page) (link : String) : Target :=
-  if (link.splitOn "://").length > 1 || link.startsWith "mailto:" then .external
-  else if link.startsWith "javascript:" || link.startsWith "data:" then .invalid "script or data URL"
-  else
+  match scheme? link with
+  | some s => if s == "javascript" || s == "data" then .invalid "script or data URL" else .external
+  | none =>
     let (beforeFragment, fragment) := match link.splitOn "#" with
       | [] => ("", "")
       | p :: rest => (p, String.intercalate "#" rest)
     let pathPart := (beforeFragment.splitOn "?").headD ""
+    let underBase (p : String) : Option String :=
+      if p.startsWith basePath then some (p.drop basePath.length).toString else none
     let absolute : Option String :=
-      if pathPart.startsWith "/" then
-        if pathPart.startsWith basePath then some (pathPart.drop basePath.length).toString else none
+      if pathPart.startsWith "/" then underBase pathPart
       else
-        let baseDir := match page.base with
-          | none => some (directory page.path)
-          | some b =>
-            if b.startsWith "/" then
-              (if b.startsWith basePath then some (b.drop basePath.length).toString else none)
-            else some (directory page.path ++ b)
-        baseDir.map fun d => if pathPart.isEmpty && page.base.isNone then page.path else d ++ pathPart
+        -- The base URL, as an artifact path; the document itself when there is no `<base>`.
+        let baseUrl := match page.base with
+          | none => some page.path
+          | some b => if b.startsWith "/" then underBase b else some (directory page.path ++ b)
+        baseUrl.map fun u => if pathPart.isEmpty then u else directory u ++ pathPart
     match absolute with
     | none => .invalid s!"link outside {basePath}"
     | some raw =>
@@ -493,6 +513,10 @@ scanned as markup. The string operations do not reduce in the kernel. -/
   "<base href=\"./../\"><a href=\"rules/#top\">x</a><h1 id=\"top\">t</h1>"] == []
 #guard linkErrors [Page.ofHtml "dev/index.html" "<a href=\"/other/x\">x</a>"] != []
 #guard linkErrors [Page.ofHtml "dev/index.html" "<script>if (a<b) {}</script><a href=\"https://x.org/\">x</a>"] == []
+#guard linkErrors [Page.ofHtml "dev/index.html" "<a href=\"missing/?u=http://x\">x</a>"] != []
+#guard linkErrors [Page.ofHtml "dev/index.html" "<a href=\"javascript://x\">x</a>"] != []
+#guard linkErrors [Page.ofHtml "dev/rules/a.html" "<base href=\"x\"><a href=\"missing.html\">x</a>"] != []
+#guard linkErrors [Page.ofHtml "dev/index.html" "<a title=\"a>b\" href=\"missing/\">x</a>"] != []
 
 /-! ## Normative clause anchors -/
 

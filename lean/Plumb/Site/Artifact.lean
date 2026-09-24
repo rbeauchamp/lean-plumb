@@ -101,6 +101,9 @@ def checkArtifact (root out : FilePath) (g : Generated) : IO Unit := do
     p.startsWith "dev/" || (!g.ident.dirty && p.startsWith rev)
   let unexpected := files.filter (fun f => !allowed f.1) |>.map (·.1)
   requireChecks [⟨s!"artifact has only the published layout; unexpected: {unexpected.take 5}", unexpected.isEmpty⟩]
+  -- The Pages upload drops hidden files, so the checked tree must not contain any.
+  let hidden := files.filter (fun f => (f.1.splitOn "/").any (·.startsWith ".")) |>.map (·.1)
+  requireChecks [⟨s!"artifact has no hidden files (the Pages upload would drop them): {hidden.take 5}", hidden.isEmpty⟩]
   let strip (prefix_ : String) := files.filterMap fun (p, b) => (p.dropPrefix? prefix_).map fun r => (r.toString, b)
   let dev := strip "dev/"
   unless g.ident.dirty do
@@ -114,6 +117,7 @@ def checkArtifact (root out : FilePath) (g : Generated) : IO Unit := do
   for e in editions do
     for file in pageFiles e do
       requireChecks [⟨s!"rule page exists: {file}", files.any (·.1 == file)⟩]
+  let mut checkedPages : List RuleId := []
   for (id, ex) in g.examples do
     let some (_, bytes) := files.find? (·.1 == Edition.dev.pageFile id) | throw <| IO.userError s!"missing page {id.spelling}"
     let html ← utf8 id.spelling bytes
@@ -126,11 +130,13 @@ def checkArtifact (root out : FilePath) (g : Generated) : IO Unit := do
       ⟨s!"{id.spelling}: page states its commit", html.contains g.ident.revision.val⟩,
       ⟨s!"{id.spelling}: page shows every admitted example text exactly", texts.all fun t => html.contains (escape t)⟩,
       ⟨s!"{id.spelling}: page states every required section", requiredHeadings.all (fun h => html.contains h)⟩]
+    checkedPages := id :: checkedPages
   let pages ← files.mapM fun (p, bytes) => do
     if p.endsWith ".html" then return Page.ofHtml p (← utf8 p bytes) else return Page.ofOther p
   let errors := linkErrors pages
   requireChecks [⟨s!"{errors.length} unresolved link(s): {errors.take 10}", errors.isEmpty⟩]
-  -- The registry's own validator over the observed pages and every emitted rule ID.
+  -- The registry's own validator over the page inventory, the pages whose example content was
+  -- checked above, each rule's advertised availability and every emitted rule ID.
   let registry := out.parent.getD root / "site-registry.json"
   let artifact := out.parent.getD root / "site-artifact.json"
   let exported ← run root (root / ".lake/build/bin/axiomGate").toString #["--registry-out", registry.toString]
@@ -141,8 +147,8 @@ def checkArtifact (root out : FilePath) (g : Generated) : IO Unit := do
     ("emitted", toJson (emitted.map RegistryCodec.ruleJson)),
     ("pages", toJson (RuleId.all.map fun id => Json.mkObj [
       ("id", RegistryCodec.ruleJson id), ("route", toJson id.route),
-      ("checkedExample", toJson (g.examples.any (·.1 == id) && files.any (·.1 == Edition.dev.pageFile id))),
-      ("advertisedEnforced", toJson true)]))])
+      ("checkedExample", toJson (checkedPages.contains id)),
+      ("advertisedEnforced", toJson ((descriptor id).availability == .existingChecker))]))])
   let validated ← run root (root / ".lake/build/bin/axiomGate").toString #["--validate-site", registry.toString, artifact.toString]
   requireChecks [⟨s!"registry site validation\n{validated.stdout}{validated.stderr}", validated.exitCode == 0⟩]
   IO.FS.removeFile registry
@@ -159,8 +165,13 @@ def build (evidencePaths : List FilePath) (out : FilePath) : IO Unit := do
   let g ← evidence root ident evidencePaths
   generate root g
   let edition ← render root (root / "tmp/site-render")
-  assemble out g edition
-  checkArtifact root out g
+  try
+    assemble out g edition
+    checkArtifact root out g
+  catch error =>
+    -- An unchecked artifact never remains where it could be served or uploaded.
+    if ← out.pathExists then IO.FS.removeDirAll out
+    throw error
   IO.FS.removeDirAll (root / "tmp/site-render")
   IO.println s!"site: PASS ({RuleId.all.length} rule pages per edition, {(← snapshotTree out).length} files, commit {ident.revision.val}{if ident.dirty then " with uncommitted changes" else ""}); artifact {out}"
   IO.println "The artifact check observes local files only; publication is verified against the deployed site."
