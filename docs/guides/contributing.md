@@ -83,10 +83,10 @@ The [diagnostics workflow](../../.github/workflows/diagnostics.yml) runs `produc
 420-second limit. It runs when the checker, rules, rule examples, Lake configuration or
 manifests change, on every push to `main`, and nightly.
 The [lint-driver workflow](../../.github/workflows/lint-driver.yml) runs `lint-driver`
-under the same limit when the `lake lint` driver, Lake dispatch or the adopter fixtures in
-`examples/lake-lint-toml` and `examples/build-lint` change, on every push to `main`, and
-nightly. These campaigns are capability-triggered diagnostics (standard §8.8), not a
-partition of ordinary acceptance.
+under the same limit when the `lake lint` driver or anything it imports changes, or the
+adopter fixtures in `examples/lake-lint-toml` and `examples/build-lint` change, on every push
+to `main`, and nightly. These campaigns are capability-triggered diagnostics (standard
+§8.8), not a partition of ordinary acceptance.
 
 
 ## Implementation and qualification layout

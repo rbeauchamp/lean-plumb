@@ -32,11 +32,13 @@ then reconciling with main; it was not force-applied.
 - Qualification: the `lint-driver` build-bound partition (`LintQualification`),
   `scripts/verify.sh diagnostics lint-driver`.
 - Hosted: `.github/workflows/lint-driver.yml` runs that partition under the same 420 s limit
-  when the driver, Lake dispatch, `Plumb.Linter` or the adopter fixtures change, on `main`, and
-  nightly. Issue 14 asks for maintained adopter fixtures, which needs automation, and the
-  fixtures cross Lake dispatch, process and filesystem boundaries that the driver's proofs do
-  not cover; the path filter keeps the verification-slimming intent by running the job only
-  when those surfaces change.
+  when the `lake lint` driver or anything it imports changes, or the adopter fixtures change,
+  on `main`, and nightly. Issue 14 asks for maintained adopter fixtures, which needs
+  automation, and the fixtures cross Lake dispatch, process and filesystem boundaries that the
+  driver's proofs do not cover. The path filter covers the whole `lean/Plumb`, `PlumbCore`,
+  `PlumbPolicy` and `PlumbQualification` libraries and shared Lake inputs, not hand-listed
+  files: the driver's import closure spans essentially all of them, so a file list would
+  drift, and the job still skips docs-only and unrelated changes.
 - Docs: adoption guide §6–7, standard 8 §8.12 and 9 `BUILD-01`, architecture, native linter,
   policy acceptance, foundation status (editor-linter gap closed), design influences (Lean/Lake
   interface credit), review skill, and the issue 13 status correction in `engine-producers.md`.
