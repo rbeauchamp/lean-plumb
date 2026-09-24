@@ -202,7 +202,7 @@ def run (cache : System.FilePath) (model : PinnedModel) (split : Split) (env : E
   let group (j : Judgment) (m : StateMode) (v : Option Variant) :=
     rows.toList.filter fun r => r.judgment == j && r.mode == m && (v.all (r.variant == ·) || r.mutation == .base || r.mutation == .rewrite)
   let mut lines : Array String := #[s!"Model `{model.val}`, split `{if split == .dev then "dev" else "test"}`: " ++
-    s!"{usage.requests} requests sent, {usage.cached} answered from cache, {usage.inputTokens} input tokens billed.", ""]
+    s!"{usage.requests} requests sent, {usage.cached} answered from cache, {usage.tokensText} input tokens billed.", ""]
   for j in [Judgment.coverage, .strength, .quantifierOrder, .totalization, .exclusions] do
     lines := lines ++ #[s!"### {j.spelling}", "", tableHeader]
     for m in [StateMode.full, .statement, .explanation] do

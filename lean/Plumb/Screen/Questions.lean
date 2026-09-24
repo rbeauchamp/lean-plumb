@@ -109,7 +109,8 @@ def correspondence : Json :=
     "The Lean proposition differs from the English clause: a missing or extra hypothesis, a different conclusion or bound, a different quantifier order, or a case the clause excludes."
 
 /-- Question ids of one claim request, in order: one coverage question per clause not formally discharged (keeping the clause index), then the
-strength Choice and the three targeted checks. Ids are not sent to the model. -/
+strength Choice and the three targeted checks. Ids are sent as the request's question keys;
+they carry no claim or declaration information. -/
 def claimQuestions (mode : StateMode) (c : ClaimText) (discharged : Nat → Bool := fun _ => false) :
     List (String × Json) :=
   (c.clauses.zipIdx.filterMap fun (clause, i) =>

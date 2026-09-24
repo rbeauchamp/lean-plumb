@@ -40,12 +40,16 @@ The screen accepts the reference only when these conditions hold:
 - The named declaration is a theorem of the loaded environment.
 - Its type is `S → P`, where `P` does not depend on the hypothesis, and Lean's kernel
   definitional-equality check (`Lean.Kernel.isDefEq`) finds `S` equal to the claim's statement.
+- Lean's kernel re-checks its proof against that type when the screen runs (a fresh-named
+  copy is added to the loaded kernel environment). A proof admitted only because its module
+  was built with `debug.skipKernelTC` is refused. The declarations the proof uses are not
+  replayed: they are trusted as built into their imported `.olean` files.
 - Its transitive axioms lie within the Standard-Logical foundation: `propext`, `Quot.sound`
   and `Classical.choice`. A project axiom, `sorryAx`, `Lean.ofReduceBool` (`native_decide`) or
   `Lean.trustCompiler` refuses it. The report lists the exact axioms.
 
-The kernel admitted the implication with the theorem, and the screen's adapter ran the other
-checks. That part of the clause is **checked** and involves no model judgment. The model
+The kernel checked the implication's proof, and the screen's adapter ran the other checks.
+That part of the clause is **checked** and involves no model judgment. The model
 judges only one question about it: does `P` state the English clause? The report calls this
 the *correspondence* judgment. The screen asks no coverage question for a discharged clause.
 A reference that fails any condition makes the whole screen incomplete. It never falls back
@@ -75,27 +79,38 @@ probability is therefore the warning sign for every judgment.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schema-version": 1,
   "model": "jev-1.13.0",
   "cache": ".lake/intent-screen-cache",
   "state": "statement",
   "judgments": {
     "coverage": { "error": 0.2, "warning": 0.5 },
-    "strength": { "error": 0.2, "warning": 0.5, "minConfidence": 0.5 }
+    "strength": { "error": 0.2, "warning": 0.5, "information": 0.7, "min-confidence": 0.5 }
   }
 }
 ```
 
+Plumb has no user-editable rule-severity configuration today. Each registry rule has a fixed
+`defaultStrictSeverity`; the native linter shows its findings as Lean warnings, which Lean's
+`warningAsError` promotes uniformly, and `linter.plumb` only turns local feedback on or off.
+The screen therefore reuses the rule-severity vocabulary exactly (`Plumb.Severity`: `error`,
+`warning`, `information`; `ScreenSeverity.toSeverity_bijective`) and the JSON conventions of
+the project manifest `foundation_manifest.json` (`schema-version`, kebab-case keys, unknown
+fields refused).
+
 - `model` must be an exact version (`<name>-<major>.<minor>.<patch>`). Moving aliases such as
   `jev-latest` are refused. The run is also refused if the service answers with any other
   model.
-- The thresholds for each judgment map support probabilities to severity. Below `error` is an
-  error. From `error` up to but not including `warning` is a warning. At or above `warning`
-  raises no finding. The configuration is refused unless `error ≤ warning`. Probabilities are
-  compared as exact decimals, never as binary floating point.
+- The thresholds for each judgment map support probabilities to severity, keyed by severity
+  name. Below `error` is an error. From `error` up to but not including `warning` is a warning.
+  From `warning` up to but not including `information` is information. At or above
+  `information` raises no finding. `error` and `warning` are required; `information` defaults
+  to `warning`, which leaves the information band empty. The configuration is refused unless
+  `error ≤ warning ≤ information`. Probabilities are compared as exact decimals, never as
+  binary floating point.
 - A judgment with no thresholds raises no finding, and each of its answers escalates.
 - An answer escalates to reasoning-model or human review in two cases: it raises a finding,
-  or its Choice confidence is below `minConfidence`. The tool reports the route. It calls
+  or its Choice confidence is below `min-confidence`. The tool reports the route. It calls
   no second model.
 - Unknown fields are refused.
 
@@ -111,9 +126,28 @@ listed modules. With `--declaration`, it covers exactly the named declarations. 
 0 when no error-severity finding is raised, 1 when one is, and 2 when the screen is
 incomplete. A screen is incomplete when the key is missing and no cached answer exists, or
 when a network, service, parse, claim or discharge failure occurs. An incomplete screen is
-never reported as a pass. With `--json`, the output keeps the classes apart: each claim's
-checked discharges (theorem, formal clause, axioms) and open review obligations are listed
-separately from its screened answers.
+never reported as a pass.
+
+Findings have the linter's diagnostic shape (`Plumb.RegistryCodec.diagnosticJson`): `id`,
+`arguments` (`declaration`, `detail`), `location`, `related`, `severity` and `text`, plus
+`class`, which is always `screened`. The `id` is stable per judgment, `intentScreen/<judgment>`
+(for example `intentScreen/totalization`). It is not a registry rule ID, and screen findings
+are never added to the closed rule registry. The location is the claim declaration's Lean
+declaration range in its source file, found on Lake's `LEAN_SRC_PATH` (set by `lake exe`).
+Without a range or a source file it is the claim's module, as for linter findings. A range
+the source file does not admit makes the screen incomplete. Each finding is also printed in
+text form. With `--json`, the output keeps the classes apart: `findings`; each claim's
+clauses with their evidence classes (a discharge's checked implication beside its screened
+correspondence) and open review obligations; and every screened answer in `results`. Every
+class label is the spelling of the proved `EvidenceClass` definitions, not a free string.
+
+**Why not an in-elaboration rule.** A linter rule runs in every `lake build` and editor
+session. A screen calls a paid network service, sends source text off the machine, and its
+answers are not deterministic functions of the source. Running it inside elaboration would
+put network, cost and nondeterminism into builds and editors, and would make it default-on
+wherever the linter is. Issue #58 requires it to be off by default, cached by input digest,
+and never part of offline acceptance. It is therefore a separate executable that reuses the
+linter's severity vocabulary and diagnostic shape.
 
 ## Boundary, cost and data
 
@@ -125,14 +159,18 @@ separately from its screened answers.
   argument list, a file, a log, or the cache.
 - **Cost.** TypeSafe bills input tokens only. The jev-1.13.0 list price was $0.042 per million
   input tokens on 2026-09-24. A claim request is about 1,500 to 2,000 input tokens. The tool
-  prints the requests sent, the cache hits, and the input tokens billed.
+  prints the requests sent, the cache hits, and the input tokens billed. If a billed response
+  omits its usage, the total is printed as `unknown`, never as a partial count.
 - **Reproducibility.** The cache key is the SHA-256 of the exact request: model, state and
   every question. An entry is reused only if its stored request equals the current one. A
   fully cached run needs no key and makes no network call. Any change to the model, the
   question wording, the statement or the intent produces a new request.
-- **Trusted, not verified.** The screen's adapter code that reads claims and checks discharge
-  references, the `curl` and `shasum` processes, the network, the service and
-  its answers, the cache files, and Lean's pretty-printer that renders the statement.
+- **Trusted, not verified.** The screen's adapter code that reads claims, locates them and
+  checks discharge references; the imported `.olean` environment, including the declarations a
+  discharge proof uses (only the discharge theorem itself is re-checked by the kernel); the
+  source files read for finding locations; the `curl` and `shasum` processes, the network, the
+  service and its answers, the cache files, and Lean's pretty-printer that renders the
+  statement.
 
 ## What is proved and what is not
 
@@ -142,9 +180,14 @@ Machine-checked, about the definitions the executable runs (each through a
 - The exact decimal order is reflexive, transitive and total (`PlumbPolicy.Screening.Decimal`).
 - Probability admission accepts exactly the values in `[0, 1]` and changes none
   (`probability?_eq_some_iff`).
-- The severity mapping is exact: error below `error`, warning in the band, nothing at or
-  above `warning` (`checkedClassify`). It is also antitone: a lower probability never gives a
-  less severe finding (`classify_antitone`).
+- The severity mapping is exact: error below `error`, warning and information in their bands,
+  nothing at or above `information` (`checkedClassify`). It is also antitone: a lower
+  probability never gives a less severe finding (`classify_antitone`). Screen severities are
+  exactly the rule severities (`ScreenSeverity.toSeverity_bijective`).
+- A clause's judged answer has one of the clause's evidence classes and is never `checked`
+  (`ClauseEvidence.judgedAnswer_class`); every clause includes `screened`
+  (`ClauseEvidence.screened_mem`). The printed and JSON class labels are these classes'
+  spellings.
 - An answer stays `screened` exactly when thresholds are configured, the answer raises no
   finding, and any reported confidence meets the minimum (`checkedRoute`). An answer with a
   finding always escalates (`Judged.escalate_of_severity`). A claim with any finding is

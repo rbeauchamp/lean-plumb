@@ -1,4 +1,5 @@
 import Plumb.MaterialClaim
+import Plumb.RegistryCodec
 import Plumb.Screen.Calibrate
 
 /-! `intentScreen`: the opt-in probabilistic intent screen (`docs/guides/intent-screening.md`).
@@ -30,13 +31,20 @@ private def exactFields (value : Json) (allowed : List String) (what : String) :
   for (key, _) in fields.toList do
     unless allowed.contains key do throw s!"unknown field `{key}` in {what}"
 
+/-- A judgment's thresholds are keyed by the rule-severity spellings; `information` is
+optional and defaults to the warning threshold (an empty information band). -/
 private def judgmentPolicy (value : Json) : Except String JudgmentPolicy := do
-  exactFields value ["error", "warning", "minConfidence"] "a judgment policy"
-  let error ← decimalOf (← value.getObjVal? "error")
-  let warning ← decimalOf (← value.getObjVal? "warning")
-  let thresholds ← if h : error ≤ warning then pure (Thresholds.mk error warning h)
-    else throw "the error threshold exceeds the warning threshold"
-  let minConfidence ← match value.getObjVal? "minConfidence" with
+  let (e, w, i) := (Plumb.Severity.error.spelling, Plumb.Severity.warning.spelling,
+    Plumb.Severity.information.spelling)
+  exactFields value [e, w, i, "min-confidence"] "a judgment policy"
+  let error ← decimalOf (← value.getObjVal? e)
+  let warning ← decimalOf (← value.getObjVal? w)
+  let information ← match value.getObjVal? i with
+    | .ok v => decimalOf v
+    | .error _ => pure warning
+  let thresholds ← if h : error ≤ warning ∧ warning ≤ information then pure (Thresholds.mk error warning information h.1 h.2)
+    else throw "thresholds must satisfy error ≤ warning ≤ information"
+  let minConfidence ← match value.getObjVal? "min-confidence" with
     | .ok c => some <$> decimalOf c
     | .error _ => pure none
   return { thresholds := some thresholds, minConfidence }
@@ -44,8 +52,8 @@ private def judgmentPolicy (value : Json) : Except String JudgmentPolicy := do
 /-- Parse the configuration file (schema version 1, no unknown fields). -/
 def parseConfig (text : String) : Except String Config := do
   let json ← Json.parse text
-  exactFields json ["schemaVersion", "model", "cache", "state", "judgments"] "the configuration"
-  unless (← json.getObjValAs? Nat "schemaVersion") == 1 do throw "unsupported schemaVersion"
+  exactFields json ["schema-version", "model", "cache", "state", "judgments"] "the configuration"
+  unless (← json.getObjValAs? Nat "schema-version") == 1 do throw "unsupported schema-version"
   let model ← json.getObjValAs? String "model"
   let model : PinnedModel ← if h : isPinned model = true then pure ⟨model, h⟩
     else throw s!"model `{model}` is not a pinned version such as jev-1.13.0"
@@ -64,18 +72,46 @@ def parseConfig (text : String) : Except String Config := do
   return { model, cache, mode, policy := fun j => (final.lookup j).getD {} }
 
 private def severityText : Option ScreenSeverity → String
-  | none => "none" | some .warning => "warning" | some .error => "error"
+  | none => "none" | some s => s.toSeverity.spelling
 
 private def routeText : Route → String
   | .screened => "screened" | .escalate => "escalate"
 
 def judgedJson (policy : Policy) (claim : Name) (j : Judged) : Json :=
-  Json.mkObj [("claim", .str claim.toString), ("class", "screened"), ("judgment", .str j.judgment.spelling),
+  Json.mkObj [("claim", .str claim.toString), ("class", .str j.evidenceClass.spelling),
+    ("judgment", .str j.judgment.spelling),
     ("subject", .str j.subject), ("model", .str j.model.val), ("question", .str j.question),
     ("probability", .str j.support.render),
     ("confidence", match j.confidence with | some c => .str c.render | none => .null),
     ("inputsDigest", .str j.inputsDigest), ("severity", .str (severityText (j.severity policy))),
     ("route", .str (routeText (j.route policy)))]
+
+private def locationText : Plumb.Location → String
+  | .source s => s!"{s.val.snapshot.uri}:{s.selectionLsp.start.line + 1}:{s.selectionLsp.start.character + 1}"
+  | .module n => s!"module {n}"
+  | .project p => s!"project/configuration {p}"
+
+/-- One finding in the linter diagnostic shape (`Plumb.RegistryCodec.diagnosticJson`), with
+its judgment's `findingId` in place of a registry rule and its evidence class. -/
+structure ScreenFinding where
+  claim : Name
+  location : Plumb.Location
+  answer : Judged
+  severity : ScreenSeverity
+
+def ScreenFinding.detail (f : ScreenFinding) : String :=
+  s!"{f.answer.judgment.spelling} of \"{f.answer.subject}\": {f.answer.evidence}"
+
+def ScreenFinding.text (f : ScreenFinding) : String :=
+  s!"{f.answer.judgment.findingId} [{f.answer.evidenceClass.spelling}; {f.severity.toSeverity.spelling}; " ++
+    s!"{locationText f.location}]: {f.claim}: {f.detail}"
+
+def ScreenFinding.json (f : ScreenFinding) : Json :=
+  Json.mkObj [("id", .str f.answer.judgment.findingId),
+    ("arguments", Json.mkObj [("declaration", Plumb.RegistryCodec.nameJson f.claim), ("detail", .str f.detail)]),
+    ("location", Plumb.RegistryCodec.locationJson f.location), ("related", Json.arr #[]),
+    ("class", .str f.answer.evidenceClass.spelling), ("severity", .str f.severity.toSeverity.spelling),
+    ("text", .str f.text)]
 
 private unsafe def loadEnvironment (modules : Array Name) : IO Environment := do
   initSearchPath (← findSysroot)
@@ -114,18 +150,21 @@ def costNote (model : PinnedModel) (u : Usage) : String :=
   let price := if model.val == "jev-1.13.0" then
       "; the jev-1.13.0 list price was $0.042 per million input tokens on 2026-09-24" else ""
   s!"service usage: {u.requests} request(s) sent, {u.cached} answered from cache, " ++
-    s!"{u.inputTokens} input tokens billed (output tokens are free{price})"
+    s!"{u.tokensText} input tokens billed (output tokens are free{price})"
 
-/-- The machine record of one claim: the checked discharges and open review obligations
-beside, not inside, its screened answers. -/
+/-- The machine record of one claim: each clause with its evidence classes (a discharge's
+checked implication beside, not inside, its screened correspondence) and the open review
+obligations. -/
 def claimJson (s : ClaimScreen) : Json :=
   Json.mkObj [("claim", .str s.claim.toString),
-    ("checked", Json.arr (s.clauses.filterMap fun (text, e) => match e with
-      | .discharged proof formal axioms _ => some (Json.mkObj [("class", "checked"), ("clause", .str text),
-          ("discharge", .str proof.toString), ("formalClause", .str formal),
-          ("axioms", Json.arr (axioms.map (.str ·.toString)).toArray)])
-      | .judged _ => none).toArray),
-    ("openReview", Json.arr (unresolved.map (.str ·.spelling)).toArray)]
+    ("clauses", Json.arr (s.clauses.map fun (text, e) =>
+      let discharge := match e with
+        | .discharged proof formal axioms _ => Json.mkObj [("theorem", .str proof.toString),
+            ("formalClause", .str formal), ("axioms", Json.arr (axioms.map (.str ·.toString)).toArray)]
+        | .judged _ => .null
+      Json.mkObj [("clause", .str text), ("classes", Json.arr (e.classes.map (.str ·.spelling)).toArray),
+        ("discharge", discharge)]).toArray),
+    (EvidenceClass.openReview.spelling, Json.arr (unresolved.map (.str ·.spelling)).toArray)]
 
 unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
   if args.modules.isEmpty then throw <| IO.userError "screen requires at least one --module"
@@ -143,21 +182,24 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
   let mut usage : Usage := {}
   let mut records := #[]
   let mut claims := #[]
-  let mut errors := 0
+  let mut findings : Array ScreenFinding := #[]
   for name in selected do
     let input ← runMeta env (readClaim name)
+    let location ← runMeta env (claimLocation name)
     let (s, u) ← (screenClaim cfg input).run usage
     usage := u
     for line in s.lines cfg.policy do IO.println line
     records := records ++ (s.answers.map (judgedJson cfg.policy name)).toArray
     claims := claims.push (claimJson s)
-    errors := errors + ((s.findings cfg.policy).filter (·.2 == .error)).length
+    findings := findings ++ ((s.findings cfg.policy).map fun (answer, severity) =>
+      { claim := name, location, answer, severity : ScreenFinding }).toArray
+  for f in findings do IO.println f.text
   IO.println (costNote cfg.model usage)
   if let some path := args.json then
-    IO.FS.writeFile path (Json.mkObj [("schemaVersion", (1 : Nat)), ("class", "screened"),
+    IO.FS.writeFile path (Json.mkObj [("schemaVersion", (1 : Nat)), ("class", .str EvidenceClass.screened.spelling),
       ("note", "Screened results are model judgments: never checked evidence and never a completed R-INTENT review."),
-      ("claims", Json.arr claims), ("results", Json.arr records)]).pretty
-  return if errors > 0 then 1 else 0
+      ("findings", Json.arr (findings.map (·.json))), ("claims", Json.arr claims), ("results", Json.arr records)]).pretty
+  return if findings.any (·.severity == .error) then 1 else 0
 
 unsafe def main (argv : List String) : IO UInt32 := do
   try

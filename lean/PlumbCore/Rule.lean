@@ -27,6 +27,10 @@ inductive Severity where
   | error | warning | information
   deriving Repr, BEq, DecidableEq
 
+/-- The severity names used by the registry, diagnostics and the intent screen's configuration. -/
+def Severity.spelling : Severity → String
+  | .error => "error" | .warning => "warning" | .information => "information"
+
 /-- Availability names the detector, not completion of every future adapter. -/
 inductive Availability where
   | existingChecker | plannedEngine
