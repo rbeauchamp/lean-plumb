@@ -114,9 +114,18 @@ its `leanPath` followed by that directory to prefix the received `LEAN_PATH`
 inherited entries, the check holds exactly when the two workspaces have the same package
 library directories, provided Lake's directory is not one of them. Any other Lake layout, or a
 driver run outside Lake, is refused (fail closed). The `toml/foreign-dir` control runs
-`lake lint -d <adopter>` from the checker's own root and requires exit 2; the campaign has not
-yet been run with it. Observed on macOS arm64 at this change, with `--explain-config` so no
-audit runs: from this checkout's root, `lake env .lake/build/bin/lint --explain-config` (Lake's
+`lake lint -d <adopter>` from the checker's own root and requires exit 2. Observed at
+`c5ced6d` (plus only later doc and evidence edits), macOS arm64, in a disposable checkout:
+`./scripts/verify.sh diagnostics lint-driver` PASS, 145 s wall (partition 118 s, controls
+phase 104 s), 16 controls, all completed: lean/positive, lean/explain-config, lean/violation,
+lean/cached-violation, lean/builtin-only, lean/builtin-and-driver, lean/configuration,
+lean/invocation, lean/incomplete, lean/fresh-restored, toml/absent-worker, toml/positive,
+toml/foreign-dir, toml/editor-opt-out, toml/live-finding, toml/fresh-restored. Hosted CI does
+not run this partition; it stays outside the diagnostics matrix under the
+verification-slimming decision. A working directory outside any Lean project, or one whose
+workspace fails to load, stops the driver with exit 3 before the comparison (observed at
+`c5ced6d` from `/tmp`: `plumb lint: INCOMPLETE: cannot find Lean project root`, exit 3).
+Observed earlier on macOS arm64 at this change, with `--explain-config` so no audit runs: from this checkout's root, `lake env .lake/build/bin/lint --explain-config` (Lake's
 same `augmentedEnvVars`) passed the check and printed the configuration; the same binary with
 `LEAN_PATH` set to the example adopter's library directory, then `LEAN_SYSROOT/lib/lean`, was
 refused with exit 2 and the message above.

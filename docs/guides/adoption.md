@@ -188,8 +188,9 @@ built the driver itself, whether Plumb is a git dependency under `.lake/packages
 dependency or a custom `packagesDir`, so the worker uses the same dependencies and toolchain
 and needs no second dependency download. If that build fails, the run is `INCOMPLETE`.
 Run `lake lint` from the project root, without `-d`/`--dir`: Lake does not change the
-driver's working directory, so the driver refuses with exit 2 unless the workspace there is
-the one that dispatched it. Lake v4.34.0 passes the dispatching workspace's package library
+driver's working directory, so the driver refuses with exit 2 when the workspace there is
+positively identified as not the one that dispatched it, and stops with exit 3 when the
+working directory is outside any Lean project or its workspace fails to load. Lake v4.34.0 passes the dispatching workspace's package library
 directories, then its own `LEAN_SYSROOT/lib/lean`, then any inherited `LEAN_PATH`, as the
 driver's `LEAN_PATH`; the driver requires the working-directory workspace's library
 directories and that directory to begin it (`Plumb.Checker.Lint.dispatchedFrom_iff`). A
@@ -201,7 +202,7 @@ Its exit status separates the outcome:
 | 0 | `ACCEPTED`: the audit constructed its accepted result for the selected mode. |
 | 1 | `VIOLATION`: completed policy rejections, for example PL1001–PL1007 or PL3002. |
 | 2 | `INVALID CONFIGURATION`: only PL2002 manifest/scope rejections, an invalid driver argument, a working directory that is not the dispatching workspace, or `--help`/`--explain-config`, which run no audit. |
-| 3 | `INCOMPLETE`: an incomplete finding, for example PL2001, PL2003, PL2005 or PL3001, a failed audit-worker build, or an error that escaped the audit. It takes precedence over violations reported in the same run. |
+| 3 | `INCOMPLETE`: an incomplete finding, for example PL2001, PL2003, PL2005 or PL3001, a failed audit-worker build, a working directory outside any Lean project or whose workspace fails to load, or an error that escaped the audit. It takes precedence over violations reported in the same run. |
 
 Exit 0 requires a zero audit exit and the audit's recorded `completed` status, which carries
 the accepted account of the requested mode (`Plumb.Checker.Lint.accepted_sound`: an accepted
