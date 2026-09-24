@@ -25,7 +25,10 @@ Production entry points selected for #14:
 | Existing file inspection | Retain `axiomGate --file ... --claim ...` and the distinct `freshFile` identity. Do not describe a file result as project coverage. |
 | `lake lint -- --explain-config` | New planned read-only configuration explanation; validate and display the selected manifest, resolved Lake scope, per-surface profiles/execution mode, source of each option, and scheduled evidence mode/stages. No audit PASS or `Accepted` value. |
 
-Examples in this table are future command contracts, not commands to run before #14 ships.
+#14 delivered the `lake lint` driver (with `--fresh` and `--explain-config`), the build
+target adapter and editor links; the [adoption guide](adoption.md) documents the shipped
+commands. The driver does not take `--with-docs`: the combined documentation audit remains
+`lake exe axiomGate --with-docs`. The concise human renderer below is not yet implemented.
 The `plumb/lint` driver dispatches into the current checker and #7's accepted-result path; it is not
 another policy implementation. Preserve existing `axiomGate`, schema-1 and legacy JSON
 migration interfaces until callers are deliberately migrated.
@@ -75,9 +78,9 @@ Display these in order, with details available without crowding the first line:
 4. **Context:** current local/project mode and selected policy when it explains the finding.
 5. **Details:** exact evidence, related dependencies, stages and the matching rule link.
 
-Keep named Lean expressions interactive where the native APIs support them. Use the
-package-owned link widget with textual HTTPS fallback; the existing Lean named-error widget
-cannot be assumed to redirect to an external manual. The infoview retains its own navigation
+Keep named Lean expressions interactive where the native APIs support them. Links reuse
+Lean's own error-code widget with the registry URL, plus the textual HTTPS fallback; the
+`logAt` path would attach the Lean-manual URL instead ([decision](linter-architecture.md#diagnostic-link-decision)). The infoview retains its own navigation
 and ordering conventions; CLI/JSON order follows stable source/subject/rule keys, independent
 of worker completion order. Do not impose a second file-wide infoview panel.
 

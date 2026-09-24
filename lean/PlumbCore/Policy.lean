@@ -1,4 +1,5 @@
 import PlumbCore.Rule
+import PlumbCore.EditorPolicy
 import PlumbPolicy.Decision
 import PlumbPolicy.Execution
 import PlumbPolicy.Guards
@@ -222,6 +223,72 @@ membership proof replaces the inventory scan. Through `checkedMemberRule`. -/
 def ruleForMember (decl : Declaration) (claim : Option Profile) (scope : PolicyScope)
     (member : decl ∈ scope.inventory.declarations) : Option RuleId :=
   checkedMemberRule.run decl claim scope member
+
+/-- `MemberRuleContract` stated about `ruleForMember` itself. -/
+theorem ruleForMember_eq (decl : Declaration) (claim : Option Profile) (scope : PolicyScope)
+    (member : decl ∈ scope.inventory.declarations) :
+    ruleForMember decl claim scope member = ruleFor decl claim scope :=
+  checkedMemberRule.evidence decl claim scope member
+
+/-- `RuleContract` stated about `ruleFor` itself. -/
+theorem ruleFor_contract : RuleContract ruleFor :=
+  checkedRule.evidence
+
+/-- The editor's request domain is the project request's without teaching: every value the
+editor option accepts selects `request claim` for a claim other than compiler-trusting. -/
+theorem editor_request_sound {value : String} {r : PlumbPolicy.InspectionRequest}
+    (h : Plumb.Linter.editorRequest value = some r) :
+    ∃ claim, claim ≠ some .compilerTrusting ∧ request claim = r := by
+  rcases (Plumb.Linter.editorRequest_contract value r).mp h with ⟨_, rfl⟩ | ⟨p, _, rfl⟩
+  · exact ⟨none, by simp, rfl⟩
+  · cases p
+    · exact ⟨some .kernelOnly, by simp, rfl⟩
+    · exact ⟨some .choiceFree, by simp, rfl⟩
+    · exact ⟨some .standardLogical, by simp, rfl⟩
+
+/-- Every project request other than teaching is selectable by some editor option value. -/
+theorem editor_request_complete (claim : Option Profile) (h : claim ≠ some .compilerTrusting) :
+    ∃ value, Plumb.Linter.editorRequest value = some (request claim) := by
+  rcases claim with _ | ⟨_ | _ | _ | _⟩
+  · exact ⟨"classification-only", by decide⟩
+  · exact ⟨"kernel-only", by decide⟩
+  · exact ⟨"choice-free", by decide⟩
+  · exact ⟨"standard-logical", by decide⟩
+  · exact absurd rfl h
+
+/-- For the same member and request, the editor passes a declaration exactly when the
+project rule projection selects no rule. -/
+theorem editor_decision_none_iff (scope : PolicyScope) (decl : Declaration)
+    (member : decl ∈ scope.inventory.declarations) (claim : Option Profile) :
+    Plumb.Linter.editorDecision scope.inventory scope.roles decl member (request claim) = none ↔
+      ruleForMember decl claim scope member = none := by
+  rw [(Plumb.Linter.editorDecision_contract _ _ _ member _).1, ruleForMember_eq,
+    (ruleFor_contract decl claim scope).1]
+
+/-- A rule the editor renders is the project rule projection's rule for the same member and
+request (`checkedMemberRule`). -/
+theorem editor_decision_rule (scope : PolicyScope) (decl : Declaration)
+    (member : decl ∈ scope.inventory.declarations) (claim : Option Profile) (id : RuleId)
+    (h : Plumb.Linter.editorDecision scope.inventory scope.roles decl member (request claim) =
+      some (.rule id)) :
+    ruleForMember decl claim scope member = some id := by
+  obtain ⟨f, hf, _, rfl⟩ :=
+    ((Plumb.Linter.editorDecision_contract _ _ _ member _).2.2 id).mp h
+  rw [ruleForMember_eq]
+  exact ((ruleFor_contract decl claim scope).2 f).mpr hf
+
+/-- A pending editor decision withholds a rule the project projection selects; the failure
+needs fresh generated-role evidence that only a project or fresh-file audit supplies. -/
+theorem editor_decision_pending (scope : PolicyScope) (decl : Declaration)
+    (member : decl ∈ scope.inventory.declarations) (claim : Option Profile)
+    (h : Plumb.Linter.editorDecision scope.inventory scope.roles decl member (request claim) =
+      some .pending) :
+    ∃ f, ruleForMember decl claim scope member = some (Plumb.ruleForFailure f) ∧
+      Plumb.Linter.needsRoleEvidence decl f = true := by
+  obtain ⟨f, hf, hn⟩ := ((Plumb.Linter.editorDecision_contract _ _ _ member _).2.1).mp h
+  refine ⟨f, ?_, hn⟩
+  rw [ruleForMember_eq]
+  exact ((ruleFor_contract decl claim scope).2 f).mpr hf
 
 /-- Applicability text of the rule `ruleFor` selects. -/
 def reasonFor (decl : Declaration) (claim : Option Profile) (scope : PolicyScope) : Option String :=

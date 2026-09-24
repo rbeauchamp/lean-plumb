@@ -22,12 +22,23 @@ register_option plumb.localFoundation : String := {
 private def enabled : CommandElabM Bool := do
   return Lean.Linter.getLinterValue linter.plumb (← Lean.Linter.getLinterOptions)
 
+/-- Lean's own error-description widget (a builtin widget module), pointed at the rule's
+registry help URL: an interactive infoview link with no project JavaScript. Its text
+alternative is empty, so the plain message keeps the textual URL fallback unchanged. -/
+private def helpWidget (id : RuleId) : MessageData :=
+  .ofWidget {
+    id := ``Lean.errorDescriptionWidget
+    javascriptHash := Lean.errorDescriptionWidget.javascriptHash
+    props := return Json.mkObj [
+      ("code", toString (Name.str `Plumb id.spelling)), ("explanationUrl", helpUrl id)] } .nil
+
 /-- Source findings use the admitted range; module findings keep module attribution
 without fabricating a declaration or a source span. -/
 private def emit (finding : Finding) (host? : Option Syntax := none) : CommandElabM Unit := do
   let ⟨id, diagnostic⟩ := finding
-  let data := (MessageData.tagged Lean.Linter.linterMessageTag
-    (toMessageData diagnostic.text)).tagWithErrorName (Name.str `Plumb id.spelling)
+  let data := ((MessageData.tagged Lean.Linter.linterMessageTag
+    (toMessageData diagnostic.text)).tagWithErrorName (Name.str `Plumb id.spelling)).composePreservingKind
+    (helpWidget id)
   let severity : MessageSeverity := if warningAsError.get (← getOptions) then .error else .warning
   match diagnostic.location with
   | .source _ =>
@@ -75,7 +86,7 @@ initialize addLinter {
       let result ← IO.ofExcept <| Rules.declarations ds source request
       for finding in result.findings do emit finding
       if !result.pending.isEmpty then
-        unavailable s!"fresh generated-role evidence remains required for {result.pending}"
+        unavailable s!"fresh generated-role evidence remains required for {result.pending}; run `lake lint` for the project check"
     catch ex =>
       if ex.isInterrupt then throw ex
       unavailable s!"local declaration analysis unavailable: {← ex.toMessageData.toString}" }

@@ -9,7 +9,7 @@ namespace PlumbVerification
 
 /-- Closed vocabulary of supported verification invocations. -/
 inductive Mode where
-  | ordinary | docs | graph | diagnostics | fixtures | structural | cli | environments | buildPolicy | producers | history
+  | ordinary | docs | graph | diagnostics | fixtures | structural | cli | environments | buildPolicy | lintDriver | producers | history
   | ruleExamples | ruleExamplesFirst | ruleExamplesSecond
   deriving DecidableEq
 
@@ -24,6 +24,7 @@ def arguments : Mode → List String
   | .cli => ["diagnostics", "cli"]
   | .environments => ["diagnostics", "environments"]
   | .buildPolicy => ["diagnostics", "build-policy"]
+  | .lintDriver => ["diagnostics", "lint-driver"]
   | .producers => ["diagnostics", "producers"]
   | .history => ["diagnostics", "history"]
   | .ruleExamples => ["diagnostics", "rule-examples"]
@@ -32,7 +33,7 @@ def arguments : Mode → List String
 
 /-- Every supported mode occurs once; the parser searches only this closed vocabulary. -/
 def modes : List Mode := [.ordinary, .docs, .graph, .diagnostics, .fixtures, .structural,
-  .cli, .environments, .buildPolicy, .producers, .history, .ruleExamples, .ruleExamplesFirst,
+  .cli, .environments, .buildPolicy, .lintDriver, .producers, .history, .ruleExamples, .ruleExamplesFirst,
   .ruleExamplesSecond]
 
 /-- Argument parsing never accepts a prefix of a supported invocation. -/
@@ -86,7 +87,7 @@ def commands : Mode → List Command
   | .ordinary => [
       lake #["build", "PlumbPolicy", "PlumbCore", "PlumbQualification", "axiomGate", "docFenceAudit", "qualify",
         "+Plumb.Checker.CheckerSelftest:olean", "+Plumb.Checker.FreshChecker:olean",
-        "+Plumb.RegistryChecks:olean", "+Plumb.Linter:olean",
+        "+Plumb.RegistryChecks:olean", "+Plumb.Linter:olean", "+Plumb.Checker.LintMain:olean",
         "+Plumb.Checker.RuleExamples:olean", "+Plumb.Checker.RuleExampleQualificationMain:olean"],
       lake #["env", "lean", "--run", "lean/Plumb/RegistryChecks.lean"],
       lake #["exe", "qualify", "--under-deadline", "combined"],
@@ -126,7 +127,7 @@ def execute (command : Command) : IO Unit := do
 /-- Cold-start driver; all builds and checks stay within the inherited outer deadline. -/
 def run (args : List String) : IO Unit := do
   let some selection := select args
-    | throw <| IO.userError "usage: scripts/verify.sh [docs | serialized-graph | diagnostics [fixtures|structural|cli|environments|build-policy|producers|history|rule-examples [1/2|2/2]]]"
+    | throw <| IO.userError "usage: scripts/verify.sh [docs | serialized-graph | diagnostics [fixtures|structural|cli|environments|build-policy|lint-driver|producers|history|rule-examples [1/2|2/2]]]"
   -- This toolchain-only driver runs before building any checker. Invalidate an earlier
   -- PASS or accepted link even if build/setup fails before its owner can start.
   let invalidated := match selection.val with

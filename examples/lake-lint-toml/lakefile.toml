@@ -1,0 +1,12 @@
+name = "lake_lint_adopter"
+defaultTargets = ["Gadget"]
+# `lake lint` runs the Plumb driver over every manifested surface.
+lintDriver = "plumb/lint"
+
+[[require]]
+name = "plumb"
+path = "../.."
+
+[[lean_lib]]
+name = "Gadget"
+globs = ["Gadget", "Gadget.+"]

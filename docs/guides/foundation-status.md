@@ -266,7 +266,7 @@ New registrations. Each requirement is a named `Prop`, separate from its proof:
 
 | Registration | Implementation | Required relation | Callers |
 | --- | --- | --- | --- |
-| [`checkedMemberFailure`](../../lean/PlumbPolicy/Decision.lean) | `memberFailure i roles d member request := declarationFailure d request roles.native roles.helpers` | `MemberFailureContract`: for all `i`, `roles : Roles i`, `d`, `member : d ∈ i.declarations` and `request`, the result equals `policyFor i roles d request`. | `Policy.ruleForMember`; `Linter.Rules.declarations` |
+| [`checkedMemberFailure`](../../lean/PlumbPolicy/Decision.lean) | `memberFailure i roles d member request := declarationFailure d request roles.native roles.helpers` | `MemberFailureContract`: for all `i`, `roles : Roles i`, `d`, `member : d ∈ i.declarations` and `request`, the result equals `policyFor i roles d request`. | `Policy.ruleForMember`; `checkedEditorDecision` (`Linter.Rules.declarations`, since #14) |
 | `checkedMemberFoundation` | `memberFoundation i roles d member := labelOf d.axioms roles.native` | `MemberFoundationContract`: `foundationFor i roles d = .ok (memberFoundation i roles d member)` for every member; the member form has no error case. | `Policy.labelOfMember`, and through it `classifyMember` |
 | [`checkedMemberRule`](../../lean/PlumbCore/Policy.lean) | private `ruleForMemberImpl` via `Policy.ruleForMember decl claim scope member` | `MemberRuleContract`: equals `ruleFor decl claim scope` for every `member : decl ∈ scope.inventory.declarations`. Therefore `RuleContract` and first-failure precedence carry over unchanged. | project gate `auditSurfaceAt`, file gate `auditFile`, `Documentation.assessPositive`, rule-example policy audit, self-test `renderFileAudit` |
 
@@ -664,11 +664,19 @@ with the obligations preserved for Project 8 below.
   directly. `accept` decides those stages again (`ExampleExpectationOK`, `GraphOK`), so a wrong
   selection can only cause a refusal. That `exampleObservation` projects the raw compiler errors
   and inspection faithfully is adapter dataflow.
-- **Editor linter.** `Linter.Rules.request` parses the editor option through
-  `ConformingProfile.parse?` without a contract; its domain differs from `checkedRequest`'s
-  (classification-only is accepted and teaching never occurs). `Rules.declarations` renders
-  `ruleForFailure`/`applicability` after `checkedMemberFailure.run`, which is `ruleForMemberImpl`
-  unfolded, instead of running `checkedMemberRule`. Both are Project 8 editor work (#14).
+- **Editor linter.** At the #43 closure, `Linter.Rules.request` parsed the editor option without
+  a contract and `Rules.declarations` rendered the rule after `checkedMemberFailure.run`. #14
+  closes both: they run the claimed `PlumbCore.EditorPolicy` registrations
+  `checkedEditorRequest` (`EditorRequestContract`) and `checkedEditorDecision`
+  (`EditorDecisionContract`). The editor linter is a `module` and cannot import the
+  non-module `PlumbCore.Policy`, so it cannot run `checkedRequest`/`checkedMemberRule`
+  directly; `PlumbCore.Policy` instead proves the correspondence. `editor_request_sound` and
+  `editor_request_complete`: the editor request domain is exactly `request claim` for claims
+  other than compiler-trusting. `editor_decision_none_iff`, `editor_decision_rule` and
+  `editor_decision_pending`: for the same member and request, the editor passes exactly when
+  `ruleForMember` selects no rule, a rendered rule is `ruleForMember`'s, and a pending
+  decision withholds a rule `ruleForMember` selects. The loop that renders each decision as a
+  finding is checked by inspection.
 - **Trusted definitions.** `ExecutableContract`, `run` and `run_eq` live in the excluded
   `Plumb.Contract`, which claimed modules import deliberately (standard §8). `Residual` and
   the `rule-coverage.md` list are synchronized by review, and `Trusted` is a fixed list of
@@ -711,6 +719,11 @@ baseline, stable diagnostics keep their rule, payload, location, mode, claim and
   (standard §8.6): an incomplete correspondence comparison is now classified `unresolved`. The
   fix followed [PR #60](https://github.com/rbeauchamp/lean-plumb/pull/60), which changed the
   same `Probe.lean` correspondence path; this closure did not change it.
+- **After the closure (#14).** The `lint` executable (`lintDriver = "plumb/lint"`) runs the
+  project audit and classifies its exit through the claimed `PlumbCore.Lint` registration
+  `checkedClassify` (`ClassifyContract`); `accepted_sound` proves exit 0 implies an
+  `AcceptedRun` of the requested mode. The editor linter runs `PlumbCore.EditorPolicy`
+  (see **Editor linter** above). Both add owned `PlumbCore` modules and PL1007 registrations.
 
 Evidence (arm64 macOS and CI, observations only). The local rows below (`lake build`,
 `./scripts/verify.sh` 157 s, `./scripts/verify.sh docs` 90 s, rule-examples 1/2 105 s and 2/2
