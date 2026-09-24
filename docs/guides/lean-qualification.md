@@ -141,7 +141,7 @@ evidence (standard §0 "The Role of Testing").
 | history | 10 project/file invocations | real replacement-history, unsupported-evaluator and source-change behaviour | External | kept |
 | history | 17 history/closure/source transport mutations | `Environment.validate` refusals | Proved | `ProducerReport.validate_sound` |
 | history | 7 oracle mutations | history oracle refuses missing imported ownership / execution evidence | Proved | `History.validate_importedRootExecuted`, `validate_unsupported_unresolved` |
-| rule-examples | 40 Fixed/Violation productions | every published example yields exactly its documented diagnostics | External | kept |
+| rule-examples | 42 Fixed/Violation productions | every published example yields exactly its documented diagnostics | External | kept |
 | rule-examples | 3 special productions (wrong claim, trusted and negative fences) | producer's own request/classification account | External | kept |
 | rule-examples | 7 in-process mutations of each record, 7 derived admission subprocesses | `qualify` refusals | Proved | `RuleExampleQualification.qualify_sound` |
 | checkerSelftest fixtures | in-process and CLI fixture verdicts | compiler, elaborator and public CLI over real fixtures | External | kept |
