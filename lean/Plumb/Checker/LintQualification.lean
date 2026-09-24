@@ -65,7 +65,7 @@ private def leanAdopter (repo adopter : FilePath) : IO (Array String) := do
   let mut failures ← expect adopter (accepted "lean/positive")
   if !failures.isEmpty then return failures
   failures := failures ++ (← expect adopter {
-      label := "lean/explain-config", exitCode := 0,
+      label := "lean/explain-config", exitCode := 2,
       contains := #["no audit was run", "Widget.Additional", "kernel-only"],
       excludes := #["plumb lint: PASS"] } #["--", "--explain-config"])
   let additional := adopter / "Widget" / "Additional.lean"
@@ -104,8 +104,9 @@ private def leanAdopter (repo adopter : FilePath) : IO (Array String) := do
   failures := failures ++ (← expect adopter (accepted "lean/fresh-restored"))
   return failures
 
-/-- `lakefile.toml` adopter importing `Plumb.Linter`: disabling live feedback
-cannot waive the project predicate, and a live finding fails the claimed build. -/
+/-- `lakefile.toml` adopter importing `Plumb.Linter`: disabling live feedback cannot waive
+the project predicate, and a live finding, also replayed from an ordinary `lake build`
+with live feedback, is the audit's violation rather than a failed build. -/
 private def tomlAdopter (repo adopter : FilePath) : IO (Array String) := do
   BuildLintQualification.setup repo adopter "lake-lint-toml" #["Gadget.lean", "Gadget/Double.lean"]
     "lakefile.toml"
@@ -119,9 +120,13 @@ private def tomlAdopter (repo adopter : FilePath) : IO (Array String) := do
       contains := #["PL1001", "optedOut", "plumb lint: VIOLATION (exit 1)"] })
   restore adopter originals
   mutate double "end Gadget" "axiom liveFinding : True\nend Gadget"
+  let ordinary ← runProcess adopter "lake" #["build"] scrubbedLeanPathEnv
+  unless ordinary.succeeded && ordinary.output.contains "PL1001 [violation; editorSnapshot" do
+    failures := failures.push s!"lake-lint/toml/live-build: {ordinary.output}"
   failures := failures ++ (← expect adopter {
-      label := "toml/live-finding", exitCode := 3,
-      contains := #["build-failed", "PL1001 [violation; editorSnapshot", "liveFinding", "plumb lint: INCOMPLETE (exit 3)"] })
+      label := "toml/live-finding", exitCode := 1,
+      contains := #["PL1001", "liveFinding", "plumb lint: VIOLATION (exit 1)"],
+      excludes := #["build-failed", "editorSnapshot"] })
   restore adopter originals
   failures := failures ++ (← expect adopter (accepted "toml/fresh-restored" (fresh := true)) #["--", "--fresh"])
   return failures

@@ -24,9 +24,13 @@ private def detectEnvironment : IO _root_.Lake.Env := do
 
 /-- Load the workspace rooted at `repo` with Lake's loader and pass it to
 `action`. The action runs in the same process, so it must not retain mutable
-workspace state beyond its return value. -/
-def withRootWorkspace (repo : FilePath) (action : _root_.Lake.Workspace → IO α) : IO α := do
+workspace state beyond its return value. With `scrubSearchPath`, the inherited
+`LEAN_PATH` and `LEAN_SRC_PATH` are ignored, as for `scrubbedLeanPathEnv`. -/
+def withRootWorkspace (repo : FilePath) (action : _root_.Lake.Workspace → IO α)
+    (scrubSearchPath := false) : IO α := do
   let lakeEnv ← detectEnvironment
+  let lakeEnv := if scrubSearchPath then { lakeEnv with initLeanPath := [], initLeanSrcPath := [] }
+    else lakeEnv
   let config : _root_.Lake.LoadConfig := { lakeEnv, wsDir := ← IO.FS.realPath repo }
   let (ws?, log) ← (_root_.Lake.loadWorkspace config).captureLog
   match ws? with

@@ -1,6 +1,7 @@
 import Plumb.Checker.Common
 import Plumb.Checker.Manifest
 import Plumb.Checker.Workspace
+import Lake.CLI.Build
 
 /-! Lake-semantic module, source, dependency, and build discovery. -/
 
@@ -112,11 +113,43 @@ build resolves modules only through the workspace being built. -/
 def buildTargets (repo : FilePath) (targets : Array String) : IO ProcessResult :=
   runProcess repo "lake" (#["build"] ++ targets) scrubbedLeanPathEnv
 
+/-- Root-package Lean options of an audit build: Plumb's local feedback off (`weak.`, so a
+module that does not import `Plumb.Linter` ignores it). The audit's own policy stages report
+Plumb findings; the warning-free check then measures only other warnings. The option enters
+Lake's module trace, so a module built with local feedback, for example by an ordinary
+`lake build`, is rebuilt: its replayed log can neither add Plumb warnings nor stand in for
+this configuration's warnings. A source `set_option linter.plumb true` still re-enables it. -/
+def auditLeanOptions : LeanOptions := .ofArray #[⟨`weak.linter.plumb, .ofBool false⟩]
+
+/-- `buildTargets` with `auditLeanOptions` on the root package, run in-process through Lake's
+build API because the `lake build` command line sets no Lean options. The inherited search
+paths are ignored as in `buildTargets`; the build monitor's text is the output, and a failed
+build exits 1. -/
+def buildAuditTargets (repo : FilePath) (targets : Array String) : IO ProcessResult := do
+  let buffer ← IO.mkRef ({} : IO.FS.Stream.Buffer)
+  let out := IO.FS.Stream.ofBuffer buffer
+  let exitCode ← try
+      Workspace.withRootWorkspace repo (scrubSearchPath := true) fun ws => do
+        let specs ← match ← (_root_.Lake.parseTargetSpecs ws targets.toList).toBaseIO with
+          | .ok specs => pure specs
+          | .error error => throw <| IO.userError (toString error)
+        ws.runBuild (_root_.Lake.buildSpecs specs) {
+          out := .stream out, ansiMode := .noAnsi, showSuccess := true,
+          leanOptOverrides := ({} : NameMap LeanOptions).insert ws.root.baseName auditLeanOptions }
+      pure (0 : UInt32)
+    catch error =>
+      out.putStrLn s!"error: {error}"
+      pure 1
+  let some stdout := String.fromUTF8? (← buffer.get).data
+    | return { exitCode := 1, stdout := "", stderr := "error: build output is not UTF-8" }
+  return { exitCode, stdout, stderr := "" }
+
 /-- Build the claimed Lake targets and require success with no warnings.
 Returns the diagnostic lines to report on failure. -/
 def buildCheckedObservation (repo : FilePath) (targets : Array String)
-    (mode : String) : IO (ProcessResult × Option (Array String)) := do
-  let build ← buildTargets repo targets
+    (mode : String) (build : FilePath → Array String → IO ProcessResult := buildTargets) :
+    IO (ProcessResult × Option (Array String)) := do
+  let build ← build repo targets
   if build.succeeded && (warningLines build.output).isEmpty then return (build, none)
   let diagnostics :=
     -- A warning's payload (the unused simp argument, the hint) sits on the
@@ -131,8 +164,9 @@ def buildCheckedObservation (repo : FilePath) (targets : Array String)
 
 /-- Compatibility diagnostic projection. Acceptance callers retain the process observation. -/
 def buildChecked (repo : FilePath) (targets : Array String)
-    (mode : String) : IO (Option (Array String)) := do
-  return (← buildCheckedObservation repo targets mode).2
+    (mode : String) (build : FilePath → Array String → IO ProcessResult := buildTargets) :
+    IO (Option (Array String)) := do
+  return (← buildCheckedObservation repo targets mode build).2
 
 def transitiveImports (repo : FilePath) (moduleName : String) : IO (Array String) := do
   jsonStringArray s!"transitive imports for {moduleName}" <|

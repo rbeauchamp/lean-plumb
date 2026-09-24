@@ -112,7 +112,8 @@ private def recordStatus (status : ResultProtocol.Status) (findings : Array Plum
   terminalObservation.set (some ⟨status, !findings.isEmpty && findings.all (·.1 == .configuration)⟩)
 
 /-- Every root-package Lean library and executable is classified exactly once by the
-manifest. Shared by the audit and the read-only configuration explanation. -/
+manifest, and no executable root conflicts with library ownership. Shared by the audit and
+the read-only configuration explanation. -/
 def checkClassification (manifest : Manifest.Manifest) (inventory : Lake.SurfaceInventory) : IO Unit := do
   let rootLibraries := inventory.libraries.map (·.library)
   let manifested := Manifest.libraries manifest
@@ -132,6 +133,24 @@ def checkClassification (manifest : Manifest.Manifest) (inventory : Lake.Surface
       #[s!"unclassified root Lean executables {repr missing.toList}"]) ++
       (if extra.isEmpty then #[] else #[s!"non-root Lean executables {repr extra.toList}"])
     throw <| IO.userError s!"manifest-incomplete: {"; ".intercalate details.toList}"
+  let modulesOf (library : String) : Array Name :=
+    ((inventory.libraries.find? (·.library == library)).map (·.modules)).getD #[]
+  let exeInfoFor (name : String) : IO Lake.ExecutableInventory :=
+    match inventory.executables.find? (·.executable == name) with
+    | some info => return info
+    | none => throw <| IO.userError s!"lake-query-malformed: auditPlan omitted {name}"
+  let claimedModules := manifest.surfaces.foldl (fun all surface => all ++ modulesOf surface.library) #[]
+  for surface in manifest.surfaces do
+    for exeName in surface.executables do
+      let exe ← exeInfoFor exeName
+      if let some owner := manifested.find? (modulesOf · |>.contains exe.root) then
+        throw <| IO.userError <| s!"manifest-conflict: claimed executable '{exeName}' " ++
+          s!"root {exe.root} is already a module of root library '{owner}'"
+  for excluded in manifest.excludedExecutables do
+    let exe ← exeInfoFor excluded.executable
+    if claimedModules.contains exe.root then
+      throw <| IO.userError <| s!"manifest-conflict: excluded executable " ++
+        s!"'{excluded.executable}' root {exe.root} is a module of a claimed library"
 
 private def manifestJson (manifest : Manifest.Manifest) : Json :=
   Json.mkObj [
@@ -304,21 +323,6 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       match inventory.executables.find? (·.executable == name) with
       | some info => return info
       | none => throw <| IO.userError s!"lake-query-malformed: auditPlan omitted {name}"
-    let claimedModules := manifest.surfaces.foldl (fun all surface =>
-      match libraries.find? (·.name == surface.library) with
-      | some info => all ++ info.modules
-      | none => all) #[]
-    for surface in manifest.surfaces do
-      for exeName in surface.executables do
-        let exe ← exeInfoFor exeName
-        if let some owner := libraries.find? (·.modules.contains exe.root) then
-          throw <| IO.userError <| s!"manifest-conflict: claimed executable '{exeName}' " ++
-            s!"root {exe.root} is already a module of root library '{owner.name}'"
-    for excluded in manifest.excludedExecutables do
-      let exe ← exeInfoFor excluded.executable
-      if claimedModules.contains exe.root then
-        throw <| IO.userError <| s!"manifest-conflict: excluded executable " ++
-          s!"'{excluded.executable}' root {exe.root} is a module of a claimed library"
 
     let mut surfaces : Array LibraryInfo := #[]
     for surface in manifest.surfaces do
@@ -337,7 +341,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         (sourceBindings.find? (·.moduleName == name)).map fun s => ⟨s.path, s.content⟩
       SourceBinding.configurationUnchanged configuration
       let positiveTargets := Manifest.positiveTargets manifest
-      let (buildProcess, buildResult) ← timedPhase "claimed-source build" <| Lake.buildCheckedObservation repo positiveTargets (if fresh then "fresh" else "incrementally")
+      let (buildProcess, buildResult) ← timedPhase "claimed-source build" <| Lake.buildCheckedObservation repo positiveTargets (if fresh then "fresh" else "incrementally") Lake.buildAuditTargets
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
       if let some lines := buildResult then
@@ -787,7 +791,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
     withSourceEvidence sources configuration path.toString .freshFile composed resultOut do
       if manifest.isSome || (← manifestPath.pathExists) then
         let claimed ← Manifest.load manifestPath
-        let buildResult ← Lake.buildChecked repo (Manifest.positiveTargets claimed) "incrementally"
+        let buildResult ← Lake.buildChecked repo (Manifest.positiveTargets claimed) "incrementally" Lake.buildAuditTargets
         SourceBinding.unchanged sources
         SourceBinding.configurationUnchanged configuration
         if let some lines := buildResult then
@@ -952,8 +956,9 @@ private def optionValues (flag : String) : List String → List String
       else optionValues flag (value :: rest)
   | _ => []
 
-unsafe def run (args : List String) : IO UInt32 := do
-  terminalObservation.set none
+/-- Before any argument validation, mark every recognisable `--json-out` destination
+incomplete, so an earlier completed result cannot be mistaken for this attempt's. -/
+def invalidateResults (args : List String) : IO Unit := do
   let destinations := (optionValues "--json-out" args).eraseDups.map FilePath.mk
   let invalidate (path : FilePath) :=
     writeJson path (Json.mkObj (ResultProtocol.identityFields ++ [
@@ -969,6 +974,10 @@ unsafe def run (args : List String) : IO UInt32 := do
       | [] => repoRoot
       | _ => throw <| IO.userError "duplicate --project option"
     for path in relative do invalidate (resolve root path)
+
+unsafe def run (args : List String) : IO UInt32 := do
+  terminalObservation.set none
+  invalidateResults args
   if let ["--validate-site", registryPath, artifactPath] := args then
     let registry ← IO.ofExcept <| Plumb.Checker.PolicyCodec.parse (← IO.FS.readFile registryPath)
     let artifact ← IO.ofExcept <| Plumb.Checker.PolicyCodec.parse (← IO.FS.readFile artifactPath)
