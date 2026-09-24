@@ -22,10 +22,11 @@ To use it elsewhere, replace `path = "../.."` with the git form in the
 [build-lint](../build-lint/README.md), so `lake build` here is an ordinary build, not
 enforcement. Use `lake lint` locally and in CI.
 
-With the linter imported, a live finding is also a compiler warning, so `lake lint` stops
-at the warning-free build check (`INCOMPLETE`, exit 3) and prints the original `PL…`
-warning. Disabling live feedback with `set_option linter.plumb false` does not waive
-the project check: `lake lint` then reports the policy violation itself (exit 1).
+A live finding is a compiler warning in the editor and in a plain `lake build`. `lake lint`
+builds with `linter.plumb` off and reports the same rule as a policy violation
+(`VIOLATION`, exit 1), also after a plain `lake build` cached the module with the warning.
+Disabling live feedback with `set_option linter.plumb false` does not waive the project
+check: `lake lint` still reports the violation (exit 1).
 `lake exe checkerSelftest --build-bound --partition lint-driver` qualifies both behaviors.
 The editor journeys are recorded in
 [session/evidence/issue-14-editor-journeys.md](../../session/evidence/issue-14-editor-journeys.md).
