@@ -186,14 +186,15 @@ driver first builds the `plumb/axiomGate` executable that the audit runs as its 
 the workspace where you ran `lake lint` (never the `--project` directory). That workspace
 built the driver itself, whether Plumb is a git dependency under `.lake/packages`, a path
 dependency or a custom `packagesDir`, so the worker uses the same dependencies and toolchain
-and needs no second dependency download. If that build fails, the run is `INCOMPLETE`. Its exit status separates the outcome:
+and needs no second dependency download. If that build fails, the run is `INCOMPLETE`.
+Its exit status separates the outcome:
 
 | Exit | Outcome |
 | --- | --- |
 | 0 | `ACCEPTED`: the audit constructed its accepted result for the selected mode. |
 | 1 | `VIOLATION`: completed policy rejections, for example PL1001–PL1007 or PL3002. |
 | 2 | `INVALID CONFIGURATION`: only PL2002 manifest/scope rejections, an invalid driver argument, or `--help`/`--explain-config`, which run no audit. |
-| 3 | `INCOMPLETE`: an incomplete finding, for example PL2001, PL2003, PL2005 or PL3001, or an error that escaped the audit. It takes precedence over violations reported in the same run. |
+| 3 | `INCOMPLETE`: an incomplete finding, for example PL2001, PL2003, PL2005 or PL3001, a failed audit-worker build, or an error that escaped the audit. It takes precedence over violations reported in the same run. |
 
 Exit 0 requires a zero audit exit and the audit's recorded `completed` status, which carries
 the accepted account of the requested mode (`Plumb.Checker.Lint.accepted_sound`: an accepted
