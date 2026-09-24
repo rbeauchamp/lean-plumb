@@ -1,8 +1,8 @@
 # Strict linter and rule-reference architecture
 
 PRODUCT-01 (#11), design baseline: `f943f41c50876b25c8c5c2285e6ae4315645521e`.
-This document records the implementation contract for Project 8. The registry is implemented;
-the production live editor engine and public website remain planned. DESIGN-01 supplements
+This document records the implementation contract for Project 8. The registry, native
+editor linter and `lake lint` driver are implemented; the public website remains planned. DESIGN-01 supplements
 this contract with [comparative ecosystem research](ecosystem-design.md) and the selected
 [developer experience](developer-experience.md), including command/configuration semantics,
 Mathlib-driver coexistence, presentation, search and the initial no-source-rewriting fix policy.
@@ -44,8 +44,8 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | `lean/Plumb/Checker/PolicyDomain.lean` | Canonical decoded inputs and typed failures; POLICY-02 (#5). |
 | `lean/Plumb/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
 | `lean/Plumb/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
-| `lean/Plumb/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps. |
-| `lean/Plumb/Checker/Lint.lean` | Whole-project `lint` executable using the same registry/policy, not another checker. |
+| `lean/Plumb/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps; request and declaration decisions run the claimed `PlumbCore/EditorPolicy.lean` contracts, proved equal to the project checker's on the editor domain. |
+| `lean/Plumb/Checker/Lint.lean` | Whole-project `lint` driver: the `axiomGate` project audit, not another checker; its exit classification is the claimed `PlumbCore/Lint.lean` contract. |
 | `lean/Plumb/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
 | `website/` | Separate pinned Verso Lake package and original explanatory prose. |
 | `examples/rules/<ID>/` | Actual violation/fix source plus typed expected outcome specification; isolated negatives. |
@@ -150,13 +150,13 @@ transitive package resolution does not require compiling its mathematical module
   remains review. Reuse Batteries/Mathlib linter tests only after demonstrating their predicate
   and scope match; do not turn upstream optional style rules into universal strict rules.
 - Lake [PackageConfig.lintDriver][lake-config] accepts `"plumb/lint"` in either
-  lakefile format. #14 adds that executable and qualifies `lake lint` end to end. The prototype
-  verifies dependency dispatch with existing `plumb/axiomGate`, `--build-lint`. The driver
-  builds only explicit manifest-derived targets, never recursively the default policy target.
+  lakefile format. The `lint` executable is qualified end to end by the `lint-driver`
+  campaign in both formats. The driver builds only explicit manifest-derived targets, never
+  recursively the default policy target.
   Native `builtinLint` is separate and must not weaken strict policy.
 - Preserve the existing uncached sole-default `policy` target for enabled plain `lake build`.
-  #14 extends its public recipe, supporting TOML lint-driver configuration and documenting
-  which enforcing-build adapters are actually qualified. Direct `lean`, an explicit unrelated
+  `lakefile.toml` projects use the lint driver; the [adoption guide](adoption.md) documents
+  which enforcing adapters are qualified. Direct `lean`, an explicit unrelated
   build target, and opting out cannot be advertised as whole-project enforcement.
 
 Editor callbacks provide prompt local evidence and actionable diagnostics; they must not launch
@@ -175,17 +175,21 @@ an external error name does not redirect that widget to a project website.
 
 The original design selected a package-owned JavaScript message widget with a textual
 HTTPS fallback. The repository's Lean-only policy supersedes that implementation choice:
-the prototype now retains the textual URL only. A future interactive link must reuse an
-appropriate upstream Lean interface without introducing project-owned JavaScript; that
-interaction remains unimplemented and requires its own qualification. Render tagged
+the prototype retains the textual URL only. The production linter reuses the upstream
+interface instead: `Lean.errorDescriptionWidget`, the builtin widget module behind Lean's
+named errors, instantiated with `code = Plumb.<ID>` and `explanationUrl = helpUrl id`
+from the registry. It renders `Error code` and a **View explanation** anchor
+(`target=_blank`, `rel=noreferrer noopener`) with no project JavaScript. Its text
+alternative is empty, so plain renderers show the message text and its URL. Render tagged
 `MessageData` with name `Plumb.<ID>` through `logMessage`, supplying the actual file/range
 and message context, rather than the `logAt` path that appends the wrong built-in widget.
 The [interactive diagnostic adapter][interactive] derives `code?` from the named message kind.
 The prototype verifies serialized named kind, source location, policy rejection and fallback URL;
-the former package-owned widget has been removed. #14 must verify the
-actual supported Lean VS Code infoview interaction, including opening the URL, fallback without
-widgets, code serialization, Unicode ranges, stale/cancelled diagnostics, and no duplicate
-Lean-manual link. An ordinary browser link check is not editor acceptance. No Lean fork or new
+the former package-owned widget has been removed. The supported VS Code infoview interaction
+was observed for opening the URL, the Problems-panel text fallback, code serialization,
+non-BMP and CRLF ranges, stale and cancelled snapshots, and the absence of any Lean-manual
+link ([record](../../session/evidence/issue-14-editor-journeys.md)). An ordinary browser
+link check is not editor acceptance. No Lean fork or new
 language server is selected.
 
 ## Website, versions, and synchronization

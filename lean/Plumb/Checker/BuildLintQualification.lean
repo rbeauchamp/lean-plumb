@@ -187,13 +187,15 @@ private def cases : Array Case := #[
 /-- Use the checked-in public recipe verbatim apart from the local dependency
 path. Dependencies are inherited exactly as Lake resolves the pinned package;
 only their already-built checkouts are shared across isolated controls. -/
-private def setup (repo adopter : FilePath) : IO Unit := do
-  let template := repo / "examples" / "build-lint"
-  IO.FS.createDirAll (adopter / "Widget")
-  for name in #["Widget.lean", "Widget/Additional.lean", "lean-toolchain", "foundation_manifest.json"] do
+def setup (repo adopter : FilePath) (exampleDir : String := "build-lint")
+    (sources : Array String := #["Widget.lean", "Widget/Additional.lean"])
+    (lakefileName : String := "lakefile.lean") : IO Unit := do
+  let template := repo / "examples" / exampleDir
+  for name in sources ++ #["lean-toolchain", "foundation_manifest.json"] do
+    if let some parent := (adopter / name).parent then IO.FS.createDirAll parent
     IO.FS.writeFile (adopter / name) (← IO.FS.readFile (template / name))
-  let lakefile ← IO.FS.readFile (template / "lakefile.lean")
-  IO.FS.writeFile (adopter / "lakefile.lean")
+  let lakefile ← IO.FS.readFile (template / lakefileName)
+  IO.FS.writeFile (adopter / lakefileName)
     (lakefile.replace "\"../..\"" (Json.compress (toJson repo.toString)))
   let base ← readJson (repo / "lake-manifest.json")
   let packages : Array Json ← IO.ofExcept <| base.getObjValAs? (Array Json) "packages"

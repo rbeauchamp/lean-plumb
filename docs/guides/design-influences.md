@@ -27,6 +27,16 @@ its delivery evidence. Registry laws concern Plumb's own definitions. Neither
 inspiration nor those laws establish extraction fidelity, whole-checker correctness or native runtime behavior. No source copy or imported con-leche
 proof was found in the inspected linter surfaces.
 
+## Lean and Lake interfaces used by adoption
+
+The adoption adapters are built on interfaces by the Lean 4 and Lake authors (Lean FRO and
+contributors), used through the pinned `v4.34.0` toolchain as dependencies. No code is copied.
+Lake's `lintDriver` package field and `lake lint` dispatch (`Lake.CLI.Main`, `Package.lint` in
+`Lake.CLI.Actions`) run `lint`. Lean's `errorDescriptionWidget` in `Lean.Log`, the
+builtin widget behind named errors, renders the editor's **View explanation** link with Plumb's
+registry URL. The VS Code Lean 4 extension and infoview (leanprover/vscode-lean4) host
+these messages. These are dependencies, not design influences on Plumb's policy.
+
 ## Keep attribution proportionate
 
 Credit actual copied/adapted code with its applicable license/notices. Cite identifiable design

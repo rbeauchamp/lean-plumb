@@ -53,6 +53,11 @@ lean_exe «axiomGate» where
   root := `Plumb.Checker.AxiomGateMain
   supportInterpreter := true
 
+lean_exe «lint» where
+  -- Lake lint driver: `lintDriver = "plumb/lint"` in an adopting package.
+  root := `Plumb.Checker.LintMain
+  supportInterpreter := true
+
 lean_exe «docFenceAudit» where
   root := `Plumb.Checker.DocFenceAudit
   supportInterpreter := true

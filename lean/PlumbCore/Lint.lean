@@ -1,0 +1,98 @@
+import PlumbCore.Account
+
+/-! The `lint` driver's exit classification. The driver runs the project audit and reads
+back the terminal status that audit recorded; this module decides the exit class from that
+status and the audit's exit code. `completed` carries an accepted account
+(`Account.Status.completed_accepted`), so exit 0 requires an accepted run of the requested
+project mode (`accepted_sound`). The observation's authenticity, that it is this
+invocation's audit rather than another's, is the driver's binding, checked by inspection. -/
+
+namespace Plumb.Checker.Lint
+
+open PlumbPolicy
+open Plumb.Checker.Account (Account Status)
+
+/-- Exit classes. Only `accepted` is success; the others distinguish an established
+violation, invalid configuration or invocation, and incomplete evidence. -/
+inductive Outcome where
+  | accepted | violation | configuration | incomplete
+  deriving DecidableEq, Repr
+
+def Outcome.exitCode : Outcome → UInt32
+  | .accepted => 0 | .violation => 1 | .configuration => 2 | .incomplete => 3
+
+def Outcome.label : Outcome → String
+  | .accepted => "ACCEPTED" | .violation => "VIOLATION"
+  | .configuration => "INVALID CONFIGURATION" | .incomplete => "INCOMPLETE"
+
+/-- Distinct classes have distinct exit codes. -/
+theorem Outcome.exitCode_injective {a b : Outcome} (h : a.exitCode = b.exitCode) : a = b := by
+  cases a <;> cases b <;> first | rfl | (simp [Outcome.exitCode] at h)
+
+/-- The terminal status the audit decided for one invocation, and whether its findings are
+all configuration (PL2002) rejections. It is the `status` the result output renders, kept in
+memory without serialization. -/
+structure Observation where
+  status : Status
+  configurationOnly : Bool
+
+/-- Required meaning of the classification, for every requested mode, audit exit code and
+recorded observation. Accepted exactly when the audit exited zero and recorded `completed`
+with an account of the requested mode; violation or configuration exactly when it exited
+nonzero after recording a rejection with non-configuration or only configuration findings.
+Every other combination, including no recorded status, a zero exit without `completed`, a
+nonzero exit after `completed`, and a completed account of another mode, is incomplete. -/
+def ClassifyContract (classify : EvidenceMode → UInt32 → Option Observation → Outcome) : Prop :=
+  ∀ mode code observed,
+    (classify mode code observed = .accepted ↔
+      code = 0 ∧ ∃ a b, observed = some ⟨.completed a, b⟩ ∧ a.val.mode = mode) ∧
+    (classify mode code observed = .violation ↔ code ≠ 0 ∧ ∃ o, observed = some o ∧
+      o.status matches .rejected ∧ o.configurationOnly = false) ∧
+    (classify mode code observed = .configuration ↔ code ≠ 0 ∧ ∃ o, observed = some o ∧
+      o.status matches .rejected ∧ o.configurationOnly = true)
+
+private def classifyImpl (mode : EvidenceMode) (code : UInt32) : Option Observation → Outcome
+  | some ⟨.completed a, _⟩ => if code = 0 ∧ a.val.mode = mode then .accepted else .incomplete
+  | some ⟨.rejected, configurationOnly⟩ =>
+      if code = 0 then .incomplete else if configurationOnly then .configuration else .violation
+  | _ => .incomplete
+
+/-- Registers `ClassifyContract` about the executed classification; callers use `classify`. -/
+theorem checkedClassify : Plumb.ExecutableContract classifyImpl ClassifyContract :=
+  ⟨fun mode code observed => by
+    rcases observed with _ | ⟨status, configurationOnly⟩
+    · simp [classifyImpl]
+    · cases status <;> cases configurationOnly <;> by_cases hc : code = 0 <;>
+        simp_all [classifyImpl] <;> split <;> simp_all⟩
+
+/-- The exit class, through `checkedClassify`. -/
+def classify (mode : EvidenceMode) (code : UInt32) (observed : Option Observation) : Outcome :=
+  checkedClassify.run mode code observed
+
+/-- Exit code zero requires a zero audit exit and an accepted run of the requested mode: a
+run complete for its plan that meets every stage policy (`PlumbPolicy.accept_iff`). -/
+theorem accepted_sound (mode : EvidenceMode) (code : UInt32) (observed : Option Observation)
+    (h : (classify mode code observed).exitCode = 0) :
+    code = 0 ∧ ∃ c, ∃ run : AcceptedRun c, c.val.mode = mode ∧
+      CompleteFor run.plan run.result.table ∧ AllPolicyOK run.plan run.roles run.result.table := by
+  have accepted : classify mode code observed = .accepted :=
+    Outcome.exitCode_injective (b := .accepted) h
+  obtain ⟨hcode, a, _, _, hmode⟩ := ((checkedClassify.evidence mode code observed).1).mp accepted
+  obtain ⟨c, run, hrun, complete, policy⟩ := a.accepted
+  refine ⟨hcode, c, run, ?_, complete, policy⟩
+  rw [← hmode, ← hrun]
+  exact ((Account.checkedAccount.evidence c run).1).symm
+
+/-- Whole-project stages shown by `--explain-config`. -/
+def projectStages : List Stage :=
+  [.configuration, .discovery, .build, .admission, .declarationPolicy, .execution,
+   .transcript, .history, .origin, .documentationPresence]
+
+/-- The displayed list is the policy's own derived requirement for either project mode. -/
+theorem projectStages_required (c : Claim)
+    (h : c.val.mode = .incrementalProject ∨ c.val.mode = .freshProject) :
+    requiredStages c = projectStages := by
+  unfold requiredStages
+  rcases h with h | h <;> simp [h, projectStages]
+
+end Plumb.Checker.Lint

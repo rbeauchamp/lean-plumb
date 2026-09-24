@@ -1,15 +1,20 @@
-# Build-time enforcement MVP
+# Build and lint enforcement example
 
-This package is the reference Lake integration for the current build-time enforcement
-MVP. It demonstrates how an adopting project uses the existing linter; the implementation
+This package is the reference `lakefile.lean` integration for `lake lint` and the enforcing
+ordinary `lake build`. It demonstrates how an adopting project uses the existing linter; the implementation
 lives in [`lean/Plumb/Checker/`](../../lean/Plumb/Checker/).
 
 It requires the checker by local path. From this directory:
 
 ```sh
 MATHLIB_NO_CACHE_ON_UPDATE=1 lake update
-lake build
+lake build   # enforcing default target
+lake lint    # the same audit through the configured lint driver
 ```
+
+The package sets `lintDriver := "plumb/lint"`. `lake lint` exits 0 (accepted),
+1 (violation), 2 (invalid configuration) or 3 (incomplete); see the
+[adoption guide](../../docs/guides/adoption.md#6-enforce-with-lake-lint-lake-build-and-ci).
 
 To use it elsewhere, copy this directory and change `require plumb from
 "../.."` in `lakefile.lean` to the checker's path or an exact git revision. Lake resolves
@@ -56,7 +61,8 @@ Native arithmetic remains trusted even with checked execution. This linter enfor
 requirements, not their adequacy or completeness, fresh-source conformance, kernel normalization,
 or native correctness. See [the exact scope and limits](../../docs/standard/8-tooling-and-machine-audit.md#812-opt-in-enforcing-build-linter).
 Qualification copies these actual files and mutates disposable adopters through plain
-`lake build`; it is included in `lake exe checkerSelftest --build-bound --jobs 4`.
+`lake build`; it is included in `lake exe checkerSelftest --build-bound --jobs 4`. The `lint-driver`
+partition (`./scripts/verify.sh diagnostics lint-driver`) qualifies `lake lint` the same way.
 
 ## Enforcement boundary
 
@@ -75,7 +81,7 @@ inventory. Its `BUILD-01`–`BUILD-04` rows describe this integration:
 
 See [module 8 §8.12](../../docs/standard/8-tooling-and-machine-audit.md#812-opt-in-enforcing-build-linter)
 for the supported adapter and exact enforcement limits. Editor elaboration does not run
-this build policy; design-time integration is future work.
+this build policy. For live editor diagnostics, see [lake-lint-toml](../lake-lint-toml/README.md).
 
 ## Direction
 
@@ -84,11 +90,9 @@ Lean metaprogramming. A separately distributed policy package can reuse that inf
 [Lake supports lint drivers from dependencies](https://lean-lang.org/doc/reference/latest/Build-Tools-and-Distribution/Lake/),
 and [Batteries supports custom linters](https://leanprover-community.github.io/mathlib4_docs/Batteries/Tactic/Lint/Frontend.html).
 
-This MVP is the starting point for enforcing the standard through Lean's existing
-infrastructure. Before adding rules, map the compliance checklist to existing checks and
-reuse those that establish the required property. Add the remaining policy and
-proof-evidence checks, with a conventional `lake lint` entry point and design-time
-integration as future work. The current entry point remains the enabled `lake build`.
+Plumb uses that infrastructure: a Lake lint driver, this build target, and native
+command/module linters for editor feedback. Before adding rules, map the compliance checklist
+to existing checks and reuse those that establish the required property.
 
 The kernel checks supplied proofs; the linter enforces the presence and linkage of required
 evidence and the declared policy. Writing a linter in Lean does not by itself prove the

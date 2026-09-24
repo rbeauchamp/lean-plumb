@@ -78,6 +78,10 @@
     {
       "executable": "ruleExampleQualification",
       "rationale": "Source-owned rule receipt admission tooling; not a conforming program surface."
+    },
+    {
+      "executable": "lint",
+      "rationale": "Lake lint driver; its root module belongs to the excluded Plumb library. It dispatches to the axiomGate project audit and classifies its exit; its exit classification is the claimed PlumbCore.Lint contract; qualified by the \u00a78.8 lint-driver campaign, not claimed as a conforming proof surface."
     }
   ]
 }

@@ -27,6 +27,8 @@ operational bridge, re-exporting the pure API without duplicating policy decisio
 | --- | --- |
 | `AxiomGate.auditSurfaceAt`: fresh project | `Acceptance.freeze` reconciles coordinator-selected Lake modules, source/configuration/dependency state, completed report/replay inventories and origins. `Acceptance.finish` times collection and acceptance separately, carrying checked equality of every outcome to `finalize` through `finalize_collection_error` and `finalize_of_collected`; success text and `ResultProtocol.writeAccepted` consume its `AcceptedRun.report` through the report account `Account.account`. Fresh isolated source build and all existing warning, ownership, exclusion, source and replay guards remain. |
 | Same function: `--incremental`, `--build-lint` | The same full policy plan uses `incrementalProject`; cached Lake build artifacts do not cache policy decisions. Build-lint has no second exit-code-only PASS branch. |
+| `Lint.run` (`lint`, the `lake lint` driver) | Calls the same `AxiomGate.entry` project audit (`--incremental`, or fresh with `--fresh`). Exit 0 only through the claimed `Lint.classify` (`checkedClassify`): `accepted_sound` requires a zero audit exit and a recorded `Status.completed` account of the requested mode, hence an `AcceptedRun` with `CompleteFor ∧ AllPolicyOK`. The success line is that account's `Account.pass`. Exit codes 1, 2 and 3 classify recorded rejected, configuration-only and incomplete statuses; a missing or disagreeing status is 3. That the recorded observation is this invocation's audit is checked by inspection. No second PASS branch. |
+| `Lint.run`: `--explain-config`, `--help` | Read-only manifest/Lake-scope validation with the audit's own functions, and help; no audit certificate. |
 | `AxiomGate.auditSurface`: `--with-docs` | One process: `auditSurfaceAt` accepts the project plan over a snapshot that includes the copied Markdown, then `auditBuiltProject` accepts the documentation plan over that same snapshot and build, and `combineAccepted` joins them. No evidence crosses a process boundary between the two stages. `CombinedAccepted` is required before combined success. |
 | `AxiomGate.auditSurface`: `--acceptance-link PATH` | Fresh project success only (no `--with-docs`). After `AcceptedRun`, computes the SHA-256 of the copy-relative accepted sources, configuration, dependency captures and `docs/` Markdown; records it in PATH only after `run`'s outer configuration recheck passed with exit code 0. The path is invalidated before the audit starts, so any refusal leaves it `incomplete`. |
 | `DocFenceAudit.run`: `--acceptance-link PATH` | Before building, computes the same identity from its own fresh captures and refuses unless PATH records an accepted ordinary result with an equal identity. Equality establishes identical captured inputs; `shasum` and the filesystem remain trusted. |
@@ -522,7 +524,7 @@ guides the new library via Lake discovery, not hardcoded declaration/file lists.
 | #7 POLICY-04 | Freeze census/plan, validate all worker packets and every success boundary in §1, consume Accepted values in renderers/exit adapters, compose project+docs under one snapshot. Refuse empty/missing/duplicate/mismatched responses through public paths. Remove obsolete raw success APIs only after accounting for all callers. |
 | #12 CATALOG | Keep one registry; add `freshFile`, share scope/status identities with core; accepted diagnostics export is read-only projection, never certificate input. |
 | #13 ENGINE | Shared semantic collectors for current-document and imported modules; complete census/roots/role extraction and typed outcomes for all twenty rules; two scoped doc-presence checks retained. |
-| #14 ADOPTION | All actual Lake lint/build/editor adapters consume the same outcome; cached policy re-evaluation and source-located links retained; freshFile and snapshot modes honestly labeled. |
+| #14 ADOPTION | All actual Lake lint/build/editor adapters consume the same outcome; cached policy re-evaluation and source-located links retained; freshFile and snapshot modes honestly labeled. Delivered: `lint` driver and exit classes, upstream-widget editor links, adopter fixtures in both lakefile formats. |
 | #10 DELIVERY / #15 WEBSITE | Reconcile residual semantic accounts and same-revision rule/example/status exports. No accepted data report is full conformance; site consumes status, not exit code alone. |
 | #8/#9 optional | Separate requested graph/export jobs and result type; absence cannot block core policy/site delivery. No new export format or adapter selected here. |
 
@@ -581,7 +583,7 @@ protocols require public-entrypoint controls for omitted/duplicate/substituted k
 wrong modes/snapshots, worker crash and malformed versions. Changed Library/overlay
 coverage requires a fresh imported-client control and exact Lake inventory checks.
 Use `./scripts/verify.sh diagnostics` with an applicable existing partition
-(`fixtures`, `structural`, `cli`, `environments`, `build-policy`) and add focused
+(`fixtures`, `structural`, `cli`, `environments`, `build-policy`, `lint-driver`) and add focused
 controls where absent; do not report an unrun campaign PASS. `serialized-graph`
 remains separate. If implementation cost becomes decision-bearing, define the
 measurement and resource budget before evaluating it.

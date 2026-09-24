@@ -43,6 +43,11 @@ the job's exact environment. Equal names across environments must not be flatten
 or deduplicated, and configuration/discovery/build obligations remain global.
 Help, planning, workers, local editor observations and diagnostic demonstrations must
 stay explicitly non-audit; rendered JSON/status cannot reconstruct a proof.
+For adoption adapters (`lint`, the build `policy` target, native editor messages),
+check that success reaches exit 0 only through the audit's own accepted result
+(`Lint.accepted_sound`), that exit classes follow the recorded status, and that help
+links come from the registry's `helpUrl`. Editor claims need observation in the supported
+client; a link string or browser check alone does not qualify an editor interaction.
 
 ## Evidence and repairs
 
@@ -62,6 +67,7 @@ Choose checks from AGENTS.md and the applicable checklist rows:
 | Lean definitions or proof claims | Relevant compiler/proof checks and semantic review. |
 | Settled conformance | Complete acceptance command plus applicable semantic rows. |
 | Checker behavior or detection claims | Focused qualification of affected capabilities and invocation paths. |
+| Lake lint driver, build target or editor adapter | `diagnostics lint-driver` or `build-policy` as affected; `qualify native` for linter messages; recorded client observation for editor interaction. |
 | Optional serialized-graph claim | Supported fresh-checker evidence for that exact graph. |
 | Instructions or editorial changes with unchanged Lean claims and inputs | References, instruction behavior, and scoped review. |
 

@@ -6,6 +6,7 @@ import Plumb.Checker.SourceAudit
 import Plumb.Checker.Diagnostics
 import Plumb.Checker.Documentation
 import Plumb.Checker.ResultProtocol
+import PlumbCore.Lint
 import Plumb.Website
 
 /-!
@@ -101,6 +102,36 @@ private def infoFor (libraries : Array LibraryInfo) (name : String) :
 
 private def sameStringSet (left right : Array String) : Bool :=
   left.size == right.size && left.all right.contains && right.all left.contains
+
+/-- The terminal status of the current invocation, recorded wherever a project or
+combined documentation audit decides its result status, including without `--json-out`.
+`lint` derives its exit class from this and the exit code (`Lint.classify`). -/
+initialize terminalObservation : IO.Ref (Option Lint.Observation) ← IO.mkRef none
+
+private def recordStatus (status : ResultProtocol.Status) (findings : Array Plumb.Finding) : IO Unit :=
+  terminalObservation.set (some ⟨status, !findings.isEmpty && findings.all (·.1 == .configuration)⟩)
+
+/-- Every root-package Lean library and executable is classified exactly once by the
+manifest. Shared by the audit and the read-only configuration explanation. -/
+def checkClassification (manifest : Manifest.Manifest) (inventory : Lake.SurfaceInventory) : IO Unit := do
+  let rootLibraries := inventory.libraries.map (·.library)
+  let manifested := Manifest.libraries manifest
+  if !sameStringSet manifested rootLibraries then
+    let missing := rootLibraries.filter fun name => !manifested.contains name
+    let extra := manifested.filter fun name => !rootLibraries.contains name
+    let details := (if missing.isEmpty then #[] else
+      #[s!"unclassified root Lean libraries {repr missing.toList}"]) ++
+      (if extra.isEmpty then #[] else #[s!"non-root Lean libraries {repr extra.toList}"])
+    throw <| IO.userError s!"manifest-incomplete: {"; ".intercalate details.toList}"
+  let manifestedExes := Manifest.executables manifest
+  let discoveredExes := inventory.executables.map (·.executable)
+  if !sameStringSet manifestedExes discoveredExes then
+    let missing := discoveredExes.filter fun name => !manifestedExes.contains name
+    let extra := manifestedExes.filter fun name => !discoveredExes.contains name
+    let details := (if missing.isEmpty then #[] else
+      #[s!"unclassified root Lean executables {repr missing.toList}"]) ++
+      (if extra.isEmpty then #[] else #[s!"non-root Lean executables {repr extra.toList}"])
+    throw <| IO.userError s!"manifest-incomplete: {"; ".intercalate details.toList}"
 
 private def manifestJson (manifest : Manifest.Manifest) : Json :=
   Json.mkObj [
@@ -203,6 +234,7 @@ private def reportContextFailure (id : Plumb.RuleId) (scope : String)
   composed.set none
   let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding id scope detail mode impact
   IO.println finding.2.text
+  recordStatus (if impact == .violation then .rejected else .incomplete) #[finding]
   if let some output := resultOut then
     let captured ← capturedSourceAccount resultOut sources
     writeJson output <| (ResultProtocol.resultJson (Json.str scope) mode
@@ -257,23 +289,8 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       libraries := inventory.libraries.map (·.library)
       leanLibDir := inventory.leanLibDir
     }
+    checkClassification manifest inventory
     let manifested := Manifest.libraries manifest
-    if !sameStringSet manifested rootInventory.libraries then
-      let missing := rootInventory.libraries.filter fun name => !manifested.contains name
-      let extra := manifested.filter fun name => !rootInventory.libraries.contains name
-      let details := (if missing.isEmpty then #[] else
-        #[s!"unclassified root Lean libraries {repr missing.toList}"]) ++
-        (if extra.isEmpty then #[] else #[s!"non-root Lean libraries {repr extra.toList}"])
-      throw <| IO.userError s!"manifest-incomplete: {"; ".intercalate details.toList}"
-    let manifestedExes := Manifest.executables manifest
-    let discoveredExes := inventory.executables.map (·.executable)
-    if !sameStringSet manifestedExes discoveredExes then
-      let missing := discoveredExes.filter fun name => !manifestedExes.contains name
-      let extra := manifestedExes.filter fun name => !discoveredExes.contains name
-      let details := (if missing.isEmpty then #[] else
-        #[s!"unclassified root Lean executables {repr missing.toList}"]) ++
-        (if extra.isEmpty then #[] else #[s!"non-root Lean executables {repr extra.toList}"])
-      throw <| IO.userError s!"manifest-incomplete: {"; ".intercalate details.toList}"
 
     let mut libraries : Array LibraryInfo := #[]
     for library in manifested do
@@ -613,9 +630,14 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           ("libraries", Json.arr <| libraries.map libraryInfoJson),
           ("surfaces", Json.arr surfaceReports)
         ]) repo reportRoot
+      let unresolved := if failures.size == findings.size then #[] else
+        #["additional checker failures: " ++ "\n".intercalate failures.toList]
+      -- The same decision as the `status` written below, recorded even without `--json-out`.
+      let status : ResultProtocol.Status := match accepted with
+        | some (_, ⟨_, run⟩) => if documentationPending then .incomplete else .completed (Account.account run)
+        | none => if !unresolved.isEmpty || findings.any (·.2.impact == .incomplete) then .incomplete else .rejected
+      recordStatus status findings
       if let some output := resultOut then
-        let unresolved := if failures.size == findings.size then #[] else
-          #["additional checker failures: " ++ "\n".intercalate failures.toList]
         let sources := (sourceBindings.filter (fun s => (surfaces.flatMap (·.modules)).contains s.moduleName)).map fun s =>
           Json.mkObj [("module", toJson s.moduleName), ("path", toJson s.path), ("source", toJson s.content)]
         let resultScope := Json.mkObj [("project", toJson reportRoot.toString), ("manifest", manifestJson manifest),
@@ -631,8 +653,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           else ResultProtocol.writeAccepted output accepted resultScope
         else
           ResultProtocol.write output resultScope (if fresh then .freshProject else .incrementalProject)
-            (if !unresolved.isEmpty || findings.any (·.2.impact == .incomplete) then .incomplete else .rejected)
-            findings unresolved
+            status findings unresolved
       for finding in findings do IO.println finding.2.text
       if !failures.isEmpty then
         IO.println s!"\nFAIL: {failures.size} violation(s)"
@@ -712,15 +733,17 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
         pure (some (⟨docClaim, receipt⟩ : (dc : PlumbPolicy.Claim) ×
           PlumbPolicy.CombinedAccepted evidence.claim dc documents))
       else pure none
+    let docs ← docFindings.get
+    -- The same decision as the `status` written below, recorded even without `--json-out`.
+    let status : ResultProtocol.Status := match combined with
+      | some ⟨_, receipt⟩ => .completed (Account.account receipt.project)
+      | none => if docs.isEmpty || docs.any (·.2.impact == .incomplete) then .incomplete else .rejected
+    recordStatus status docs
     if let some output := resultOut then
       let value ← IO.ofExcept <| Plumb.Checker.PolicyCodec.parse (← IO.FS.readFile output)
       let scope ← IO.ofExcept (value.getObjVal? "scope")
-      let docs ← docFindings.get
       let previous ← IO.ofExcept <| (← IO.ofExcept (value.getObjVal? "diagnostics")).getArr?
       let value := value.setObjVal! "diagnostics" (toJson (previous ++ docs.map Plumb.RegistryCodec.diagnosticJson))
-      let status : ResultProtocol.Status := match combined with
-        | some ⟨_, receipt⟩ => .completed (Account.account receipt.project)
-        | none => if docs.isEmpty || docs.any (·.2.impact == .incomplete) then .incomplete else .rejected
       let value := value.setObjVal! "status" (.str status.spelling)
       let value := value.setObjVal! "scope" (scope.setObjVal! "documentation" (.str (repo / "docs").toString))
       let value := value.setObjVal! "unresolved" (toJson (if combined.isSome then (#[] : Array String)
@@ -930,6 +953,7 @@ private def optionValues (flag : String) : List String → List String
   | _ => []
 
 unsafe def run (args : List String) : IO UInt32 := do
+  terminalObservation.set none
   let destinations := (optionValues "--json-out" args).eraseDups.map FilePath.mk
   let invalidate (path : FilePath) :=
     writeJson path (Json.mkObj (ResultProtocol.identityFields ++ [
@@ -1046,6 +1070,7 @@ unsafe def run (args : List String) : IO UInt32 := do
       (if configError then .configuration else .environment) repo.toString
       error.toString mode (if configError then .violation else .incomplete)
     IO.eprintln finding.2.text
+    recordStatus (if configError then .rejected else .incomplete) #[finding]
     if let some output := resultOut then
       let captured ← capturedSourceAccount resultOut (← capturedSources.get)
       writeJson output <| (ResultProtocol.resultJson (Json.str repo.toString) mode
