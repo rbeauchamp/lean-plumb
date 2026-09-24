@@ -63,8 +63,8 @@ A reference that fails any condition leaves only its clause unresolved: the clau
 reported as a refused discharge with the reason, in the `open semantic review` class. It is
 neither checked nor judged (no coverage question is asked for it), it never falls back to a
 judged clause, and its claim is escalated to review. Every other clause and claim is still
-screened, and the run then exits with 2 (incomplete). `IntentCorpus.mergeSort_correct` in `lean/Plumb/Screen/Corpus.lean` is a
-worked example.
+screened, and the run then exits with 2 (incomplete). `IntentCorpus.mergeSort_correct` in
+`lean/Plumb/Screen/Corpus.lean` is a worked example.
 
 ## Judgments
 
@@ -154,10 +154,11 @@ correspondence) and open review obligations; and every screened answer in `resul
 class label is the spelling of the proved `EvidenceClass` definitions, not a free string.
 The report also records completeness, so it is never read as a pass when the run is
 incomplete: top-level `complete` (false when any discharge reference was refused or the run
-did not finish),
-`exitStatus` (the process exit status, 0, 1 or 2) and `incomplete` (each refused reference:
-claim, clause, theorem and reason). Each claim carries `complete` (`ClaimScreen.complete`)
-and its `status` (`screened` or `escalated to review`, from `ClaimScreen.status`).
+did not finish), `exitStatus` (the process exit status, 0, 1 or 2), `reason` (set only for a
+run that did not finish) and `incomplete` (each refused reference: `claim`, `clause`,
+`theorem` and the reason as `refused`). Each claim carries `complete`
+(`ClaimScreen.complete`) and its `status` (`screened` or `escalated to review`, from
+`ClaimScreen.status`).
 
 The `--json` path is guarded by one invariant: no stale passing report survives a failed run,
 and no other file is ever overwritten by an argument mistake. Whenever the arguments contain
@@ -197,8 +198,8 @@ linter's severity vocabulary and diagnostic shape.
 - **Cost.** TypeSafe bills input tokens only. The jev-1.13.0 list price was $0.042 per million
   input tokens on 2026-09-24. A claim request is about 1,500 to 2,000 input tokens. The tool
   prints the requests sent (every POST, retries included: a request retried after HTTP 429,
-  529 or 5xx makes at most 5 POSTs), the cache hits, and the input tokens billed. If a billed response
-  omits its usage, the total is printed as `unknown`, never as a partial count.
+  529 or 5xx makes at most 5 POSTs), the cache hits, and the input tokens billed. If a billed
+  response omits its usage, the total is printed as `unknown`, never as a partial count.
 - **Reproducibility.** The cache key is the SHA-256 of the exact request: model, state and
   every question. An entry is reused only if its stored request equals the current one. A
   fully cached run needs no key and makes no network call. Any change to the model, the
