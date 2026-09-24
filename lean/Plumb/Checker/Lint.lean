@@ -122,8 +122,11 @@ private def refuse (message : String) : IO Outcome := do
   return .configuration
 
 /-- The Lake target of `workerBinary`, which the audit spawns as its worker. Lake's lint
-dispatch builds only the driver, so the driver builds it in `checkerWorkspace` before the
-audit. -/
+dispatch builds only the driver, so the driver builds this sibling target before the audit,
+in the workspace `lake lint` was dispatched from (`repoRoot`, never `--project`). That
+workspace built the running driver, whether `plumb` is a path dependency, a git dependency
+under `.lake/packages`, any custom `packagesDir` or the root, so it resolves `plumb` to the
+same package, dependencies and toolchain, and its `plumb/axiomGate` is `workerBinary`. -/
 def workerTarget : String := "plumb/axiomGate"
 
 /-- Every path but the audit's `classify` returns a non-accepted class. -/
@@ -143,7 +146,7 @@ private unsafe def lint (args : List String) : IO Outcome := do
       return ← explain options
     IO.println s!"plumb lint: enforcing all manifested Lake surfaces; mode {modeText options.fresh}"
     (← IO.getStdout).flush
-    let worker ← Lake.buildTargets (← checkerWorkspace) #[workerTarget]
+    let worker ← Lake.buildTargets (← repoRoot) #[workerTarget]
     unless worker.succeeded && (← (← workerBinary).pathExists) do
       IO.eprintln worker.output
       IO.eprintln s!"plumb lint: {Outcome.incomplete.label}: audit worker {workerTarget} did not build"

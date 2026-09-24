@@ -368,20 +368,6 @@ def workerBinary : IO FilePath := do
     | throw <| IO.userError "checker library directory unavailable"
   return selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
 
-/-- The Lake workspace that owns the running checker's package, and so builds `workerBinary`:
-the package itself, or the workspace whose `.lake/packages` holds it as a dependency. -/
-def checkerWorkspace : IO FilePath := do
-  let some selfLib ← checkerPackageLibDir
-    | throw <| IO.userError "checker library directory unavailable"
-  let lib ← IO.FS.realPath selfLib
-  let some package := lib.parent >>= (·.parent) >>= (·.parent) >>= (·.parent)
-    | throw <| IO.userError s!"checker package directory unavailable for {lib}"
-  let packages := package.parent
-  let lakeDir := packages >>= (·.parent)
-  if packages.bind (·.fileName) == some "packages" && lakeDir.bind (·.fileName) == some ".lake" then
-    if let some workspace := lakeDir >>= (·.parent) then return workspace
-  return package
-
 /-- Await an isolated checker worker and decode its typed result. The child
 stays in the caller’s process group and its scratch files outlive its exit. -/
 def runTypedWorker [ToJson α] [FromJson β]

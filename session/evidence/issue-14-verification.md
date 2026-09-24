@@ -83,11 +83,20 @@ checkout, under the hard 420 s deadline:
 After the driver began building its `plumb/axiomGate` worker (`Lint.workerTarget`) before the
 audit, `./scripts/verify.sh diagnostics lint-driver` was run again on macOS arm64: PASS, 15
 controls, 90 s wall. The added `toml/absent-worker` control runs first and alone. It
-removes the checker's `bin/axiomGate`, then `lake lint` reaches `plumb lint: PASS`. The worker
-is now built in `checkerWorkspace`, the workspace that owns the running checker, never in
-`--project`. Its path comes from `workerBinary`, which every worker spawn also uses. After
-that change the campaign passed again: 15 controls, 202 s wall. Neither acceptance step was
-rerun after these changes.
+removes the checker's `bin/axiomGate`, then `lake lint` reaches `plumb lint: PASS`. An intermediate
+version built the worker in the workspace derived from the driver's own path. The campaign
+passed on it (15 controls, 202 s wall), but that version is superseded. After the change
+below, the campaign passed again: 15 controls, 144 s wall. Neither acceptance step was rerun
+after these changes.
+
+Decision: the driver builds `plumb/axiomGate` in the workspace `lake lint` was dispatched
+from (`repoRoot`, never `--project`), and the audit spawns `workerBinary`. That workspace
+built the running driver in every layout: a path dependency (the shipped examples), a git
+dependency under `.lake/packages` (the documented install), a custom `packagesDir`, or the
+root. So it resolves `plumb` to the same package, dependencies and toolchain. The
+git-dependency layout is covered by this argument, not by a sampled control. The path-derived
+workspace re-resolved a path dependency's packages in the checker checkout, which needed the
+network and could pick another toolchain.
 
 Decision: the weak `linter.plumb` override applies only in the `lake lint` driver's claimed
 build (`AxiomGate.claimedBuild`, set by `Lint`). Lake scopes Lean options by package and
