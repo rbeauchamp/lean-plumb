@@ -187,15 +187,24 @@ the limit, and the first-check peak is at least the resident memory then, so the
 never fires on memory the process already held (a file-mode audit that imports `Lean`
 already peaks above 4 GiB, which an absolute limit would hit). The limit does not re-read the
 peak, so a check that exhausts cannot raise the next check's limit; a limit based on the
-rising lifetime peak would let each exhausted check add another 1 GiB. The cost is fail-closed:
-Lean's allocator may keep an exhausted check's pages resident, so a later check that starts
-at or above the limit exhausts at once and its replacement stays trusted. At most three
-report workers run at once, each running its checks sequentially, so correspondence checks
-hold the audit's resident memory within 3 × 1 = 3 GiB above those workers' first-check peaks
-on a 16 GiB CI runner; memory used outside the checks is not bounded by this limit. Kernel resource exhaustion is not
-conflated with rejection: its reason says the kernel ran out of resources before deciding
-definitional correspondence. Unless a theorem candidate is then admitted, the replacement
-is currently classified trusted, as before this change. That does not yet conform to
+rising lifetime peak would let each exhausted check add another 1 GiB. The remaining
+limitation: the 1 GiB of headroom above the first-check peak is shared by every later check
+in the worker and by any other resident growth there (pages that successful or exhausted
+checks leave resident, since Lean's allocator may keep them, execution-walk caches, later
+environment loads). Once one check exhausts memory, or other growth consumes the headroom,
+later checks in the same worker may exhaust immediately. These fail closed: such a check is
+never reported checked, and its correspondence is reported as not established. At most
+three report workers run at once, each running its checks sequentially, so while checks run
+they add at most 3 × 1 = 3 GiB of resident memory above those workers' first-check peaks.
+That is an increment, not a total: it does not by itself show the audit fits in 16 GiB,
+because each worker's first-check peak is set by what it already holds (a worker that
+imports `Lean` already peaks around 4.2 GiB on Linux), and memory used outside the checks
+is not bounded by this limit. To keep a kernel-exhausting unfolding from consuming the
+headroom a supplied proof needs, supplied and then discovered theorem candidates are tried
+before the kernel-defeq check, so a replacement with both reports `proved:` evidence. Kernel
+resource exhaustion is not conflated with rejection: its reason says the kernel ran out of
+resources before deciding definitional correspondence. The replacement is then currently
+classified trusted, as before this change. That does not yet conform to
 [§8.6](../standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly), which
 defines a comparison that could not complete as unresolved;
 [issue #63](https://github.com/rbeauchamp/strict-lean/issues/63) tracks the conforming

@@ -115,10 +115,11 @@ size at its first check: 1 GiB. The limit is fixed once per process, at that fir
 that peak plus this allowance. The peak is at least the resident size then, so the first
 check never fires on memory the process already held (its imported environment included).
 Every later check in the process runs under the same limit, so no number of checks, exhausted
-or not, raises the process's resident memory during a check above it; a later check that
+or not, raises the process's resident memory during a check above it. The allowance is shared
+by every later check and all other resident growth in the process, so a later check that
 starts at or above the limit exhausts at once and fails closed. At most three report workers
-run at once, so the checks add at most 3 GiB to their pre-check peaks on a 16 GiB CI
-runner. -/
+run at once, so the checks add at most 3 GiB to their first-check peaks; that increment
+does not bound those peaks or memory used outside the checks. -/
 private def correspondenceMemoryBytes : Nat := 1024 * 1024 * 1024
 
 /-- This process's correspondence memory limit in bytes, fixed at its first check. -/
@@ -216,7 +217,10 @@ private def theoremCorrespondence? (levels : List Name) (reference replacement :
 are rigid universal level parameters and `xs` is the complete elaborated
 reference domain, including implicit, dependent, and proof parameters. The
 compiler's positional universe substitution must type-check at those same
-levels. Both definitional and theorem-backed evidence pass the same kernel gate. -/
+levels. Both definitional and theorem-backed evidence pass the same kernel gate.
+Theorem candidates, supplied then discovered, are tried before definitional
+unfolding, so a kernel-exhausting unfolding cannot consume the memory limit a
+supplied proof needs. -/
 private def replacementCorrespondence (env : Environment) (reference replacement : Name)
     (proofCandidates : Array Name := #[]) :
     CommandElabM (Correspondence × Option String) := do
@@ -236,13 +240,6 @@ private def replacementCorrespondence (env : Environment) (reference replacement
         let lhs := mkAppN ref domain
         let rhs := mkAppN impl domain
         let required ← Meta.mkForallFVars domain (← Meta.mkEq lhs rhs)
-        let mut defeqExhausted := false
-        try
-          let proof ← Meta.mkLambdaFVars domain (← Meta.mkEqRefl lhs)
-          match ← checkCorrespondenceProof levels required proof with
-          | some detail => return (.checked, some s!"kernel-defeq; {detail}")
-          | none => defeqExhausted := true
-        catch _ => pure ()
         for name in proofCandidates do
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
             return (.checked, some evidence)
@@ -252,6 +249,13 @@ private def replacementCorrespondence (env : Environment) (reference replacement
           if !used.contains reference || !used.contains replacement then continue
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
             return (.checked, some evidence)
+        let mut defeqExhausted := false
+        try
+          let proof ← Meta.mkLambdaFVars domain (← Meta.mkEqRefl lhs)
+          match ← checkCorrespondenceProof levels required proof with
+          | some detail => return (.checked, some s!"kernel-defeq; {detail}")
+          | none => defeqExhausted := true
+        catch _ => pure ()
         return (.trusted, some <| if defeqExhausted then
           "no kernel-checked unconditional correspondence proof; " ++
             "kernel resources exhausted before deciding definitional correspondence"
