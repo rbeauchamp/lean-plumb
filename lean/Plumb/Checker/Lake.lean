@@ -113,12 +113,16 @@ build resolves modules only through the workspace being built. -/
 def buildTargets (repo : FilePath) (targets : Array String) : IO ProcessResult :=
   runProcess repo "lake" (#["build"] ++ targets) scrubbedLeanPathEnv
 
-/-- Root-package Lean options of an audit build: Plumb's local feedback off (`weak.`, so a
-module that does not import `Plumb.Linter` ignores it). The audit's own policy stages report
-Plumb findings; the warning-free check then measures only other warnings. The option enters
-Lake's module trace, so a module built with local feedback, for example by an ordinary
-`lake build`, is rebuilt: its replayed log can neither add Plumb warnings nor stand in for
-this configuration's warnings. A source `set_option linter.plumb true` still re-enables it. -/
+/-- Root-package Lean options of the `lint` driver's audit build: Plumb's local feedback off
+(`weak.`, so a module whose imports do not register `linter.plumb` ignores it and elaborates
+exactly as without it). The audit's own policy stages report Plumb findings; the warning-free
+check then measures only other warnings. The option enters Lake's module trace, so a module
+built with local feedback, for example by an ordinary `lake build`, is rebuilt: its replayed
+log can neither add Plumb warnings nor stand in for this configuration's warnings. Lake scopes
+Lean options by package and library, not by module, so the trace change reaches every
+root-package module; `axiomGate` and the build-lint target therefore keep ordinary options
+(`AxiomGate.claimedBuild`). A source `set_option linter.plumb true` still re-enables it
+(https://github.com/rbeauchamp/lean-plumb/issues/69). -/
 def auditLeanOptions : LeanOptions := .ofArray #[⟨`weak.linter.plumb, .ofBool false⟩]
 
 /-- `buildTargets` with `auditLeanOptions` on the root package, run in-process through Lake's

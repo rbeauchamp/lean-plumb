@@ -123,8 +123,10 @@ private def refuse (message : String) : IO Outcome := do
 
 /-- Every path but the audit's `classify` returns a non-accepted class. -/
 private unsafe def lint (args : List String) : IO Outcome := do
-  AxiomGate.invalidateResults args
-  match parseArgs args {} with
+  let parsed := parseArgs args {}
+  try AxiomGate.invalidateResults args
+  catch error => if let .error message := parsed then return ← refuse message else throw error
+  match parsed with
   | .error message => refuse message
   | .ok options =>
     if options.help || options.explain then
@@ -136,6 +138,7 @@ private unsafe def lint (args : List String) : IO Outcome := do
       return ← explain options
     IO.println s!"plumb lint: enforcing all manifested Lake surfaces; mode {modeText options.fresh}"
     (← IO.getStdout).flush
+    AxiomGate.claimedBuild.set Lake.buildAuditTargets
     let code ← AxiomGate.entry (gateArgs options)
     let observed ← AxiomGate.terminalObservation.get
     let outcome := classify (requestedMode options.fresh) code observed

@@ -53,7 +53,11 @@ infoview on this machine. They do not establish latency, other clients or the pu
    `warning: Gadget/Double.lean:14:15: PL1001 [violation; editorSnapshot; …]` (Lean's
    codepoint column) with the same URL. The 14 KB result has status `incomplete` with
    PL2003 build-failed: a live finding is a warning, so the warning-free build check stops
-   the audit first. This matches the documented exit class.
+   the audit first. This matched the exit class documented at `1153e48`. **Superseded:**
+   `lake lint` now builds with `linter.plumb` off (`Lake.auditLeanOptions`), so the same
+   declaration is the audit's PL1001 `VIOLATION` (exit 1); see the `toml/live-finding`
+   control in [issue-14-verification.md](issue-14-verification.md). The editor observations
+   in this journey are unchanged.
 5. Deleted the line: the status bar read `No Problems`.
 
 ## Stale and cancelled snapshots
