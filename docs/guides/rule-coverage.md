@@ -103,9 +103,14 @@ mechanical selectors/adapters in #13 and accepted-evidence construction in #7.
   No default-on heuristic intent detector becomes a diagnostic, let alone a hard error. The one
   amendment (#58) is the separate, opt-in
   [`intentScreen`](intent-screening.md). It is not a registry rule and never runs in
-  acceptance. It reports probabilities, and its calibration was measured on a published corpus: only its
+  acceptance. It is a separate executable rather than an in-elaboration rule because it calls a
+  paid network service with source text; inside the linter it would bring network, cost and
+  nondeterminism into every build and editor session. It reports probabilities, and its calibration was measured on a published corpus: only its
   totalization, exclusions and correspondence judgments met the pre-registered criteria. The user
-  chooses its thresholds and their severity mapping. Its results form their own `screened`
+  chooses its thresholds and their severity mapping, in the rule-severity vocabulary (`error`,
+  `warning`, `information`; rule severities themselves are fixed registry defaults, not user
+  configuration). Its findings have the linter's diagnostic shape with a per-judgment
+  `intentScreen/<judgment>` identifier, not a rule ID. Its results form their own `screened`
   evidence class. A low probability can raise a finding at the configured severity. A high
   probability never makes the claim checked and never completes this review. An intent clause
   can be discharged by a theorem, within the Standard-Logical foundation, proving that the

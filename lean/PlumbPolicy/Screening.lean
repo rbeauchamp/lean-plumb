@@ -16,7 +16,8 @@ This module owns everything about those answers that is not a judgment:
 * `Decimal` compares the service's decimal probabilities exactly; no binary floating point
   touches a threshold decision.
 * `Thresholds` is the user's severity mapping, well formed by construction
-  (`error ≤ warning`); `classify` maps a support probability to a finding severity, and
+  (`error ≤ warning ≤ information`); `classify` maps a support probability to a finding
+  severity in the rule-severity vocabulary, and
   `route` decides whether a result escalates to review.
 * `intentClauses` splits a docstring's Intent section into clauses, and `discharge?` reads a
   clause's reference to a kernel-checked discharge theorem.
@@ -143,47 +144,60 @@ theorem probability?_eq_some_iff (mantissa : Int) (exponent : Nat) (p : Probabil
 
 /-! ## Severity mapping and routing -/
 
-/-- Severity of a screening finding. A screen never produces a checked or passing verdict. -/
+/-- Severity of a screening finding, in the rule-severity vocabulary (`Plumb.Severity`:
+error, warning, information). A screen never produces a checked or passing verdict. -/
 inductive ScreenSeverity where
-  | warning | error
+  | information | warning | error
   deriving Repr, DecidableEq
 
-/-- Order of findings: no finding, then warning, then error. -/
+/-- Order of findings: no finding, then information, then warning, then error. -/
 def rank : Option ScreenSeverity → Nat
   | none => 0
-  | some .warning => 1
-  | some .error => 2
+  | some .information => 1
+  | some .warning => 2
+  | some .error => 3
 
 /-- The user's severity mapping for one judgment: a support probability below `error` is an
-error, below `warning` a warning. Well formed by construction. -/
+error, below `warning` a warning, below `information` information. Well formed by
+construction. -/
 structure Thresholds where
   error : Decimal
   warning : Decimal
-  ordered : error ≤ warning
+  information : Decimal
+  errorLeWarning : error ≤ warning
+  warningLeInformation : warning ≤ information
 
 /-- The executed severity decision. -/
 def classifyImpl (t : Thresholds) (support : Decimal) : Option ScreenSeverity :=
   if support < t.error then some .error
   else if support < t.warning then some .warning
+  else if support < t.information then some .information
   else none
 
-/-- Exact meaning of the severity decision: error below the error threshold, warning in the
-band between the thresholds, and no finding at or above the warning threshold. -/
+/-- Exact meaning of the severity decision: error below the error threshold, warning and
+information in the bands above it, and no finding at or above the information threshold. -/
 def ClassifyContract (classify : Thresholds → Decimal → Option ScreenSeverity) : Prop :=
   ∀ t s, (classify t s = some .error ↔ s < t.error) ∧
     (classify t s = some .warning ↔ t.error ≤ s ∧ s < t.warning) ∧
-    (classify t s = none ↔ t.warning ≤ s)
+    (classify t s = some .information ↔ t.warning ≤ s ∧ s < t.information) ∧
+    (classify t s = none ↔ t.information ≤ s)
 
 theorem checkedClassify : Plumb.ExecutableContract classifyImpl ClassifyContract := by
   refine ⟨fun t s => ?_⟩
   unfold classifyImpl
   by_cases he : s < t.error
-  · have hw : s < t.warning := Decimal.lt_of_lt_of_le he t.ordered
-    simp [he, hw, Decimal.lt_iff_not_le.mp he, Decimal.lt_iff_not_le.mp hw]
+  · have hw : s < t.warning := Decimal.lt_of_lt_of_le he t.errorLeWarning
+    have hi : s < t.information := Decimal.lt_of_lt_of_le hw t.warningLeInformation
+    simp [he, hw, hi, Decimal.lt_iff_not_le.mp he, Decimal.lt_iff_not_le.mp hw,
+      Decimal.lt_iff_not_le.mp hi]
   · have hle : t.error ≤ s := Decidable.of_not_not he
     by_cases hw : s < t.warning
-    · simp [he, hw, hle, Decimal.lt_iff_not_le.mp hw]
-    · simp [he, hw, Decidable.of_not_not hw]
+    · have hi : s < t.information := Decimal.lt_of_lt_of_le hw t.warningLeInformation
+      simp [he, hw, hle, Decimal.lt_iff_not_le.mp hw, Decimal.lt_iff_not_le.mp hi]
+    · have hwle : t.warning ≤ s := Decidable.of_not_not hw
+      by_cases hi : s < t.information
+      · simp [he, hw, hi, hwle, Decimal.lt_iff_not_le.mp hi]
+      · simp [he, hw, hi, Decidable.of_not_not hi]
 
 /-- The severity decision the screen runs. -/
 def classify : Thresholds → Decimal → Option ScreenSeverity := checkedClassify.run
@@ -203,8 +217,17 @@ theorem classify_antitone (t : Thresholds) {s s' : Decimal} (h : s ≤ s') :
       rw [c.1.mpr this]; exact Nat.le_refl _
     | warning =>
       have hw : s < t.warning := Decimal.lt_of_le_of_lt h (c'.2.1.mp hs').2
+      have hi : s < t.information := Decimal.lt_of_lt_of_le hw t.warningLeInformation
       cases hs : classifyImpl t s with
-      | none => exact absurd (c.2.2.mp hs) hw
+      | none => exact absurd (c.2.2.2.mp hs) (Decimal.lt_iff_not_le.mp hi)
+      | some sev =>
+        cases sev with
+        | information => exact absurd (c.2.2.1.mp hs).1 (Decimal.lt_iff_not_le.mp hw)
+        | warning | error => decide
+    | information =>
+      have hi : s < t.information := Decimal.lt_of_le_of_lt h (c'.2.2.1.mp hs').2
+      cases hs : classifyImpl t s with
+      | none => exact absurd (c.2.2.2.mp hs) (Decimal.lt_iff_not_le.mp hi)
       | some sev => cases sev <;> decide
 
 /-- What happens to one judged result after its severity is decided. -/
@@ -239,7 +262,7 @@ def routeImpl (p : JudgmentPolicy) (support : Decimal) (confidence : Option Deci
 it raises no finding, and any reported confidence meets the configured minimum. Every other
 result escalates. -/
 def RouteContract (route : JudgmentPolicy → Decimal → Option Decimal → Route) : Prop :=
-  ∀ p s c, route p s c = .screened ↔ ∃ t, p.thresholds = some t ∧ t.warning ≤ s ∧
+  ∀ p s c, route p s c = .screened ↔ ∃ t, p.thresholds = some t ∧ t.information ≤ s ∧
     ∀ m k, p.minConfidence = some m → c = some k → m ≤ k
 
 theorem checkedRoute : Plumb.ExecutableContract routeImpl RouteContract := by
@@ -248,7 +271,7 @@ theorem checkedRoute : Plumb.ExecutableContract routeImpl RouteContract := by
   cases ht : p.thresholds with
   | none => simp
   | some t =>
-    have hc := (checkedClassify.evidence t s).2.2
+    have hc := (checkedClassify.evidence t s).2.2.2
     simp only [classify, Plumb.ExecutableContract.run] at *
     cases hm : p.minConfidence <;> cases c <;>
       simp [hc, reduceCtorEq]

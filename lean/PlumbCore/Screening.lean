@@ -1,4 +1,5 @@
 import PlumbCore.Account
+import PlumbCore.Rule
 import PlumbPolicy.Screening
 
 /-! The report account of one opt-in intent screen (`docs/guides/intent-screening.md`).
@@ -8,16 +9,19 @@ run reports (checked relation, trusted mechanisms, open semantic review). Its da
 the model identifier, the exact question text, the support probability and the digest of the
 request the model answered. The finding severity and the escalation route are not stored:
 they are computed from the user's policy by the proved `classify` and `route`, so a record
-cannot carry a severity its probability does not justify.
+cannot carry a severity its probability does not justify. A finding's severity is a rule
+severity (`Plumb.Severity`), and every class label a report prints is the spelling of an
+`EvidenceClass` computed below.
 
 A claim's screen status is `screened` or `escalated`; there is no constructor for a checked
 or reviewed intent, so no screen, however high its probabilities, records the claim as
 checked or its R-INTENT review as completed. Only the implication of a formally discharged
-clause is checked: Lean's kernel admitted the discharge theorem, the adapter compared its
-hypothesis with the claim by the kernel's definitional equality, and its axioms are recorded
-and bounded by the Standard-Logical foundation. Its English-to-Lean correspondence is still a
-screened judgment. None of this authenticates the
-service, the network or the process that carried the request. -/
+clause is checked: Lean's kernel re-checked the discharge theorem's proof against its type in
+the loaded environment, the adapter compared its hypothesis with the claim by the kernel's
+definitional equality, and its axioms are recorded and bounded by the Standard-Logical
+foundation. The declarations that proof uses are trusted as built into their imported
+`.olean` files. Its English-to-Lean correspondence is still a screened judgment. None of this
+authenticates the service, the network or the process that carried the request. -/
 
 namespace Plumb.Checker.Screening
 
@@ -37,6 +41,28 @@ inductive EvidenceClass where
 def EvidenceClass.spelling : EvidenceClass → String
   | .checked => "checked" | .screened => "screened" | .openReview => "open semantic review"
 
+theorem EvidenceClass.spelling_injective : Function.Injective EvidenceClass.spelling := by
+  intro a b h; cases a <;> cases b <;> simp_all [spelling]
+
+/-- A screen finding's severity as a rule severity. -/
+def _root_.PlumbPolicy.Screening.ScreenSeverity.toSeverity : ScreenSeverity → Plumb.Severity
+  | .information => .information | .warning => .warning | .error => .error
+
+/-- Screen severities are exactly the rule severities: the mapping is a bijection. -/
+theorem _root_.PlumbPolicy.Screening.ScreenSeverity.toSeverity_bijective :
+    Function.Injective ScreenSeverity.toSeverity ∧
+      ∀ s : Plumb.Severity, ∃ t : ScreenSeverity, t.toSeverity = s := by
+  refine ⟨fun a b h => ?_, fun s => ?_⟩
+  · cases a <;> cases b <;> first | rfl | cases h
+  · cases s
+    · exact ⟨.error, rfl⟩
+    · exact ⟨.warning, rfl⟩
+    · exact ⟨.information, rfl⟩
+
+/-- Stable identifier of the findings one judgment raises. It is not a registry `RuleId`. -/
+def _root_.PlumbPolicy.Screening.Judgment.findingId (j : Judgment) : String :=
+  "intentScreen/" ++ j.spelling
+
 /-- One judged answer, as recorded evidence. `support` is the probability that the claim
 meets the intent in the judged respect (for strength, equivalent or stronger). -/
 structure Judged where
@@ -50,6 +76,12 @@ structure Judged where
   confidence : Option Decimal
   /-- SHA-256 of the exact request (model, state and every question) the model answered. -/
   inputsDigest : String
+
+/-- The evidence class of a judged answer: always `screened`. -/
+def Judged.evidenceClass (_ : Judged) : EvidenceClass := .screened
+
+theorem Judged.evidenceClass_ne_checked (j : Judged) : j.evidenceClass ≠ .checked := by
+  simp [evidenceClass]
 
 /-- The user's policy for every judgment; off (no thresholds) unless configured. -/
 abbrev Policy := Judgment → JudgmentPolicy
@@ -72,7 +104,7 @@ theorem Judged.escalate_of_severity (policy : Policy) (j : Judged) (h : j.severi
     obtain ⟨t, ht, hw, _⟩ := (checkedRoute.evidence (policy j.judgment) j.support j.confidence).mp hr
     exact absurd (by
       unfold Judged.severity
-      rw [ht]; exact ((checkedClassify.evidence t j.support).2.2).mpr hw) h
+      rw [ht]; exact ((checkedClassify.evidence t j.support).2.2.2).mpr hw) h
 
 /-- With no thresholds configured for its judgment, an answer raises no finding and escalates. -/
 theorem Judged.unconfigured (policy : Policy) (j : Judged) (h : (policy j.judgment).thresholds = none) :
@@ -83,7 +115,7 @@ theorem Judged.unconfigured (policy : Policy) (j : Judged) (h : (policy j.judgme
 
 /-- How one intent clause was compared with the claim. -/
 inductive ClauseEvidence where
-  /-- `proof` proves that the claim implies `formal` under exactly `axioms`, admitted by Lean's
+  /-- `proof` proves that the claim implies `formal` under exactly `axioms`, re-checked by Lean's
   kernel; whether `formal` states the English clause is the screened `correspondence` judgment. -/
   | discharged (proof : Lean.Name) (formal : String) (axioms : List Lean.Name) (correspondence : Judged)
   /-- No formal statement: whether the claim guarantees the clause is judged. -/
@@ -101,6 +133,15 @@ def ClauseEvidence.classes : ClauseEvidence → List EvidenceClass
 /-- A screened clause is never only checked: its English-to-Lean link is always judged. -/
 theorem ClauseEvidence.screened_mem (e : ClauseEvidence) : EvidenceClass.screened ∈ e.classes := by
   cases e <;> simp [classes]
+
+/-- A clause's judged answer carries one of the clause's classes, and it is not `checked`. -/
+theorem ClauseEvidence.judgedAnswer_class (e : ClauseEvidence) :
+    e.judgedAnswer.evidenceClass ∈ e.classes ∧ e.judgedAnswer.evidenceClass ≠ .checked :=
+  ⟨by cases e <;> simp [classes, Judged.evidenceClass], Judged.evidenceClass_ne_checked _⟩
+
+/-- The printed class labels of a clause. -/
+def ClauseEvidence.label (e : ClauseEvidence) : String :=
+  ", ".intercalate (e.classes.map (·.spelling))
 
 /-- The screen of one material claim. -/
 structure ClaimScreen where
@@ -160,12 +201,12 @@ def unresolved : List Residual := [.intent, .doc]
 def Judged.evidence (j : Judged) : String :=
   let confidence := match j.confidence with
     | some c => s!", confidence {c.render}" | none => ""
-  s!"screened: p = {j.support.render}{confidence}, model {j.model.val}, inputs sha256:{j.inputsDigest}"
+  s!"{j.evidenceClass.spelling}: p = {j.support.render}{confidence}, model {j.model.val}, " ++
+    s!"inputs sha256:{j.inputsDigest}"
 
 private def severityText : Option ScreenSeverity → String
   | none => "no finding"
-  | some .warning => "warning"
-  | some .error => "error"
+  | some s => s.toSeverity.spelling
 
 private def routeText : Route → String
   | .screened => "screened" | .escalate => "escalate to reasoning-model or human review"
@@ -177,12 +218,12 @@ def ClaimScreen.lines (policy : Policy) (s : ClaimScreen) : Array String :=
   let clause := fun ((text, e) : String × ClauseEvidence) =>
     match e with
     | .discharged thm formal axioms j =>
-      #[s!"  clause \"{text}\": checked: `{thm}` proves the claim implies `{formal}` " ++
-          s!"(kernel-admitted; axioms: {if axioms.isEmpty then "none" else ", ".intercalate (axioms.map toString)})",
+      #[s!"  clause \"{text}\" [{e.label}]: `{thm}` proves the claim implies `{formal}` " ++
+          s!"(proof re-checked by the kernel; axioms: {if axioms.isEmpty then "none" else ", ".intercalate (axioms.map toString)})",
         answer "  correspondence of the formal clause to the English" j]
-    | .judged j => #[answer s!"clause \"{text}\" coverage" j]
+    | .judged j => #[answer s!"clause \"{text}\" [{e.label}] coverage" j]
   #[s!"{s.claim}: intent {(s.status policy).spelling}; " ++
-      s!"open semantic review: {", ".intercalate (unresolved.map (·.spelling))} " ++
+      s!"{EvidenceClass.openReview.spelling}: {", ".intercalate (unresolved.map (·.spelling))} " ++
       "(a screen never completes it)"] ++
     s.clauses.toArray.flatMap clause ++
     #[answer "strength (equivalent or stronger)" s.strength] ++

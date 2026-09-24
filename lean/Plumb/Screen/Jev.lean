@@ -28,13 +28,13 @@ inductive Answer where
   | choice (probabilities : List (String × Probability)) (confidence : Probability)
 
 /-- One completed request: the versioned model that answered, answers by question id, the
-request digest and the input tokens the service billed. `cached` records whether this run
-reused an earlier response. -/
+request digest and the input tokens the service billed (`none` when it reported none).
+`cached` records whether this run reused an earlier response. -/
 structure Response where
   model : String
   answers : List (String × Answer)
   digest : String
-  inputTokens : Nat
+  inputTokens : Option Nat
   cached : Bool
 
 /-- The request body: model, state and questions, keys in canonical order. -/
@@ -86,14 +86,14 @@ def parseAnswer (question : Json) (value : Json) : Except String Answer := do
 
 /-- Admit a response body for the exact questions asked of the pinned model. -/
 def parseResponse (model : PinnedModel) (questions : List (String × Json)) (body : Json) :
-    Except String (String × List (String × Answer) × Nat) := do
+    Except String (String × List (String × Answer) × Option Nat) := do
   let answered ← body.getObjValAs? String "model"
   unless answered == model.val do
     throw s!"the service answered with model {answered}, not the pinned {model.val}"
   let answers ← body.getObjVal? "answers"
   let parsed ← questions.mapM fun (id, question) => do
     pure (id, ← parseAnswer question (← answers.getObjVal? id))
-  let tokens := ((body.getObjVal? "usage").bind (·.getObjValAs? Nat "input_tokens")).toOption.getD 0
+  let tokens := ((body.getObjVal? "usage").bind (·.getObjValAs? Nat "input_tokens")).toOption
   return (answered, parsed, tokens)
 
 /-- A key the curl configuration line can carry verbatim: printable ASCII without `"` or `\`. -/

@@ -1,4 +1,6 @@
 import Lean
+import Plumb.Collect
+import Plumb.Diagnostic
 import PlumbCore.Screening
 import Plumb.Screen.Jev
 import Plumb.Screen.Questions
@@ -7,12 +9,14 @@ import Plumb.Screen.Questions
 
 A claim's docstring is found by Lean's `findDocString?`; its clauses, explanation and any
 discharge references come from the proved `PlumbPolicy.Screening` definitions. A clause that
-ends with ``(discharged by `Name`)`` is formally discharged when `Name` is a theorem, admitted
-with the environment, of type `S → P`, where `S` is definitionally equal to the claim's
+ends with ``(discharged by `Name`)`` is formally discharged when `Name` is a theorem of the
+loaded environment of type `S → P`, where `S` is definitionally equal to the claim's
 statement by Lean's kernel definitional-equality check and `P` does not depend on the
-hypothesis, and whose transitive axioms lie within the Standard-Logical foundation (`propext`,
-`Quot.sound`, `Classical.choice`). Then `Name` applied to the claim proves `P`: the kernel
-admitted the implication, and only whether `P` states the English clause is judged. A marker
+hypothesis, whose proof the kernel re-checks against that type here, and whose transitive
+axioms lie within the Standard-Logical foundation (`propext`, `Quot.sound`,
+`Classical.choice`). Then `Name` applied to the claim proves `P`, and only whether `P` states
+the English clause is judged. The re-check covers the discharge's own proof term; the
+declarations it uses are trusted as built into their imported `.olean` files, not replayed. A marker
 that fails any of these conditions makes the claim's screen unavailable; it never downgrades
 to a judged clause. -/
 
@@ -63,6 +67,11 @@ def checkDischarge (claim : Expr) (proof : Name) : MetaM Discharge := do
   | .ok true => pure ()
   | .ok false => throwError "discharge {proof}'s hypothesis is not definitionally equal to the claim's statement"
   | .error _ => throwError "the kernel could not compare discharge {proof}'s hypothesis with the claim"
+  let copy := `_intentScreen.recheck ++ proof
+  if (← getEnv).contains copy then throwError "discharge {proof}'s re-check name {copy} is taken"
+  match (← getEnv).toKernelEnv.addDeclCore 0 0 (.thmDecl { thm with name := copy, all := [copy] }) none with
+  | .ok _ => pure ()
+  | .error e => throwError "the kernel rejected discharge {proof}'s proof: {← (e.toMessageData {}).toString}"
   let axioms := (← collectAxioms proof).toList.mergeSort (·.toString ≤ ·.toString)
   if let some a := axioms.find? (!dischargeAxioms.contains ·) then
     throwError "discharge {proof} depends on {a}, outside the Standard-Logical foundation"
@@ -89,6 +98,23 @@ def readClaim (name : Name) : MetaM ClaimInput := do
   return { name, text := ⟨clauses.toList, PlumbPolicy.Screening.explanation doc, ← pretty statement⟩,
            discharges := discharges.toList }
 
+/-- Where a claim's findings are reported: its Lean declaration range in its module's source,
+found on Lake's `LEAN_SRC_PATH`; without a range or a source file, its module, as
+`Plumb.Findings.declarationLocation` falls back. A range the source does not admit is an error. -/
+def claimLocation (name : Name) : MetaM Plumb.Location := do
+  let env ← getEnv
+  let some idx := env.getModuleIdxFor? name | throwError "{name} has no owning module"
+  let moduleName := env.header.modules[idx.toNat]!.module
+  let ranges? ← findDeclarationRanges? name
+  let path? ← (← getSrcSearchPath).findModuleWithExt "lean" moduleName
+  match ranges?, path? with
+  | some ranges, some path =>
+    let snapshot : Plumb.SourceSnapshot := ⟨path.toString, ← IO.FS.readFile path⟩
+    match Plumb.sourceFromReport snapshot (Plumb.Collect.rangesReport ranges) with
+    | .ok source => return .source source
+    | .error e => throwError "{name}'s declaration range does not match {path}: {e}"
+  | _, _ => return .module moduleName
+
 /-- Run a `MetaM` reader over a loaded environment. -/
 def runMeta (env : Environment) (x : MetaM α) : IO α := do
   let ctx : Core.Context := { fileName := "<intent-screen>", fileMap := default, options := {} }
@@ -102,15 +128,22 @@ structure Config where
   mode : StateMode
   policy : Policy
 
-/-- Accumulated service usage of a run. -/
+/-- Accumulated service usage of a run. `inputTokens` is unknown once any billed response
+omitted its usage. -/
 structure Usage where
   requests : Nat := 0
   cached : Nat := 0
-  inputTokens : Nat := 0
+  inputTokens : Option Nat := some 0
 
 def Usage.add (u : Usage) (r : Jev.Response) : Usage :=
   { requests := u.requests + (if r.cached then 0 else 1), cached := u.cached + (if r.cached then 1 else 0)
-    inputTokens := u.inputTokens + (if r.cached then 0 else r.inputTokens) }
+    inputTokens := if r.cached then u.inputTokens else do pure ((← u.inputTokens) + (← r.inputTokens)) }
+
+/-- The billed input tokens, or `unknown`. -/
+def Usage.tokensText (u : Usage) : String :=
+  match u.inputTokens with
+  | some n => toString n
+  | none => "unknown"
 
 def noulOf (r : Jev.Response) (id : String) : IO Probability := do
   match r.answers.lookup id with
