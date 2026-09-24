@@ -169,7 +169,8 @@ its returned refusal state. Lengths beyond the script select the whole script.
 
 # Intent
 Every state the strict runner can return, after any prefix of any script and whether
-it completes or stops at a refused grant, must satisfy the capacity bound. -/
+it completes or stops at a refused grant, must keep the admitted capacity unchanged and
+stay within it. -/
 theorem prefix_safe {cap : Nat} {c : Limiter} (admission : admit cap = some c)
     (ops : List Op) (n : Nat) :
     ∃ a, Relation.ReflTransGen (StepA cap) cap a ∧

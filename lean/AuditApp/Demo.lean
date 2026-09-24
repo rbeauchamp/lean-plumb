@@ -4,8 +4,8 @@ import AuditApp.Limiter
 The fixed update script used by the `auditApp` executable, together with
 contracts for both interpretations. `demo_final` describes the retained total
 `run` API, which continues after a refused grant. `demo_checked_error` describes
-the strict `runChecked` interpreter called by the shell: it stops at the third
-grant and retains the first two grants' state. Admission facts describe the
+the strict `runChecked` interpreter called by the shell: at the default capacity 2, it
+stops at the third grant and retains the first two grants' state. Admission facts describe the
 scripted initial capacity. Nothing here claims a property of the IO boundary.
 `demo_checked_error` is a material claim with an Intent section (unregistered; see
 `AuditApp.Limiter`).
@@ -45,8 +45,9 @@ universal error contract identifies the retained successful prefix; unlike
 `run`, it never processes the subsequent release and grant.
 
 # Intent
-The demonstration the executable runs must stop at its third grant, keeping the two
-slots already granted, rather than continuing past the refusal. -/
+At the default capacity 2, the demonstration script the executable runs must stop at
+its third grant, keeping the two slots already granted, rather than continuing past the
+refusal. Other command-line capacities are outside this claim. -/
 theorem demo_checked_error :
     runChecked demoScript demoInitial =
       (.error (), run [.grant, .grant] demoInitial) := by

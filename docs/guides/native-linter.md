@@ -87,7 +87,7 @@ names follow Lean's own visibility representation and do not enter that public
 selector. `Lean.findDocString?` accepts ordinary, Verso and inherited docstrings.
 PL5002 reports a missing docstring. PL5003 reports a docstring without a nonempty labelled
 Intent section ([standard §5.2](../standard/5-documentation-standards.md#52-faithful-explanation-of-formal-claims)):
-a Markdown heading whose text is exactly `Intent` (write `# Intent`; a top-level Verso
+an ATX heading whose text is exactly `Intent`, with no closing sequence (write `# Intent`; a top-level Verso
 docstring header must be `#`), followed before the next heading by a line with non-whitespace text.
 The executed classification is `PlumbPolicy.materialDocumentationFailure`, and
 `materialDocumentationFailure_eq_none_iff`, `_eq_missingDocstring_iff` and
