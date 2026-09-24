@@ -603,7 +603,8 @@ This section closes the F01–F12 inventory. It was reconciled on main `3cc121d`
 [PR #59](https://github.com/rbeauchamp/strict-lean/pull/59)) on Lean 4.34.0 (`293d5d0c`),
 Mathlib `5ed29652` and, for the documentation prototype, Verso `cad4b633`, all unchanged since
 the #38 baseline. The foundation deliveries are #38 (PR #44), #7 (PR #33 with #45–#49), #39
-(PR #50), #40 (PR #53), #41 (PR #56) and #42 (PR #59).
+(PR #50), #40 (PR #53), #41 (PR #56) and #42 (PR #59). All six predecessor issues are closed;
+#42 closed on 2026-09-23 after PR #59 merged.
 
 Each row was read against its actual definitions, statements, hypotheses and call sites. No
 selected obligation is missing: every selected relation has a definition, a theorem about the
@@ -685,8 +686,8 @@ baseline, stable diagnostics keep their rule, payload, location, mode, claim and
   observation counts of a conservative account, not a measure of assurance.
 
 Evidence (local, arm64 macOS, observations only; exact-head CI is the PR's). The acceptance
-rows are the final runs; afterwards only this table's figures and the stable-diagnostics phrase
-above changed. The rule-example shards ran before the last repair round, which changed only
+rows are the final runs; afterwards only this table's figures, the stable-diagnostics phrase and the
+predecessor-closure sentence above changed. The rule-example shards ran before the last repair round, which changed only
 Lean docstrings and guide text.
 
 | Check | Result |
