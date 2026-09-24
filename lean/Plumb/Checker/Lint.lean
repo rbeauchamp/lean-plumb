@@ -129,6 +129,27 @@ under `.lake/packages`, any custom `packagesDir` or the root, so it resolves `pl
 same package, dependencies and toolchain, and its `plumb/axiomGate` is `workerBinary`. -/
 def workerTarget : String := "plumb/axiomGate"
 
+/-- Refuses unless the workspace at the working directory (`repoRoot`, which builds the worker
+and is the default audited project) is the one `lake lint` was dispatched from. Lake v4.34.0
+runs the driver without changing its working directory, so `lake -d DIR lint` from another
+project would otherwise build and audit that project. `Package.lint` spawns it through `env`
+with `Workspace.augmentedEnvVars`: `LEAN_PATH` is the dispatching workspace's `leanPath`, then
+the library directory of the toolchain-collocated Lake (`LakeInstall.ofLean`, so
+`LEAN_SYSROOT/lib/lean`), then any inherited `LEAN_PATH`. `dispatchedFrom_iff` shows the check
+holds exactly when the working-directory workspace, loaded by the same Lake, has the same
+package library directories, whatever was inherited. Any other Lake layout, or a driver run
+outside Lake, fails the check and is refused. -/
+private def dispatchRefusal : IO (Option String) := do
+  let message := "the working directory is not the workspace `lake lint` was dispatched from; " ++
+    "run lake lint from the project root without -d/--dir"
+  let some sysroot ← IO.getEnv "LEAN_SYSROOT" | return some message
+  let received := (((← IO.getEnv "LEAN_PATH").map SearchPath.parse).getD []).map toString
+  let workspace ← Workspace.withRootWorkspace (← repoRoot) fun ws =>
+    pure (ws.leanPath.map toString)
+  if dispatchedFrom workspace (FilePath.mk sysroot / "lib" / "lean").toString received then
+    return none
+  return some message
+
 /-- Every path but the audit's `classify` returns a non-accepted class. -/
 private unsafe def lint (args : List String) : IO Outcome := do
   let parsed := parseArgs args {}
@@ -143,7 +164,8 @@ private unsafe def lint (args : List String) : IO Outcome := do
       if options.help then
         IO.println usage
         return .configuration
-      return ← explain options
+    if let some message ← dispatchRefusal then return ← refuse message
+    if options.explain then return ← explain options
     IO.println s!"plumb lint: enforcing all manifested Lake surfaces; mode {modeText options.fresh}"
     (← IO.getStdout).flush
     let worker ← Lake.buildTargets (← repoRoot) #[workerTarget]

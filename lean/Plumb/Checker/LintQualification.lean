@@ -15,8 +15,8 @@ namespace Plumb.Checker.LintQualification
 
 open Lean System
 
-private def lint (adopter : FilePath) (args : Array String := #[]) : IO ProcessResult :=
-  runProcess adopter "lake" (#["lint"] ++ args) scrubbedLeanPathEnv
+private def lint (cwd : FilePath) (args : Array String := #[]) : IO ProcessResult :=
+  runProcess cwd "lake" (#["lint"] ++ args) scrubbedLeanPathEnv
 
 /-- One invocation's required exit code and required/forbidden output fragments. -/
 private structure Expectation where
@@ -25,9 +25,9 @@ private structure Expectation where
   contains : Array String := #[]
   excludes : Array String := #[]
 
-private def expect (adopter : FilePath) (e : Expectation) (args : Array String := #[]) :
+private def expect (cwd : FilePath) (e : Expectation) (args : Array String := #[]) :
     IO (Array String) := do
-  let result ← lint adopter args
+  let result ← lint cwd args
   let mut failures := #[]
   if result.exitCode != e.exitCode then
     failures := failures.push s!"lake-lint/{e.label}: exit {result.exitCode}, expected {e.exitCode}"
@@ -114,6 +114,11 @@ private def tomlAdopter (repo adopter : FilePath) : IO (Array String) := do
   if !failures.isEmpty then return failures
   let double := adopter / "Gadget" / "Double.lean"
   let originals := #[(double, ← IO.FS.readFile double)]
+  -- Dispatched for the adopter from another project root, which the audit would accept.
+  failures := failures ++ (← expect repo {
+      label := "toml/foreign-dir", exitCode := 2,
+      contains := #["without -d/--dir", "plumb lint: INVALID CONFIGURATION"],
+      excludes := #["plumb lint: PASS"] } #["-d", adopter.toString])
   mutate double "end Gadget" "set_option linter.plumb false in\naxiom optedOut : True\nend Gadget"
   failures := failures ++ (← expect adopter {
       label := "toml/editor-opt-out", exitCode := 1,

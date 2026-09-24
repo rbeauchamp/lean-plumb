@@ -95,4 +95,40 @@ theorem projectStages_required (c : Claim)
   unfold requiredStages
   rcases h with h | h <;> simp [h, projectStages]
 
+/-- Whether the driver's working-directory workspace, with package library directories
+`workspace`, is the workspace that dispatched it, given the `LEAN_PATH` the driver received
+and the library directory `lakeLib` of the dispatching Lake. Lake v4.34.0 (`Package.lint`,
+`env`, `Workspace.augmentedLeanPath`) passes the dispatching workspace's `leanPath`, then
+`lakeLib`, then any inherited `LEAN_PATH`. -/
+def dispatchedFrom (workspace : List String) (lakeLib : String) (leanPath : List String) : Bool :=
+  decide (lakeLib ∉ workspace) && (workspace ++ [lakeLib]).isPrefixOf leanPath
+
+/-- For every `LEAN_PATH` of Lake's composition, whatever its inherited entries, the check
+holds exactly when the working-directory workspace has the dispatching workspace's library
+directories, provided Lake's own library directory is not one of the latter. -/
+theorem dispatchedFrom_iff {workspace dispatching inherited : List String} {lakeLib : String}
+    (h : lakeLib ∉ dispatching) :
+    dispatchedFrom workspace lakeLib (dispatching ++ lakeLib :: inherited) = true ↔
+      workspace = dispatching := by
+  unfold dispatchedFrom
+  constructor
+  · intro hc
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at hc
+    obtain ⟨hw, hp⟩ := hc
+    induction workspace generalizing dispatching with
+    | nil =>
+      cases dispatching with
+      | nil => rfl
+      | cons b d => simp_all [List.isPrefixOf]
+    | cons a w ih =>
+      cases dispatching with
+      | nil => simp_all [List.isPrefixOf]
+      | cons b d =>
+        simp only [List.cons_append, List.isPrefixOf, Bool.and_eq_true, beq_iff_eq] at hp
+        obtain ⟨rfl, hp⟩ := hp
+        simp only [List.mem_cons, not_or] at hw h
+        rw [ih h.2 hw.2 hp]
+  · rintro rfl
+    simp [h, List.isPrefixOf_iff_prefix]
+
 end Plumb.Checker.Lint

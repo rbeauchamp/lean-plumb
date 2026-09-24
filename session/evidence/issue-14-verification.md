@@ -43,6 +43,7 @@ then reconciling with main; it was not force-applied.
 | `Lint.accepted_sound` | driver exit code 0 → audit exit 0 ∧ ∃ `c` and `run : AcceptedRun c` with `c.val.mode` the requested mode, `CompleteFor` and `AllPolicyOK` | same |
 | `Lint.Outcome.exitCode_injective` | distinct exit classes have distinct codes | `propext` |
 | `Lint.projectStages_required` | `--explain-config`'s stage list equals `requiredStages c` for either project mode | `propext` |
+| `Lint.dispatchedFrom_iff` | for `lakeLib ∉ dispatching`: `dispatchedFrom workspace lakeLib (dispatching ++ lakeLib :: inherited) = true ↔ workspace = dispatching` | `propext`, `Quot.sound` |
 | `checkedEditorRequest` | `EditorRequestContract`: `classification-only` ↦ classification, conforming spellings ↦ that profile, all else refused | `propext`, `Quot.sound` |
 | `checkedEditorDecision` | `EditorDecisionContract`: none ↔ `policyFor` passes; pending ↔ its failure needs role evidence; `rule id` ↔ otherwise, `id = ruleForFailure f` | `propext`, `Classical.choice`, `Quot.sound` |
 | `Policy.editor_request_sound` / `_complete` | the editor request domain is exactly `request claim` for claims other than compiler-trusting | same |
@@ -97,6 +98,28 @@ root. So it resolves `plumb` to the same package, dependencies and toolchain. Th
 git-dependency layout is covered by this argument, not by a sampled control. The path-derived
 workspace re-resolved a path dependency's packages in the checker checkout, which needed the
 network and could pick another toolchain.
+
+Decision: `lake lint` never reports a result for a project other than the workspace that
+dispatched it. Lake v4.34.0 runs the driver without changing its working directory, so
+`lake -d DIR lint` from inside another Lean project built the worker in, and audited, that
+other project, and could print `PASS` while `DIR` had a PL1001 violation. The driver now
+refuses with exit 2 (`INVALID CONFIGURATION`: run `lake lint` from the project root without
+`-d`/`--dir`) unless the working-directory workspace is the dispatching one. Mechanism, from
+the v4.34.0 Lake source (`Package.lint` → `env` → `Workspace.augmentedEnvVars`): the driver's
+`LEAN_PATH` is the dispatching workspace's `leanPath` (its packages' library directories), then
+the toolchain-collocated Lake's library directory `LEAN_SYSROOT/lib/lean`, then any inherited
+`LEAN_PATH`. The driver loads the working-directory workspace with the same Lake and requires
+its `leanPath` followed by that directory to prefix the received `LEAN_PATH`
+(`Lint.dispatchedFrom`). `Lint.dispatchedFrom_iff` proves that, for Lake's composition and any
+inherited entries, the check holds exactly when the two workspaces have the same package
+library directories, provided Lake's directory is not one of them. Any other Lake layout, or a
+driver run outside Lake, is refused (fail closed). The `toml/foreign-dir` control runs
+`lake lint -d <adopter>` from the checker's own root and requires exit 2; the campaign has not
+yet been run with it. Observed on macOS arm64 at this change, with `--explain-config` so no
+audit runs: from this checkout's root, `lake env .lake/build/bin/lint --explain-config` (Lake's
+same `augmentedEnvVars`) passed the check and printed the configuration; the same binary with
+`LEAN_PATH` set to the example adopter's library directory, then `LEAN_SYSROOT/lib/lean`, was
+refused with exit 2 and the message above.
 
 Decision: the weak `linter.plumb` override applies only in the `lake lint` driver's claimed
 build (`AxiomGate.claimedBuild`, set by `Lint`). Lake scopes Lean options by package and
