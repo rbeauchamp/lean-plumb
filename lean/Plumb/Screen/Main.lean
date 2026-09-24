@@ -230,10 +230,17 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
     IO.FS.writeFile path (reportJson complete exitStatus none incomplete findings claims records).pretty
   return exitStatus
 
+/-- The path of the last `--json PATH` pair, found without a full argument parse, so a run
+whose arguments fail to parse still replaces an earlier report. -/
+def jsonPath? : List String → Option String
+  | "--json" :: v :: rest => some ((jsonPath? rest).getD v)
+  | _ :: rest => jsonPath? rest
+  | [] => none
+
 unsafe def main (argv : List String) : IO UInt32 := do
   let report? := match parseArgs argv with
-    | .ok args => if args.command == "screen" then args.json else none
-    | .error _ => none
+    | .ok args => if args.command == "screen" then jsonPath? argv else none
+    | .error _ => jsonPath? argv
   try
     let args ← IO.ofExcept (parseArgs argv)
     if let some path := report? then writeUnfinished path "the run did not finish"

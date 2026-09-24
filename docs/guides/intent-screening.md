@@ -153,13 +153,15 @@ clauses with their evidence classes (a discharge's checked implication beside it
 correspondence) and open review obligations; and every screened answer in `results`. Every
 class label is the spelling of the proved `EvidenceClass` definitions, not a free string.
 The report also records completeness, so it is never read as a pass when the run is
-incomplete: top-level `complete` (false when any discharge reference was refused),
+incomplete: top-level `complete` (false when any discharge reference was refused or the run
+did not finish),
 `exitStatus` (the process exit status, 0, 1 or 2) and `incomplete` (each refused reference:
 claim, clause, theorem and reason). Each claim carries `complete` (`ClaimScreen.complete`)
 and its `status` (`screened` or `escalated to review`, from `ClaimScreen.status`). Before any
 work, the screen replaces any existing file at the `--json` path with an unfinished report
 (`complete: false`, `exitStatus: 2`, `reason`), so an earlier passing report never survives
-a later run. A run that stops early (configuration, missing key, network, service, parse or
+a later run; the `--json` path is found even when the other arguments fail to parse. A run
+that stops early (argument, configuration, missing key, network, service, parse or
 claim-reading failure) leaves that unfinished report, with the error as its `reason`; only a
 run that finishes overwrites it with the full report.
 
