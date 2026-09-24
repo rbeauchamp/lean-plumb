@@ -80,6 +80,12 @@ checkout, under the hard 420 s deadline:
   PlumbQualification.Template … invalid -D parameter, unknown configuration option
   'linter.plumb'", repeated for other modules whose imports do not register the option.
 
+After the driver began building its `plumb/axiomGate` worker (`Lint.workerTarget`) before the
+audit, `./scripts/verify.sh diagnostics lint-driver` was run again on macOS arm64: PASS, 15
+controls, 90 s wall. The added `toml/absent-worker` control runs first and alone. It
+removes the checker's `bin/axiomGate`, then `lake lint` reaches `plumb lint: PASS`. Neither
+acceptance step was rerun after that change.
+
 Decision: the weak `linter.plumb` override applies only in the `lake lint` driver's claimed
 build (`AxiomGate.claimedBuild`, set by `Lint`). Lake scopes Lean options by package and
 library, not by module, so the override changes the trace of every root-package module.
@@ -91,14 +97,14 @@ driver's build; follow-up is
 Observed at `1153e48` and superseded: `lint-driver` PASS with 14 controls in 93 s. In that
 run, explain-config exited 0 and the TOML live finding exited 3 with the original
 `PL1001 … editorSnapshot` warning. The ordinary acceptance runs at `1153e48` took 141 s and
-111 s.
+111 s. The Journey B `lake lint -- --json-out` result (status `incomplete`, PL2003) was 14 KB
+(result schema 2).
 
 Observed at `1153e48`, and still current:
 
 - `lake exe qualify native`: PASS, 36 actual Lean source controls, after routing the editor
   linter through `PlumbCore.EditorPolicy`.
-- VS Code journeys: [issue-14-editor-journeys.md](issue-14-editor-journeys.md). The adopter's
-  `lake lint -- --json-out` result is 14 KB (result schema 2).
+- VS Code journeys: [issue-14-editor-journeys.md](issue-14-editor-journeys.md).
 
 ## Not established
 

@@ -181,7 +181,9 @@ lake lint -- --explain-config              # read-only: manifest, scope, profile
 The driver builds every manifested library and executable by its explicit Lake target and
 inspects the completed environment. It re-evaluates current policy even when every module
 is cached, and it never invokes your default target. It runs the same audit body as
-`axiomGate`; it adds no second policy. Its exit status separates the outcome:
+`axiomGate`; it adds no second policy. Lake's lint dispatch builds only the driver, so the
+driver first builds the `plumb/axiomGate` executable that the audit runs as its worker; if
+that build fails, the run is `INCOMPLETE`. Its exit status separates the outcome:
 
 | Exit | Outcome |
 | --- | --- |

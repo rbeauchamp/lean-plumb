@@ -131,8 +131,19 @@ private def tomlAdopter (repo adopter : FilePath) : IO (Array String) := do
   failures := failures ++ (← expect adopter (accepted "toml/fresh-restored" (fresh := true)) #["--", "--fresh"])
   return failures
 
-/-- Both independent adopters, each in its own disposable workspace. -/
+/-- With the checker's `axiomGate` worker binary removed, `lake lint` builds it and still
+reaches the accepted result: Lake's lint dispatch itself builds only the driver. -/
+private def absentWorker (repo adopter : FilePath) : IO (Array String) := do
+  BuildLintQualification.setup repo adopter "lake-lint-toml" #["Gadget.lean", "Gadget/Double.lean"]
+    "lakefile.toml"
+  IO.FS.removeFile (repo / ".lake" / "build" / "bin" / "axiomGate")
+  expect adopter (accepted "toml/absent-worker")
+
+/-- The absent-worker control first, alone, since the adopters share the checker's binaries;
+then both independent adopters, each in its own disposable workspace. -/
 def qualify (repo scratch : FilePath) (jobs : Nat) : IO (Array String) := do
+  let absent ← withScratch scratch "lake-lint-worker" fun adopter => absentWorker repo adopter
+  if !absent.isEmpty then return absent
   let results ← mapConcurrent jobs #[("lean", leanAdopter), ("toml", tomlAdopter)]
     fun (name, control) => withScratch scratch s!"lake-lint-{name}" fun adopter => control repo adopter
   return results.foldl (· ++ ·) #[]
