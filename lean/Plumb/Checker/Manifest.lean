@@ -13,8 +13,8 @@ order, the decoding of its JSON element, including the `execution` field;
 `parse` is the text parser followed by `parseValue` (`parse_ok`), and `parseValue_ok` proves
 that `parseValue` accepts exactly the values encoding a valid manifest, returning that manifest.
 `parseValue_toJson` is the round trip at the `Json` value boundary; `structural_roundtrip`
-applies it to the structural copy. The text boundary (`Json.compress` and
-`PolicyCodec.parse`, both `partial`) stays trusted.
+applies it to the structural copy. The text boundary (`Json.compress`, which is `partial`,
+and `PolicyCodec.parse`, which runs `partial` parsers) stays trusted.
 The refusal-class theorems prove the message of malformed JSON, an unknown top-level or surface
 key, a non-2 schema version, empty surfaces and a bad surface `execution`, each given an
 otherwise accepted prefix. `load` adds only file IO. -/
@@ -1341,8 +1341,8 @@ def toJson (m : Manifest) : Json :=
 
 /-! Round trip. `toJson` encodes every manifest, so the JSON value stage of the executed `parse`
 recovers exactly the valid ones (`parseValue_toJson`). The text stage is not covered:
-`Json.compress` and `PolicyCodec.parse` are `partial`, so no Lean theorem can state their
-behaviour; `parse_of_encodes` names what they must deliver. -/
+`Json.compress` is `partial` and `PolicyCodec.parse` runs `partial` parsers, so no Lean theorem
+can state their behaviour; `parse_of_encodes` names what they must deliver. -/
 
 theorem keysAllowed_of_keys {value : Json} {object : Std.TreeMap.Raw String Json compare}
     {keys allowed : Array String} (hobj : value.getObj? = .ok object) (hkeys : object.keysArray = keys)
