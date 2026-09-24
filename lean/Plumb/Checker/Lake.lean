@@ -168,9 +168,8 @@ def buildCheckedObservation (repo : FilePath) (targets : Array String)
 
 /-- Compatibility diagnostic projection. Acceptance callers retain the process observation. -/
 def buildChecked (repo : FilePath) (targets : Array String)
-    (mode : String) (build : FilePath → Array String → IO ProcessResult := buildTargets) :
-    IO (Option (Array String)) := do
-  return (← buildCheckedObservation repo targets mode build).2
+    (mode : String) : IO (Option (Array String)) := do
+  return (← buildCheckedObservation repo targets mode).2
 
 def transitiveImports (repo : FilePath) (moduleName : String) : IO (Array String) := do
   jsonStringArray s!"transitive imports for {moduleName}" <|
