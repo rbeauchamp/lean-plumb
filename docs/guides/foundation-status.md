@@ -555,7 +555,7 @@ report path evaluates acceptance again.
   proves only fresh whole-project coverage uses the whole-project wording. The former
   "exact Lake surfaces conform" is removed as an overstatement of a mechanical result.
 - `ResultProtocol.accountJson` renders the account as the additive `acceptance.account`
-  member within result schema 1: coverage, the acceptance theorem and job count, contracts,
+  member, then within result schema 1: coverage, the acceptance theorem and job count, contracts,
   execution counts, fence kinds, trusted mechanisms and residual identifiers (mode, scope,
   surfaces and toolchain are already in `acceptance`). These renderers are unproved adapter
   text. No existing key changed; the
@@ -680,8 +680,11 @@ baseline, stable diagnostics keep their rule, payload, location, mode, claim and
   `ResultProtocol.acceptedJson` also renders `AcceptedRun.report` fields directly, with the
   account as `accountJson`.
 - **Reports.** #7 (PR #33) added the `acceptance` member to completed results, plus
-  `documentationAcceptance` for `--with-docs`; #42 added `acceptance.account`. Both are
-  additive within result schema 1.
+  `documentationAcceptance` for `--with-docs`; #42 added `acceptance.account`. Both were
+  additive within result schema 1. #61 then moved results to schema 2, which renders the
+  snapshot through `ResultProtocol.snapshotJson` and omits the import-closure lists so result
+  size tracks the audited project; the `acceptance` and `acceptance.account` members remain
+  ([rule registry](rule-registry.md)).
 - **Coverage.** Ordinary acceptance at this closure still reports 6 claimed libraries, 50 owned
   modules and 6913 owned declarations, as at `3cc121d`. Every source, admission and ownership
   stage of the plan is unchanged, and no rule, claim or exclusion was relaxed. `StrictLeanCore`
@@ -689,10 +692,12 @@ baseline, stable diagnostics keep their rule, payload, location, mode, claim and
   0 unresolved; #42 recorded 4656 boundaries at its earlier head `642d756`. These are
   observation counts of a conservative account, not a measure of assurance.
 
-Evidence (local, arm64 macOS, observations only; exact-head CI is the PR's). The acceptance
-rows are the final runs; afterwards only this table's figures, the stable-diagnostics phrase and the
-predecessor-closure sentence above changed. The rule-example shards ran before the last repair round, which changed only
-Lean docstrings and guide text.
+Evidence (arm64 macOS and CI, observations only). The local rows below (`lake build`,
+`./scripts/verify.sh` 157 s, `./scripts/verify.sh docs` 90 s, rule-examples 1/2 105 s and 2/2
+84 s) ran before the F10 acceptance-link ordering repair. That repair introduced
+`AcceptanceLink.Pending`, made `auditSurface` return the pending identity instead of writing the
+link, added `withSourceEvidenceOr`, and made `AxiomGate.run` call `AcceptanceLink.record` only
+after the outer `withUnchanged` recheck passes with exit code 0.
 
 | Check | Result |
 | --- | --- |
@@ -702,9 +707,21 @@ Lean docstrings and guide text.
 | `./scripts/verify.sh docs` | PASS, 90 s (70/70 positive, 23/23 compiler-rejection, 1/1 trusted teaching) |
 | `diagnostics rule-examples 1/2`, `2/2` | PASS, 105 s and 84 s (11 and 9 rules; SL3001/SL3002 exercise the retyped execution findings) |
 
+Evidence covering the repaired code:
+
+| Check | Result |
+| --- | --- |
+| Pipeline live test at the repair commit: `./scripts/verify.sh` | PASS, 173 s; the accepted link was recorded only after the outer recheck |
+| Pipeline live test at the repair commit: `./scripts/verify.sh docs` | PASS, 93 s |
+| Pipeline live test: configuration changed after inner acceptance | the outer recheck refused with exit 1; the link stayed incomplete |
+| Exact-head CI at `9bfe3a1` (before the rebase onto `cde1041`) | PASS: verify ordinary 384 s, docs 158 s; diagnostics history, producers, rule-examples 1/2 and 2/2; CodeQL |
+| Exact-head CI at `a9e1ecc` (`9bfe3a1` merged with main `cde1041`, #61) | PASS: verify, diagnostics history, producers, rule-examples 1/2 and 2/2; CodeQL |
+
+The final head's acceptance is its exact-head CI run.
+
 The docs step exercises `Documentation.auditTasks` and the acceptance link. `fixtures`, `cli`,
 `structural`, `environments`, `build-policy`, `producers`, `history` and `serialized-graph` were
-not run: this closure does not touch their capabilities. The `structural` partition's
+not run locally (CI ran `producers` and `history`): this closure does not touch their capabilities. The `structural` partition's
 pre-existing failure (its stale `structuralManifestText`, recorded under #41) is unchanged and is
 separately scoped. These runs qualify detection; they are not correctness evidence.
 
