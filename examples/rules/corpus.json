@@ -890,5 +890,60 @@
         "claim": "kernel-only"
       }
     ]
+  },
+  "PL5003": {
+    "invocation": "project",
+    "mode": "freshProject",
+    "kind": "policyRejection",
+    "diagnostics": [
+      {
+        "id": "PL5003",
+        "subreason": "material-intent",
+        "detailPattern": "material-intent",
+        "location": {
+          "kind": "source",
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "range": {
+            "startByte": 107,
+            "endByte": 241
+          },
+          "selectionRange": {
+            "startByte": 207,
+            "endByte": 216
+          },
+          "lspRange": {
+            "start": {
+              "line": 2,
+              "character": 0
+            },
+            "end": {
+              "line": 3,
+              "character": 60
+            }
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 3,
+              "character": 26
+            },
+            "end": {
+              "line": 3,
+              "character": 35
+            }
+          }
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "reflexive"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      }
+    ]
   }
 }

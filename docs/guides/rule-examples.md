@@ -1,6 +1,6 @@
 # Source-owned rule examples and diagnostic demonstrations
 
-The corpus in [`examples/rules/`](../../examples/rules/) supplies page inputs for all twenty
+The corpus in [`examples/rules/`](../../examples/rules/) supplies page inputs for all twenty-one
 registry IDs. `corpus.json` fixes invocation, evidence mode, expected IDs, legacy subreasons,
 message patterns, subjects and full primary locations before execution. Sources are copied
 verbatim into disjoint Core-only adopters. `Plumb.Qualification.RuleExamples`
@@ -90,7 +90,8 @@ run is not full-standard conformance.
 | PL4003 | `PL4003/{Violation,Fixed}.md` | Correctly labels an already valid reflexivity proof as positive; does not invent a compiler failure. |
 | PL4004 | `PL4004/{Violation,Fixed}.md` | Correctly labels the same kernel proof as positive rather than native teaching. |
 | PL5001 | `PL5001/{Violation,Fixed}.lean` | Adds module documentation to unchanged reflexivity evidence. |
-| PL5002 | `PL5002/{Violation,Fixed}.lean` | Adds the registered public theorem's docstring; registration, proposition and proof are unchanged. |
+| PL5002 | `PL5002/{Violation,Fixed}.lean` | Adds the registered public theorem's docstring, including its `# Intent` section; registration, proposition and proof are unchanged. |
+| PL5003 | `PL5003/{Violation,Fixed}.lean` | Adds a nonempty `# Intent` section, structured with a `## Requirement` subsection, to the registered theorem's existing docstring; the explanation, registration, proposition and proof are unchanged. |
 
 ## Authoring and export contract
 

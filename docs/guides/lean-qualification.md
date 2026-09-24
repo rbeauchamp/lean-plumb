@@ -31,7 +31,7 @@ the external process, compiler or filesystem boundary they observe.
 | Former entrypoint | Lean replacement | Retained purpose |
 | --- | --- | --- |
 | `registry_cli_checks.py` | `lake exe qualify registry` | Seven malformed CLI invocations must invalidate seeded stale output. |
-| `native_linter_checks.py` | `lake exe qualify native` | 36 real compiler controls: identity, multiplicity, severity, source ranges, documentation and metadata ownership. |
+| `native_linter_checks.py` | `lake exe qualify native` | 37 real compiler controls: identity, multiplicity, severity, source ranges, documentation, Intent-section and metadata ownership. |
 | `producer_checks.py` | `lake exe qualify producers` | Twelve source-owned documentation controls: for incremental and build-lint and each of PL5001/PL5002, one workspace runs Fixed, then Violation over that Fixed build (stale-artifact detection), then Fixed again from a cleared build. Also two standalone-executable controls, each in its own fresh workspace. The fresh-project PL5001/PL5002 observations are the rule-example corpus records, validated there by the same producer oracle. |
 | `history_checks.py` | `lake exe qualify history` | Ten project/file invocations, each in its own fresh workspace: private/imported roots, reached-closure/source accounts, unsupported-evaluator refusal and source-snapshot changes. |
 | `closure_evidence_checks.py` | `lake exe qualify closure-evidence` | Reflexive candidate versus active cycle, retained recursive IR edges, and range refusals through four invocation paths. |
@@ -39,8 +39,8 @@ the external process, compiler or filesystem boundary they observe.
 | `documentation_source_checks.py` | `lake exe qualify documentation-source` | Frozen dependency/configuration changes through both documentation commands; `--source-read-only` adds file/build read-failure controls. |
 | `fence_evidence_checks.py` | `lake exe qualify fence-evidence` | Independent range, admission, policy and compiler failures inside positive fences, plus restoration. |
 | `frozen_exit_checks.py` | `lake exe qualify frozen-exits` | Frozen-input rechecks after imports and failed build/compilation operations. |
-| `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 36 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
-| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty source-owned phases for twenty rules (Fixed and Violation, each in its own fresh workspace), plus authentic wrong-claim/classification refusal controls: 43 productions and 3 individual control admissions, then one corpus admission of every record. What admission concludes from any record is proved (`RuleExampleQualification.qualify_sound`), not sampled by mutation. `--shard K/N` selects every Nth rule by corpus position, keeping PL5001 and PL5002 in one shard. |
+| `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 37 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
+| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty-two source-owned phases for twenty-one rules (Fixed and Violation, each in its own fresh workspace), plus authentic wrong-claim/classification refusal controls: 45 productions and 3 individual control admissions, then one corpus admission of every record. What admission concludes from any record is proved (`RuleExampleQualification.qualify_sound`), not sampled by mutation. `--shard K/N` selects every Nth rule by corpus position, keeping PL5001 and PL5002 in one shard. |
 | prototype `run.py` | `lake env lean --run examples/rule-reference-prototype/Run.lean` | Separately pinned Verso integration, native messages, Lake dependency dispatch and identical-output comparison. |
 | `acceptance_checks.py` | `lake exe qualify acceptance GROUP --evidence PATH` | Fence-compilation packet mutations with positive restoration. Group: `fences`. The former `surface`, `evidence`, `sources` and `process` groups mutated the removed surface-worker packet; project and documentation acceptance now run in one process with nothing serialized between them. |
 | `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies`, `lake exe qualify acceptance-snapshots history` and `lake exe qualify acceptance-snapshots git-status` | Ignored Git/non-Git dependency input coverage and mutation; PL3001 fresh/incremental/build-lint history refusal and restoration; dependency dirty decision against the retired pathspec status across Git collapse, rename, nested-repository, symlinked-root and outside-root cases. `all` runs all three under one deadline. |
@@ -141,7 +141,7 @@ evidence (standard §0 "The Role of Testing").
 | history | 10 project/file invocations | real replacement-history, unsupported-evaluator and source-change behaviour | External | kept |
 | history | 17 history/closure/source transport mutations | `Environment.validate` refusals | Proved | `ProducerReport.validate_sound` |
 | history | 7 oracle mutations | history oracle refuses missing imported ownership / execution evidence | Proved | `History.validate_importedRootExecuted`, `validate_unsupported_unresolved` |
-| rule-examples | 40 Fixed/Violation productions | every published example yields exactly its documented diagnostics | External | kept |
+| rule-examples | 42 Fixed/Violation productions | every published example yields exactly its documented diagnostics | External | kept |
 | rule-examples | 3 special productions (wrong claim, trusted and negative fences) | producer's own request/classification account | External | kept |
 | rule-examples | 7 in-process mutations of each record, 7 derived admission subprocesses | `qualify` refusals | Proved | `RuleExampleQualification.qualify_sound` |
 | checkerSelftest fixtures | in-process and CLI fixture verdicts | compiler, elaborator and public CLI over real fixtures | External | kept |
@@ -392,7 +392,7 @@ by their source-level linkage. The proof is erased at execution.
   shared assertion contract for their observed source, closure and configuration fields.
 - `Launcher.admit` returns a proof-bearing mapping with nonempty unique names and both
   required search paths; its completeness theorem admits every valid decoded mapping.
-  `checkedEquivalence` requires exactly 36 observations and full ordered equality,
+  `checkedEquivalence` requires exactly 37 observations and full ordered equality,
   including source, arguments, stdout/stderr, exit, environment and resolved executable.
   Lake's actual environment is cached only within one fixed parent/workspace invocation,
   separately for the imported-control search-path override. Neither observations nor

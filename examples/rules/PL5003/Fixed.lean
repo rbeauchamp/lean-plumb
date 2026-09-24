@@ -3,5 +3,6 @@ import Plumb.MaterialClaim
 /-- Every natural number equals itself, without additional hypotheses.
 
 # Intent
+## Requirement
 Equality on natural numbers must be reflexive for every value, with no side condition. -/
 @[plumb_material] theorem reflexive (n : Nat) : n = n := rfl

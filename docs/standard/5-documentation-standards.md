@@ -2,7 +2,7 @@
 
 ## Overview
 
-Documentation states the purpose and meaning of Lean definitions and proofs, including their assumptions and limits. It helps readers assess whether a checked statement expresses the intended claim. This module covers declaration docstrings (§5.1), faithful explanation (§5.2), module documentation (§5.3), and proof readability (§5.4).
+Documentation states the purpose and meaning of Lean definitions and proofs, including their assumptions and limits. It helps readers assess whether a checked statement expresses the intended claim. This module covers declaration docstrings (§5.1), faithful explanation and written intent (§5.2), module documentation (§5.3), and proof readability (§5.4).
 
 ## 5.1 Inline Documentation Requirements
 
@@ -34,7 +34,11 @@ abbrev Probability : Type := unitInterval
 def Probability.complement (p : Probability) : Probability :=
   unitInterval.symm p
 
-/-- For every probability, complement has underlying real value `1 - p.val`. -/
+/-- For every probability, complement has underlying real value `1 - p.val`.
+
+# Intent
+Complementing a probability must yield the probability of the complementary event:
+its value is one minus the original value. -/
 theorem Probability.complement_val (p : Probability) :
     p.complement.val = 1 - p.val :=
   unitInterval.coe_symm_eq p
@@ -57,7 +61,11 @@ Express mathematical statements in precise English. State the claim and its sign
 
 For `Probability.complement_val` above, the English is: “For every real value `p` in `[0, 1]`, the underlying value of `p.complement` is `1 - p`.” Membership in `[0, 1]` is carried by `Probability`. There is no additional hypothesis. The return type supplies the result's bound, while the theorem identifies its value. These are different guarantees even though this definition supplies both.
 
-Check fidelity in both directions. Compare the explanation with the elaborated declaration. Then interpret that declaration in the source mathematics or program specification. A checked proof establishes its formal proposition. Semantic review determines whether the proposition expresses the intended problem. Resolve disagreements by correcting the prose, the statement, or both.
+**Intent Statement**: Every public declaration used as evidence for a material normative claim MUST carry, in its declaration docstring, a labelled Intent section: an ATX heading whose text is exactly `Intent` (for example `# Intent`; one to six `#`, no closing sequence), followed by nonempty text before the next heading of equal or higher level (at most as many `#`). Deeper subsection headings stay inside the section, so text under them counts; a heading line itself is not text. The intent statement records what the claim must establish and why, stated from the source mathematics or program specification rather than derived from the elaborated declaration, including deliberate exclusions and limits. The explanation states what the formal statement says. The intent states what the formal statement is required to say. Because the intent is not derived from the declaration, comparing the two is not circular. Placing it in the attached docstring binds it to that exact declaration through Lean's documentation metadata. Prefer a level-one heading: a top-level Verso docstring header must be `#`.
+
+Check fidelity in both directions. Compare the explanation with the elaborated declaration. Then compare the declaration and its explanation with the intent statement, which is the source mathematics or program specification side of the comparison. A checked proof establishes its formal proposition. Semantic review determines whether the proposition expresses the intended problem as the intent statement records it. Resolve disagreements by correcting the prose, the statement, or both. Changing the intent changes the requirement; do not weaken it merely to match the formal statement.
+
+A faithful explanation of a wrong statement faithfully restates the wrong statement. For `sort_correct : ∀ l, Sorted (sort l)`, the explanation "for every list, `sort l` is sorted" passes the fidelity test against the declaration. An intent statement requiring that sorting return a sorted permutation of its input exposes the omission: `fun _ => []` satisfies the declaration. Presence of an Intent section is mechanically checkable; whether it says what the requirement owner needs, and whether the declaration meets it, remain semantic review.
 
 ## 5.3 Module Documentation
 
@@ -155,6 +163,7 @@ Use comments to explain a mathematical choice, a strengthened induction hypothes
 
 - Public declarations supporting material normative claims have accurate docstrings.
 - Explanations preserve the claim's quantifiers, assumptions, conclusion, and relevant limits, and identify its formal source.
+- Each material claim's docstring carries a written Intent section, the requirement-side target its explanation and declaration are compared against.
 - Module documentation identifies the material declarations, assumptions, and relationships readers need.
 - Proof structure and comments make the mathematical argument easier to follow without adding unsupported claims.
 

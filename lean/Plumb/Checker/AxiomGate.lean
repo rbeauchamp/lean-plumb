@@ -497,16 +497,18 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
             findings := findings.push ⟨.moduleDocumentation, finding⟩
             failures := failures.push s!"module-documentation: {moduleName}"
         for (key, docstring) in documentation.declarations do
-          if docstring.isSome then continue
+          -- The proved classification (`materialDocumentationFailure_eq_none_iff`) of the
+          -- recorded docstring decides PL5002 (none attached) or PL5003 (no Intent section).
+          let some failure := PlumbPolicy.materialDocumentationFailure docstring | continue
+          let id := Plumb.ruleForMaterialDocumentation failure
           let some decl := report.declarations.find? (fun d => (d.module, d.name) == key)
             | throw <| IO.userError "producer-documentation: selected declaration missing"
           let snapshot := snapshotFor key.1
           let location ← IO.ofExcept <| RuleDiagnostics.declarationLocation decl snapshot
           findings := findings.push (← IO.ofExcept <| RuleDiagnostics.declarationFinding
-            .materialDocumentation key.2
-            "material-documentation: document the claim, assumptions and evidence at this declaration"
+            id key.2 (Plumb.materialDocumentationDetail failure)
             location mode (some surface.claim.toString))
-          failures := failures.push s!"material-documentation: {key.2}"
+          failures := failures.push s!"{(Plumb.descriptor id).applicability}: {key.2}"
         -- `ScopeContract` retains `report.declarations` as the inventory, so iterating the
         -- inventory visits the same sequence and supplies each membership proof.
         for h : decl in scope.inventory.declarations do

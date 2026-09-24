@@ -32,6 +32,7 @@ inductive RuleId where
   | trustedExample
   | moduleDocumentation
   | materialDocumentation
+  | materialIntent
   deriving Repr, BEq, DecidableEq, Inhabited
 
 namespace RuleId
@@ -57,6 +58,7 @@ def spelling : RuleId → String
   | .trustedExample => "PL4004"
   | .moduleDocumentation => "PL5001"
   | .materialDocumentation => "PL5002"
+  | .materialIntent => "PL5003"
 
 def parse? : String → Option RuleId
   | "PL1001" => some .projectAxiom
@@ -79,9 +81,10 @@ def parse? : String → Option RuleId
   | "PL4004" => some .trustedExample
   | "PL5001" => some .moduleDocumentation
   | "PL5002" => some .materialDocumentation
+  | "PL5003" => some .materialIntent
   | _ => none
 
-def all : List RuleId := [.projectAxiom, .proofHole, .unknownAxiom, .compilerTrusting, .profileExceeded, .escapeHatch, .executableContract, .environment, .configuration, .sourceBuild, .coverage, .admission, .executionUnresolved, .executionBoundary, .fenceStructure, .positiveExample, .negativeExample, .trustedExample, .moduleDocumentation, .materialDocumentation]
+def all : List RuleId := [.projectAxiom, .proofHole, .unknownAxiom, .compilerTrusting, .profileExceeded, .escapeHatch, .executableContract, .environment, .configuration, .sourceBuild, .coverage, .admission, .executionUnresolved, .executionBoundary, .fenceStructure, .positiveExample, .negativeExample, .trustedExample, .moduleDocumentation, .materialDocumentation, .materialIntent]
 
 theorem parse_spelling (id : RuleId) : parse? id.spelling = some id := by
   cases id <;> rfl

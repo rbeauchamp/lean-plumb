@@ -1,6 +1,6 @@
 # Rule source fixtures
 
-These files are the source of truth for all twenty rule-reference examples. They are
+These files are the source of truth for all twenty-one rule-reference examples. They are
 intentionally outside every positive Lake library. A violation can elaborate successfully;
 the actual registered detector must produce its advertised result.
 

@@ -7,7 +7,8 @@ public meta import Lean.DocString
 public meta section
 
 /-! Module-doc and explicitly selected declaration-doc presence, using both of
-Lean's documentation formats. Presence is distinct from adequacy and registration
+Lean's documentation formats, and presence of a nonempty Intent section in each selected
+declaration's docstring. Presence is distinct from adequacy and registration
 completeness, which remain semantic review obligations. -/
 namespace Plumb.Linter.Documentation
 open Lean
@@ -28,9 +29,13 @@ def modulePresent (env : Environment) (moduleName : Name) : Except String Bool :
 def selected (env : Environment) (name : Name) : Bool :=
   materialClaimAttribute.hasTag env name && !Lean.isPrivateName name
 
-/-- An inherited or Verso docstring counts according to Lean's own lookup. -/
-def declarationPresent (env : Environment) (name : Name) : IO Bool := do
-  return (← Lean.findDocString? env name).isSome
+/-- The executed material-documentation classification of a declaration. An inherited or
+Verso docstring counts according to Lean's own lookup (`findDocString?`); the proved
+`PlumbPolicy.materialDocumentationFailure` decides the missing docstring (PL5002) or a
+docstring without a nonempty Intent section (PL5003). -/
+def declarationFailure (env : Environment) (name : Name) :
+    IO (Option PlumbPolicy.MaterialDocumentationFailure) := do
+  return PlumbPolicy.materialDocumentationFailure (← Lean.findDocString? env name)
 
 /-- The source-free module condition carries honest module attribution. -/
 def moduleFinding (env : Environment) (moduleName : Name) (mode : EvidenceMode) :
@@ -40,13 +45,13 @@ def moduleFinding (env : Environment) (moduleName : Name) (mode : EvidenceMode) 
     ⟨moduleName.toString, "module-documentation: add a module doc comment describing this module"⟩
     (.module moduleName) mode none .violation⟩
 
-/-- Only explicitly registered public declarations receive this obligation. -/
+/-- Only explicitly registered public declarations receive these obligations. -/
 def declarationFinding (env : Environment) (decl : PlumbPolicy.Declaration)
     (snapshot : Option SourceSnapshot) (mode : EvidenceMode) : IO (Option Finding) := do
-  if !selected env decl.name || (← declarationPresent env decl.name) then return none
+  if !selected env decl.name then return none
+  let some failure ← declarationFailure env decl.name | return none
   let location ← IO.ofExcept <| Findings.declarationLocation decl snapshot
-  return some (← IO.ofExcept <| Findings.declarationFinding .materialDocumentation decl.name
-    "material-documentation: document the claim, assumptions and evidence at this declaration"
-    location mode none)
+  return some (← IO.ofExcept <| Findings.declarationFinding (ruleForMaterialDocumentation failure)
+    decl.name (materialDocumentationDetail failure) location mode none)
 
 end Plumb.Linter.Documentation

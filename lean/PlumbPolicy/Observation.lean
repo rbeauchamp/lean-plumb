@@ -1,5 +1,6 @@
 import PlumbPolicy.Plan
 import PlumbPolicy.Pattern
+import PlumbPolicy.Intent
 
 /-! Typed raw completion observations and independent policy predicates for the fixed plan.
 Receipts are data, not serialized proofs: their truthful acquisition and the registry/location
@@ -211,7 +212,9 @@ instance (c : Claim) (i : Census) (o : DocumentObservation) : Decidable (Documen
   unfold DocumentOK; cases c.val.scope <;> infer_instance
 
 /-- Presence is the deliberately narrow metadata requirement; content fidelity and the
-completeness of material-claim registration remain the separate R-DOC review obligation. -/
+completeness of material-claim registration remain the separate R-DOC review obligation.
+A registered material declaration additionally needs an Intent section
+(`MaterialDocumentationOK`); its adequacy is the R-INTENT review obligation. -/
 def DocumentationPresenceOK (docstring : Option String) : Prop := docstring ≠ none
 
 /-- Native-runtime evidence must agree with every relevant boundary origin observation. -/
@@ -272,7 +275,7 @@ def LocalStageOK (c : Claim) (i : EnvironmentCensus) (roles : Roles i.policy)
     | .history, .module m, .history observed => HistoryOK c i m observed
     | .origin, .module m, .origin observed => OriginOK i m observed
     | .documentationPresence, .module _, .documentationPresence doc => DocumentationPresenceOK doc
-    | .documentationPresence, .declaration _, .documentationPresence doc => DocumentationPresenceOK doc
+    | .documentationPresence, .declaration _, .documentationPresence doc => MaterialDocumentationOK doc
     | _, _, _ => False
 
 set_option synthInstance.maxSize 2048 in

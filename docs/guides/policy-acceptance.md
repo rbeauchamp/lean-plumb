@@ -6,7 +6,7 @@ admitted data; the [proof guide](policy-proofs.md) gives theorem hypotheses and 
 linkage. [Issue 7 evidence](../../session/evidence/issue-7-verification.md) distinguishes
 implemented boundaries, scoped observations and delivery gates still pending.
 The [architecture](linter-architecture.md) owns the product and the
-[coverage map](rule-coverage.md) owns the twenty rules and nine residual accounts.
+[coverage map](rule-coverage.md) owns the twenty-one rules and nine residual accounts.
 Normative meaning remains [chapter 8](../standard/8-tooling-and-machine-audit.md)
 and the [chapter 9 checklist](../standard/9-compliance-audit.md).
 
@@ -378,7 +378,7 @@ search, source discovery or detection of arbitrary intended specifications.
 | `ContractOK` (§8.5, §8.12) | Every registered obligation targets the exact supported implementation/predicate, with completed admission and no recorded contract failure. Registration adequacy remains review. | `Probe.executableContract?` → domain adapter; no weakened predicate synthesized in policy. |
 | `ExecutionOK` (§8.6) | Every required root's closure is accounted for, no unresolved paths/states; report mode permits reported trusted boundaries, checked mode permits only checked evidence or authenticated native-runtime substrate. | `executionWalk`/origin/correspondence adapters → pure execution decision. |
 | `DocumentOK` (§8.7) | Complete structural scan; positives warning-free with logical admission/Standard-Logical policy; negative source rejection has one effective-error match; trusted teaching has compiler evidence and is not positive conformance. | `Documentation.auditTasks` and final aggregation. Execution is not implied. |
-| `DocumentationPresenceOK` (§5.1/§5.3; PL5001/PL5002) | Every claimed completed module has module-doc metadata; each public declaration explicitly registered as material-claim evidence has a docstring. Registration completeness and prose fidelity remain R-DOC. | #13 collects module-doc metadata and `findDocString?` for the independently frozen module/registration census; #7 requires those jobs for project and applicable completed-editor scope. |
+| `DocumentationPresenceOK`, `MaterialDocumentationOK` (§5.1–§5.3; PL5001–PL5003) | Every claimed completed module has module-doc metadata; each public declaration explicitly registered as material-claim evidence has a docstring carrying a nonempty labelled Intent section (`materialDocumentationFailure_eq_none_iff` links the executed classification). Registration completeness and prose fidelity remain R-DOC; intent adequacy remains R-INTENT. | #13 collects module-doc metadata and `findDocString?` for the independently frozen module/registration census; #7 requires those jobs for project and applicable completed-editor scope. |
 | `ExampleExpectationOK` (website checked examples) | Exactly the configured positive, compiler-rejection, policy-diagnostic or trusted-teaching expectation holds for the exact source snapshot; see below. | #12 typed expectations → #13 checker → #15 example aggregation; same #7 keyed acceptance contract. |
 | `StageOK` (§8.2–8.3, §8.8–8.12) | Required producers completed for this exact mode; absence, crash, unknown or unsupported state is incomplete. | All worker returns and audit/render/exit adapters in §1. Optional graph stages only when requested. |
 
@@ -496,7 +496,7 @@ only binds scope admission to the frontend coordinate check and renders text;
 into the pure domain (including source/range/evaluator keys); `Frontend` imports them,
 never vice versa. `Report` can serialize typed domain observations; pretty strings are
 non-authoritative. Registry ID/payload/rendering stays owned by #12; it maps typed policy
-failures to the existing twenty IDs and preserves subreasons. The pure core does not
+failures to the existing twenty-one IDs and preserves subreasons. The pure core does not
 import the registry, so no cycle forms when diagnostics import policy types. The claimed
 `PlumbCore` library holds that registry (`RuleId`, `Rule`) and imports the policy
 library, never the reverse; it shares this section's import restrictions except the

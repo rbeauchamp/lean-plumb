@@ -53,7 +53,7 @@ structure ContextArguments where
 /-- Distinct argument domains prevent constructing a declaration rule with a project payload. -/
 def Payload : RuleId → Type
   | .projectAxiom | .proofHole | .unknownAxiom | .compilerTrusting | .profileExceeded
-  | .escapeHatch | .executableContract | .materialDocumentation => DeclarationArguments
+  | .escapeHatch | .executableContract | .materialDocumentation | .materialIntent => DeclarationArguments
   | .executionUnresolved | .executionBoundary => ExecutionArguments
   | .environment | .configuration | .sourceBuild | .coverage | .admission
   | .fenceStructure | .positiveExample | .negativeExample | .trustedExample
@@ -92,7 +92,7 @@ def helpUrl (id : RuleId) : String :=
 def argumentText : (id : RuleId) → Payload id → String
   | .projectAxiom, a | .proofHole, a | .unknownAxiom, a | .compilerTrusting, a
   | .profileExceeded, a | .escapeHatch, a | .executableContract, a
-  | .materialDocumentation, a => s!"{a.declaration}: {a.detail}"
+  | .materialDocumentation, a | .materialIntent, a => s!"{a.declaration}: {a.detail}"
   | .executionUnresolved, a | .executionBoundary, a => s!"{a.root}: {a.detail}"
   | .environment, a | .configuration, a | .sourceBuild, a | .coverage, a
   | .admission, a | .fenceStructure, a | .positiveExample, a | .negativeExample, a

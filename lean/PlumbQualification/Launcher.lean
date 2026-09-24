@@ -54,13 +54,13 @@ structure Observation where
   executable : String
   deriving BEq, DecidableEq
 
-/-- Exact full-sequence comparison also preserves order, multiplicity and all 36
+/-- Exact full-sequence comparison also preserves order, multiplicity and all 37
 controls. Equality includes the environment and resolved compiler path. -/
 def equivalent (before after : Array Observation) : Bool :=
-  decide (before.size = 36 ∧ before = after)
+  decide (before.size = 37 ∧ before = after)
 
 /-- The paired diagnostic consumes this proof-linked predicate; timing is separate. -/
 theorem checkedEquivalence : Plumb.ExecutableContract equivalent
-    (fun run => ∀ before after, run before after = true ↔ before.size = 36 ∧ before = after) :=
+    (fun run => ∀ before after, run before after = true ↔ before.size = 37 ∧ before = after) :=
   ⟨by intro before after; simp [equivalent]⟩
 end PlumbQualification.Launcher

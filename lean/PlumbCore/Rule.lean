@@ -2,6 +2,7 @@ module
 
 public import PlumbCore.RuleId
 public import PlumbPolicy.Foundation
+public import PlumbPolicy.Intent
 
 @[expose] public section
 
@@ -65,7 +66,7 @@ def scopeFor : RuleId → RuleScope
   | .executionUnresolved | .executionBoundary => .executionRoot
   | .fenceStructure | .positiveExample | .negativeExample | .trustedExample => .documentationFence
   | .moduleDocumentation => .module
-  | .materialDocumentation => .materialDeclaration
+  | .materialDocumentation | .materialIntent => .materialDeclaration
 
 def evidenceFor : RuleId → EvidenceKind
   | .projectAxiom | .proofHole | .unknownAxiom | .profileExceeded => .kernelAxioms
@@ -79,7 +80,7 @@ def evidenceFor : RuleId → EvidenceKind
   | .executionUnresolved | .executionBoundary => .executionClosure
   | .fenceStructure => .fenceGrammar
   | .positiveExample | .negativeExample | .trustedExample => .checkedExample
-  | .moduleDocumentation | .materialDocumentation => .metadataPresence
+  | .moduleDocumentation | .materialDocumentation | .materialIntent => .metadataPresence
 
 /-- Identity and route are projections of the index, never independent fields. -/
 structure RuleDescriptor (id : RuleId) where
@@ -115,6 +116,22 @@ def ruleForFailure : PlumbPolicy.DeclarationFailure → RuleId
 theorem ruleForFailure_injective : Function.Injective ruleForFailure := by
   intro a b h
   cases a <;> cases b <;> first | rfl | cases h
+
+/-- Total bridge from the executed material-documentation classification
+(`PlumbPolicy.materialDocumentationFailure`) to the single rule registry. -/
+def ruleForMaterialDocumentation : PlumbPolicy.MaterialDocumentationFailure → RuleId
+  | .missingDocstring => .materialDocumentation
+  | .missingIntent => .materialIntent
+
+/-- The two material-documentation failures reach distinct rules. -/
+theorem ruleForMaterialDocumentation_injective : Function.Injective ruleForMaterialDocumentation := by
+  intro a b h
+  cases a <;> cases b <;> first | rfl | cases h
+
+/-- Finding detail for each material-documentation failure, prefixed by its rule's applicability. -/
+def materialDocumentationDetail : PlumbPolicy.MaterialDocumentationFailure → String
+  | .missingDocstring => "material-documentation: document the claim, assumptions and evidence at this declaration"
+  | .missingIntent => "material-intent: add a nonempty `# Intent` section stating the requirement this claim must meet"
 
 /-- Total metadata for the reserved vocabulary. Planned detectors never claim availability. -/
 def descriptor : (id : RuleId) → RuleDescriptor id
@@ -236,6 +253,12 @@ def descriptor : (id : RuleId) → RuleDescriptor id
       title := "Registered public material declarations require docstrings", category := .documentation
       normativeClauses := ["docs/standard/5-documentation-standards.md §5.1"]
       applicability := "material-documentation", messageTemplate := "PL5002:{subject}:{detail}"
+      availability := .existingChecker
+      evidenceModes := .editorSnapshot :: declarationModes }
+  | .materialIntent => {
+      title := "Registered public material declarations require an Intent section", category := .documentation
+      normativeClauses := ["docs/standard/5-documentation-standards.md §5.2"]
+      applicability := "material-intent", messageTemplate := "PL5003:{subject}:{detail}"
       availability := .existingChecker
       evidenceModes := .editorSnapshot :: declarationModes }
 

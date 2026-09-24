@@ -121,7 +121,7 @@ def locationJson : Location → Json
 private def argumentsJson : (id : RuleId) → Payload id → Json
   | .projectAxiom, a | .proofHole, a | .unknownAxiom, a | .compilerTrusting, a
   | .profileExceeded, a | .escapeHatch, a | .executableContract, a
-  | .materialDocumentation, a =>
+  | .materialDocumentation, a | .materialIntent, a =>
       Json.mkObj [("declaration", nameJson a.declaration), ("detail", toJson a.detail)]
   | .executionUnresolved, a | .executionBoundary, a =>
       Json.mkObj [("root", nameJson a.root), ("detail", toJson a.detail)]
