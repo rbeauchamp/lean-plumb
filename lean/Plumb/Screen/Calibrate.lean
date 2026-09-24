@@ -152,6 +152,11 @@ def rowJson (r : Row) : Json :=
 /-- The pre-registered budget of requests sent in one calibration run. -/
 def requestBudget : Nat := 300
 
+/-- Refuse before a request that could exceed the budget; each call sends at most one. -/
+def checkBudget (usage : Usage) : IO Unit := do
+  if usage.requests ≥ requestBudget then
+    throw <| IO.userError s!"calibration budget reached: {requestBudget} requests sent"
+
 /-- Run the corpus of one split and write the report and the evidence rows. -/
 def run (cache : System.FilePath) (model : PinnedModel) (split : Split) (env : Environment)
     (report records : System.FilePath) : IO Unit := do
@@ -173,23 +178,23 @@ def run (cache : System.FilePath) (model : PinnedModel) (split : Split) (env : E
       for variant in variants do
         if mode == .statement && variant == .stale then continue
         let text := if variant == .stale then { own with explanation := base.explanation } else own
+        checkBudget usage
         let (rs, u) ← (judgeItem cache model item text mode variant).run usage
         rows := rows ++ rs.toArray
         usage := u
-        if usage.requests > requestBudget then
-          throw <| IO.userError s!"calibration budget exceeded: more than {requestBudget} requests"
   let mut correspondenceRows : Array Row := #[]
   if split == .test then
     for c in correspondenceItems do
       let formal ← runMeta env do
         let some info := (← getEnv).find? c.formal | throwError "unknown {c.formal}"
         pretty (statementExpr info)
+      checkBudget usage
       let q := [("correspondence", Questions.correspondence)]
       let r ← Jev.ask cache model (correspondenceState c.clause formal) q
       usage := usage.add r
       let p ← noulOf r "correspondence"
       correspondenceRows := correspondenceRows.push
-        { item := c.formal, mutation := if c.label then .base else .rewrite, split := .test,
+        { item := c.formal, mutation := if c.label then .formalCorrect else .formalWrong, split := .test,
           mode := .statement, variant := .faithful, judgment := .correspondence, subject := c.clause,
           defect := !c.label, support := p.val, digest := r.digest }
   let all := rows ++ correspondenceRows

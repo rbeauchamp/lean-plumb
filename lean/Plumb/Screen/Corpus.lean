@@ -12,10 +12,14 @@ every mutant's statement with its base's explanation (a *stale* explanation), so
 is visible only in the Lean statement. All items of one base share the base's Intent
 section; the runner refuses otherwise.
 
-Labels are logical, read from the statements: a clause is *uncovered* when the claim does not
-imply it (an exclusion clause is uncovered when the claim asserts the excluded case), and the
-strength and targeted labels follow the question criteria in `Plumb.Screen.Questions`. The
-statements need not be true: the screen reads propositions, not proofs. Bases `A` and `B` are
+Labels are schematic, read from the statements: a clause is *uncovered* when the claim's own
+content does not establish it without using the clause as a background fact about the named
+operations (most clauses are true facts about `Nat` or `List`, so literal implication would
+make every label vacuous); an exclusion clause is uncovered when the claim asserts the excluded
+case. The strength and targeted labels follow the question criteria in
+`Plumb.Screen.Questions`; the quantifier-order label concerns literal order, so a swap to a
+stronger claim is a defect there only. The statements need not be true: the screen reads
+propositions, not proofs. Bases `A` and `B` are
 the development split, used to exercise the runner and wording before the single test run;
 all other bases are the test split. -/
 
@@ -635,15 +639,19 @@ namespace Plumb.Screen.Corpus
 
 open PlumbPolicy.Screening
 
-/-- The five mutation kinds of issue #58, plus `rewrite` for a correct restatement. -/
+/-- The five mutation kinds of issue #58, `base` and `rewrite` for correct pairs, and the two
+correspondence-pair kinds. -/
 inductive Mutation where
   | base | rewrite | dropConjunct | swapQuantifiers | weakenInequality | addHypothesis | totalize
+  /-- Correspondence pairs: a formal clause that does, or does not, state its English clause. -/
+  | formalCorrect | formalWrong
   deriving Repr, DecidableEq
 
 def Mutation.spelling : Mutation → String
   | .base => "base" | .rewrite => "rewrite" | .dropConjunct => "drop-conjunct"
   | .swapQuantifiers => "swap-quantifiers" | .weakenInequality => "weaken-inequality"
   | .addHypothesis => "add-hypothesis" | .totalize => "totalize"
+  | .formalCorrect => "formal-correct" | .formalWrong => "formal-wrong"
 
 inductive Split where
   | dev | test
@@ -731,7 +739,9 @@ def items : List Item := [
   { name := ``IntentCorpus.H_drop, base := ``IntentCorpus.H_base, mutation := .dropConjunct, split := .test,
     uncovered := [1], strength := .weaker },
   { name := ``IntentCorpus.H_weaken, base := ``IntentCorpus.H_base, mutation := .weakenInequality, split := .test,
-    uncovered := [0], strength := .incomparable },
+    -- Erratum after the test run, disclosed in the guide: the claim asserts admission when
+    -- usage would reach capacity + 1, ignoring the stated limit.
+    uncovered := [0], strength := .incomparable, exclusions := false },
   { name := ``IntentCorpus.H_hypothesis, base := ``IntentCorpus.H_base, mutation := .addHypothesis, split := .test,
     uncovered := [0, 1], strength := .weaker },
   -- I

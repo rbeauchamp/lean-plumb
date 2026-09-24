@@ -87,7 +87,9 @@ def commands : Mode → List Command
       lake #["build", "PlumbPolicy", "PlumbCore", "PlumbQualification", "axiomGate", "docFenceAudit", "qualify",
         "+Plumb.Checker.CheckerSelftest:olean", "+Plumb.Checker.FreshChecker:olean",
         "+Plumb.RegistryChecks:olean", "+Plumb.Linter:olean",
-        "+Plumb.Checker.RuleExamples:olean", "+Plumb.Checker.RuleExampleQualificationMain:olean"],
+        "+Plumb.Checker.RuleExamples:olean", "+Plumb.Checker.RuleExampleQualificationMain:olean",
+        -- Type-check, never run, the opt-in network intent screen (docs/guides/intent-screening.md).
+        "+Plumb.Screen.Main:olean"],
       lake #["env", "lean", "--run", "lean/Plumb/RegistryChecks.lean"],
       lake #["exe", "qualify", "--under-deadline", "combined"],
       lake #["exe", "axiomGate", "--acceptance-link", linkPath]]

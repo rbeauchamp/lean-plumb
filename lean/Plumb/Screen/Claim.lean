@@ -9,10 +9,12 @@ A claim's docstring is found by Lean's `findDocString?`; its clauses, explanatio
 discharge references come from the proved `PlumbPolicy.Screening` definitions. A clause that
 ends with ``(discharged by `Name`)`` is formally discharged when `Name` is a theorem, admitted
 with the environment, of type `S → P`, where `S` is definitionally equal to the claim's
-statement and `P` does not depend on the hypothesis, and whose transitive axioms exclude
-`sorryAx`. Then `Name` applied to the claim proves `P`: the implication is kernel-checked,
-and only whether `P` states the English clause is judged. A marker that fails any of these
-conditions makes the claim's screen unavailable; it never downgrades to a judged clause. -/
+statement by Lean's kernel definitional-equality check and `P` does not depend on the
+hypothesis, and whose transitive axioms lie within the Standard-Logical foundation (`propext`,
+`Quot.sound`, `Classical.choice`). Then `Name` applied to the claim proves `P`: the kernel
+admitted the implication, and only whether `P` states the English clause is judged. A marker
+that fails any of these conditions makes the claim's screen unavailable; it never downgrades
+to a judged clause. -/
 
 namespace Plumb.Screen
 
@@ -21,10 +23,16 @@ open PlumbPolicy.Screening
 open Plumb.Checker.Screening
 open Questions
 
-/-- A kernel-checked discharge: `proof` proves the claim implies `formal`. -/
+/-- A checked discharge: `proof` proves the claim implies `formal`, under exactly `axioms`. -/
 structure Discharge where
   proof : Name
   formal : String
+  axioms : List Name
+
+/-- Axioms a discharge may use: the Standard-Logical foundation (standard §4.5). A project
+axiom, `sorryAx`, or a compiler-trusting axiom (`Lean.ofReduceBool`, `Lean.trustCompiler`)
+refuses the discharge. -/
+def dischargeAxioms : List Name := [``propext, ``Quot.sound, ``Classical.choice]
 
 /-- One claim as read from its environment. -/
 structure ClaimInput where
@@ -51,10 +59,14 @@ def checkDischarge (claim : Expr) (proof : Name) : MetaM Discharge := do
   let .forallE _ hypothesis formal _ := thm.type
     | throwError "discharge {proof} is not an implication from the claim"
   if formal.hasLooseBVars then throwError "discharge {proof}'s conclusion depends on its hypothesis"
-  unless ← isDefEq hypothesis claim do
-    throwError "discharge {proof}'s hypothesis is not the claim's statement"
-  if (← collectAxioms proof).contains ``sorryAx then throwError "discharge {proof} depends on sorryAx"
-  return ⟨proof, ← pretty formal⟩
+  match Kernel.isDefEq (← getEnv) {} hypothesis claim with
+  | .ok true => pure ()
+  | .ok false => throwError "discharge {proof}'s hypothesis is not definitionally equal to the claim's statement"
+  | .error _ => throwError "the kernel could not compare discharge {proof}'s hypothesis with the claim"
+  let axioms := (← collectAxioms proof).toList.mergeSort (·.toString ≤ ·.toString)
+  if let some a := axioms.find? (!dischargeAxioms.contains ·) then
+    throwError "discharge {proof} depends on {a}, outside the Standard-Logical foundation"
+  return ⟨proof, ← pretty formal, axioms⟩
 
 /-- Read one declaration's intent clauses, explanation, statement and discharges. -/
 def readClaim (name : Name) : MetaM ClaimInput := do
@@ -117,7 +129,7 @@ def strengthOf (r : Jev.Response) : IO (Decimal × Decimal) := do
 
 /-- Screen one claim: one request for the claim's judgments and one per discharged clause. -/
 def screenClaim (cfg : Config) (input : ClaimInput) : StateT Usage IO ClaimScreen := do
-  let questions := claimQuestions cfg.mode input.text
+  let questions := claimQuestions cfg.mode input.text fun i => (input.discharges[i]?.bind id).isSome
   let response ← Jev.ask cfg.cache cfg.model (state cfg.mode input.text) questions
   modify (·.add response)
   let judged (judgment : Judgment) (subject id : String) (support : Decimal)
@@ -135,7 +147,7 @@ def screenClaim (cfg : Config) (input : ClaimInput) : StateT Usage IO ClaimScree
       let r ← Jev.ask cfg.cache cfg.model (correspondenceState clause d.formal) q
       modify (·.add r)
       let p ← noulOf r "correspondence"
-      clauses := clauses.push (clause, .discharged d.proof d.formal
+      clauses := clauses.push (clause, .discharged d.proof d.formal d.axioms
         { judgment := .correspondence, subject := clause, model := cfg.model, support := p.val
           confidence := none, inputsDigest := r.digest, question := questionText Questions.correspondence })
   let (support, confidence) ← strengthOf response

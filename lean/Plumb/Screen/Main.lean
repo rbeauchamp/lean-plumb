@@ -110,10 +110,22 @@ def usage : String :=
   "usage: intentScreen screen --config FILE --module M [--module M ...] [--declaration NAME ...] [--json FILE]\n" ++
   "       intentScreen calibrate --config FILE --split dev|test --report FILE --records FILE"
 
-def costNote (u : Usage) : String :=
+def costNote (model : PinnedModel) (u : Usage) : String :=
+  let price := if model.val == "jev-1.13.0" then
+      "; the jev-1.13.0 list price was $0.042 per million input tokens on 2026-09-24" else ""
   s!"service usage: {u.requests} request(s) sent, {u.cached} answered from cache, " ++
-    s!"{u.inputTokens} input tokens billed (output tokens are free; the jev-1.13.0 list price " ++
-    "was $0.042 per million input tokens on 2026-09-24)"
+    s!"{u.inputTokens} input tokens billed (output tokens are free{price})"
+
+/-- The machine record of one claim: the checked discharges and open review obligations
+beside, not inside, its screened answers. -/
+def claimJson (s : ClaimScreen) : Json :=
+  Json.mkObj [("claim", .str s.claim.toString),
+    ("checked", Json.arr (s.clauses.filterMap fun (text, e) => match e with
+      | .discharged proof formal axioms _ => some (Json.mkObj [("class", "checked"), ("clause", .str text),
+          ("discharge", .str proof.toString), ("formalClause", .str formal),
+          ("axioms", Json.arr (axioms.map (.str ·.toString)).toArray)])
+      | .judged _ => none).toArray),
+    ("openReview", Json.arr (unresolved.map (.str ·.spelling)).toArray)]
 
 unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
   if args.modules.isEmpty then throw <| IO.userError "screen requires at least one --module"
@@ -130,6 +142,7 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
     return 0
   let mut usage : Usage := {}
   let mut records := #[]
+  let mut claims := #[]
   let mut errors := 0
   for name in selected do
     let input ← runMeta env (readClaim name)
@@ -137,12 +150,13 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
     usage := u
     for line in s.lines cfg.policy do IO.println line
     records := records ++ (s.answers.map (judgedJson cfg.policy name)).toArray
+    claims := claims.push (claimJson s)
     errors := errors + ((s.findings cfg.policy).filter (·.2 == .error)).length
-  IO.println (costNote usage)
+  IO.println (costNote cfg.model usage)
   if let some path := args.json then
     IO.FS.writeFile path (Json.mkObj [("schemaVersion", (1 : Nat)), ("class", "screened"),
       ("note", "Screened results are model judgments: never checked evidence and never a completed R-INTENT review."),
-      ("results", Json.arr records)]).pretty
+      ("claims", Json.arr claims), ("results", Json.arr records)]).pretty
   return if errors > 0 then 1 else 0
 
 unsafe def main (argv : List String) : IO UInt32 := do

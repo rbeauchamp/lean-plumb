@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "model": "jev-1.13.0",
+  "cache": "examples/intent-screening/cache",
+  "state": "full",
+  "judgments": {
+    "totalization": { "error": 0.2, "warning": 0.5 },
+    "exclusions": { "error": 0.2, "warning": 0.5 },
+    "correspondence": { "error": 0.2, "warning": 0.5 }
+  }
+}

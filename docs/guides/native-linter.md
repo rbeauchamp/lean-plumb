@@ -94,6 +94,8 @@ The executed classification is `PlumbPolicy.materialDocumentationFailure`, and
 `materialDocumentationFailure_eq_none_iff`, `_eq_missingDocstring_iff` and
 `_eq_missingIntent_iff` prove which docstrings each rule reports; the two rules never both
 fire. There is no minimum length, intent detector, similarity check or adequacy inference.
+The separate opt-in [intent screen](intent-screening.md) asks a pinned model to judge the intent
+comparison and reports its measured calibration. It is not part of this linter, and its results are never checked evidence.
 
 PL5001 uses both Markdown and Verso module-doc metadata. The imported-module
 observer requires normal server/private documentation metadata to be loaded;

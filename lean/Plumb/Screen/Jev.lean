@@ -60,8 +60,16 @@ private def probabilityOf (value : Json) : Except String Probability := do
   | some p => pure p
   | none => throw s!"probability outside [0, 1]: {value.compress}"
 
-/-- Admit one answer of the question type that was asked. -/
-def parseAnswer (asked : String) (value : Json) : Except String Answer := do
+/-- The option names a Choice question defines (its criteria keys), sorted. -/
+def choiceOptions (question : Json) : List String :=
+  match question.getObjVal? "criteria" with
+  | .ok (.obj fields) => (fields.toList.map (·.1)).mergeSort (· ≤ ·)
+  | _ => []
+
+/-- Admit one answer of the question that was asked. A Choice answer must give a probability
+for exactly the options asked, summing to at most one exactly. -/
+def parseAnswer (question : Json) (value : Json) : Except String Answer := do
+  let asked ← question.getObjValAs? String "type"
   let type ← value.getObjValAs? String "type"
   unless type == asked do throw s!"answer type {type} differs from question type {asked}"
   match type with
@@ -69,6 +77,10 @@ def parseAnswer (asked : String) (value : Json) : Except String Answer := do
   | "choice" =>
     let .obj probabilities ← value.getObjVal? "probabilities" | throw "choice probabilities are not an object"
     let pairs ← probabilities.toList.mapM fun (option, p) => do pure (option, ← probabilityOf p)
+    unless (pairs.map (·.1)).mergeSort (· ≤ ·) == choiceOptions question do
+      throw "choice answer options differ from the options asked"
+    let total := pairs.foldl (fun acc (_, p) => acc.add p.val) (⟨0, 0⟩ : Decimal)
+    unless total ≤ Decimal.one do throw "choice probabilities sum to more than one"
     return .choice pairs (← probabilityOf (← value.getObjVal? "confidence"))
   | other => throw s!"unsupported answer type {other}"
 
@@ -80,10 +92,13 @@ def parseResponse (model : PinnedModel) (questions : List (String × Json)) (bod
     throw s!"the service answered with model {answered}, not the pinned {model.val}"
   let answers ← body.getObjVal? "answers"
   let parsed ← questions.mapM fun (id, question) => do
-    let asked ← question.getObjValAs? String "type"
-    pure (id, ← parseAnswer asked (← answers.getObjVal? id))
+    pure (id, ← parseAnswer question (← answers.getObjVal? id))
   let tokens := ((body.getObjVal? "usage").bind (·.getObjValAs? Nat "input_tokens")).toOption.getD 0
   return (answered, parsed, tokens)
+
+/-- A key the curl configuration line can carry verbatim: printable ASCII without `"` or `\`. -/
+def keyAdmissible (key : String) : Bool :=
+  !key.isEmpty && key.all fun c => ' ' < c && c.toNat < 127 && c != '"' && c != '\\'
 
 /-- POST the body with `curl`, the key on standard input. Returns the HTTP status and body. -/
 private def post (key : String) (bodyFile responseFile : FilePath) : IO (Nat × String) := do
@@ -104,14 +119,11 @@ private def post (key : String) (bodyFile responseFile : FilePath) : IO (Nat × 
   let some status := stdout.trimAscii.toString.toNat? | throw <| IO.userError "curl printed no HTTP status"
   return (status, ← IO.FS.readFile responseFile)
 
-/-- Ask one request, reusing a cached response for an identical request. -/
-def ask (cache : FilePath) (model : PinnedModel) (state : Json) (questions : List (String × Json)) :
-    IO Response := do
-  IO.FS.createDirAll cache
-  let body := (request model state questions).compress
-  let pending := cache / "pending-request.json"
-  IO.FS.writeFile pending body
-  let digest ← sha256File pending
+/-- Answer one request whose exact compressed body is in the private file `pending` and has
+`digest`. A new cache entry is written to a unique file and renamed into place, so a reader
+never sees a partial entry and concurrent runs cannot mix requests and responses. -/
+private def askAt (cache : FilePath) (model : PinnedModel) (questions : List (String × Json))
+    (body : String) (pending responseFile : FilePath) (digest : String) : IO Response := do
   let entry := cache / s!"{digest}.json"
   if ← entry.pathExists then
     let stored ← IO.ofExcept <| Json.parse (← IO.FS.readFile entry)
@@ -123,16 +135,18 @@ def ask (cache : FilePath) (model : PinnedModel) (state : Json) (questions : Lis
     return { model := answered, answers, digest, inputTokens := tokens, cached := true }
   let some key ← IO.getEnv "TYPESAFE_API_KEY"
     | throw <| IO.userError "intent screening is opt-in: set TYPESAFE_API_KEY (no cached response for this request)"
-  if key.isEmpty then throw <| IO.userError "TYPESAFE_API_KEY is empty"
-  let responseFile := cache / "pending-response.json"
+  unless keyAdmissible key do
+    throw <| IO.userError "TYPESAFE_API_KEY is empty or contains characters outside printable ASCII, a quote or a backslash"
   let mut attempt := 0
   repeat
     let (status, text) ← post key pending responseFile
     if status == 200 then
       let json ← IO.ofExcept <| Json.parse text
       let (answered, answers, tokens) ← IO.ofExcept <| parseResponse model questions json
-      IO.FS.writeFile entry (Json.mkObj [("request", ← IO.ofExcept <| Json.parse body),
+      let staged := cache / s!"{digest}.{← IO.monoNanosNow}.partial"
+      IO.FS.writeFile staged (Json.mkObj [("request", ← IO.ofExcept <| Json.parse body),
         ("response", json)]).pretty
+      IO.FS.rename staged entry
       return { model := answered, answers, digest, inputTokens := tokens, cached := false }
     if (status == 429 || status == 529 || status ≥ 500) && attempt < 4 then
       IO.sleep (UInt32.ofNat (1000 * 2 ^ attempt))
@@ -140,5 +154,21 @@ def ask (cache : FilePath) (model : PinnedModel) (state : Json) (questions : Lis
     else
       throw <| IO.userError s!"TypeSafe request failed with HTTP {status}: {text.take 500}"
   throw <| IO.userError "unreachable retry exit"
+
+/-- Ask one request, reusing a cached response for an identical request. The request and
+response travel through unique temporary files, removed afterwards whatever the outcome. -/
+def ask (cache : FilePath) (model : PinnedModel) (state : Json) (questions : List (String × Json)) :
+    IO Response := do
+  IO.FS.createDirAll cache
+  let body := (request model state questions).compress
+  let (requestHandle, pending) ← IO.FS.createTempFile
+  let (_, responseFile) ← IO.FS.createTempFile
+  try
+    requestHandle.putStr body
+    requestHandle.flush
+    askAt cache model questions body pending responseFile (← sha256File pending)
+  finally
+    for f in [pending, responseFile] do
+      if ← f.pathExists then IO.FS.removeFile f
 
 end Plumb.Screen.Jev

@@ -13,8 +13,10 @@ cannot carry a severity its probability does not justify.
 A claim's screen status is `screened` or `escalated`; there is no constructor for a checked
 or reviewed intent, so no screen, however high its probabilities, records the claim as
 checked or its R-INTENT review as completed. Only the implication of a formally discharged
-clause is checked, and Lean's kernel checked it when the discharge theorem was admitted; its
-English-to-Lean correspondence is still a screened judgment. None of this authenticates the
+clause is checked: Lean's kernel admitted the discharge theorem, the adapter compared its
+hypothesis with the claim by the kernel's definitional equality, and its axioms are recorded
+and bounded by the Standard-Logical foundation. Its English-to-Lean correspondence is still a
+screened judgment. None of this authenticates the
 service, the network or the process that carried the request. -/
 
 namespace Plumb.Checker.Screening
@@ -81,14 +83,14 @@ theorem Judged.unconfigured (policy : Policy) (j : Judged) (h : (policy j.judgme
 
 /-- How one intent clause was compared with the claim. -/
 inductive ClauseEvidence where
-  /-- `proof` proves that the claim implies `formal`, checked by Lean's kernel on admission;
-  whether `formal` states the English clause is the screened `correspondence` judgment. -/
-  | discharged (proof : Lean.Name) (formal : String) (correspondence : Judged)
+  /-- `proof` proves that the claim implies `formal` under exactly `axioms`, admitted by Lean's
+  kernel; whether `formal` states the English clause is the screened `correspondence` judgment. -/
+  | discharged (proof : Lean.Name) (formal : String) (axioms : List Lean.Name) (correspondence : Judged)
   /-- No formal statement: whether the claim guarantees the clause is judged. -/
   | judged (coverage : Judged)
 
 def ClauseEvidence.judgedAnswer : ClauseEvidence → Judged
-  | .discharged _ _ j => j
+  | .discharged _ _ _ j => j
   | .judged j => j
 
 /-- Evidence classes of a clause: `checked` only for a discharge's implication. -/
@@ -174,8 +176,9 @@ def ClaimScreen.lines (policy : Policy) (s : ClaimScreen) : Array String :=
     s!"  {label}: {j.evidence}; {severityText (j.severity policy)}; {routeText (j.route policy)}"
   let clause := fun ((text, e) : String × ClauseEvidence) =>
     match e with
-    | .discharged thm formal j =>
-      #[s!"  clause \"{text}\": checked: `{thm}` proves the claim implies `{formal}` (kernel-checked on admission)",
+    | .discharged thm formal axioms j =>
+      #[s!"  clause \"{text}\": checked: `{thm}` proves the claim implies `{formal}` " ++
+          s!"(kernel-admitted; axioms: {if axioms.isEmpty then "none" else ", ".intercalate (axioms.map toString)})",
         answer "  correspondence of the formal clause to the English" j]
     | .judged j => #[answer s!"clause \"{text}\" coverage" j]
   #[s!"{s.claim}: intent {(s.status policy).spelling}; " ++
