@@ -447,21 +447,38 @@ theorem explanation_example :
 
 /-! ## Formal discharge references -/
 
-/-- The marker that ends a formally discharged clause: ``(discharged by `Name`)``. -/
-def dischargeMarker : List Char := "(discharged by `".toList
+/-- The text that opens every discharge marker, well formed or not. -/
+def dischargeOpening : List Char := "(discharged by".toList
 
-/-- Split a clause at the first discharge marker. -/
-def splitMarker : List Char → Option (List Char × List Char)
+/-- The marker that ends a formally discharged clause: ``(discharged by `Name`)``. -/
+def dischargeMarker : List Char := dischargeOpening ++ " `".toList
+
+/-- Split a clause at the first occurrence of `marker`. -/
+def splitMarker (marker : List Char) : List Char → Option (List Char × List Char)
   | [] => none
   | c :: rest =>
-    if dischargeMarker.isPrefixOf (c :: rest) then some ([], (c :: rest).drop dischargeMarker.length)
-    else (splitMarker rest).map fun (before, after) => (c :: before, after)
+    if marker.isPrefixOf (c :: rest) then some ([], (c :: rest).drop marker.length)
+    else (splitMarker marker rest).map fun (before, after) => (c :: before, after)
+
+/-- A text containing a marker contains every prefix of that marker. -/
+theorem splitMarker_isSome_of_append {m t : List Char} :
+    ∀ {s}, (splitMarker (m ++ t) s).isSome → (splitMarker m s).isSome
+  | [], h => by simp [splitMarker] at h
+  | c :: rest, h => by
+    unfold splitMarker at h ⊢
+    by_cases hm : m.isPrefixOf (c :: rest) = true
+    · simp [hm]
+    · have hmt : ¬ (m ++ t).isPrefixOf (c :: rest) = true := fun hmt =>
+        hm (List.isPrefixOf_iff_prefix.mpr
+          ((List.prefix_append m t).trans (List.isPrefixOf_iff_prefix.mp hmt)))
+      simp only [hm, hmt, Bool.false_eq_true, ↓reduceIte, Option.isSome_map] at h ⊢
+      exact splitMarker_isSome_of_append h
 
 /-- A clause that ends with ``(discharged by `Name`)`` names the theorem that proves the claim
 implies the clause's formal statement. Returns the English text before the marker and the
 name; the name is nonempty and contains no whitespace or backtick. -/
 def discharge? (clause : String) : Option (String × String) := do
-  let (english, after) ← splitMarker (trim clause.toList)
+  let (english, after) ← splitMarker dischargeMarker (trim clause.toList)
   let name := after.takeWhile (· != '`')
   if !name.isEmpty && name.all (fun c => !c.isWhitespace) && after.drop name.length == ['`', ')']
   then some (String.ofList (trim english), String.ofList name)
@@ -474,32 +491,32 @@ theorem discharge_examples :
     discharge? "(discharged by `x`) trailing" = none := by
   decide
 
-/-- A clause that contains the discharge marker, well formed or not: the English text before
-its first marker and the reference text after it. A marked clause that `discharge?` does not
-read is a malformed reference, never an unmarked clause. -/
+/-- A clause that contains the text `(discharged by`, well formed or not: the English text
+before its first occurrence and the trimmed reference text after it. A marked clause that
+`discharge?` does not read is a malformed reference, never an unmarked clause. -/
 def dischargeMarked? (clause : String) : Option (String × String) :=
-  (splitMarker (trim clause.toList)).map fun (english, after) =>
-    (String.ofList (trim english), String.ofList after)
+  (splitMarker dischargeOpening (trim clause.toList)).map fun (english, after) =>
+    (String.ofList (trim english), String.ofList (trim after))
 
-/-- Every reference `discharge?` reads is marked, with the same English text. -/
-theorem dischargeMarked?_of_discharge? {clause english name : String}
-    (h : discharge? clause = some (english, name)) :
-    ∃ reference, dischargeMarked? clause = some (english, reference) := by
+/-- Every clause `discharge?` reads is marked. -/
+theorem dischargeMarked?_of_discharge? {clause : String} {p : String × String}
+    (h : discharge? clause = some p) : (dischargeMarked? clause).isSome := by
   unfold discharge? at h
   unfold dischargeMarked?
-  cases hs : splitMarker (trim clause.toList) with
+  rw [Option.isSome_map]
+  apply splitMarker_isSome_of_append (t := " `".toList)
+  show (splitMarker dischargeMarker (trim clause.toList)).isSome
+  cases hs : splitMarker dischargeMarker (trim clause.toList) with
   | none => simp [hs] at h
-  | some p =>
-    obtain ⟨before, after⟩ := p
-    simp only [hs, bind, Option.bind] at h
-    split at h
-    · cases h; exact ⟨_, rfl⟩
-    · cases h
+  | some _ => rfl
 
 theorem dischargeMarked_examples :
     dischargeMarked? "Same elements. (discharged by `Demo.sort_perm`)." =
-      some ("Same elements.", "Demo.sort_perm`).") ∧
-    dischargeMarked? "Same elements. (discharged by `a b`)" = some ("Same elements.", "a b`)") ∧
+      some ("Same elements.", "`Demo.sort_perm`).") ∧
+    dischargeMarked? "Same elements. (discharged by `a b`)" = some ("Same elements.", "`a b`)") ∧
+    dischargeMarked? "Same elements. (discharged by Demo.sort_perm)" =
+      some ("Same elements.", "Demo.sort_perm)") ∧
+    discharge? "Same elements. (discharged by Demo.sort_perm)" = none ∧
     dischargeMarked? "Same elements." = none := by
   decide
 

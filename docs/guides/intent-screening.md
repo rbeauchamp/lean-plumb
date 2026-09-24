@@ -243,7 +243,8 @@ Machine-checked, about the definitions the executable runs (each through a
   (`ClaimScreen.escalated_of_incomplete`).
 - Clause extraction finds clauses only in docstrings that PL5003 accepts and never returns a
   blank clause (`checkedClauses`, `intentBody?_isSome_iff`). Every clause `discharge?` reads
-  carries the marker `dischargeMarked?` finds (`dischargeMarked?_of_discharge?`).
+  contains the text `(discharged by` that `dischargeMarked?` detects
+  (`dischargeMarked?_of_discharge?`).
   Discharge-marker parsing, the pinned-model grammar, and clause splitting are checked on
   documented instances.
 
