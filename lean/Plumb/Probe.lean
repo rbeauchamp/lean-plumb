@@ -78,7 +78,8 @@ of this repository's audited positive surface.
 namespace Plumb.Probe
 
 open Lean Elab Command
-open PlumbPolicy (DeclarationKind BoundaryKind Correspondence Safety Reducibility RecursionOrigin)
+open PlumbPolicy (DeclarationKind BoundaryKind Correspondence DefeqComparison Safety Reducibility
+  RecursionOrigin)
 
 /-- Compatibility name for the shared closed constant-kind mapping. -/
 abbrev kindOf := Plumb.Collect.kindOf
@@ -220,7 +221,9 @@ compiler's positional universe substitution must type-check at those same
 levels. Both definitional and theorem-backed evidence pass the same kernel gate.
 Theorem candidates, supplied then discovered, are tried before definitional
 unfolding, so a kernel-exhausting unfolding cannot consume the memory limit a
-supplied proof needs. -/
+supplied proof needs. The definitional fallback returns
+`DefeqComparison.classify` of its outcome, so a comparison the kernel could not complete is
+unresolved, never trusted (standard §8.6). -/
 private def replacementCorrespondence (env : Environment) (reference replacement : Name)
     (proofCandidates : Array Name := #[]) :
     CommandElabM (Correspondence × Option String) := do
@@ -249,17 +252,13 @@ private def replacementCorrespondence (env : Environment) (reference replacement
           if !used.contains reference || !used.contains replacement then continue
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
             return (.checked, some evidence)
-        let mut defeqExhausted := false
-        try
-          let proof ← Meta.mkLambdaFVars domain (← Meta.mkEqRefl lhs)
-          match ← checkCorrespondenceProof levels required proof with
-          | some detail => return (.checked, some s!"kernel-defeq; {detail}")
-          | none => defeqExhausted := true
-        catch _ => pure ()
-        return (.trusted, some <| if defeqExhausted then
-          "no kernel-checked unconditional correspondence proof; " ++
-            "kernel resources exhausted before deciding definitional correspondence"
-          else "no kernel-checked unconditional correspondence proof")
+        let comparison ← try
+            let proof ← Meta.mkLambdaFVars domain (← Meta.mkEqRefl lhs)
+            pure <| match ← checkCorrespondenceProof levels required proof with
+              | some detail => DefeqComparison.completed (some detail)
+              | none => .incomplete
+          catch _ => pure (.completed none)
+        return comparison.classify
   catch _ =>
     return (.unresolved, some s!"cannot construct exact correspondence for {reference} and {replacement}")
 

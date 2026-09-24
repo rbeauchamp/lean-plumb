@@ -193,7 +193,7 @@ in the worker and by any other resident growth there (pages that successful or e
 checks leave resident, since Lean's allocator may keep them, execution-walk caches, later
 environment loads). Once one check exhausts memory, or other growth consumes the headroom,
 later checks in the same worker may exhaust immediately. These fail closed: such a check is
-never reported checked, and its correspondence is reported as not established. At most
+never reported checked, and its correspondence is reported unresolved. At most
 three report workers run at once, each running its checks sequentially, so while checks run
 they add at most 3 × 1 = 3 GiB of resident memory above those workers' first-check peaks.
 That is an increment, not a total: it does not by itself show the audit fits in 16 GiB,
@@ -202,13 +202,16 @@ imports `Lean` already peaks around 4.2 GiB on Linux), and memory used outside t
 is not bounded by this limit. To keep a kernel-exhausting unfolding from consuming the
 headroom a supplied proof needs, supplied and then discovered theorem candidates are tried
 before the kernel-defeq check, so a replacement with both reports `proved:` evidence. Kernel
-resource exhaustion is not conflated with rejection: its reason says the kernel ran out of
-resources before deciding definitional correspondence. The replacement is then currently
-classified trusted, as before this change. That does not yet conform to
-[§8.6](../standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly), which
-defines a comparison that could not complete as unresolved;
-[issue #63](https://github.com/rbeauchamp/lean-plumb/issues/63) tracks the conforming
-code change. With both fixed,
+resource exhaustion is not conflated with rejection. As
+[§8.6](../standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly)
+requires, a definitional comparison that could not complete is unresolved, with the reason
+that the kernel ran out of resources before deciding definitional correspondence, and only a
+completed negative comparison leaves the replacement trusted. `DefeqComparison.classify` is
+that classification, total over the comparison outcome, and `replacementCorrespondence`
+returns its result (see the proved boundary below). A theorem candidate whose admission
+exhausts the kernel supplies no evidence, like any other candidate the deliberately
+incomplete search cannot use. With the manifest and heartbeat fixes, and before this
+classification change,
 `diagnostics structural` passed locally in 806 s, down from 1015 s (observed before the
 memory bound was added). That is still over the
 420-second budget, which remains follow-up work. `PlumbPolicy` stays claimed in each
@@ -331,6 +334,16 @@ by their source-level linkage. The proof is erased at execution.
   every boundary and unresolved path for every claim. With
   `executionFailureRecords_empty_iff` they replace the 11 in-memory execution-policy
   cases. They are on the claimed `PlumbPolicy` surface.
+- `PlumbPolicy.DefeqComparison.classify_trusted_iff`, `classify_checked_iff` and
+  `classify_unresolved_iff`: the correspondence of the kernel-definitional comparison is
+  checked exactly for a completed comparison with admitted evidence, trusted exactly for a
+  completed comparison without it, and unresolved exactly for a comparison that did not
+  complete, so no incomplete comparison is trusted (standard §8.6). They are on the claimed
+  `PlumbPolicy` surface, and `Probe.replacementCorrespondence` returns `classify` of the
+  outcome it observed. Mapping the kernel result to that outcome (`kernelExhausted` for an
+  incomplete comparison, a rejection or a proof beyond Standard-Logical for a completed
+  negative one) is checked by inspection, not by theorem, and the kernel decision itself is
+  trusted.
 - `Checker.RuleExampleQualification.qualify_sound`: every rule-example record that
   `qualify` admits satisfies `RecordAdmissible`: its result carries the exact current
   producer identity fields; the result mode is the record's parsed evidence mode; the
