@@ -1,5 +1,6 @@
 import StrictLean.Checker.Snapshot
 import StrictLean.Checker.SourceBinding
+import StrictLeanCore.Account
 
 /-! Link between the two required verification steps: ordinary project acceptance and
 the separately timed documentation-fence audit. Each step computes one location-independent
@@ -60,10 +61,12 @@ def identity (scratch projectRoot docsRoot : FilePath)
 def invalidate (path : FilePath) : IO Unit :=
   writeJson path (Json.mkObj [("schemaVersion", toJson (1 : Nat)), ("status", .str "incomplete")])
 
-/-- Written only after accepted ordinary success. -/
-def record (path : FilePath) (digest : String) (jobs : Nat) : IO Unit :=
+/-- Written only after accepted ordinary success. It cannot be called without an `Account`, a
+projection of some `AcceptedRun`; that it is this run's account, and that `digest` matches it,
+is the caller's binding. -/
+def record (path : FilePath) (digest : String) (account : Account.Account) : IO Unit :=
   writeJson path (Json.mkObj [("schemaVersion", toJson (1 : Nat)), ("status", .str "accepted"),
-    ("identity", .str digest), ("acceptedJobs", toJson jobs)])
+    ("identity", .str digest), ("acceptedJobs", toJson account.val.jobs)])
 
 /-- Refuse unless ordinary acceptance recorded an accepted success over equal inputs.
 The `status: accepted` record lives in a writable `tmp/` file and is trusted as written

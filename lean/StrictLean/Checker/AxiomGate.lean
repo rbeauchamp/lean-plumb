@@ -675,7 +675,7 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
         Documentation.checkMarkdown (repo / "docs") linkedDocuments
         let digest ← AcceptanceLink.identity scratch copy (repo / "docs") evidence.sources
           evidence.configuration evidence.dependencies linkedDocuments
-        AcceptanceLink.record path digest evidence.accepted.report.jobs.size
+        AcceptanceLink.record path digest (Account.account evidence.accepted)
         IO.println s!"acceptance link: recorded {digest}"
     let result ← timedPhase "complete declaration audit" <|
       auditSurfaceAt copy manifestPath true verbose repo jsonOut composed resultOut observeSources

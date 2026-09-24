@@ -139,7 +139,7 @@ symlinked root spelling, a relative input and an input outside the root. These a
 scoped operational controls, not a proof of IO extraction or a full acceptance run.
 
 `Common.mapWorkQueue`, `admitIndexedWorkerResults` and documentation's task collector
-execute `ResultState.collect`; no result slot is overwritten. The first two call
+execute `ResultState.collect`; no result slot is overwritten. All three call
 `checkedIndexedResults`: success returns exactly the array whose indexed pairs are a
 permutation of the responses over every requested slot, each payload bound to its slot. Group reconciliation
 preserves each requested environment separately and never deduplicates job
@@ -219,8 +219,9 @@ project claim (`coverage_fresh_iff`); the listed
 counts are `executionSummary` of each accepted environment; the fence counts partition
 the accepted fences by expectation; and the residual identifiers stay unresolved. The
 human lines (`Account.lines`, `Account.pass`) and `acceptance.account` JSON render its
-fields; they are unproved adapter text, and checker verdict lines use `Account.pass` by
-inspection of the call sites.
+fields; they are unproved adapter text. Project, file, build-lint, combined and graph verdict
+lines use `Account.pass` by inspection of the call sites; the documentation audit prints no
+PASS verdict, and its per-fence labels come from task results once an `AcceptedRun` exists.
 
 ### Frozen input coverage at operational entry points
 
