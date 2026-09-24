@@ -230,19 +230,52 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
     IO.FS.writeFile path (reportJson complete exitStatus none incomplete findings claims records).pretty
   return exitStatus
 
-/-- The path of the last `--json PATH` pair, found without a full argument parse, so every
-run naming it, whatever its command and even when its arguments fail to parse, replaces an
-earlier report. -/
-def jsonPath? : List String → Option String
-  | "--json" :: v :: rest => some ((jsonPath? rest).getD v)
-  | _ :: rest => jsonPath? rest
-  | [] => none
+/-- The values of every `FLAG VALUE` pair in the raw arguments, found without a full parse. -/
+def flagValues (flag : String) : List String → List String
+  | f :: v :: rest => if f == flag then v :: flagValues flag rest else flagValues flag (v :: rest)
+  | _ => []
+
+/-- A path made absolute and resolved through symbolic links as far as it exists. -/
+def resolvedPath (p : System.FilePath) : IO System.FilePath := do
+  let cwd ← IO.currentDir
+  let abs := if p.isAbsolute then p else cwd / p
+  if ← abs.pathExists then return ← IO.FS.realPath abs
+  match abs.parent, abs.fileName with
+  | some dir, some name => if ← dir.pathExists then return (← IO.FS.realPath dir) / name else return abs.normalize
+  | _, _ => return abs.normalize
+
+/-- Admit `path` as the `--json` report target. It is refused when it names one of the run's
+other files (`--config`, `--report`, `--records`), or an existing file that is not an earlier
+intentScreen report (`schemaVersion` 1 and `class` `screened`). Invariant: no stale passing
+report survives a failed run, because every such report is an intentScreen report and is
+replaced before any work; no other file is ever overwritten by an argument mistake. -/
+def admitReportPath (path : System.FilePath) (others : List String) : IO Unit := do
+  let target ← resolvedPath path
+  for other in others do
+    if (← resolvedPath other) == target then
+      throw <| IO.userError s!"--json {path} names the same file as another argument ({other}); nothing was written"
+  if ← path.pathExists then
+    let earlier := (Json.parse (← IO.FS.readFile path)).toOption.filter fun j =>
+      (j.getObjValAs? Nat "schemaVersion").toOption == some 1 &&
+        (j.getObjValAs? String "class").toOption == some EvidenceClass.screened.spelling
+    if earlier.isNone then
+      throw <| IO.userError s!"--json {path} exists and is not an intentScreen report; it was left untouched"
 
 unsafe def main (argv : List String) : IO UInt32 := do
-  let report? := jsonPath? argv
+  let target? ← try
+      match (flagValues "--json" argv).getLast? with
+      | some path =>
+        admitReportPath path (["--config", "--report", "--records"].flatMap (flagValues · argv))
+        writeUnfinished path "the run did not finish"
+        pure (some (path : System.FilePath))
+      | none => pure none
+    catch e =>
+      IO.eprintln s!"intent screen incomplete: {e}"
+      return 2
   try
     let args ← IO.ofExcept (parseArgs argv)
-    if let some path := report? then writeUnfinished path "the run did not finish"
+    if args.json.isSome && args.command != "screen" then
+      throw <| IO.userError s!"--json is accepted only by the screen command\n{usage}"
     let some configPath := args.config | throw <| IO.userError usage
     let cfg ← IO.ofExcept (parseConfig (← IO.FS.readFile configPath))
     match args.command with
@@ -259,7 +292,7 @@ unsafe def main (argv : List String) : IO UInt32 := do
     | _ => throw <| IO.userError usage
   catch e =>
     IO.eprintln s!"intent screen incomplete: {e}"
-    if let some path := report? then
+    if let some path := target? then
       try writeUnfinished path s!"{e}"
       catch w => IO.eprintln s!"intent screen: could not record the unfinished run in {path}: {w}"
     return 2

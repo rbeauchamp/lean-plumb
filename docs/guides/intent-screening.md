@@ -157,15 +157,26 @@ incomplete: top-level `complete` (false when any discharge reference was refused
 did not finish),
 `exitStatus` (the process exit status, 0, 1 or 2) and `incomplete` (each refused reference:
 claim, clause, theorem and reason). Each claim carries `complete` (`ClaimScreen.complete`)
-and its `status` (`screened` or `escalated to review`, from `ClaimScreen.status`). Before any
-work, the screen replaces any existing file at the `--json` path with an unfinished report
-(`complete: false`, `exitStatus: 2`, `reason`), so an earlier passing report never survives
-a later run. This holds whenever the arguments contain a `--json PATH` pair, whatever the
-command (including a missing or misspelled one) and even when the other arguments fail to
-parse; only a finished `screen` run writes a complete report there. A run
-that stops early (argument, configuration, missing key, network, service, parse or
-claim-reading failure) leaves that unfinished report, with the error as its `reason`; only a
-run that finishes overwrites it with the full report.
+and its `status` (`screened` or `escalated to review`, from `ClaimScreen.status`).
+
+The `--json` path is guarded by one invariant: no stale passing report survives a failed run,
+and no other file is ever overwritten by an argument mistake. Whenever the arguments contain
+a `--json PATH` pair (whatever the command, including a missing or misspelled one, and even
+when the other arguments fail to parse), the tool first checks the path, before any other
+work:
+
+- If it names the same file as `--config`, `--report` or `--records` (compared as resolved
+  paths), the run exits with 2 and writes nothing.
+- If a file already exists there and is not an earlier intentScreen report (JSON with
+  `schemaVersion` 1 and `class` `screened`), the run exits with 2 and leaves it untouched.
+- Otherwise the path, new or an earlier report, is replaced with an unfinished report
+  (`complete: false`, `exitStatus: 2`, `reason`). Every stale passing report is an
+  intentScreen report, so none survives.
+
+`--json` is accepted only by `screen`; any other command given it exits with 2. A run that
+stops early (argument, configuration, missing key, network, service, parse or claim-reading
+failure) leaves the unfinished report, with the error as its `reason`; only a `screen` run
+that finishes overwrites it with the full report.
 
 **Why not an in-elaboration rule.** A linter rule runs in every `lake build` and editor
 session. A screen calls a paid network service, sends source text off the machine, and its
