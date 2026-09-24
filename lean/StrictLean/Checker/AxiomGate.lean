@@ -209,14 +209,19 @@ private def reportContextFailure (id : StrictLean.RuleId) (scope : String)
       (if impact == .violation then .rejected else .incomplete) #[finding] #[]).setObjVal!
       "sourceAccount" captured
 
-private def withSourceEvidence (sources : Array ProducerReport.SourceBinding)
+private def withSourceEvidenceOr (refused : α) (sources : Array ProducerReport.SourceBinding)
     (configuration : Array (FilePath × Option String)) (scope : String)
-    (mode : StrictLean.EvidenceMode) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath) (action : IO UInt32) : IO UInt32 := do
+    (mode : StrictLean.EvidenceMode) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath) (action : IO α) : IO α := do
   match ← SourceBinding.withUnchanged sources configuration action with
   | .ok result => return result
   | .error failure =>
       reportContextFailure .admission scope mode .incomplete failure.detail composed resultOut sources
-      return 1
+      return refused
+
+private def withSourceEvidence (sources : Array ProducerReport.SourceBinding)
+    (configuration : Array (FilePath × Option String)) (scope : String)
+    (mode : StrictLean.EvidenceMode) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath) (action : IO UInt32) : IO UInt32 :=
+  withSourceEvidenceOr 1 sources configuration scope mode composed resultOut action
 
 /-- Accepted project evidence handed, in the same process, to the same-snapshot
 documentation stage and to the ordinary acceptance link. Nothing is serialized. -/
@@ -645,17 +650,20 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
 
 /-- Fresh audits copy the project into an owned isolated workspace. With `--with-docs`,
 the documentation stage runs afterwards in this same process against the same frozen
-snapshot and build; project and documentation acceptance are then combined. -/
+snapshot and build; project and documentation acceptance are then combined. With
+`acceptanceLink`, a fresh success also returns the pending identity of its accepted inputs;
+only the caller records it, after its own outer recheck. -/
 private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
     (incremental verbose : Bool) (jsonOut : Option FilePath) (withDocs : Bool) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath := none)
     (observeConfiguration : FilePath → Array (FilePath × Option String) → IO Unit := fun _ _ => pure ())
     (observeSources : Array ProducerReport.SourceBinding → IO Unit := fun _ => pure ())
-    (buildLint : Bool := false) (acceptanceLink : Option FilePath := none) : IO UInt32 :=
+    (buildLint : Bool := false) (acceptanceLink : Bool := false) :
+    IO (UInt32 × Option AcceptanceLink.Pending) :=
   if incremental then do
     let configuration ← SourceBinding.configuration repo (manifest.getD (Manifest.defaultPath repo))
     observeConfiguration repo configuration
-    withSourceEvidence #[] configuration repo.toString .incrementalProject composed resultOut <|
-      auditSurfaceAt repo (manifest.getD (Manifest.defaultPath repo)) false verbose repo jsonOut composed resultOut observeSources (buildLint := buildLint)
+    (·, none) <$> withSourceEvidence #[] configuration repo.toString .incrementalProject composed resultOut
+      (auditSurfaceAt repo (manifest.getD (Manifest.defaultPath repo)) false verbose repo jsonOut composed resultOut observeSources (buildLint := buildLint))
   else withScratch repo "axiom-gate" fun scratch => do
     let copy := scratch / "project"
     timedPhase "isolated source copy" <| copyProject repo copy scratch
@@ -664,26 +672,26 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
     if withDocs then Documentation.snapshotMarkdown (repo / "docs") (copy / "docs")
     let documents ← if withDocs then Documentation.captureMarkdown (copy / "docs") else pure #[]
     -- The link covers the Markdown the separate documentation step will audit.
-    let linkedDocuments ← if acceptanceLink.isSome then Documentation.captureMarkdown (repo / "docs")
+    let linkedDocuments ← if acceptanceLink then Documentation.captureMarkdown (repo / "docs")
       else pure #[]
     let project ← IO.mkRef (none : Option ProjectEvidence)
-    -- The link is recorded after acceptance and before the success line, so a link
+    let linked ← IO.mkRef (none : Option AcceptanceLink.Pending)
+    -- The identity is computed after acceptance and before the success line, so an identity
     -- failure can never follow a printed PASS.
     let observe (evidence : ProjectEvidence) : IO Unit := do
       project.set (some evidence)
-      if let some path := acceptanceLink then
+      if acceptanceLink then
         Documentation.checkMarkdown (repo / "docs") linkedDocuments
         let digest ← AcceptanceLink.identity scratch copy (repo / "docs") evidence.sources
           evidence.configuration evidence.dependencies linkedDocuments
-        AcceptanceLink.record path digest (Account.account evidence.accepted)
-        IO.println s!"acceptance link: recorded {digest}"
+        linked.set (some { digest, account := Account.account evidence.accepted })
     let result ← timedPhase "complete declaration audit" <|
       auditSurfaceAt copy manifestPath true verbose repo jsonOut composed resultOut observeSources
         documents observe withDocs
-    if result != 0 then return result
+    if result != 0 then return (result, none)
     let some evidence ← project.get
       | throw <| IO.userError "missing accepted project evidence"
-    if !withDocs then return 0
+    if !withDocs then return (0, ← linked.get)
     let docFindings ← IO.mkRef (#[] : Array StrictLean.Finding)
     let documentAccepted ← IO.mkRef (none : Option ((c : StrictLeanPolicy.Claim) × StrictLeanPolicy.AcceptedRun c))
     -- The documentation stage performs the run's terminal freshness recheck.
@@ -722,8 +730,8 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       IO.println s!"combined audit: accepted {account.val.jobs} project and {(Account.account receipt.documentation).val.jobs} documentation jobs"
       for line in account.lines do IO.println line
       IO.println s!"\n{account.pass "axiom gate"}"
-      return 0
-    return docsResult
+      return (0, none)
+    return (docsResult, none)
 
 private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
     (execution : ExecutionClaim) (manifest : Option FilePath) (jsonOut : Option FilePath) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath := none)
@@ -1038,20 +1046,20 @@ unsafe def run (args : List String) : IO UInt32 := do
         (if configError then .rejected else .incomplete) #[finding] #[error.toString]).setObjVal!
         "sourceAccount" captured
     return 1
-  let action : IO UInt32 := do
+  let action : IO (UInt32 × Option AcceptanceLink.Pending) := do
     try
       match options.file with
       | some path =>
-          return ← auditFile repo (resolve repo path) options.claim options.execution
-            (options.manifest.map (resolve repo)) jsonOut composed resultOut observeConfiguration observeSources
+          return (← auditFile repo (resolve repo path) options.claim options.execution
+            (options.manifest.map (resolve repo)) jsonOut composed resultOut observeConfiguration observeSources, none)
       | none =>
           if options.buildLint then
             IO.println "build policy linter: enforcing all manifested Lake modules (incremental elaboration; fresh policy inspection)"
           let result ← auditSurface repo (options.manifest.map (resolve repo))
             options.incremental options.verbose jsonOut options.withDocs composed resultOut observeConfiguration observeSources
-            (buildLint := options.buildLint) (acceptanceLink := acceptanceLink)
+            (buildLint := options.buildLint) (acceptanceLink := acceptanceLink.isSome)
           return result
-    catch error => reportFailure error
+    catch error => return (← reportFailure error, none)
   let mode : StrictLean.EvidenceMode := if options.file.isSome then .freshFile
     else if options.incremental then .incrementalProject else .freshProject
   let configuration ← try
@@ -1063,8 +1071,8 @@ unsafe def run (args : List String) : IO UInt32 := do
     repo.toString ((options.file.map (fun path => (resolve repo path).toString)).getD repo.toString)
     (options.claim.map Profile.toString)
     (if options.file.isSome then some options.execution.toString else none) configuration
-  let code ← withRetainedSources resultOut composed capturedSources <|
-    withSourceEvidence #[] configuration repo.toString mode composed resultOut action
+  let (code, linked) ← withRetainedSources resultOut composed capturedSources <|
+    withSourceEvidenceOr (1, none) #[] configuration repo.toString mode composed resultOut action
   if let some output := resultOut then
     match ResultProtocol.composeDecision code (← composed.get) with
     | some base =>
@@ -1077,6 +1085,10 @@ unsafe def run (args : List String) : IO UInt32 := do
       let value := if (value.getObjVal? "sourceAccount").isOk then value
         else value.setObjVal! "sourceAccount" (toJson captured)
       writeJson output ((value.setObjVal! "request" request).setObjVal! "effective" (toJson (← effective.get)))
+  if code == 0 then
+    if let (some path, some pending) := (acceptanceLink, linked) then
+      AcceptanceLink.record path pending
+      IO.println s!"acceptance link: recorded {pending.digest}"
   return code
 
 /-- The `axiomGate` executable body: search-path initialization, then `run`, with
