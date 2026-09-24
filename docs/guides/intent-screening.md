@@ -160,7 +160,9 @@ claim, clause, theorem and reason). Each claim carries `complete` (`ClaimScreen.
 and its `status` (`screened` or `escalated to review`, from `ClaimScreen.status`). Before any
 work, the screen replaces any existing file at the `--json` path with an unfinished report
 (`complete: false`, `exitStatus: 2`, `reason`), so an earlier passing report never survives
-a later run; the `--json` path is found even when the other arguments fail to parse. A run
+a later run. This holds whenever the arguments contain a `--json PATH` pair, whatever the
+command (including a missing or misspelled one) and even when the other arguments fail to
+parse; only a finished `screen` run writes a complete report there. A run
 that stops early (argument, configuration, missing key, network, service, parse or
 claim-reading failure) leaves that unfinished report, with the error as its `reason`; only a
 run that finishes overwrites it with the full report.
