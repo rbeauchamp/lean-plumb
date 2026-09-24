@@ -284,7 +284,9 @@ private unsafe def newConstants (before after : Environment) : Array Name :=
 
 /-- Elaborate one exact source from a fresh frontend state and return the
 first-introduction transcript. Any diagnostic error or concurrent source
-change fails the call. -/
+change fails the call. Plumb's local feedback is always off here through the `weak.` form,
+as in the `lint` driver's claimed build (`Lake.auditLeanOptions`): a module whose imports do
+not register `linter.plumb` ignores it and elaborates exactly as without it. -/
 private unsafe def buildCore (moduleName : Name) (sourcePath : System.FilePath)
     (history : Bool := false) : IO Transcript := do
   unsafe Lean.enableInitializersExecution
@@ -298,7 +300,7 @@ private unsafe def buildCore (moduleName : Name) (sourcePath : System.FilePath)
   let attributeRefs := (← Lean.attributeMapRef.get).toArray.map (·.2.ref)
   let inputCtx := Parser.mkInputContext sourceBefore sourcePath.toString
   let ctx := { inputCtx with }
-  let opts := Lean.Elab.async.set (warningAsError.set {} true) false
+  let opts := (Lean.Elab.async.set (warningAsError.set {} true) false).setBool `weak.linter.plumb false
   let processor := Lean.Language.Lean.process
   let importsRef ← IO.mkRef (#[] : Array Import)
   let snap ← processor (fun stx => do

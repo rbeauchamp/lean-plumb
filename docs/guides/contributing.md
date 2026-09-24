@@ -57,6 +57,7 @@ checker behavior:
 | `cli` | Command-line behavior and diagnostics. |
 | `environments` | Isolated environments, documentation scanning, and external adopters. |
 | `build-policy` | Enforcement through the example's ordinary Lake build. |
+| `lint-driver` | `lake lint` dispatch and exit classes in both shipped adopters. |
 | `producers` | [Project producer and documentation qualification](engine-producers.md). |
 | `history` | [Source-bound replacement history qualification](engine-producers.md). |
 | `rule-examples`, `rule-examples 1/2`, `rule-examples 2/2` | [Source-owned corpus and diagnostic demonstrations](rule-examples.md); a shard runs half of the rules. |
@@ -80,9 +81,12 @@ for evidence requirements. Diagnostics do not replace a failed acceptance run.
 The [diagnostics workflow](../../.github/workflows/diagnostics.yml) runs `producers`,
 `history` and both `rule-examples` shards as parallel jobs, each with its own hard
 420-second limit. It runs when the checker, rules, rule examples, Lake configuration or
-manifests change, on every push to `main`, and nightly. These campaigns are
-capability-triggered diagnostics (standard §8.8), not a partition of ordinary
-acceptance.
+manifests change, on every push to `main`, and nightly.
+The [lint-driver workflow](../../.github/workflows/lint-driver.yml) runs `lint-driver`
+under the same limit when the `lake lint` driver or anything it imports changes, or the
+adopter fixtures in `examples/lake-lint-toml` and `examples/build-lint` change, on every push
+to `main`, and nightly. These campaigns are capability-triggered diagnostics (standard
+§8.8), not a partition of ordinary acceptance.
 
 
 ## Implementation and qualification layout

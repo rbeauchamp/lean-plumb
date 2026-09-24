@@ -361,13 +361,18 @@ def admitIndexedWorkerResults {α : Type} [FromJson α] (count : Nat) (binding :
     | .admission failure => s!"invalid worker result admission: {repr failure}"
     | .missing slot => s!"worker result missing required key {slot}"
 
+/-- The `axiomGate` binary beside the running checker's package library: every checker
+worker spawn runs it. -/
+def workerBinary : IO FilePath := do
+  let some selfLib ← checkerPackageLibDir
+    | throw <| IO.userError "checker library directory unavailable"
+  return selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+
 /-- Await an isolated checker worker and decode its typed result. The child
 stays in the caller’s process group and its scratch files outlive its exit. -/
 def runTypedWorker [ToJson α] [FromJson β]
     (flag : String) (request : α) : IO β := do
-  let some selfLib ← checkerPackageLibDir
-    | throw <| IO.userError "checker library directory unavailable"
-  let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+  let binary ← workerBinary
   withScratch (← IO.currentDir) "typed-worker" fun scratch => do
     let input := scratch / "request.json"
     let output := scratch / "report.json"

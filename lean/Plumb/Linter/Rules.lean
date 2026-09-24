@@ -2,12 +2,15 @@ module
 
 public import Plumb.Collect
 public import Plumb.Findings
-public import PlumbPolicy.Decision
+public import PlumbCore.EditorPolicy
 
 public section
 
-/-! Local declaration decisions reuse the executed pure policy. Deferred role
-observations are explicit; a snapshot result is never whole-project acceptance. -/
+/-! Local declaration decisions run the claimed `PlumbCore.EditorPolicy` registrations
+(`checkedEditorRequest`, `checkedEditorDecision`); `PlumbCore.Policy` proves they select the
+project's request and `ruleForMember` rule for the same member (`editor_request_sound`,
+`editor_decision_rule`). Deferred role observations are explicit; a snapshot result is never
+whole-project acceptance. -/
 namespace Plumb.Linter.Rules
 open Lean
 open PlumbPolicy
@@ -20,19 +23,9 @@ structure SnapshotResult where
 
 /-- The editor's optional foundation request never supplies Lake surface authority. -/
 def request (value : String) : Except String InspectionRequest :=
-  if value == "classification-only" then .ok .classification
-  else match ConformingProfile.parse? value with
-    | some p => .ok (.conforming p)
-    | none => .error s!"unsupported local foundation request: {value}"
-
-/-- A missing fresh transcript cannot turn a possible generated-role exception
-into either authorization or a definitive role-related violation. Other failures
-retain the pure policy's precedence. -/
-def needsRoleEvidence (d : PlumbPolicy.Declaration) : DeclarationFailure → Bool
-  | .projectAxiom => (nativeParent? d.name).isSome
-  | .unknownAxiom => d.axioms.any fun name => (nativeParent? name).isSome
-  | .escapeHatch => d.unsafeRecBase.isSome
-  | _ => false
+  match editorRequest value with
+  | some inspection => .ok inspection
+  | none => .error s!"unsupported local foundation request: {value}"
 
 /-- Assess the selected records, retaining original structural identities/ranges.
 This runs no native replay, external process, project build or global role scan. -/
@@ -47,11 +40,10 @@ def declarations (ds : Array PlumbPolicy.Declaration) (source : SourceSnapshot)
   let mut result : SnapshotResult := {}
   -- `admitInventory_exact` retains `ds`; iterating the inventory supplies membership.
   for h : d in inventory.declarations do
-    if let some failure := checkedMemberFailure.run inventory roles d h inspection then
-      if needsRoleEvidence d failure then
-        result := { result with pending := result.pending.push d.name }
-      else
-        let id := ruleForFailure failure
+    match editorDecision inventory roles d h inspection with
+    | none => pure ()
+    | some .pending => result := { result with pending := result.pending.push d.name }
+    | some (.rule id) =>
         let location ← Findings.declarationLocation d (some source)
         let finding ← Findings.declarationFinding id d.name
           (descriptor id).applicability location .editorSnapshot claim

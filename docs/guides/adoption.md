@@ -162,17 +162,137 @@ earlier with `manifest surface missing from Lake discovery` or `manifest executa
 from Lake discovery`; `manifest-schema` means a manifest key, value, or schema version is invalid; `unexpected-project-module` means a claimed library imports an
 excluded module or owns a module outside every manifested library.
 
-## 6. Optionally enforce during ordinary `lake build`
+## 6. Enforce with `lake lint`, `lake build` and CI
 
-The [standalone example](../../examples/build-lint/) shows how to make a `policy` target the sole
-default target so that every `lake build` re-inspects the manifested surface, even for
-cached modules. `import Plumb.Contract` gives a proof-bearing registration
-tying an executable to its exact required predicate. See
-[docs/standard/8 §8.12](../standard/8-tooling-and-machine-audit.md#812-opt-in-enforcing-build-linter) for
-scope, cache semantics, and limits. The incremental build does not replace the isolated
-gate for a fresh-source conformance claim.
+Configure the Plumb lint driver in your package. Both lakefile formats are qualified:
 
-## 7. Complete semantic review
+- `lakefile.lean`: `package «my_project» where lintDriver := "plumb/lint"`
+- `lakefile.toml`: `lintDriver = "plumb/lint"` at the top level
+
+Then, from the project root:
+
+```sh
+lake lint                                  # incremental elaboration + current policy
+lake lint -- --fresh                       # isolated copy built from empty output
+lake lint -- --json-out tmp/plumb.json     # also write the schema-2 result
+lake lint -- --explain-config              # read-only: manifest, scope, profiles, stages
+```
+
+The driver builds every manifested library and executable by its explicit Lake target and
+inspects the completed environment. It re-evaluates current policy even when every module
+is cached, and it never invokes your default target. It runs the same audit body as
+`axiomGate`; it adds no second policy. Lake's lint dispatch builds only the driver, so the
+driver first builds the `plumb/axiomGate` executable that the audit runs as its worker, in
+the workspace where you ran `lake lint` (never the `--project` directory). That workspace
+built the driver itself, whether Plumb is a git dependency under `.lake/packages`, a path
+dependency or a custom `packagesDir`, so the worker uses the same dependencies and toolchain
+and needs no second dependency download. If that build fails, the run is `INCOMPLETE`.
+Run `lake lint` from the project root, without `-d`/`--dir`: Lake does not change the
+driver's working directory, so the driver refuses with exit 2 when the workspace there is
+positively identified as not the one that dispatched it, and stops with exit 3 when the
+working directory is outside any Lean project or its workspace fails to load. Lake v4.34.0
+passes the dispatching workspace's package library directories, then its own
+`LEAN_SYSROOT/lib/lean`, then any inherited `LEAN_PATH`, as the driver's `LEAN_PATH`; the
+driver requires the working-directory workspace's library directories and that directory to
+begin it (`Plumb.Checker.Lint.dispatchedFrom_iff`). A driver started outside Lake, or by a
+Lake not collocated with the toolchain, is refused.
+Its exit status separates the outcome:
+
+| Exit | Outcome |
+| --- | --- |
+| 0 | `ACCEPTED`: the audit constructed its accepted result for the selected mode. |
+| 1 | `VIOLATION`: completed policy rejections, for example PL1001–PL1007 or PL3002. |
+| 2 | `INVALID CONFIGURATION`: only PL2002 manifest/scope rejections, an invalid driver argument, a working directory that is not the dispatching workspace, or `--help`/`--explain-config`, which run no audit. |
+| 3 | `INCOMPLETE`: an incomplete finding, for example PL2001, PL2003, PL2005 or PL3001, a failed audit-worker build, a working directory outside any Lean project or whose workspace fails to load, or an error that escaped the audit. It takes precedence over violations reported in the same run. |
+
+Exit 0 requires a zero audit exit and the audit's recorded `completed` status, which carries
+the accepted account of the requested mode (`Plumb.Checker.Lint.accepted_sound`: an accepted
+run complete for its plan that meets every stage policy); any disagreement is `INCOMPLETE`.
+The success line is the account's `plumb lint: PASS — …` text, and it names the coverage: an
+incremental run reads "incremental project acceptance over existing build state, not a
+fresh-source audit"; only `--fresh` reads as fresh whole-project acceptance.
+`lake lint` builds the claimed targets with your package's `linter.plumb` off, so a live
+Plumb finding is not a build warning there: the audit's own policy stages report it, as a
+`VIOLATION`. Any other warning or build failure stops the audit before policy inspection
+and is `INCOMPLETE`, with the original compiler message printed as evidence. The option is
+part of Lake's module trace, and Lake scopes it to the whole package rather than to the
+modules that import `Plumb.Linter` (elsewhere it changes nothing), so modules last built
+with ordinary options (for example by `lake build` or the editor) are rebuilt for the
+audit, and their replayed logs never enter its warning check. `axiomGate` and the
+build-lint `policy` target keep ordinary options, so there a live finding stops the build
+check as `INCOMPLETE`. A source `set_option linter.plumb true` does the same under
+`lake lint` ([#69](https://github.com/rbeauchamp/lean-plumb/issues/69)). `--json-out` carries the same status and diagnostics for
+machines. `--help` and `--explain-config` run no audit, establish nothing and exit 2, so
+putting either in `lintDriverArgs` cannot make `lake lint` succeed; neither accepts
+`--json-out` or `--verbose`.
+
+Lake details that affect what ran:
+
+- Arguments for the driver follow `--`; Lake prepends `lintDriverArgs`. Positional module
+  arguments before `--` affect only Lake's builtin linters.
+- `lake lint --builtin-only` skips the driver and is **not** Plumb enforcement: it
+  exits 0 with a Plumb violation present. `lake lint --builtin-lint` runs builtin
+  linters and then the driver; a failing driver determines the exit code. Builtin linting
+  needs module arguments (for example `lake lint --builtin-lint Widget`) when the default
+  target is not a library, such as the `policy` target below. `lake check-lint` only reports whether a lint command is configured.
+- Lake has one `lintDriver` per package. A project that already uses another driver (for
+  example Mathlib's `runLinter`) keeps it and runs `lake exe lint` as a separate
+  command, or a composing script that succeeds only when both drivers succeed. Do not
+  overwrite the other driver silently or call `lake lint` from within a driver.
+
+`lake exe lint` runs the same driver without Lake's lint dispatch. The
+`axiomGate --file` single-file audit remains a `freshFile` result, never project coverage.
+
+A `lakefile.lean` project can also enforce during plain `lake build` with the
+[build-lint example](../../examples/build-lint/)'s sole-default `policy` target; see
+[docs/standard/8 §8.12](../standard/8-tooling-and-machine-audit.md#812-opt-in-enforcing-build-linter)
+for its scope and cache semantics. `lakefile.toml` has no custom targets, so TOML projects
+use `lake lint`. Direct `lean`, editor elaboration, an explicit build of another target and
+`--builtin-only` do not run the strict gate and are never reported as enforced.
+
+For CI, provision the pinned toolchain and dependencies, then run the driver as its own
+step so its exit status fails the job:
+
+```yaml
+- name: Plumb
+  run: lake lint -- --json-out tmp/lean-plumb.json
+```
+
+Use `lake lint -- --fresh` where the CI claim is fresh-source conformance. Incremental
+evidence trusts Lake's build cache. Upload `tmp/lean-plumb.json` if another step consumes
+the machine result. Its `status` is `completed` only when the accepted result was
+constructed.
+
+## 7. Receive diagnostics while editing
+
+Import `Plumb.Linter` from a module your project already imports widely. The
+[TOML example](../../examples/lake-lint-toml/) imports it in `Gadget/Double.lean`. The
+supported editor is VS Code with the Lean 4 extension on the
+[supported toolchain](../../README.md#supported-toolchain). While you edit, completed
+commands and modules show:
+
+- Warnings with codes `Plumb.PL1001`–`PL1007`, `PL2002` and `PL2005`, at the actual declaration
+  range, plus `PL5001`/`PL5002` when the module finishes elaborating.
+- In the infoview, Lean's own error-code widget with a **View explanation** link to the rule
+  page. The message text always ends with the same URL, which the Problems panel and
+  command-line output show when no widget renders.
+- `PL2005` when a finding needs fresh evidence that only the project command collects.
+  The message says to run `lake lint`.
+
+Execution closure (PL3001/PL3002), coverage (PL2004), build and warning checks (PL2003),
+fresh admission and complete result assembly run only in `lake lint`, `lake build` with the
+policy target, or `axiomGate`. A clean editor buffer means no current local findings, not a
+project result. `set_option linter.plumb false` and `plumb.localFoundation`
+change only local feedback. `lake lint` still rejects the same declaration.
+
+Local findings are ordinary compiler warnings in the editor and in a plain `lake build`.
+`lake lint` turns the linter off for its own build and reports the same rules itself, so
+it exits `VIOLATION` (1), not `INCOMPLETE`, while one remains.
+Rule links currently point to the development route
+`https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/`; the published site is delivered
+separately, and until it is deployed that route may not resolve.
+
+## 8. Complete semantic review
 
 A green gate establishes hole-freedom, exact axiom sets, module coverage, and boundary
 classification. The current checker does not establish that your theorems say what your prose says, that your
@@ -191,9 +311,13 @@ not the gate alone.
 - **`freshChecker`** (fresh `leanchecker` over the serialized module graph) is optional
   defense in depth for the separate `MUT-05` claim, not part of the ordinary loop.
 
-## Planned linter and linked rule reference
+## Rule reference website
 
-The [registry](rule-registry.md) is implemented. The [product architecture](linter-architecture.md) and [developer experience](developer-experience.md) specify conventional `lake lint`, editor integration and the GitHub Pages site still under development. The latter includes coexistence with an existing Mathlib lint driver and explicit local/project scope. Use the existing supported instructions above until their delivery issues integrate. The [one-rule prototype](../../examples/rule-reference-prototype/README.md) is interface evidence, not a complete adopter configuration or a published site. Canonical metadata and accepted-result design credit con-leche as detailed in the architecture.
+The [registry](rule-registry.md), `lake lint` driver and editor links above are implemented.
+The GitHub Pages rule-reference site specified in the [product architecture](linter-architecture.md)
+is still under development. The [one-rule prototype](../../examples/rule-reference-prototype/README.md)
+is interface evidence, not a published site. Canonical metadata and accepted-result design
+credit con-leche as detailed in the architecture.
 
 ## Accepted results and modes
 

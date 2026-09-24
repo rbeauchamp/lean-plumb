@@ -17,7 +17,10 @@ of messages after edits; Plumb has no global last-seen cursor.
 
 Local messages are ordinary Lean warnings with structured codes such as
 `Plumb.PL1001`, actual declaration ranges and development rule-reference
-URLs. `warningAsError` promotes these warnings uniformly. The development links
+URLs. Each message also carries Lean's own error-code widget (`Lean.errorDescriptionWidget`,
+a builtin widget module) with the same URL, so the infoview shows **View explanation**.
+The widget's text alternative is empty; the message text keeps the URL for clients
+without widgets. `warningAsError` promotes these warnings uniformly. The development links
 identify the intended version; this component does not publish their pages.
 For module/project findings, the canonical primary location stays module/project
 scoped. Lean's UI hosts module findings at the actual end of the in-memory file;
@@ -66,7 +69,8 @@ accepted project evidence or forges an inventory-bound Roles receipt.
 
 The local adapter calls the executed pure policy and shares its total failure-to-ID
 mapping with the project checker. It defers potential generated-role exceptions
-as PL2005 incomplete feedback rather than guessing authorization or emitting an
+as PL2005 incomplete feedback, whose message names `lake lint` as the project check,
+rather than guessing authorization or emitting an
 unsupported violation. Recoverable compiler errors can leave real hole-bearing
 declarations; those observations can still produce PL1002 while preserving the
 original compiler error. Unavailable collection is reported honestly.
@@ -75,9 +79,11 @@ No local result has an `Accepted` or project-PASS constructor. Fresh source
 admission, ownership reconciliation, execution closure, mandatory documentation
 jobs and complete result assembly belong to the
 [project acceptance paths](policy-acceptance.md#1-observed-call-flow-and-every-success-boundary).
-#13 retains the complete twenty-one-rule example corpus, #14 the Lake
-`plumb/lint` driver/configuration explanation and actual editor-widget journeys,
-and #15 the published Verso website.
+#13 retains the complete twenty-one-rule example corpus and #15 the published Verso
+website. The `lake lint` driver and its configuration explanation are in the
+[adoption guide](adoption.md#6-enforce-with-lake-lint-lake-build-and-ci); the observed
+VS Code journeys are in
+[session/evidence/issue-14-editor-journeys.md](../../session/evidence/issue-14-editor-journeys.md).
 
 ## Documentation presence
 
@@ -132,8 +138,9 @@ it retains the same pure data domain. It directly reuses Lean's
 [`getNewDecls`](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Linter/Util.lean),
 [`getDeclsInCurrModule`](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Linter/EnvLinter/Frontend.lean),
 command/module linter hooks, declaration ranges, axiom collection and docstring
-APIs. Direct message publication follows Lean's logger semantics while retaining
-Plumb's own rule URL instead of Lean's manual widget. No upstream code is
+APIs. Direct message publication follows Lean's logger semantics. It bypasses `logAt`,
+which would attach Lean's widget with a Lean-manual URL, and instead attaches the same
+upstream widget with Plumb's rule URL. No upstream code is
 copied or forked. See [design-influences.md](design-influences.md) for the separate
 policy-design influences and their exact attribution boundary.
 
