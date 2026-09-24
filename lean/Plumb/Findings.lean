@@ -26,6 +26,7 @@ def declarationFinding (id : RuleId) (name : Name) (detail : String)
   | .escapeHatch => (fun d => ⟨.escapeHatch, d⟩) <$> makeDiagnostic .escapeHatch a location mode claim .violation
   | .executableContract => (fun d => ⟨.executableContract, d⟩) <$> makeDiagnostic .executableContract a location mode claim .violation
   | .materialDocumentation => (fun d => ⟨.materialDocumentation, d⟩) <$> makeDiagnostic .materialDocumentation a location mode claim .violation
+  | .materialIntent => (fun d => ⟨.materialIntent, d⟩) <$> makeDiagnostic .materialIntent a location mode claim .violation
   | _ => .error s!"rule {id} is not a declaration policy diagnostic"
 
 /-- Known context conditions keep their ID; unknown conditions remain incomplete. -/

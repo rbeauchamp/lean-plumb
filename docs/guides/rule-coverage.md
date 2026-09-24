@@ -8,13 +8,13 @@ at baseline `f943f41c50876b25c8c5c2285e6ae4315645521e`. Changes to those require
 this map and affected typed descriptors together, with semantic review.
 
 See [native-linter.md](native-linter.md) for the delivered partial command feedback and complete module metadata observers.
-The [project producer integration](engine-producers.md) also enforces PL5001/PL5002 on completed
+The [project producer integration](engine-producers.md) also enforces PL5001–PL5003 on completed
 project scopes; the [acceptance guide](policy-acceptance.md) owns claim-indexed mandatory
 jobs and result composition.
 
 ## Exact selected diagnostic vocabulary
 
-The sole registry defines twenty stable IDs for the initial product. Grouping related failures under one ID
+The sole registry defines twenty-one stable IDs for the initial product. Grouping related failures under one ID
 does not discard their typed subreason, evidence or exact source. All apply as strict errors
 when their condition is present. Missing/unsupported evidence has result status INCOMPLETE;
 an established violation has FAIL. Neither can produce an accepted result. The existing checker
@@ -42,6 +42,7 @@ paths are under `lean/Plumb/Checker/`; `Probe` and `Report` are in `lean/Plumb/`
 | PL4004 | A trusted-compiler teaching example fails warning-free elaboration or required authenticated compiler classification. | Documentation/SourceAudit/Frontend → PL4004 + typed underlying refusal. | DocumentationExample. | Never count teaching example as conforming positive. No blanket native-name whitelist. |
 | PL5001 | A claimed module lacks module-doc metadata. | Linter.Documentation.modulePresent; AxiomGate project composition; #7 global jobs. | Module/environment; project/editor when module completed. | Presence alone says nothing about identifying all material declarations/assumptions. No imposed headings or layout. |
 | PL5002 | A public declaration explicitly registered as evidence for a material normative claim lacks a docstring. | plumb_material/findDocString?; AxiomGate project composition; #7 global jobs. Core missingDocs broader. | Elaboration/environment; project/editor. | Do not require all public/private/trivial declarations to have docs. Registration completeness and meaning remain semantic review; no name heuristic. |
+| PL5003 | A public declaration explicitly registered as evidence for a material normative claim has a docstring without a nonempty labelled Intent section: a Markdown ATX heading whose text is exactly `Intent` followed, before the next heading, by a line with non-whitespace text. | plumb_material/findDocString?; proved `PlumbPolicy.materialDocumentationFailure` (`materialDocumentationFailure_eq_missingIntent_iff`, `hasIntentSection_iff`); AxiomGate project composition; #7 global jobs. | Elaboration/environment; project/editor. | A missing docstring is PL5002 only; the two rules partition failures. Presence and linkage only: no intent detector, length threshold or similarity check. Adequacy of the intent and agreement with the explanation and declaration remain R-INTENT review. Fenced code is not tracked. |
 
 The engine must preserve every existing advertised failure condition, including warning and
 worker completion handling, while grouping its presentation. A new or unclassified internal
@@ -75,7 +76,7 @@ This accounts for normative requirements and recommendations beyond a superficia
 | 3.9–3.10 | THEOREM-04/08/09, SCOPE-02/03, DOC-02, FOUND-01/02. Conditional/open claims are not rejected for lacking an antecedent witness. |
 | 4.1–4.4 | TYPE-01–05, THEOREM-01/02/07/08, SCOPE-02/03. Numeric and mathematical-interface adequacy are specified-domain obligations. |
 | 4.5 | FOUND-01–05, BUILD-02, COMP-01. Report exact least label separately from selected maximum and executable witnesses. |
-| 5.1–5.4 | DOC-01/02, THEOREM-01, SCOPE-02. Presence checks are PL5001/5002; prose fidelity/readability remain review. |
+| 5.1–5.4 | DOC-01/02, THEOREM-01, SCOPE-02. Presence checks are PL5001/5002/5003; prose fidelity, intent adequacy and readability remain review. |
 | 6.1–6.6 | DECL-01/04 (acyclic imports and actual elaboration), DOC-01, TYPE-06, SCOPE-04. Naming, import minimality/order and section layout are recommendations, not new rejection rules. |
 | 7.1–7.17 | THEOREM-05/10, COMP-01–04, SCOPE-02/03, TYPE-01/03 for changed semantics. All workload-conditioned performance practices remain guidance, not a new conformance checklist or required benchmarks. |
 | 8.1–8.5 | DECL-01–04, FOUND-01–05, THEOREM-01/07, DOGFOOD-05. Exact environment, ownership, admission, attribution and contract scope preserved. |
@@ -92,10 +93,13 @@ must supply a precise claim language, adequate registration and checked implemen
 before it can replace the corresponding review. Responsible final reconciliation is #10, with
 mechanical selectors/adapters in #13 and accepted-evidence construction in #7.
 
-- **R-INTENT:** read back each material elaborated proposition against intended mathematics or
-  behavior; preserve quantifier order, hypotheses, totalized domain, existence/construction,
-  conditional/open status and external limits. No closed syntactic detector for arbitrary prose
-  is selected. A future claim DSL needs adequacy research, not a regex heuristic.
+- **R-INTENT:** read back each material elaborated proposition, and its §5.2 explanation, against
+  the written intent statement in the declaration's Intent section (PL5003 checks its presence);
+  preserve quantifier order, hypotheses, totalized domain, existence/construction,
+  conditional/open status and external limits. The requirement owner still confirms that the
+  intent states what is needed; no proof or presence check discharges that validation. No closed
+  syntactic detector for arbitrary prose is selected. A future claim DSL needs adequacy research,
+  not a regex heuristic.
 - **R-INVARIANT:** identify intended admitted-value, transition, frame, reachability and composition
   relations, inspect all admission/write/caller paths, then require exact proof-bearing interfaces
   or theorems. Existing Lean checks evidence once the obligation is explicit; they cannot infer
@@ -173,7 +177,7 @@ normative domain. No row can be discharged solely by a presence check or a check
 | `BUILD-03` | Required executable evidence inhabits the exact predicate of the actual named implementation, and registered private/imported roots retain execution coverage. | PL1007/2004/3001/3002 | R-INVARIANT, R-QUALIFY |
 | `BUILD-04` | Cached modules and changed configuration cannot reuse a stale policy verdict; exact claimed Lake coverage and supported-context limits are explicit. | PL2002/2004/2005; uncached policy job | R-QUALIFY |
 | `DOC-01` | Public declarations supporting material normative claims have docstrings stating their formal purpose, relevant assumptions, result, and invariant boundary; every claimed module documents its material declarations and assumptions. | PL5001/5002 presence and explicit selection | R-DOC |
-| `DOC-02` | English explanations of normative Lean statements faithfully convey their quantifiers, hypotheses, conclusions, relevant definitions, and limitations, and identify the authoritative Lean declaration. | No general prose-equivalence detector | R-DOC, R-INTENT |
+| `DOC-02` | English explanations of normative Lean statements faithfully convey their quantifiers, hypotheses, conclusions, relevant definitions, and limitations, and identify the authoritative Lean declaration. Each material claim's docstring carries a nonempty Intent section. | PL5003 Intent-section presence for explicit selection; no general prose-equivalence detector | R-DOC, R-INTENT |
 | `DOC-03` | Every Lean fence in the normative documentation tree (`docs/standard/**/*.md` here) is structurally classified; malformed markers/fences fail closed. | PL4001 | R-QUALIFY |
 | `DOC-04` | Every positive Lean fence elaborates exactly as printed, warning-free, then passes owned logical admission and declaration/axiom classification. | PL4002 and underlying declaration/admission rules | R-INTENT, R-QUALIFY |
 | `DOC-05` | Every negative fence fails for its non-empty expected diagnostic, and trusted-compiler teaching fences are classified but never counted as conforming. | PL4003/4004 | R-QUALIFY |
@@ -190,7 +194,7 @@ normative domain. No row can be discharged solely by a presence check or a check
 
 The 53-row equality check is an exhaustive check over this closed documentation inventory,
 not a proof that natural-language requirements were interpreted adequately. Independent review
-must confirm the mapping. Semantic-review rows remain required after all twenty rules ship.
+must confirm the mapping. Semantic-review rows remain required after all twenty-one rules ship.
 
 ## Attribution
 

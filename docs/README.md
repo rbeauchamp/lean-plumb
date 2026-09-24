@@ -29,7 +29,7 @@ Return to the [project overview](../README.md).
 
 - [Linter and website architecture](guides/linter-architecture.md): selected interfaces, pins, versioned help links and delivery sequence.
 - [Rule registry and diagnostics](guides/rule-registry.md): implemented typed interfaces, output migration, source conventions and qualification.
-- [Complete rule coverage](guides/rule-coverage.md): twenty selected diagnostics and all residual checklist obligations.
+- [Complete rule coverage](guides/rule-coverage.md): twenty-one selected diagnostics and all residual checklist obligations.
 
 - [Policy acceptance contract](guides/policy-acceptance.md): exact scope, complete results, pure proof boundary and migration.
 

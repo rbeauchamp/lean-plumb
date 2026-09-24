@@ -39,7 +39,8 @@ def requirements (report : Json) (code : Nat) (rule mode source : String)
   let declarations ← array account "declarations"
   let declaration ← first declarations
   let material := if rule == "PL5002" then #[key] else #[]
-  let doc := if fixed then Json.str "Every natural number equals itself, without additional hypotheses. " else .null
+  let doc := if fixed then Json.str ("Every natural number equals itself, without additional hypotheses.\n\n" ++
+    "# Intent\nEquality on natural numbers must be reflexive for every value, with no side condition. ") else .null
   let mut checks : List Check := [
     ⟨"exact diagnostic list", ids == (if fixed then [] else [rule])⟩,
     ⟨"exact exit", code == (if fixed then 0 else 1)⟩,

@@ -31,13 +31,16 @@ and calls the existing `Linter.Documentation` observer and `Lean.findDocString?`
 Module observations include declaration-free modules. Markdown and Verso module metadata,
 Verso declaration docs and inherited docs follow the same Lean lookup semantics as native
 feedback. Private declarations and unregistered public declarations do not acquire PL5002
-obligations. Registration completeness and text fidelity remain **R-DOC** review.
+or PL5003 obligations. Registration completeness and text fidelity remain **R-DOC** review.
 
-The project gate now emits PL5001 for a missing claimed module doc and PL5002 for a missing
-docstring on a selected declaration, in both fresh and incremental project modes. It does
+The project gate now emits PL5001 for a missing claimed module doc, PL5002 for a missing
+docstring on a selected declaration, and PL5003 for a selected declaration's docstring
+without a nonempty `# Intent` section, in both fresh and incremental project modes. The
+recorded docstring is classified by the proved `PlumbPolicy.materialDocumentationFailure`. It does
 not depend on whether native feedback was imported or enabled. PL5001 uses module attribution;
-PL5002 uses authenticated declaration ranges when available, otherwise module attribution.
-Neither detector imposes headings, lengths, or a universal all-public-declarations rule.
+PL5002 and PL5003 use authenticated declaration ranges when available, otherwise module
+attribution. Only PL5003 requires a heading, the labelled Intent section; no detector imposes
+lengths or a universal all-public-declarations rule.
 File/fence results retain their scoped enforcement; the [acceptance guide](policy-acceptance.md)
 owns global mode/job composition.
 
@@ -114,11 +117,11 @@ The existing structural campaign remains separately scoped; this does not report
 
 ## Source-owned examples and qualification
 
-The module/documentation source pairs are [PL5001](../../examples/rules/PL5001/) and
-[PL5002](../../examples/rules/PL5002/). Each correction preserves exactly
+The module/documentation source pairs are [PL5001](../../examples/rules/PL5001/),
+[PL5002](../../examples/rules/PL5002/) and [PL5003](../../examples/rules/PL5003/). Each correction preserves exactly
 `∀ n : Nat, n = n`, with the same proof and no new assumptions. Only documentation is added.
 They are isolated from positive libraries and copied byte-for-byte into a disposable
-Core-only adopter as `Example.lean`. The complete twenty-rule corpus and its separate
+Core-only adopter as `Example.lean`. The complete twenty-one-rule corpus and its separate
 unavailable-analysis demonstrations are described in [rule examples](rule-examples.md).
 
 Run `./scripts/verify.sh diagnostics producers` for the bounded operational campaign.

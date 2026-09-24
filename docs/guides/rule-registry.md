@@ -5,7 +5,7 @@ The implementation lives in `PlumbCore.RuleId`, `PlumbCore.Rule`,
 `Plumb.DiagnosticCodec` and `Plumb.Website`; the first two are on the claimed
 `PlumbCore` surface, whose declarations the gate audits. These modules supply one
 vocabulary to the existing checker, its native diagnostic prototype and the
-prototype website. The [coverage map](rule-coverage.md) defines the twenty
+prototype website. The [coverage map](rule-coverage.md) defines the twenty-one
 reserved predicates and their residual semantic obligations.
 
 ## Identity and authoring
@@ -21,7 +21,7 @@ message-template identifiers, strict default, supported evidence modes,
 implementation availability, lifecycle and attribution. `existingChecker`
 means the named existing predicate has a checker implementation; it does not
 mean that every planned live editor or production website adapter is complete.
-PL5001 and PL5002 now have native metadata-presence observers. PL1001–PL1007
+PL5001–PL5003 now have native metadata-presence observers. PL1001–PL1007
 have partial command feedback; PL2002 covers invalid local foundation requests,
 and PL2005 covers unavailable or pending local analysis. Full project integration
 is separate from those local modes. See [native-linter.md](native-linter.md) for
@@ -234,7 +234,7 @@ Standard-Logical. The empty-foundation results are `parse_spelling` and `all_nod
 listed results use `propext`, `Quot.sound` and `Classical.choice`. None uses a
 project axiom, hole or compiler-trusting proof axiom.
 
-`RegistryChecks` exhaustively checks the twenty canonical descriptors and exercises
+`RegistryChecks` exhaustively checks the twenty-one canonical descriptors and exercises
 malformed transport, missing/duplicate routes, unsupported modes, Unicode/CRLF
 coordinate boundaries, native/text agreement and incomplete negative outcomes.
 Those controls qualify operational boundaries; they are not sampled evidence for

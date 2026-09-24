@@ -67,7 +67,7 @@ private def corpusBody (json : Json) : Except String Unit := do
   let complete ← (← field json "completeCorpus").getBool?
   if complete then
     unless selected.size == Plumb.RuleId.all.length && Plumb.RuleId.all.all selected.contains do
-      throw "incomplete twenty-rule corpus"
+      throw "incomplete rule corpus: not every registered rule"
   let checkerBefore ← field json "checkerBefore"
   unless checkerBefore == (← field json "checkerAfter") do throw "checker sources changed"
   let checkerFiles ← sources checkerBefore

@@ -60,7 +60,7 @@ accepted project evidence or forges an inventory-bound Roles receipt.
 | --- | --- | --- |
 | Command hook / `Collect.commandDeclarations` | Records for constant binders in this command's Lean information trees; actual policy decisions PL1001–PL1007 when required evidence is available. | Elaborators can add constants without binder information. This is not a complete declaration census. |
 | `Collect.currentModule` | All constants in Lean's current-module map, including private/generated/unused and binder-less declarations. | The caller establishes completion; a partially elaborated environment is still partial. |
-| Module hook | PL5001 metadata presence and PL5002 presence for explicitly registered public declarations in the completed local map. | It does not repeat all command policy diagnostics or certify complete local declaration-policy coverage. |
+| Module hook | PL5001 metadata presence, and PL5002 docstring and PL5003 Intent-section presence for explicitly registered public declarations in the completed local map. | It does not repeat all command policy diagnostics or certify complete local declaration-policy coverage. |
 | `Collect.declaration name .snapshot` | Canonical semantic facts for that exact current/imported declaration, with Lean ownership, ranges, transitive axioms and contract shape. | Native replay and generated-role authentication are omitted. |
 | `Collect.declaration name .replayCandidate` | The same constructor with existing replay/equation/parent observations used by `Probe`. | Observations still require fresh transcripts and the existing authorization/admission checks. |
 
@@ -75,17 +75,24 @@ No local result has an `Accepted` or project-PASS constructor. Fresh source
 admission, ownership reconciliation, execution closure, mandatory documentation
 jobs and complete result assembly belong to the
 [project acceptance paths](policy-acceptance.md#1-observed-call-flow-and-every-success-boundary).
-#13 retains the complete twenty-rule example corpus, #14 the Lake
+#13 retains the complete twenty-one-rule example corpus, #14 the Lake
 `plumb/lint` driver/configuration explanation and actual editor-widget journeys,
 and #15 the published Verso website.
 
 ## Documentation presence
 
 Use `@[plumb_material]` on a public declaration that states a material
-normative claim. Its persistent Lean tag selects the PL5002 obligation. Private
+normative claim. Its persistent Lean tag selects the PL5002 and PL5003 obligations. Private
 names follow Lean's own visibility representation and do not enter that public
 selector. `Lean.findDocString?` accepts ordinary, Verso and inherited docstrings.
-There is no minimum length, heading convention or adequacy inference.
+PL5002 reports a missing docstring. PL5003 reports a docstring without a nonempty labelled
+Intent section ([standard §5.2](../standard/5-documentation-standards.md#52-faithful-explanation-of-formal-claims)):
+a Markdown heading whose text is exactly `Intent` (write `# Intent`, the only level Verso
+docstrings accept), followed before the next heading by a line with non-whitespace text.
+The executed classification is `PlumbPolicy.materialDocumentationFailure`, and
+`materialDocumentationFailure_eq_none_iff`, `_eq_missingDocstring_iff` and
+`_eq_missingIntent_iff` prove which docstrings each rule reports; the two rules never both
+fire. There is no minimum length, intent detector, similarity check or adequacy inference.
 
 PL5001 uses both Markdown and Verso module-doc metadata. The imported-module
 observer requires normal server/private documentation metadata to be loaded;
@@ -95,7 +102,8 @@ an absent doc comment. An empty loaded metadata array means absence. Current
 metadata is checked only after module completion by the native module hook.
 
 Registration completeness, the meaning of material claims, stated assumptions,
-and documentation adequacy remain R-DOC semantic review. Presence alone does
+and documentation adequacy remain R-DOC semantic review; whether the intent states the
+requirement, and whether the declaration meets it, remain R-INTENT review. Presence alone does
 not discharge every requirement of chapter 5.
 
 ## Rule-author and verification contract

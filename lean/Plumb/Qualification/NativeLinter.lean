@@ -8,7 +8,10 @@ in `PlumbQualification.Native`; actual compiler behavior is observed, not proved
 namespace Plumb.Qualification.NativeLinter
 open Lean System
 
-private def base := "import Plumb.Linter\n/-! Collector qualification control. -/\n/-- A registered material claim. -/\n@[plumb_material] theorem documented : True := .intro\nprivate def privateValue : Nat := 1\ninductive Branch where\n  | node : List Branch → Branch\n"
+/-- The registered claim's docstring, with the nonempty Intent section PL5003 requires. -/
+private def claimDoc := "/-- A registered material claim.\n\n# Intent\nQualify the native Intent-section observer. -/\n"
+
+private def base := "import Plumb.Linter\n/-! Collector qualification control. -/\n" ++ claimDoc ++ "@[plumb_material] theorem documented : True := .intro\nprivate def privateValue : Nat := 1\ninductive Branch where\n  | node : List Branch → Branch\n"
 
 /-- One native control's invocation options and expected diagnostic contract. -/
 structure Control where
@@ -67,18 +70,19 @@ def checkAt (root scratch : FilePath) (launcher : Launcher.State) : IO Unit := d
     let axiomSource := base ++ "\naxiom forbidden : False\n"
     let messages ← check { label := "Axiom", source := axiomSource, ids := ["PL1001"] }
     requireChecks [⟨"axiom diagnostic selection position", (← position messages "PL1001") ==
-      Json.mkObj [("line", toJson (9 : Nat)), ("column", toJson (6 : Nat))]⟩]
+      Json.mkObj [("line", toJson (12 : Nat)), ("column", toJson (6 : Nat))]⟩]
     let _ ← check {
       label := "PromotedAxiom", source := axiomSource, ids := ["PL1001"],
       errors := true, options := #["-DwarningAsError=true"] }
-    let missing := base.replace "/-! Collector qualification control. -/\n" "" |>.replace
-      "/-- A registered material claim. -/\n" ""
+    let missing := base.replace "/-! Collector qualification control. -/\n" "" |>.replace claimDoc ""
     let messages ← check { label := "Missing", source := missing, ids := ["PL5001", "PL5002"], output := true }
     requireChecks [⟨"missing module documentation position", (← position messages "PL5001") ==
       Json.mkObj [("line", toJson (missing.splitOn "\n").length), ("column", toJson (0 : Nat))]⟩]
     let controls : List Control := [
       { label := "PromotedMissing", source := missing, ids := ["PL5001", "PL5002"], errors := true,
         options := #["-DwarningAsError=true"] },
+      { label := "MissingIntent", source := base.replace claimDoc "/-- A registered material claim. -/\n",
+        ids := ["PL5003"] },
       { label := "Disabled", source := base.replace "/-!" "set_option linter.plumb false\n/-!" ++
         "axiom forbidden : False\n" },
       { label := "Narrow", source := base ++ "set_option plumb.localFoundation \"kernel-only\"\n" ++
@@ -115,7 +119,7 @@ def checkAt (root scratch : FilePath) (launcher : Launcher.State) : IO Unit := d
       "set_option plumb.localFoundation \"unsupported\"\ndef selected : Nat := 1\n", ids := ["PL2002", "PL2002"] }
     let lines ← IO.ofExcept (config.mapM fun value => do
       (← value.getObjVal? "pos").getObjValAs? Nat "line")
-    requireChecks [⟨"configuration diagnostic ordering/positions", lines == [8, 9]⟩]
+    requireChecks [⟨"configuration diagnostic ordering/positions", lines == [11, 12]⟩]
     for control in controls do let _ ← check control
     let malformed := base ++ "open Lean Elab Command in\nelab \"bad_range \" name:ident : command => do\n  elabCommand (← `(axiom $name:ident : False))\n  let some ranges ← findDeclarationRangesCore? name.getId | throwError \"missing control range\"\n  let invalid := { ranges.range with pos := ⟨9999, 0⟩, endPos := ⟨9999, 1⟩ }\n  addDeclarationRanges name.getId { range := invalid, selectionRange := invalid }\nbad_range corrupted\n"
     let restored := malformed.replace "{ ranges.range with pos := ⟨9999, 0⟩, endPos := ⟨9999, 1⟩ }" "ranges.range"
@@ -126,17 +130,17 @@ def checkAt (root scratch : FilePath) (launcher : Launcher.State) : IO Unit := d
     let _ ← check { label := "RestoredRange", source := restored, ids := ["PL1001"] }
     let verso := base.replace "/-!" "set_option doc.verso true\nset_option doc.verso.module true\n/-!"
     let _ ← check { label := "Verso", source := verso, output := true }
-    let _ ← check { label := "Inherited", source := base ++ "/-- Reused documentation. -/\ndef parent : Nat := 1\n@[inherit_doc parent, plumb_material] def child : Nat := 1\n@[plumb_material] private def privateMaterial : Nat := 1\n" }
+    let _ ← check { label := "Inherited", source := base ++ "/-- Reused documentation.\n\n# Intent\nInherited by the registered child. -/\ndef parent : Nat := 1\n@[inherit_doc parent, plumb_material] def child : Nat := 1\n@[plumb_material] private def privateMaterial : Nat := 1\n" }
     let moduleStyle := base.replace "import Plumb.Linter" "module\nimport Plumb.Linter" |>.replace
       "@[plumb_material] theorem" "@[plumb_material] public theorem"
     let _ ← check { label := "ModuleSystem", source := moduleStyle ++ "@[plumb_material] theorem privateMaterial : True := .intro\n" }
     let _ ← check { label := "ModuleAxiom", source := moduleStyle ++ "public axiom forbidden : False\n", ids := ["PL1001"] }
     let _ ← check {
       label := "ModuleMissing", source := (moduleStyle.replace "/-! Collector qualification control. -/\n" "").replace
-        "/-- A registered material claim. -/\n" "", ids := ["PL5001", "PL5002"] }
+        claimDoc "", ids := ["PL5001", "PL5002"] }
     let inspect := base ++ "run_cmd Lean.Elab.Command.liftCoreM <| Lean.addDecl (.axiomDecl {\n  name := `hiddenAxiom, levelParams := [], type := Lean.mkSort .zero, isUnsafe := false })\nrun_cmd do\n  let env ← Lean.getEnv\n  let ds ← Plumb.Collect.currentModule\n  unless ds.any (fun d => d.name == `hiddenAxiom && d.kind == .«axiom») do\n    throwError \"binder-less declaration missing\"\n  unless ds.any (fun d => d.private) do throwError \"private declaration missing\"\n  unless ds.any (fun d => d.name == `Branch.rec) do throwError \"generated declaration missing\"\n  unless ds.all (fun d => d.module == env.mainModule) do throwError \"wrong local ownership\"\n  let a ← Plumb.Collect.declaration `documented .snapshot\n  let b ← Plumb.Collect.declaration `documented .replayCandidate\n  unless a == b do throwError \"stage changed ordinary canonical record\"\n  unless (Plumb.Collect.moduleOf env `unknownDeclaration).toOption.isNone do\n    throwError \"invented unknown ownership\"\n  if env.header.modules.any (fun m => m.module.getRoot == `Mathlib) then\n    throwError \"public import required Mathlib\"\n"
     let _ ← check { label := "Collect", source := inspect }
-    let observer := "import Control\n/-! Imported observation control. -/\nrun_cmd do\n  let env ← Lean.getEnv\n  for moduleName in #[`Control] do\n    unless (Plumb.Linter.Documentation.modulePresent env moduleName).toOption == some true do\n      throwError \"imported module documentation absent\"\n  unless Plumb.Linter.Documentation.selected env `documented do\n    throwError \"imported registration missing\"\n  unless (← Plumb.Linter.Documentation.declarationPresent env `documented) == true do\n    throwError \"imported declaration documentation mismatch\"\n  let d ← Plumb.Collect.declaration `documented .snapshot\n  unless d.module == `Control do throwError \"wrong imported ownership\"\n  unless (Plumb.Linter.Documentation.modulePresent env `Unknown).toOption.isNone do\n    throwError \"unknown module treated as absent\"\n"
+    let observer := "import Control\n/-! Imported observation control. -/\nrun_cmd do\n  let env ← Lean.getEnv\n  for moduleName in #[`Control] do\n    unless (Plumb.Linter.Documentation.modulePresent env moduleName).toOption == some true do\n      throwError \"imported module documentation absent\"\n  unless Plumb.Linter.Documentation.selected env `documented do\n    throwError \"imported registration missing\"\n  unless (← Plumb.Linter.Documentation.declarationFailure env `documented).isNone == true do\n    throwError \"imported declaration documentation mismatch\"\n  let d ← Plumb.Collect.declaration `documented .snapshot\n  unless d.module == `Control do throwError \"wrong imported ownership\"\n  unless (Plumb.Linter.Documentation.modulePresent env `Unknown).toOption.isNone do\n    throwError \"unknown module treated as absent\"\n"
     let search := SearchPath.parse (← Launcher.leanPath root launcher)
     let env := #[("LEAN_PATH", some (SearchPath.toString (search ++ [scratch])))]
     let _ ← NativeLinter.check root scratch launcher { label := "Imported", source := observer } env
@@ -184,9 +188,9 @@ def paired : IO Unit := do
         report.modify (·.setObjVal! "runs" (toJson runs))
       let some before := observations[0]? | throw <| IO.userError "missing baseline"
       let some after := observations[1]? | throw <| IO.userError "missing candidate"
-      requireChecks [⟨"36 exact paired controls", PlumbQualification.Launcher.checkedEquivalence.run before after⟩]
+      requireChecks [⟨"37 exact paired controls", PlumbQualification.Launcher.checkedEquivalence.run before after⟩]
       report.modify fun value => (value.setObjVal! "equivalent" (.bool true)).setObjVal! "outcome" (.str "PASS")
-      IO.println "launcher diagnostic: PASS (36 exact paired controls; timing is an observation only)"
+      IO.println "launcher diagnostic: PASS (37 exact paired controls; timing is an observation only)"
   catch e =>
     report.modify (·.setObjVal! "outcome" (.str "FAIL"))
     throw e
