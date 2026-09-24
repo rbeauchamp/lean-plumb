@@ -69,7 +69,9 @@ keyboard activation of **Explain PL1001** reached it from the diagnostic control
 CLI bridge could not start and hidden-tab mouse actions timed out; keyboard navigation supplied
 the successful browser observation. This is **not VS Code evidence**.
 
-Actual Lean VS Code infoview widget interaction is **unverified here**, assigned to #14.
+Actual Lean VS Code infoview interaction is **not verified by this probe**; the production
+linter's observations are in
+[session/evidence/issue-14-editor-journeys.md](../../session/evidence/issue-14-editor-journeys.md).
 Current-document collection and scheduling belong to #13. The probe's explicit command takes
 an imported module and supplied source filename; production must derive/validate source identity.
 `Probe.ownedConstants` inventories imported module indices, so using it unchanged does not cover

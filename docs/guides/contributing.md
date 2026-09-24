@@ -57,6 +57,7 @@ checker behavior:
 | `cli` | Command-line behavior and diagnostics. |
 | `environments` | Isolated environments, documentation scanning, and external adopters. |
 | `build-policy` | Enforcement through the example's ordinary Lake build. |
+| `lint-driver` | `lake lint` dispatch and exit classes in both shipped adopters. |
 | `producers` | [Project producer and documentation qualification](engine-producers.md). |
 | `history` | [Source-bound replacement history qualification](engine-producers.md). |
 | `rule-examples`, `rule-examples 1/2`, `rule-examples 2/2` | [Source-owned corpus and diagnostic demonstrations](rule-examples.md); a shard runs half of the rules. |

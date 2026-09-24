@@ -1,7 +1,9 @@
 import Lake
 open Lake DSL
 
-package build_lint_adopter
+package build_lint_adopter where
+  -- `lake lint` runs the Plumb driver over every manifested surface.
+  lintDriver := "plumb/lint"
 
 require plumb from "../.."
 

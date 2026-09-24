@@ -4,6 +4,7 @@ import Plumb.Checker.Lake
 import Plumb.Checker.CompilerPaths
 import Plumb.Checker.PolicyQualification
 import Plumb.Checker.BuildLintQualification
+import Plumb.Checker.LintQualification
 
 /-!
 Focused qualification suite for the repository's Lean-native checkers.
@@ -32,7 +33,8 @@ re-paying it per verdict:
 With `--build-bound`, the closed partitions are `fixtures` (in-process fixtures,
 scanner, and fence corpus), `structural` (structural/compiler-path and
 manifest controls), `cli` (the complete CLI sweep), `environments` (packaging
-and fresh-state controls), and `build-policy` (ordinary-build enforcement).
+and fresh-state controls), `build-policy` (ordinary-build enforcement), and `lint-driver` (`lake lint`
+dispatch and exit classes).
 Each starts with the same baseline preparation.
 Their disjoint union is the full run; no partition alone reports full qualification.
 
@@ -70,6 +72,7 @@ inductive Partition where
   | cli
   | environments
   | buildPolicy
+  | lintDriver
   deriving Repr, BEq, DecidableEq
 
 private def Partition.label : Partition → String
@@ -78,9 +81,10 @@ private def Partition.label : Partition → String
   | .cli => "cli"
   | .environments => "environments"
   | .buildPolicy => "build-policy"
+  | .lintDriver => "lint-driver"
 
 /-- The full run enumerates each supported partition exactly once. -/
-private def Partition.all : List Partition := [.fixtures, .structural, .cli, .environments, .buildPolicy]
+private def Partition.all : List Partition := [.fixtures, .structural, .cli, .environments, .buildPolicy, .lintDriver]
 
 private theorem Partition.all_complete (partition : Partition) : partition ∈ all := by
   cases partition <;> simp [all]
@@ -95,12 +99,12 @@ structure Options where
   help : Bool := false
 
 private def usage : String :=
-  "usage: lake exe checkerSelftest -- [--jobs N] [--structural-only] [--build-bound [--partition fixtures|structural|cli|environments|build-policy]]\n" ++
+  "usage: lake exe checkerSelftest -- [--jobs N] [--structural-only] [--build-bound [--partition fixtures|structural|cli|environments|build-policy|lint-driver]]\n" ++
   "--fences-only: focused in-process and public fence qualification, without the full suite\n" ++
   "default tier: every planted-defect verdict in one process plus a real-CLI smoke tier\n" ++
   "--build-bound: additionally run the conditional tier (real-CLI sweep, end-to-end\n" ++
   "fence corpus, external adopters, clean-checkout environment, public controls)\n" ++
-  "--partition: run only the named build-bound group; all five groups are required for full qualification"
+  "--partition: run only the named build-bound group; all six groups are required for full qualification"
 
 private partial def parseArgs : List String → Options → IO Options
   | [], options => do
@@ -127,6 +131,7 @@ private partial def parseArgs : List String → Options → IO Options
         | "cli" => pure Partition.cli
         | "environments" => pure Partition.environments
         | "build-policy" => pure Partition.buildPolicy
+        | "lint-driver" => pure Partition.lintDriver
         | _ => throw <| IO.userError s!"unknown partition: {value}"
       parseArgs rest { options with partition := some partition }
   | "--help" :: rest, options | "-h" :: rest, options =>
@@ -1532,6 +1537,16 @@ private def runBuildPolicy (repo : FilePath) (jobs : Nat)
     IO.println <| "self-test build policy linter: " ++
       (if buildLint.isEmpty then "PASS" else "FAIL")
 
+/-- `lake lint` driver controls: Lake dispatch in both lakefile formats and exit classes.
+The shared audit body's detectors are qualified by the build-policy partition. -/
+private def runLintDriver (repo : FilePath) (jobs : Nat)
+    (failures : IO.Ref (Array String)) : IO Unit := do
+  withScratch repo "checker-lake-lint" fun scratch => do
+    let lint ← timedPhase "lake lint driver controls" <|
+      LintQualification.qualify repo scratch jobs
+    for failure in lint do failures.modify (·.push failure)
+    IO.println <| "self-test lake lint driver: " ++ (if lint.isEmpty then "PASS" else "FAIL")
+
 /-- Full and selected runs use the same group implementations. This exhaustive
 match assigns each supported partition exactly one implementation. -/
 private unsafe def runPartition (layout : SourceLayout) (partition : Partition) (repo : FilePath) (jobs : Nat)
@@ -1542,6 +1557,7 @@ private unsafe def runPartition (layout : SourceLayout) (partition : Partition) 
   | .cli => runCli repo jobs true fixtures failures
   | .environments => runEnvironments layout repo failures
   | .buildPolicy => runBuildPolicy repo jobs failures
+  | .lintDriver => runLintDriver repo jobs failures
 
 /-- The combined public command must preserve Markdown discovery even in
 subdirectories pruned by the generic project copier. Exercise a fresh positive,
@@ -1690,7 +1706,7 @@ unsafe def run (args : List String) : IO UInt32 := do
   -- later phase sees an already-warm build.
   let surfaceManifest ← Manifest.load (Manifest.defaultPath repo)
   let build ← timedPhase "baseline build" <| runProcess repo "lake"
-    (#["build", "axiomGate", "docFenceAudit", "freshChecker", "Fixtures.Mutations.DirectAxiom"]
+    (#["build", "axiomGate", "lint", "docFenceAudit", "freshChecker", "Fixtures.Mutations.DirectAxiom"]
       ++ Manifest.positiveTargets surfaceManifest)
   if !build.succeeded then
     IO.println s!"FAIL: baseline checker and claimed-surface build failed:\n{build.output}"
