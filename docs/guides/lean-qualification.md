@@ -193,8 +193,13 @@ at or above the limit exhausts at once and its replacement stays trusted. At mos
 report workers run at once, each running its checks sequentially, so correspondence checks
 hold the audit's resident memory within 3 × 1 = 3 GiB above those workers' first-check peaks
 on a 16 GiB CI runner; memory used outside the checks is not bounded by this limit. Kernel resource exhaustion is not
-conflated with rejection: the replacement stays trusted, but its reason says the kernel ran
-out of resources before deciding definitional correspondence. With both fixed,
+conflated with rejection: its reason says the kernel ran out of resources before deciding
+definitional correspondence. Unless a theorem candidate is then admitted, the replacement
+is currently classified trusted, as before this change. That does not yet conform to
+[§8.6](../standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly), which
+defines a comparison that could not complete as unresolved;
+[issue #63](https://github.com/rbeauchamp/strict-lean/issues/63) tracks the conforming
+code change. With both fixed,
 `diagnostics structural` passed locally in 806 s, down from 1015 s (observed before the
 memory bound was added). That is still over the
 420-second budget, which remains follow-up work. `StrictLeanPolicy` stays claimed in each
