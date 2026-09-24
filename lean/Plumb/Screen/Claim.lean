@@ -106,8 +106,14 @@ def readClaim (name : Name) : MetaM ClaimInput := do
         catch e => pure (.refused proof.toName (← e.toMessageData.toString))
       discharges := discharges.push (some check)
     | none =>
-      clauses := clauses.push clause
-      discharges := discharges.push none
+      match dischargeMarked? clause with
+      | some (english, reference) =>
+        clauses := clauses.push english
+        discharges := discharges.push (some (.refused (.mkSimple reference)
+          "malformed discharge marker: a marked clause must end with (discharged by `Name`), where Name is nonempty and contains no whitespace or backtick"))
+      | none =>
+        clauses := clauses.push clause
+        discharges := discharges.push none
   return { name, text := ⟨clauses.toList, PlumbPolicy.Screening.explanation doc, ← pretty statement⟩,
            discharges := discharges.toList }
 

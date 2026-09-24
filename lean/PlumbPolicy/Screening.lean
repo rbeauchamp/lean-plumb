@@ -474,6 +474,35 @@ theorem discharge_examples :
     discharge? "(discharged by `x`) trailing" = none := by
   decide
 
+/-- A clause that contains the discharge marker, well formed or not: the English text before
+its first marker and the reference text after it. A marked clause that `discharge?` does not
+read is a malformed reference, never an unmarked clause. -/
+def dischargeMarked? (clause : String) : Option (String × String) :=
+  (splitMarker (trim clause.toList)).map fun (english, after) =>
+    (String.ofList (trim english), String.ofList after)
+
+/-- Every reference `discharge?` reads is marked, with the same English text. -/
+theorem dischargeMarked?_of_discharge? {clause english name : String}
+    (h : discharge? clause = some (english, name)) :
+    ∃ reference, dischargeMarked? clause = some (english, reference) := by
+  unfold discharge? at h
+  unfold dischargeMarked?
+  cases hs : splitMarker (trim clause.toList) with
+  | none => simp [hs] at h
+  | some p =>
+    obtain ⟨before, after⟩ := p
+    simp only [hs, bind, Option.bind] at h
+    split at h
+    · cases h; exact ⟨_, rfl⟩
+    · cases h
+
+theorem dischargeMarked_examples :
+    dischargeMarked? "Same elements. (discharged by `Demo.sort_perm`)." =
+      some ("Same elements.", "Demo.sort_perm`).") ∧
+    dischargeMarked? "Same elements. (discharged by `a b`)" = some ("Same elements.", "a b`)") ∧
+    dischargeMarked? "Same elements." = none := by
+  decide
+
 /-! ## Judgments -/
 
 /-- The judgments a screen asks. `correspondence` asks whether the formal statement of a

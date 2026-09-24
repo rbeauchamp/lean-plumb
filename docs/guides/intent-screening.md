@@ -59,7 +59,8 @@ and the screen's adapter ran the other checks. That part of the clause is **chec
 involves no model judgment. The model
 judges only one question about it: does `P` state the English clause? The report calls this
 the *correspondence* judgment. The screen asks no coverage question for a discharged clause.
-A reference that fails any condition leaves only its clause unresolved: the clause is
+A reference that fails any condition, or a clause that contains the marker text `(discharged by`
+but does not end with a well-formed reference, leaves only its clause unresolved: the clause is
 reported as a refused discharge with the reason, in the `open semantic review` class. It is
 neither checked nor judged (no coverage question is asked for it), it never falls back to a
 judged clause, and its claim is escalated to review. Every other clause and claim is still
@@ -92,13 +93,17 @@ probability is therefore the warning sign for every judgment.
   "schema-version": 1,
   "model": "jev-1.13.0",
   "cache": ".lake/intent-screen-cache",
-  "state": "statement",
+  "state": "full",
   "judgments": {
-    "coverage": { "error": 0.2, "warning": 0.5 },
-    "strength": { "error": 0.2, "warning": 0.5, "information": 0.7, "min-confidence": 0.5 }
+    "totalization": { "error": 0.2, "warning": 0.5 },
+    "exclusions": { "error": 0.2, "warning": 0.5 },
+    "correspondence": { "error": 0.2, "warning": 0.5 }
   }
 }
 ```
+
+This matches `examples/intent-screening/screen.json`: the calibrated `full` state and thresholds
+only for the judgments the calibration below supports.
 
 Plumb has no user-editable rule-severity configuration today. Each registry rule has a fixed
 `defaultStrictSeverity`; the native linter shows its findings as Lean warnings, which Lean's
@@ -237,8 +242,10 @@ Machine-checked, about the definitions the executable runs (each through a
   (`ClaimScreen.escalated_of_refused`) or an incomplete screen
   (`ClaimScreen.escalated_of_incomplete`).
 - Clause extraction finds clauses only in docstrings that PL5003 accepts and never returns a
-  blank clause (`checkedClauses`, `intentBody?_isSome_iff`). Discharge-marker parsing, the
-  pinned-model grammar, and clause splitting are checked on documented instances.
+  blank clause (`checkedClauses`, `intentBody?_isSome_iff`). Every clause `discharge?` reads
+  carries the marker `dischargeMarked?` finds (`dischargeMarked?_of_discharge?`).
+  Discharge-marker parsing, the pinned-model grammar, and clause splitting are checked on
+  documented instances.
 
 Not established by any proof: that a probability is correct or calibrated for your claims,
 that the question wording captures the intended judgment, or that the service behaved as
