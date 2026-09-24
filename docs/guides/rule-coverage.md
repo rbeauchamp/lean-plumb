@@ -105,8 +105,8 @@ mechanical selectors/adapters in #13 and accepted-evidence construction in #7.
   [`intentScreen`](intent-screening.md). It is not a registry rule and never runs in
   acceptance. It is a separate executable rather than an in-elaboration rule because it calls a
   paid network service with source text; inside the linter it would bring network, cost and
-  nondeterminism into every build and editor session. It reports probabilities, and its calibration was measured on a published corpus: only its
-  totalization, exclusions and correspondence judgments met the pre-registered criteria. The user
+  nondeterminism into every build and editor session. It reports probabilities; its guide owns
+  the measured calibration and which judgments met the pre-registered criteria. The user
   chooses its thresholds and their severity mapping, in the rule-severity vocabulary (`error`,
   `warning`, `information`; rule severities themselves are fixed registry defaults, not user
   configuration). Its findings have the linter's diagnostic shape with a per-judgment
@@ -114,7 +114,8 @@ mechanical selectors/adapters in #13 and accepted-evidence construction in #7.
   evidence class. A low probability can raise a finding at the configured severity. A high
   probability never makes the claim checked and never completes this review. An intent clause
   can be discharged by a theorem, within the Standard-Logical foundation, proving that the
-  claim implies the clause's formal statement. That implication is checked by Lean. Only that
+  claim implies the clause's formal statement. Lean's kernel re-checks that implication's own
+  proof term; its guide states the trusted dependency boundary. Only that
   formal statement's match with the English clause is judged.
 - **R-INVARIANT:** identify intended admitted-value, transition, frame, reachability and composition
   relations, inspect all admission/write/caller paths, then require exact proof-bearing interfaces

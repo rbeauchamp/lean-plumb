@@ -20,8 +20,9 @@ clause is checked: Lean's kernel re-checked the discharge theorem's own proof te
 type in the loaded environment, the adapter compared its hypothesis with the claim by the
 kernel's definitional equality, and its axioms are recorded and bounded by the Standard-Logical
 foundation. The declarations that proof uses are trusted as admitted by the build of their
-imported `.olean` files; the screen does not re-check them. Its English-to-Lean correspondence is still a screened judgment. None of this
-authenticates the service, the network or the process that carried the request. -/
+imported `.olean` files; the screen does not re-check them. Its English-to-Lean correspondence
+is still a screened judgment. None of this authenticates the service, the network or the
+process that carried the request. -/
 
 namespace Plumb.Checker.Screening
 
