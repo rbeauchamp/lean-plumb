@@ -56,9 +56,9 @@ private def argmax (ps : List (String × Probability)) : String :=
 
 /-- Judge one item under one state mode and explanation variant. -/
 def judgeItem (cache : System.FilePath) (model : PinnedModel) (item : Item) (text : ClaimText)
-    (mode : StateMode) (variant : Variant) : StateT Usage IO (List Row) := do
+    (mode : StateMode) (variant : Variant) (limit : Nat) : StateT Usage IO (List Row) := do
   let questions := claimQuestions mode text
-  let r ← Jev.ask cache model (state mode text) questions
+  let r ← Jev.ask cache model (state mode text) questions limit
   modify (·.add r)
   let row (judgment : Judgment) (subject : String) (defect : Bool) (support : Decimal) : Row :=
     { item := item.name, mutation := item.mutation, split := item.split, mode, variant, judgment,
@@ -152,10 +152,12 @@ def rowJson (r : Row) : Json :=
 /-- The pre-registered budget of requests sent in one calibration run. -/
 def requestBudget : Nat := 300
 
-/-- Refuse before a request that could exceed the budget; each call sends at most one. -/
-def checkBudget (usage : Usage) : IO Unit := do
+/-- Refuse before a request once the budget is spent; otherwise the POSTs the next request may
+send (retries included), so no run sends more than the budget. -/
+def checkBudget (usage : Usage) : IO Nat := do
   if usage.requests ≥ requestBudget then
     throw <| IO.userError s!"calibration budget reached: {requestBudget} requests sent"
+  return requestBudget - usage.requests
 
 /-- Run the corpus of one split and write the report and the evidence rows. -/
 def run (cache : System.FilePath) (model : PinnedModel) (split : Split) (env : Environment)
@@ -178,8 +180,8 @@ def run (cache : System.FilePath) (model : PinnedModel) (split : Split) (env : E
       for variant in variants do
         if mode == .statement && variant == .stale then continue
         let text := if variant == .stale then { own with explanation := base.explanation } else own
-        checkBudget usage
-        let (rs, u) ← (judgeItem cache model item text mode variant).run usage
+        let limit ← checkBudget usage
+        let (rs, u) ← (judgeItem cache model item text mode variant limit).run usage
         rows := rows ++ rs.toArray
         usage := u
   let mut correspondenceRows : Array Row := #[]
@@ -188,9 +190,9 @@ def run (cache : System.FilePath) (model : PinnedModel) (split : Split) (env : E
       let formal ← runMeta env do
         let some info := (← getEnv).find? c.formal | throwError "unknown {c.formal}"
         pretty (statementExpr info)
-      checkBudget usage
+      let limit ← checkBudget usage
       let q := [("correspondence", Questions.correspondence)]
-      let r ← Jev.ask cache model (correspondenceState c.clause formal) q
+      let r ← Jev.ask cache model (correspondenceState c.clause formal) q limit
       usage := usage.add r
       let p ← noulOf r "correspondence"
       correspondenceRows := correspondenceRows.push

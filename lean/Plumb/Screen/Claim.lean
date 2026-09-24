@@ -10,17 +10,19 @@ import Plumb.Screen.Questions
 A claim's docstring is found by Lean's `findDocString?`; its clauses, explanation and any
 discharge references come from the proved `PlumbPolicy.Screening` definitions. A clause that
 ends with ``(discharged by `Name`)`` is formally discharged when `Name` is a theorem of the
-loaded environment of type `S → P`, where `S` is definitionally equal to the claim's
-statement by Lean's kernel definitional-equality check and `P` does not depend on the
-hypothesis, whose proof the kernel re-checks against that type here, and whose transitive
+loaded environment of type `S → P`, whose universe parameters are among the claim's, where
+`S` is definitionally equal to the claim's statement by Lean's kernel definitional-equality
+check (level parameters compared by name) and `P` does not depend on the hypothesis, whose
+proof the kernel re-checks against that type here, and whose transitive
 axioms lie within the Standard-Logical foundation (`propext`, `Quot.sound`,
 `Classical.choice`). Then `Name` applied to the claim proves `P`, and only whether `P` states
 the English clause is judged. The re-check covers only the discharge's own proof term; the
 declarations it uses are trusted as admitted by the build of their imported `.olean` files and
 are not re-checked here, so a dependency built under `debug.skipKernelTC` is not caught by the
 screen (only Plumb's fresh acceptance of a claimed surface re-admits it). A marker
-that fails any of these conditions makes the claim's screen unavailable; it never downgrades
-to a judged clause. -/
+that fails any of these conditions leaves that clause a refused discharge, with the reason:
+it is neither checked nor judged, and its claim escalates to review. It never downgrades to a
+judged clause, and every other clause and claim is still screened. -/
 
 namespace Plumb.Screen
 
@@ -40,11 +42,17 @@ axiom, `sorryAx`, or a compiler-trusting axiom (`Lean.ofReduceBool`, `Lean.trust
 refuses the discharge. -/
 def dischargeAxioms : List Name := [``propext, ``Quot.sound, ``Classical.choice]
 
+/-- The outcome of checking one discharge reference. -/
+inductive DischargeCheck where
+  | admitted (d : Discharge)
+  | refused (proof : Name) (reason : String)
+
 /-- One claim as read from its environment. -/
 structure ClaimInput where
   name : Name
   text : ClaimText
-  discharges : List (Option Discharge)
+  /-- Per clause: no discharge marker, or the outcome of checking its reference. -/
+  discharges : List (Option DischargeCheck)
 
 /-- The claim's statement: a theorem's type, or the body of a definition whose type is `Prop`
 (calibration corpus items are such definitions), otherwise the declaration's type. -/
@@ -56,12 +64,14 @@ def statementExpr (info : ConstantInfo) : Expr :=
 def pretty (e : Expr) : MetaM String := do
   return toString (← ppExpr e)
 
-/-- Check a discharge reference against the claim's statement. -/
-def checkDischarge (claim : Expr) (proof : Name) : MetaM Discharge := do
+/-- Check a discharge reference against the claim's statement, whose universe parameters are
+`claimLevels`. -/
+def checkDischarge (claimLevels : List Name) (claim : Expr) (proof : Name) : MetaM Discharge := do
   let some info := (← getEnv).find? proof
     | throwError "discharge {proof} is not a declaration of the loaded environment"
   let .thmInfo thm := info | throwError "discharge {proof} is not a theorem"
-  unless thm.levelParams.isEmpty do throwError "discharge {proof} is universe-polymorphic (unsupported)"
+  if let some u := thm.levelParams.find? (!claimLevels.contains ·) then
+    throwError "discharge {proof}'s universe parameter {u} is not one of the claim's"
   let .forallE _ hypothesis formal _ := thm.type
     | throwError "discharge {proof} is not an implication from the claim"
   if formal.hasLooseBVars then throwError "discharge {proof}'s conclusion depends on its hypothesis"
@@ -82,7 +92,6 @@ def checkDischarge (claim : Expr) (proof : Name) : MetaM Discharge := do
 /-- Read one declaration's intent clauses, explanation, statement and discharges. -/
 def readClaim (name : Name) : MetaM ClaimInput := do
   let some info := (← getEnv).find? name | throwError "unknown declaration {name}"
-  unless info.levelParams.isEmpty do throwError "{name} is universe-polymorphic (unsupported)"
   let some doc ← findDocString? (← getEnv) name | throwError "{name} has no docstring"
   let raw := intentClauses doc
   if raw.isEmpty then throwError "{name} has no nonempty Intent section clauses (PL5003)"
@@ -93,7 +102,9 @@ def readClaim (name : Name) : MetaM ClaimInput := do
     match discharge? clause with
     | some (english, proof) =>
       clauses := clauses.push english
-      discharges := discharges.push (some (← checkDischarge statement proof.toName))
+      let check ← try pure (DischargeCheck.admitted (← checkDischarge info.levelParams statement proof.toName))
+        catch e => pure (.refused proof.toName (← e.toMessageData.toString))
+      discharges := discharges.push (some check)
     | none =>
       clauses := clauses.push clause
       discharges := discharges.push none
@@ -130,15 +141,15 @@ structure Config where
   mode : StateMode
   policy : Policy
 
-/-- Accumulated service usage of a run. `inputTokens` is unknown once any billed response
-omitted its usage. -/
+/-- Accumulated service usage of a run. `requests` counts every POST sent, retries included.
+`inputTokens` is unknown once any billed response omitted its usage. -/
 structure Usage where
   requests : Nat := 0
   cached : Nat := 0
   inputTokens : Option Nat := some 0
 
 def Usage.add (u : Usage) (r : Jev.Response) : Usage :=
-  { requests := u.requests + (if r.cached then 0 else 1), cached := u.cached + (if r.cached then 1 else 0)
+  { requests := u.requests + r.attempts, cached := u.cached + (if r.cached then 1 else 0)
     inputTokens := if r.cached then u.inputTokens else do pure ((← u.inputTokens) + (← r.inputTokens)) }
 
 /-- The billed input tokens, or `unknown`. -/
@@ -177,7 +188,8 @@ def screenClaim (cfg : Config) (input : ClaimInput) : StateT Usage IO ClaimScree
     | none =>
       let p ← noulOf response s!"coverage_{i}"
       clauses := clauses.push (clause, .judged (judged .coverage clause s!"coverage_{i}" p.val none response.digest))
-    | some d =>
+    | some (.refused proof reason) => clauses := clauses.push (clause, .refused proof reason)
+    | some (.admitted d) =>
       let q := [("correspondence", Questions.correspondence)]
       let r ← Jev.ask cfg.cache cfg.model (correspondenceState clause d.formal) q
       modify (·.add r)

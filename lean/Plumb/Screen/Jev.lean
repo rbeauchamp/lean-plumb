@@ -29,13 +29,15 @@ inductive Answer where
 
 /-- One completed request: the versioned model that answered, answers by question id, the
 request digest and the input tokens the service billed (`none` when it reported none).
-`cached` records whether this run reused an earlier response. -/
+`cached` records whether this run reused an earlier response; `attempts` is the number of
+POSTs this run sent for it, retries included (0 when cached). -/
 structure Response where
   model : String
   answers : List (String × Answer)
   digest : String
   inputTokens : Option Nat
   cached : Bool
+  attempts : Nat
 
 /-- The request body: model, state and questions, keys in canonical order. -/
 def request (model : PinnedModel) (state : Json) (questions : List (String × Json)) : Json :=
@@ -119,11 +121,16 @@ private def post (key : String) (bodyFile responseFile : FilePath) : IO (Nat × 
   let some status := stdout.trimAscii.toString.toNat? | throw <| IO.userError "curl printed no HTTP status"
   return (status, ← IO.FS.readFile responseFile)
 
+/-- The most POST attempts one request makes: the first and up to four retries after HTTP 429,
+529 or 5xx. -/
+def maxAttempts : Nat := 5
+
 /-- Answer one request whose exact compressed body is in the private file `pending` and has
-`digest`. A new cache entry is written to a unique file and renamed into place, so a reader
-never sees a partial entry and concurrent runs cannot mix requests and responses. -/
+`digest`, sending at most `limit` POSTs. A new cache entry is written to a unique file and
+renamed into place, so a reader never sees a partial entry and concurrent runs cannot mix
+requests and responses. -/
 private def askAt (cache : FilePath) (model : PinnedModel) (questions : List (String × Json))
-    (body : String) (pending responseFile : FilePath) (digest : String) : IO Response := do
+    (body : String) (pending responseFile : FilePath) (digest : String) (limit : Nat) : IO Response := do
   let entry := cache / s!"{digest}.json"
   if ← entry.pathExists then
     let stored ← IO.ofExcept <| Json.parse (← IO.FS.readFile entry)
@@ -132,14 +139,17 @@ private def askAt (cache : FilePath) (model : PinnedModel) (questions : List (St
       throw <| IO.userError s!"cache entry {entry} does not hold this request"
     let (answered, answers, tokens) ← IO.ofExcept <|
       parseResponse model questions (← IO.ofExcept <| stored.getObjVal? "response")
-    return { model := answered, answers, digest, inputTokens := tokens, cached := true }
+    return { model := answered, answers, digest, inputTokens := tokens, cached := true, attempts := 0 }
   let some key ← IO.getEnv "TYPESAFE_API_KEY"
     | throw <| IO.userError "intent screening is opt-in: set TYPESAFE_API_KEY (no cached response for this request)"
   unless keyAdmissible key do
     throw <| IO.userError "TYPESAFE_API_KEY is empty or contains characters outside printable ASCII, a quote or a backslash"
+  if limit == 0 then throw <| IO.userError "no POST attempt is allowed for this request"
   let mut attempt := 0
   repeat
-    let (status, text) ← post key pending responseFile
+    attempt := attempt + 1
+    let (status, text) ← try post key pending responseFile
+      catch e => throw <| IO.userError s!"{e} (after {attempt} POST attempt(s) for this request)"
     if status == 200 then
       let json ← IO.ofExcept <| Json.parse text
       let (answered, answers, tokens) ← IO.ofExcept <| parseResponse model questions json
@@ -147,18 +157,19 @@ private def askAt (cache : FilePath) (model : PinnedModel) (questions : List (St
       IO.FS.writeFile staged (Json.mkObj [("request", ← IO.ofExcept <| Json.parse body),
         ("response", json)]).pretty
       IO.FS.rename staged entry
-      return { model := answered, answers, digest, inputTokens := tokens, cached := false }
-    if (status == 429 || status == 529 || status ≥ 500) && attempt < 4 then
-      IO.sleep (UInt32.ofNat (1000 * 2 ^ attempt))
-      attempt := attempt + 1
+      return { model := answered, answers, digest, inputTokens := tokens, cached := false, attempts := attempt }
+    if (status == 429 || status == 529 || status ≥ 500) && attempt < limit then
+      IO.sleep (UInt32.ofNat (1000 * 2 ^ (attempt - 1)))
     else
-      throw <| IO.userError s!"TypeSafe request failed with HTTP {status}: {text.take 500}"
+      throw <| IO.userError
+        s!"TypeSafe request failed with HTTP {status} after {attempt} POST attempt(s): {text.take 500}"
   throw <| IO.userError "unreachable retry exit"
 
-/-- Ask one request, reusing a cached response for an identical request. The request and
-response travel through unique temporary files, removed afterwards whatever the outcome. -/
-def ask (cache : FilePath) (model : PinnedModel) (state : Json) (questions : List (String × Json)) :
-    IO Response := do
+/-- Ask one request, reusing a cached response for an identical request, sending at most
+`limit` POSTs (never more than `maxAttempts`). The request and response travel through unique
+temporary files, removed afterwards whatever the outcome. -/
+def ask (cache : FilePath) (model : PinnedModel) (state : Json) (questions : List (String × Json))
+    (limit : Nat := maxAttempts) : IO Response := do
   IO.FS.createDirAll cache
   let body := (request model state questions).compress
   let (requestHandle, pending) ← IO.FS.createTempFile
@@ -166,7 +177,7 @@ def ask (cache : FilePath) (model : PinnedModel) (state : Json) (questions : Lis
   try
     requestHandle.putStr body
     requestHandle.flush
-    askAt cache model questions body pending responseFile (← sha256File pending)
+    askAt cache model questions body pending responseFile (← sha256File pending) (min limit maxAttempts)
   finally
     for f in [pending, responseFile] do
       if ← f.pathExists then IO.FS.removeFile f

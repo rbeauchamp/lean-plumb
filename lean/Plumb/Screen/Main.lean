@@ -11,8 +11,10 @@ import Plumb.Screen.Calibrate
 `screen` judges every public `@[plumb_material]` declaration of the listed modules (or exactly
 the listed declarations) and prints screened evidence, findings at the configured severities
 and escalation routes. It exits 0 when no error-severity finding is raised, 1 when one is, and
-2 when the screen is incomplete (missing key, network or service failure, malformed answer,
-unreadable claim or invalid discharge). It is never part of offline acceptance. -/
+2 when the screen is incomplete (missing key, network or service failure, malformed answer or
+unreadable claim, which stop the run, or a refused discharge reference, which leaves only its
+clause unresolved while every other clause and claim is screened). It is never part of
+offline acceptance. -/
 
 namespace Plumb.Screen.Main
 
@@ -33,10 +35,12 @@ private def exactFields (value : Json) (allowed : List String) (what : String) :
 
 /-- A judgment's thresholds are keyed by the rule-severity spellings; `information` is
 optional and defaults to the warning threshold (an empty information band). -/
-private def judgmentPolicy (value : Json) : Except String JudgmentPolicy := do
+private def judgmentPolicy (j : Judgment) (value : Json) : Except String JudgmentPolicy := do
   let (e, w, i) := (Plumb.Severity.error.spelling, Plumb.Severity.warning.spelling,
     Plumb.Severity.information.spelling)
   exactFields value [e, w, i, "min-confidence"] "a judgment policy"
+  if (value.getObjVal? "min-confidence").toOption.isSome && !j.reportsConfidence then
+    throw s!"min-confidence is not allowed for {j.spelling}: its answers report no confidence (only strength does)"
   let error ← decimalOf (← value.getObjVal? e)
   let warning ← decimalOf (← value.getObjVal? w)
   let information ← match value.getObjVal? i with
@@ -67,7 +71,7 @@ def parseConfig (text : String) : Except String Config := do
   let mut table : List (Judgment × JudgmentPolicy) := []
   for j in Judgment.all do
     if let .ok p := judgments.getObjVal? j.spelling then
-      table := (j, ← judgmentPolicy p) :: table
+      table := (j, ← judgmentPolicy j p) :: table
   let final := table
   return { model, cache, mode, policy := fun j => (final.lookup j).getD {} }
 
@@ -162,6 +166,7 @@ def claimJson (s : ClaimScreen) : Json :=
         | .discharged proof formal axioms _ => Json.mkObj [("theorem", .str proof.toString),
             ("formalClause", .str formal), ("axioms", Json.arr (axioms.map (.str ·.toString)).toArray)]
         | .judged _ => .null
+        | .refused proof reason => Json.mkObj [("theorem", .str proof.toString), ("refused", .str reason)]
       Json.mkObj [("clause", .str text), ("classes", Json.arr (e.classes.map (.str ·.spelling)).toArray),
         ("discharge", discharge)]).toArray),
     ("openReview", Json.mkObj [("class", .str EvidenceClass.openReview.spelling),
@@ -184,6 +189,7 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
   let mut records := #[]
   let mut claims := #[]
   let mut findings : Array ScreenFinding := #[]
+  let mut refused := 0
   for name in selected do
     let input ← runMeta env (readClaim name)
     let location ← runMeta env (claimLocation name)
@@ -192,15 +198,18 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
     for line in s.lines cfg.policy do IO.println line
     records := records ++ (s.answers.map (judgedJson cfg.policy name)).toArray
     claims := claims.push (claimJson s)
+    refused := refused + (s.clauses.filter (·.2.isRefused)).length
     findings := findings ++ ((s.findings cfg.policy).map fun (answer, severity) =>
       { claim := name, location, answer, severity : ScreenFinding }).toArray
   for f in findings do IO.println f.text
+  if refused > 0 then
+    IO.println s!"intent screen incomplete: {refused} discharge reference(s) refused; those clauses are neither checked nor judged"
   IO.println (costNote cfg.model usage)
   if let some path := args.json then
     IO.FS.writeFile path (Json.mkObj [("schemaVersion", (1 : Nat)), ("class", .str EvidenceClass.screened.spelling),
       ("note", "Screened results are model judgments: never checked evidence and never a completed R-INTENT review."),
       ("findings", Json.arr (findings.map (·.json))), ("claims", Json.arr claims), ("results", Json.arr records)]).pretty
-  return if findings.any (·.severity == .error) then 1 else 0
+  return if refused > 0 then 2 else if findings.any (·.severity == .error) then 1 else 0
 
 unsafe def main (argv : List String) : IO UInt32 := do
   try

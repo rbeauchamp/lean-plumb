@@ -496,6 +496,12 @@ theorem Judgment.spelling_injective : Function.Injective Judgment.spelling := by
   intro a b h
   cases a <;> cases b <;> first | rfl | exact absurd h (by decide)
 
+/-- Whether a judgment's answer reports a distribution confidence: only the strength Choice
+does; every other judgment is a Noul. -/
+def Judgment.reportsConfidence : Judgment → Bool
+  | .strength => true
+  | _ => false
+
 /-- Strength of the formal claim relative to the intent (the options of the strength Choice). -/
 inductive Strength where
   | equivalent | stronger | weaker | incomparable

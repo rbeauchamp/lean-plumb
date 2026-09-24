@@ -38,6 +38,8 @@ that the claim implies the clause, and end the clause with a reference to that p
 The screen accepts the reference only when these conditions hold:
 
 - The named declaration is a theorem of the loaded environment.
+- Its universe parameters are among the claim's. Universe-polymorphic claims are screened
+  like any other; a discharge shares their level parameters by name.
 - Its type is `S → P`, where `P` does not depend on the hypothesis, and Lean's kernel
   definitional-equality check (`Lean.Kernel.isDefEq`) finds `S` equal to the claim's statement.
 - Lean's kernel re-checks the theorem's own proof term against that type when the screen runs
@@ -57,8 +59,11 @@ and the screen's adapter ran the other checks. That part of the clause is **chec
 involves no model judgment. The model
 judges only one question about it: does `P` state the English clause? The report calls this
 the *correspondence* judgment. The screen asks no coverage question for a discharged clause.
-A reference that fails any condition makes the whole screen incomplete. It never falls back
-to a judged clause. `IntentCorpus.mergeSort_correct` in `lean/Plumb/Screen/Corpus.lean` is a
+A reference that fails any condition leaves only its clause unresolved: the clause is
+reported as a refused discharge with the reason, in the `open semantic review` class. It is
+neither checked nor judged (no coverage question is asked for it), it never falls back to a
+judged clause, and its claim is escalated to review. Every other clause and claim is still
+screened, and the run then exits with 2 (incomplete). `IntentCorpus.mergeSort_correct` in `lean/Plumb/Screen/Corpus.lean` is a
 worked example.
 
 ## Judgments
@@ -116,7 +121,8 @@ fields refused).
 - A judgment with no thresholds raises no finding, and each of its answers escalates.
 - An answer escalates to reasoning-model or human review in two cases: it raises a finding,
   or its Choice confidence is below `min-confidence`. The tool reports the route. It calls
-  no second model.
+  no second model. `min-confidence` is allowed only for `strength`, the one judgment whose
+  answer reports a confidence; on any other judgment it is refused as a configuration error.
 - Unknown fields are refused.
 
 Run the screen:
@@ -129,9 +135,10 @@ TYPESAFE_API_KEY=… lake exe intentScreen screen --config screen.json --module 
 With no `--declaration`, the screen covers every public `@[plumb_material]` declaration of the
 listed modules. With `--declaration`, it covers exactly the named declarations. It exits with
 0 when no error-severity finding is raised, 1 when one is, and 2 when the screen is
-incomplete. A screen is incomplete when the key is missing and no cached answer exists, or
-when a network, service, parse, claim or discharge failure occurs. An incomplete screen is
-never reported as a pass.
+incomplete. A missing key with no cached answer, or a network, service, parse or claim-reading
+failure, stops the run as incomplete. A refused discharge reference does not stop it: that
+clause is reported unresolved, every other clause and claim is screened, and the run exits
+with 2. An incomplete screen is never reported as a pass.
 
 Findings have the linter's diagnostic shape (`Plumb.RegistryCodec.diagnosticJson`): `id`,
 `arguments` (`declaration`, `detail`), `location`, `related`, `severity` and `text`, plus
@@ -164,7 +171,8 @@ linter's severity vocabulary and diagnostic shape.
   argument list, a file, a log, or the cache.
 - **Cost.** TypeSafe bills input tokens only. The jev-1.13.0 list price was $0.042 per million
   input tokens on 2026-09-24. A claim request is about 1,500 to 2,000 input tokens. The tool
-  prints the requests sent, the cache hits, and the input tokens billed. If a billed response
+  prints the requests sent (every POST, retries included: a request retried after HTTP 429,
+  529 or 5xx makes at most 5 POSTs), the cache hits, and the input tokens billed. If a billed response
   omits its usage, the total is printed as `unknown`, never as a partial count.
 - **Reproducibility.** The cache key is the SHA-256 of the exact request: model, state and
   every question. An entry is reused only if its stored request equals the current one. A
@@ -192,13 +200,15 @@ Machine-checked, about the definitions the executable runs (each through a
   probability never gives a less severe finding (`classify_antitone`). Screen severities are
   exactly the rule severities (`ScreenSeverity.toSeverity_bijective`).
 - A clause's judged answer has one of the clause's evidence classes and is never `checked`
-  (`ClauseEvidence.judgedAnswer_class`); every clause includes `screened`
-  (`ClauseEvidence.screened_mem`). The printed and JSON class labels are these classes'
-  spellings.
+  (`ClauseEvidence.judgedAnswer_class`); a checked clause is always also `screened`
+  (`ClauseEvidence.screened_mem_of_checked`); a refused discharge is never `checked`
+  (`ClauseEvidence.refused_not_checked`). The printed and JSON class labels are these
+  classes' spellings.
 - An answer stays `screened` exactly when thresholds are configured, the answer raises no
   finding, and any reported confidence meets the minimum (`checkedRoute`). An answer with a
   finding always escalates (`Judged.escalate_of_severity`). A claim with any finding is
-  escalated (`ClaimScreen.escalated_of_finding`).
+  escalated (`ClaimScreen.escalated_of_finding`), and so is a claim with a refused discharge
+  (`ClaimScreen.escalated_of_refused`).
 - Clause extraction finds clauses only in docstrings that PL5003 accepts and never returns a
   blank clause (`checkedClauses`, `intentBody?_isSome_iff`). Discharge-marker parsing, the
   pinned-model grammar, and clause splitting are checked on documented instances.
@@ -344,3 +354,8 @@ the list price:
   1 request, 1,455 tokens.
 
 Everything else, including the regenerated reports, was answered from cache.
+
+These counts, and the budget check during these runs, counted answered requests: the runner
+of that time did not count retried POSTs (at most 5 per request). The runner now counts every
+POST, retries included, and limits each request's POSTs to the budget left, so a run never
+sends more than 300 POSTs.

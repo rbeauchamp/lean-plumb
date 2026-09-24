@@ -121,24 +121,41 @@ inductive ClauseEvidence where
   | discharged (proof : Lean.Name) (formal : String) (axioms : List Lean.Name) (correspondence : Judged)
   /-- No formal statement: whether the claim guarantees the clause is judged. -/
   | judged (coverage : Judged)
+  /-- The clause's discharge reference was refused for `reason`: nothing about the clause is
+  checked or judged, and it stays open for review. -/
+  | refused (proof : Lean.Name) (reason : String)
 
-def ClauseEvidence.judgedAnswer : ClauseEvidence → Judged
-  | .discharged _ _ _ j => j
-  | .judged j => j
+def ClauseEvidence.judgedAnswer? : ClauseEvidence → Option Judged
+  | .discharged _ _ _ j => some j
+  | .judged j => some j
+  | .refused .. => none
 
-/-- Evidence classes of a clause: `checked` only for a discharge's implication. -/
+def ClauseEvidence.isRefused : ClauseEvidence → Bool
+  | .refused .. => true
+  | _ => false
+
+/-- Evidence classes of a clause: `checked` only for a discharge's implication, and only open
+review for a refused discharge. -/
 def ClauseEvidence.classes : ClauseEvidence → List EvidenceClass
   | .discharged .. => [.checked, .screened]
   | .judged _ => [.screened]
+  | .refused .. => [.openReview]
 
-/-- A screened clause is never only checked: its English-to-Lean link is always judged. -/
-theorem ClauseEvidence.screened_mem (e : ClauseEvidence) : EvidenceClass.screened ∈ e.classes := by
-  cases e <;> simp [classes]
+/-- A clause is never only checked: a checked implication's English-to-Lean link is always
+judged. -/
+theorem ClauseEvidence.screened_mem_of_checked (e : ClauseEvidence)
+    (h : EvidenceClass.checked ∈ e.classes) : EvidenceClass.screened ∈ e.classes := by
+  cases e <;> simp_all [classes]
+
+/-- A refused discharge is never checked. -/
+theorem ClauseEvidence.refused_not_checked (e : ClauseEvidence) (h : e.isRefused = true) :
+    EvidenceClass.checked ∉ e.classes := by
+  cases e <;> simp_all [classes, isRefused]
 
 /-- A clause's judged answer carries one of the clause's classes, and it is not `checked`. -/
-theorem ClauseEvidence.judgedAnswer_class (e : ClauseEvidence) :
-    e.judgedAnswer.evidenceClass ∈ e.classes ∧ e.judgedAnswer.evidenceClass ≠ .checked :=
-  ⟨by cases e <;> simp [classes, Judged.evidenceClass], Judged.evidenceClass_ne_checked _⟩
+theorem ClauseEvidence.judgedAnswer_class (e : ClauseEvidence) (j : Judged)
+    (h : e.judgedAnswer? = some j) : j.evidenceClass ∈ e.classes ∧ j.evidenceClass ≠ .checked :=
+  ⟨by cases e <;> simp_all [judgedAnswer?, classes, Judged.evidenceClass], Judged.evidenceClass_ne_checked _⟩
 
 /-- The printed class labels of a clause. -/
 def ClauseEvidence.label (e : ClauseEvidence) : String :=
@@ -153,7 +170,7 @@ structure ClaimScreen where
 
 /-- Every judged answer of the screen. -/
 def ClaimScreen.answers (s : ClaimScreen) : List Judged :=
-  s.clauses.map (·.2.judgedAnswer) ++ s.strength :: s.targeted
+  s.clauses.filterMap (·.2.judgedAnswer?) ++ s.strength :: s.targeted
 
 /-- The strongest status a screen can record. There is deliberately no checked or reviewed
 status. -/
@@ -164,14 +181,27 @@ inductive Status where
 def Status.spelling : Status → String
   | .screened => "screened" | .escalated => "escalated to review"
 
-/-- `screened` exactly when every answer stays screened under the policy. -/
+/-- `screened` exactly when no discharge was refused and every answer stays screened under the
+policy. -/
 def ClaimScreen.status (policy : Policy) (s : ClaimScreen) : Status :=
-  if s.answers.all (·.route policy == .screened) then .screened else .escalated
+  if s.clauses.all (!·.2.isRefused) && s.answers.all (·.route policy == .screened) then .screened
+  else .escalated
 
 theorem ClaimScreen.status_eq_screened_iff (policy : Policy) (s : ClaimScreen) :
-    s.status policy = .screened ↔ ∀ j ∈ s.answers, j.route policy = .screened := by
+    s.status policy = .screened ↔
+      (∀ c ∈ s.clauses, c.2.isRefused = false) ∧ ∀ j ∈ s.answers, j.route policy = .screened := by
   unfold status
-  split <;> simp_all
+  split
+  · rename_i h
+    simp only [Bool.and_eq_true, List.all_eq_true] at h
+    simp only [true_iff]
+    exact ⟨fun c hc => by simpa using h.1 c hc, fun j hj => by simpa using h.2 j hj⟩
+  · rename_i h
+    simp only [reduceCtorEq, false_iff]
+    rintro ⟨h1, h2⟩
+    exact h (by
+      simp only [Bool.and_eq_true, List.all_eq_true]
+      exact ⟨fun c hc => by simp [h1 c hc], fun j hj => by simp [h2 j hj]⟩)
 
 /-- A claim with any finding is escalated. -/
 theorem ClaimScreen.escalated_of_finding (policy : Policy) (s : ClaimScreen) (j : Judged)
@@ -179,8 +209,18 @@ theorem ClaimScreen.escalated_of_finding (policy : Policy) (s : ClaimScreen) (j 
   cases hs : s.status policy with
   | escalated => rfl
   | screened =>
-    have := (status_eq_screened_iff policy s).mp hs j hj
+    have := ((status_eq_screened_iff policy s).mp hs).2 j hj
     rw [Judged.escalate_of_severity policy j h] at this
+    cases this
+
+/-- A claim with a refused discharge is escalated. -/
+theorem ClaimScreen.escalated_of_refused (policy : Policy) (s : ClaimScreen) (c : String × ClauseEvidence)
+    (hc : c ∈ s.clauses) (h : c.2.isRefused = true) : s.status policy = .escalated := by
+  cases hs : s.status policy with
+  | escalated => rfl
+  | screened =>
+    have := ((status_eq_screened_iff policy s).mp hs).1 c hc
+    rw [h] at this
     cases this
 
 /-- Findings: the answers that raise a finding under the policy, with their severity. -/
@@ -223,6 +263,9 @@ def ClaimScreen.lines (policy : Policy) (s : ClaimScreen) : Array String :=
           s!"(own proof term re-checked by the kernel, dependencies trusted as built; axioms: {if axioms.isEmpty then "none" else ", ".intercalate (axioms.map toString)})",
         answer "  correspondence of the formal clause to the English" j]
     | .judged j => #[answer s!"clause \"{text}\" [{e.label}] coverage" j]
+    | .refused thm reason =>
+      #[s!"  clause \"{text}\" [{e.label}]: discharge `{thm}` refused: {reason}; " ++
+          s!"nothing about this clause is checked or judged; {routeText .escalate}"]
   #[s!"{s.claim}: intent {(s.status policy).spelling}; " ++
       s!"{EvidenceClass.openReview.spelling}: {", ".intercalate (unresolved.map (·.spelling))} " ++
       "(a screen never completes it)"] ++
