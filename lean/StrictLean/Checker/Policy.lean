@@ -3,9 +3,10 @@ import StrictLeanCore.Policy
 
 /-! Operational adapter over the claimed `StrictLeanCore.Policy` projections: it binds
 scope admission to the frontend's source-coordinate check and renders policy results
-as text. Every decision it exposes, and the execution-failure text
-(`executionFailures`), is a registration's `run` from the claimed
-`StrictLeanCore` modules. -/
+as text. This file defines `admitScope` (running `checkedScope`), `executionSummary` (running
+`StrictLeanPolicy.checkedSummary`) and the unproved renderers `describeBoundary`, `classify` and
+`classifyMember`; `executionFailureRecords` is the claimed decision itself. The rules, member
+labels and `executionFailures` in this namespace are defined in claimed `StrictLeanCore.Policy`. -/
 
 namespace StrictLean.Checker.Policy
 

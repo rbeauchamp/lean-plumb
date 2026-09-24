@@ -477,15 +477,12 @@ unsafe def auditTasks (repo scratch : FilePath) (jobs : Nat)
       let updates ← try timedPhase "fence inspection" inspectGroups
         finally Lean.searchPathRef.set oldSearchPath
       for group in updates do responses := responses ++ group
-      let required := StrictLeanPolicy.CanonicalSet.normalize (List.range tasks.size)
-      let bound := fun index (result : Result) => tasks[index]? = some result.task
-      let initial : StrictLeanPolicy.ResultState required bound := .empty
-      let table ← IO.ofExcept <| (initial.collect responses.toList).mapError
+      -- `IndexedResultsContract`: exactly one result per task, in task order, each bound
+      -- to its own task; missing, duplicate, unknown and rebound results are refused.
+      let complete ← IO.ofExcept <| (StrictLeanPolicy.checkedIndexedResults.run tasks.size
+        (fun index (result : Result) => decide (tasks[index]? = some result.task))
+        responses.toList).mapError
         (fun failure => s!"documentation result admission: {repr failure}")
-      let complete ← (Array.range tasks.size).mapM fun index => do
-        let some result := table.entries[index]?
-          | throw <| IO.userError "documentation task was not assessed"
-        pure result
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
       return complete

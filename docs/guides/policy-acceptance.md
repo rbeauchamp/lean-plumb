@@ -28,7 +28,7 @@ operational bridge, re-exporting the pure API without duplicating policy decisio
 | `AxiomGate.auditSurfaceAt`: fresh project | `Acceptance.freeze` reconciles coordinator-selected Lake modules, source/configuration/dependency state, completed report/replay inventories and origins. `Acceptance.finish` times collection and acceptance separately, carrying checked equality of every outcome to `finalize` through `finalize_collection_error` and `finalize_of_collected`; success text and `ResultProtocol.writeAccepted` consume its `AcceptedRun.report` through the report account `Account.account`. Fresh isolated source build and all existing warning, ownership, exclusion, source and replay guards remain. |
 | Same function: `--incremental`, `--build-lint` | The same full policy plan uses `incrementalProject`; cached Lake build artifacts do not cache policy decisions. Build-lint has no second exit-code-only PASS branch. |
 | `AxiomGate.auditSurface`: `--with-docs` | One process: `auditSurfaceAt` accepts the project plan over a snapshot that includes the copied Markdown, then `auditBuiltProject` accepts the documentation plan over that same snapshot and build, and `combineAccepted` joins them. No evidence crosses a process boundary between the two stages. `CombinedAccepted` is required before combined success. |
-| `AxiomGate.auditSurface`: `--acceptance-link PATH` | Fresh project success only (no `--with-docs`). After `AcceptedRun`, records the SHA-256 of the copy-relative accepted sources, configuration, dependency captures and `docs/` Markdown in PATH; the path is invalidated before the audit starts. |
+| `AxiomGate.auditSurface`: `--acceptance-link PATH` | Fresh project success only (no `--with-docs`). After `AcceptedRun`, computes the SHA-256 of the copy-relative accepted sources, configuration, dependency captures and `docs/` Markdown; records it in PATH only after `run`'s outer configuration recheck passed with exit code 0. The path is invalidated before the audit starts, so any refusal leaves it `incomplete`. |
 | `DocFenceAudit.run`: `--acceptance-link PATH` | Before building, computes the same identity from its own fresh captures and refuses unless PATH records an accepted ordinary result with an equal identity. Equality establishes identical captured inputs; `shasum` and the filesystem remain trusted. |
 | `AxiomGate.auditFile`: explicit conforming profile | Actual compilation and full source/replay/execution observations yield a `freshFile` plan and `AcceptedRun`. `FileSourceBinding` retains both the requested URI and the temporary compiled URI with exact byte equality. Producer/transcript paths are not rewritten. Dependencies remain incremental; this is no whole-project claim. |
 | Same function: no profile / compiler-trusting | `CLASSIFIED`, with no conforming `Claim` or accepted-positive receipt. Teaching does not supply logical conformance. |
@@ -139,7 +139,7 @@ symlinked root spelling, a relative input and an input outside the root. These a
 scoped operational controls, not a proof of IO extraction or a full acceptance run.
 
 `Common.mapWorkQueue`, `admitIndexedWorkerResults` and documentation's task collector
-execute `ResultState.collect`; no result slot is overwritten. The first two call
+execute `ResultState.collect`; no result slot is overwritten. All three call
 `checkedIndexedResults`: success returns exactly the array whose indexed pairs are a
 permutation of the responses over every requested slot, each payload bound to its slot. Group reconciliation
 preserves each requested environment separately and never deduplicates job
@@ -219,8 +219,9 @@ project claim (`coverage_fresh_iff`); the listed
 counts are `executionSummary` of each accepted environment; the fence counts partition
 the accepted fences by expectation; and the residual identifiers stay unresolved. The
 human lines (`Account.lines`, `Account.pass`) and `acceptance.account` JSON render its
-fields; they are unproved adapter text, and checker verdict lines use `Account.pass` by
-inspection of the call sites.
+fields; they are unproved adapter text. Project, file, build-lint, combined and graph verdict
+lines use `Account.pass` by inspection of the call sites; the documentation audit prints no
+PASS verdict, and its per-fence labels come from task results once an `AcceptedRun` exists.
 
 ### Frozen input coverage at operational entry points
 
