@@ -44,3 +44,4 @@ Return to the [project overview](../README.md).
 - [Project producer evidence](guides/engine-producers.md): extraction census, replay receipts, documentation diagnostics and source-owned examples.
 
 - [Source-owned rule examples](guides/rule-examples.md): fixture inputs, exact expectations and separate unavailable-analysis demonstrations.
+- [Opt-in intent screening](guides/intent-screening.md): probabilistic R-INTENT screening with user-set severities, formal discharge first, its evidence boundary and calibration.

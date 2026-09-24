@@ -1,0 +1,144 @@
+import Lean.Data.Json
+import PlumbPolicy.Screening
+
+/-! Operational client for TypeSafe's System One endpoint (`POST /v1/systemone`), used only by
+the opt-in `intentScreen` executable.
+
+Trusted and unverified here: the `curl` and `shasum` processes, the network, the service and
+its answers, and the filesystem cache. The API key is read from `TYPESAFE_API_KEY` and handed
+to `curl` on standard input as a configuration line, so it appears in no argument list, file,
+log or cache entry. Every request is cached under the SHA-256 of its exact compressed JSON
+(model, state and questions); a cache entry is reused only when its stored request equals the
+current one, and a cached run needs no key and makes no network call. Answers are admitted
+through the pure `PlumbPolicy.Screening.probability?`; a malformed answer, an answer from a
+model other than the pinned one, or a failed call makes the whole request unavailable, never
+a guessed probability. -/
+
+namespace Plumb.Screen.Jev
+
+open Lean System
+open PlumbPolicy.Screening
+
+def endpoint : String := "https://api.typesafe.ai/v1/systemone"
+
+/-- One typed answer. `support` is the Noul probability; a Choice answer carries every
+option's probability and its distribution confidence. -/
+inductive Answer where
+  | noul (probability : Probability)
+  | choice (probabilities : List (String × Probability)) (confidence : Probability)
+
+/-- One completed request: the versioned model that answered, answers by question id, the
+request digest and the input tokens the service billed. `cached` records whether this run
+reused an earlier response. -/
+structure Response where
+  model : String
+  answers : List (String × Answer)
+  digest : String
+  inputTokens : Nat
+  cached : Bool
+
+/-- The request body: model, state and questions, keys in canonical order. -/
+def request (model : PinnedModel) (state : Json) (questions : List (String × Json)) : Json :=
+  Json.mkObj [("model", .str model.val), ("state", state), ("questions", Json.mkObj questions)]
+
+private def run (cmd : String) (args : Array String) : IO IO.Process.Output :=
+  IO.Process.output { cmd, args }
+
+/-- SHA-256 of a file, by the trusted external `shasum`. -/
+def sha256File (path : FilePath) : IO String := do
+  let out ← run "shasum" #["-a", "256", path.toString]
+  unless out.exitCode == 0 do throw <| IO.userError s!"shasum failed: {out.stderr}"
+  let some digest := (out.stdout.splitOn " ").head?
+    | throw <| IO.userError "shasum printed no digest"
+  unless digest.length == 64 && digest.all fun c => c.isDigit || ('a' ≤ c && c ≤ 'f') do
+    throw <| IO.userError "shasum printed a malformed digest"
+  return digest
+
+private def probabilityOf (value : Json) : Except String Probability := do
+  let .num n := value | throw "probability is not a number"
+  match probability? n.mantissa n.exponent with
+  | some p => pure p
+  | none => throw s!"probability outside [0, 1]: {value.compress}"
+
+/-- Admit one answer of the question type that was asked. -/
+def parseAnswer (asked : String) (value : Json) : Except String Answer := do
+  let type ← value.getObjValAs? String "type"
+  unless type == asked do throw s!"answer type {type} differs from question type {asked}"
+  match type with
+  | "noul" => return .noul (← probabilityOf (← value.getObjVal? "noul"))
+  | "choice" =>
+    let .obj probabilities ← value.getObjVal? "probabilities" | throw "choice probabilities are not an object"
+    let pairs ← probabilities.toList.mapM fun (option, p) => do pure (option, ← probabilityOf p)
+    return .choice pairs (← probabilityOf (← value.getObjVal? "confidence"))
+  | other => throw s!"unsupported answer type {other}"
+
+/-- Admit a response body for the exact questions asked of the pinned model. -/
+def parseResponse (model : PinnedModel) (questions : List (String × Json)) (body : Json) :
+    Except String (String × List (String × Answer) × Nat) := do
+  let answered ← body.getObjValAs? String "model"
+  unless answered == model.val do
+    throw s!"the service answered with model {answered}, not the pinned {model.val}"
+  let answers ← body.getObjVal? "answers"
+  let parsed ← questions.mapM fun (id, question) => do
+    let asked ← question.getObjValAs? String "type"
+    pure (id, ← parseAnswer asked (← answers.getObjVal? id))
+  let tokens := ((body.getObjVal? "usage").bind (·.getObjValAs? Nat "input_tokens")).toOption.getD 0
+  return (answered, parsed, tokens)
+
+/-- POST the body with `curl`, the key on standard input. Returns the HTTP status and body. -/
+private def post (key : String) (bodyFile responseFile : FilePath) : IO (Nat × String) := do
+  let child ← IO.Process.spawn {
+    cmd := "curl"
+    args := #["--silent", "--show-error", "--max-time", "120", "--config", "-",
+      "--request", "POST", "--header", "Content-Type: application/json",
+      "--data-binary", s!"@{bodyFile}", "--output", responseFile.toString,
+      "--write-out", "%{http_code}", endpoint]
+    stdin := .piped, stdout := .piped, stderr := .piped }
+  let (stdin, child) ← child.takeStdin
+  stdin.putStr s!"header = \"Authorization: Bearer {key}\"\n"
+  stdin.flush
+  let stdout ← child.stdout.readToEnd
+  let stderr ← child.stderr.readToEnd
+  let exit ← child.wait
+  unless exit == 0 do throw <| IO.userError s!"curl failed ({exit}): {stderr}"
+  let some status := stdout.trimAscii.toString.toNat? | throw <| IO.userError "curl printed no HTTP status"
+  return (status, ← IO.FS.readFile responseFile)
+
+/-- Ask one request, reusing a cached response for an identical request. -/
+def ask (cache : FilePath) (model : PinnedModel) (state : Json) (questions : List (String × Json)) :
+    IO Response := do
+  IO.FS.createDirAll cache
+  let body := (request model state questions).compress
+  let pending := cache / "pending-request.json"
+  IO.FS.writeFile pending body
+  let digest ← sha256File pending
+  let entry := cache / s!"{digest}.json"
+  if ← entry.pathExists then
+    let stored ← IO.ofExcept <| Json.parse (← IO.FS.readFile entry)
+    let storedRequest ← IO.ofExcept <| stored.getObjVal? "request"
+    unless storedRequest.compress == body do
+      throw <| IO.userError s!"cache entry {entry} does not hold this request"
+    let (answered, answers, tokens) ← IO.ofExcept <|
+      parseResponse model questions (← IO.ofExcept <| stored.getObjVal? "response")
+    return { model := answered, answers, digest, inputTokens := tokens, cached := true }
+  let some key ← IO.getEnv "TYPESAFE_API_KEY"
+    | throw <| IO.userError "intent screening is opt-in: set TYPESAFE_API_KEY (no cached response for this request)"
+  if key.isEmpty then throw <| IO.userError "TYPESAFE_API_KEY is empty"
+  let responseFile := cache / "pending-response.json"
+  let mut attempt := 0
+  repeat
+    let (status, text) ← post key pending responseFile
+    if status == 200 then
+      let json ← IO.ofExcept <| Json.parse text
+      let (answered, answers, tokens) ← IO.ofExcept <| parseResponse model questions json
+      IO.FS.writeFile entry (Json.mkObj [("request", ← IO.ofExcept <| Json.parse body),
+        ("response", json)]).pretty
+      return { model := answered, answers, digest, inputTokens := tokens, cached := false }
+    if (status == 429 || status == 529 || status ≥ 500) && attempt < 4 then
+      IO.sleep (UInt32.ofNat (1000 * 2 ^ attempt))
+      attempt := attempt + 1
+    else
+      throw <| IO.userError s!"TypeSafe request failed with HTTP {status}: {text.take 500}"
+  throw <| IO.userError "unreachable retry exit"
+
+end Plumb.Screen.Jev
