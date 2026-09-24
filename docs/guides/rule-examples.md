@@ -67,31 +67,14 @@ own outcomes. `positiveClassifications_sound` states the exact admitted relation
 The [acceptance guide](policy-acceptance.md) owns global policy assembly; a passing corpus
 run is not full-standard conformance.
 
-## Exact source and remediation map
+## Source and remediation map
 
-| Rule | Source-owned input | What the correction preserves and changes |
-| --- | --- | --- |
-| PL1001 | `PL1001/{Violation,Fixed}.lean` | Proves the same `∀ n : Nat, n = n` instead of assuming it as an axiom. |
-| PL1002 | `PL1002/{Violation,Fixed}.lean` | Fills the same reflexivity proof with `rfl`; diagnostic-only inspection retains the original compiler warning. The fixed side uses the ordinary warning-rejecting gate. |
-| PL1003 | `PL1003/Example.lean` and dependency `{Violation,Fixed}.lean` | The unchanged client imports reflexivity from an unowned dependency; the dependency supplies a proof of the same proposition instead of an axiom. Imported dependencies remain a declared trust boundary. |
-| PL1004 | `PL1004/{Violation,Fixed}.lean` | Proves the same concrete equality by kernel reduction instead of native proof evaluation. Both native axiom and parent findings are retained. |
-| PL1005 | `PL1005/{Violation,Fixed}.lean` | Proves the same universally quantified reflexivity without `propext`, under the unchanged Kernel-only maximum. |
-| PL1006 | `PL1006/{Violation,Fixed}.lean` | Keeps identity's domain and body; removes an unnecessary `unsafe` declaration. |
-| PL1007 | `PL1007/{Violation,Fixed}.lean` | Moves the complete natural-number domain inside the identity contract's predicate, retaining the same pointwise equality. |
-| PL2001 | `PL2001/Example.lean` and `{Violation,Fixed}.json` | Removes the unavailable Lake dependency; the requested reflexivity source is unchanged. The unavailable-workspace result is a demonstration. |
-| PL2002 | `PL2002/Example.lean` and `{Violation,Fixed}.json` | Removes an unknown manifest key without changing the selected source, profile or execution requirement. |
-| PL2003 | `PL2003/{Violation,Fixed}.lean` | Removes a dead lambda binding while preserving identity's complete natural-number behavior. No warning or linter is disabled. |
-| PL2004 | `PL2004/{Violation,Fixed}.lean` | Removes an unused forbidden reporter import; preserves reflexivity and its assumptions. |
-| PL2005 | `PL2005/{Violation,Fixed}.lean` | Replaces ill-typed unchecked evidence with a checked proof of the same reflexivity statement. Admission failure is a demonstration, never accepted evidence. |
-| PL3001 | `PL3001/{Violation,Fixed}.lean` | Removes a no-effect custom evaluator that prevents history authentication; preserves the same reference, replacement and correspondence. |
-| PL3002 | `PL3002/{Violation,Fixed}.lean` | Adds the missing equality on the full natural-number domain; keeps the checked execution claim and both implementations. |
-| PL4001 | `PL4001/{Violation,Fixed}.md` | Removes an orphan marker; the positive reflexivity fence is unchanged. |
-| PL4002 | `PL4002/{Violation,Fixed}.md` | Proves the same reflexivity claim in a positive fence; retains the PL1001 underlying rejection alongside PL4002. |
-| PL4003 | `PL4003/{Violation,Fixed}.md` | Correctly labels an already valid reflexivity proof as positive; does not invent a compiler failure. |
-| PL4004 | `PL4004/{Violation,Fixed}.md` | Correctly labels the same kernel proof as positive rather than native teaching. |
-| PL5001 | `PL5001/{Violation,Fixed}.lean` | Adds module documentation to unchanged reflexivity evidence. |
-| PL5002 | `PL5002/{Violation,Fixed}.lean` | Adds the registered public theorem's docstring, including its `# Intent` section; registration, proposition and proof are unchanged. |
-| PL5003 | `PL5003/{Violation,Fixed}.lean` | Adds a nonempty `# Intent` section, structured with a `## Requirement` subsection, to the registered theorem's existing docstring; the explanation, registration, proposition and proof are unchanged. |
+Each rule's fixtures are the files in `examples/rules/<ID>/`: a `Violation` and a `Fixed`
+source, or an unchanged `Example.lean` with a changed dependency (PL1003) or configuration
+(PL2001, PL2002) pair. What each correction preserves and changes is the `correction` field of
+the rule's explanation in [`PlumbCore.Guide`](../../lean/PlumbCore/Guide.lean), rendered with the
+exact inputs, findings and diff on the rule's [reference page](website.md). Keep that field and
+the fixtures in the same change.
 
 ## Authoring and export contract
 
@@ -152,10 +135,11 @@ acceptance (`./scripts/verify.sh`, then `./scripts/verify.sh docs`) remains sepa
 Do not substitute the corpus campaign for that command. No website, editor-interaction,
 serialized-graph or full-project completion claim follows from the corpus alone.
 
-The website must render these exported sources directly and retain the result identity.
-Reject a stale source/registry or unmatched source/configuration/mode; never replace an
-unavailable version with current source. The actual linter/examples use Lean 4.34.0 and the
-root pinned dependencies. Verso's separate workspace uses the same Lean 4.34.0 toolchain and renders them as text.
+The [rule-reference site](website.md) renders these exports directly: `./scripts/verify.sh site`
+admits both shard exports again, refuses stale or partial evidence (recorded source bytes that
+differ from the checkout, a missing phase, another commit or toolchain), and shows the recorded
+inputs and findings as text. The actual linter/examples use Lean 4.34.0 and the root pinned
+dependencies. Verso's separate workspace uses the same Lean 4.34.0 toolchain and renders them as text.
 
 Detectors, ranges and elaboration reuse Lean/Lake facilities. The registry's canonical/indexed
 representation retains its specific [design attribution](design-influences.md); no con-leche

@@ -1,0 +1,168 @@
+import Plumb.Site.Build
+
+/-! # Rule-reference artifact assembly and check
+
+Renders the generated manual with the pinned Verso package, assembles the GitHub Pages
+artifact (`index.html`, `404.html`, `build.json`, `dev/` and, for a clean checkout,
+`rev/<commit>/`) and checks the assembled tree before it can be uploaded.
+
+## Main declarations
+
+- `render`: run the website package's Verso executable (trusted process boundary).
+- `assemble`: write the artifact tree.
+- `checkArtifact`: the complete finite check of an assembled tree: exact top-level layout,
+  byte-identical editions, one page per registered rule and no other rule route, page
+  content equal to the admitted example text, every scanned link resolving under the project
+  base path (`linkErrors_nil_iff`), and the registry's own site validator
+  (`axiomGate --validate-site`) over the observed pages and emitted rule IDs.
+
+## Boundaries
+
+The check observes files this process wrote and read back; it does not observe GitHub Pages.
+Deployment is verified separately against the live site (`Plumb.Site.Deployment`).
+-/
+
+namespace Plumb.Site.Build
+
+open Lean System Plumb.Site Plumb.Qualification
+
+/-- Render the generated manual. The website package pins its own Verso lock; the root
+package's search path is removed so the two workspaces never mix. -/
+def render (root : FilePath) (destination : FilePath) : IO (List (String × ByteArray)) := do
+  let website := root / "website"
+  if ← destination.pathExists then IO.FS.removeDirAll destination
+  let built ← run website "lake" #["build"] cleanEnv
+  requireChecks [⟨s!"Verso site build\n{built.stdout}{built.stderr}", built.exitCode == 0⟩]
+  let rendered ← run website "lake" #["exe", "plumb-site", "--output", destination.toString] cleanEnv
+  requireChecks [⟨s!"Verso rendering\n{rendered.stdout}{rendered.stderr}", rendered.exitCode == 0⟩]
+  snapshotTree (destination / "html-multi")
+
+private def page (title body : String) : String :=
+  "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" ++
+  "<title>" ++ escape title ++ "</title><style>body{font-family:system-ui,sans-serif;line-height:1.5;max-width:44rem;margin:2rem auto;padding:0 1rem;color:#1b1b1b;background:#fff}a{color:#0b57d0}code{font-family:ui-monospace,monospace}@media (prefers-color-scheme:dark){body{color:#e8e8e8;background:#161616}a{color:#8ab4f8}}</style></head><body><main>" ++
+  body ++ "</main></body></html>\n"
+
+/-- The project-site root: a link (and immediate refresh) to the development edition. -/
+def landing : String :=
+  "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" ++
+  "<title>Plumb for Lean rule reference</title><meta http-equiv=\"refresh\" content=\"0; url=dev/\"><link rel=\"canonical\" href=\"" ++
+  siteBase ++ "dev/\"></head><body><main><h1>Plumb for Lean rule reference</h1><p><a href=\"dev/\">Open the rule reference</a>.</p></main></body></html>\n"
+
+/-- The page GitHub Pages serves for every unpublished path. Links are root-relative because
+it is served at arbitrary paths. -/
+def notFound (ident : Identity) : String :=
+  page "Page not available — Plumb for Lean" (
+    "<h1>This page is not published</h1>" ++
+    "<p>The address does not name a published page of the Plumb for Lean rule reference.</p>" ++
+    "<p>Released-version pages (<code>" ++ basePath ++ "v/…</code>) and revision snapshots (<code>" ++ basePath ++
+    "rev/…</code>) that are not part of the current deployment are unavailable. They are never redirected to the latest rules, whose meaning may differ from the version you linked.</p>" ++
+    "<p>The explanations and checked examples of any revision are in its source on GitHub: <code>" ++ escape repository ++
+    "/tree/&lt;commit&gt;/examples/rules/&lt;ID&gt;/</code> and <code>" ++ escape repository ++ "/blob/&lt;commit&gt;/lean/PlumbCore/Guide.lean</code>.</p>" ++
+    "<p><a href=\"" ++ basePath ++ "dev/rules/\">Current development rule index</a>, built from commit <a href=\"" ++ escape (treeUrl ident) ++
+    "\"><code>" ++ escape (shortRevision ident.revision) ++ "</code></a>.</p>")
+
+/-- The machine-readable identity of an artifact. The deployment check compares the live copy
+with these exact bytes. -/
+def buildJson (g : Generated) : Json :=
+  Json.mkObj [
+    ("schemaVersion", toJson (1 : Nat)), ("site", .str siteBase), ("revision", .str g.ident.revision.val),
+    ("dirty", .bool g.ident.dirty), ("toolchain", .str g.ident.toolchain),
+    ("producerVersion", .str g.ident.producerVersion), ("versoRevision", .str g.ident.versoRevision),
+    ("editions", toJson (if g.ident.dirty then ["dev/"] else ["dev/", Edition.root (.rev g.ident.revision)])),
+    ("rules", toJson (g.summaries.map fun s => Json.mkObj [
+      ("id", .str s.rule.spelling), ("route", .str s.rule.route), ("helpUrl", .str (devUrl s.rule)),
+      ("example", .str s.kind), ("violationStatus", .str s.violationStatus), ("fixedStatus", .str s.fixedStatus),
+      ("emitted", toJson (s.emitted.map RuleId.spelling)), ("corpusShard", .str s.shard)])),
+    ("evidence", toJson (g.shards.map fun s => Json.mkObj [
+      ("shard", (field s "shard").toOption.getD .null), ("attempt", (field s "attempt").toOption.getD .null),
+      ("selected", (field s "selected").toOption.getD .null)]))]
+where field (j : Json) (k : String) := j.getObjVal? k
+
+/-- Write the artifact tree from the rendered edition. -/
+def assemble (out : FilePath) (g : Generated) (edition : List (String × ByteArray)) : IO Unit := do
+  if ← out.pathExists then IO.FS.removeDirAll out
+  IO.FS.createDirAll out
+  writeTree (out / "dev") edition
+  unless g.ident.dirty do writeTree (out / Edition.root (.rev g.ident.revision)) edition
+  IO.FS.writeFile (out / "index.html") landing
+  IO.FS.writeFile (out / "404.html") (notFound g.ident)
+  IO.FS.writeFile (out / "build.json") ((buildJson g).pretty ++ "\n")
+
+private def utf8 (path : String) (bytes : ByteArray) : IO String :=
+  match String.fromUTF8? bytes with
+  | some s => pure s
+  | none => throw <| IO.userError s!"{path}: output is not UTF-8"
+
+/-- Check an assembled artifact against the build that produced it. -/
+def checkArtifact (root out : FilePath) (g : Generated) : IO Unit := do
+  let files ← snapshotTree out
+  let rev := Edition.root (.rev g.ident.revision)
+  let allowed (p : String) := p == "index.html" || p == "404.html" || p == "build.json" ||
+    p.startsWith "dev/" || (!g.ident.dirty && p.startsWith rev)
+  let unexpected := files.filter (fun f => !allowed f.1) |>.map (·.1)
+  requireChecks [⟨s!"artifact has only the published layout; unexpected: {unexpected.take 5}", unexpected.isEmpty⟩]
+  let strip (prefix_ : String) := files.filterMap fun (p, b) => (p.dropPrefix? prefix_).map fun r => (r.toString, b)
+  let dev := strip "dev/"
+  unless g.ident.dirty do
+    requireChecks [⟨"development and revision editions are byte-identical", dev == strip rev⟩]
+  let spellings := RuleId.all.map RuleId.spelling
+  let ruleDirs := (dev.filterMap fun (p, _) => match p.splitOn "/" with
+    | "rules" :: d :: _ :: _ => some d | _ => none).eraseDups
+  requireChecks [⟨s!"rule routes are exactly the registry: {ruleDirs}",
+    ruleDirs.all spellings.contains && spellings.all ruleDirs.contains⟩]
+  let editions := if g.ident.dirty then [Edition.dev] else [Edition.dev, .rev g.ident.revision]
+  for e in editions do
+    for file in pageFiles e do
+      requireChecks [⟨s!"rule page exists: {file}", files.any (·.1 == file)⟩]
+  for (id, ex) in g.examples do
+    let some (_, bytes) := files.find? (·.1 == Edition.dev.pageFile id) | throw <| IO.userError s!"missing page {id.spelling}"
+    let html ← utf8 id.spelling bytes
+    let title := id.spelling ++ ": " ++ (descriptor id).title
+    let texts := ex.context.map (·.text) ++ ex.changed.flatMap (fun c =>
+        (c.violation.filter (·.fixture.isSome)).toList.map (·.text) ++ (c.fixed.filter (·.fixture.isSome)).toList.map (·.text)) ++
+      ex.findings.map (·.detail)
+    requireChecks [
+      ⟨s!"{id.spelling}: page title", html.contains title⟩,
+      ⟨s!"{id.spelling}: page states its commit", html.contains g.ident.revision.val⟩,
+      ⟨s!"{id.spelling}: page shows every admitted example text exactly", texts.all fun t => html.contains (escape t)⟩,
+      ⟨s!"{id.spelling}: page states every required section", requiredHeadings.all (fun h => html.contains h)⟩]
+  let pages ← files.mapM fun (p, bytes) => do
+    if p.endsWith ".html" then return Page.ofHtml p (← utf8 p bytes) else return Page.ofOther p
+  let errors := linkErrors pages
+  requireChecks [⟨s!"{errors.length} unresolved link(s): {errors.take 10}", errors.isEmpty⟩]
+  -- The registry's own validator over the observed pages and every emitted rule ID.
+  let registry := out.parent.getD root / "site-registry.json"
+  let artifact := out.parent.getD root / "site-artifact.json"
+  let exported ← run root (root / ".lake/build/bin/axiomGate").toString #["--registry-out", registry.toString]
+  requireChecks [⟨s!"registry export\n{exported.stdout}{exported.stderr}", exported.exitCode == 0⟩]
+  let emitted := (g.examples.flatMap fun (_, ex) => ex.findings.map (·.rule)).eraseDups
+  writeJson artifact (Json.mkObj [
+    ("required", toJson (RuleId.all.map RegistryCodec.ruleJson)),
+    ("emitted", toJson (emitted.map RegistryCodec.ruleJson)),
+    ("pages", toJson (RuleId.all.map fun id => Json.mkObj [
+      ("id", RegistryCodec.ruleJson id), ("route", toJson id.route),
+      ("checkedExample", toJson (g.examples.any (·.1 == id) && files.any (·.1 == Edition.dev.pageFile id))),
+      ("advertisedEnforced", toJson true)]))])
+  let validated ← run root (root / ".lake/build/bin/axiomGate").toString #["--validate-site", registry.toString, artifact.toString]
+  requireChecks [⟨s!"registry site validation\n{validated.stdout}{validated.stderr}", validated.exitCode == 0⟩]
+  IO.FS.removeFile registry
+  IO.FS.removeFile artifact
+  let recorded ← IO.FS.readFile (out / "build.json")
+  requireChecks [⟨"build identity", recorded == (buildJson g).pretty ++ "\n"⟩]
+
+/-- Complete build: admit evidence, generate, render, assemble and check. -/
+def build (evidencePaths : List FilePath) (out : FilePath) : IO Unit := do
+  -- Invalidate an earlier artifact before any step can fail.
+  if ← out.pathExists then IO.FS.removeDirAll out
+  let root ← rootDirectory
+  let ident ← identity root
+  let g ← evidence root ident evidencePaths
+  generate root g
+  let edition ← render root (root / "tmp/site-render")
+  assemble out g edition
+  checkArtifact root out g
+  IO.FS.removeDirAll (root / "tmp/site-render")
+  IO.println s!"site: PASS ({RuleId.all.length} rule pages per edition, {(← snapshotTree out).length} files, commit {ident.revision.val}{if ident.dirty then " with uncommitted changes" else ""}); artifact {out}"
+  IO.println "The artifact check observes local files only; publication is verified against the deployed site."
+
+end Plumb.Site.Build

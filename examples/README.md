@@ -10,8 +10,8 @@ Start with the [adoption guide](../docs/guides/adoption.md) for package setup an
 conformance obligations. The repository's mathematical and application proof surfaces
 are described in the [Lean module map](../lean/README.md).
 
-[rule-reference-prototype](rule-reference-prototype/README.md) is the bounded PRODUCT-01 architecture probe: one real policy rule, a native diagnostic, Lake lint dispatch and a generated Verso page. The adopter examples above supersede its dispatch evidence.
-
 [intent-screening](intent-screening/README.md) holds the calibration configuration, report,
 evidence rows and cached service answers for the opt-in
 [intent screen](../docs/guides/intent-screening.md), plus a sample screening configuration.
+
+The checked violating and corrected sources shown on the [rule reference](https://rbeauchamp.github.io/lean-plumb/dev/rules/) live in [rules](rules/README.md); they are qualification fixtures, not adopter projects.

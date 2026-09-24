@@ -4,7 +4,7 @@ A strict linter and correctness standard for Lean.
 
 Plumb pairs a Lean linter and linked rule-reference website with a standard requiring precise types, propositions, and kernel-checked evidence.
 
-The [standard](docs/standard/README.md) defines normative meaning. The current checker enforces declaration, foundation, execution-boundary, and checked-example requirements; the [product architecture](docs/guides/linter-architecture.md) specifies the typed rule catalogue, editor integration, and GitHub Pages website being built. Adopters run it with `lake lint` and receive linked editor diagnostics from `import Plumb.Linter` ([adoption guide](docs/guides/adoption.md)); the website is not yet published. Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
+The [standard](docs/standard/README.md) defines normative meaning. The current checker enforces declaration, foundation, execution-boundary, and checked-example requirements; the [product architecture](docs/guides/linter-architecture.md) specifies the typed rule catalogue, editor integration, and GitHub Pages website. Adopters run it with `lake lint` and receive linked editor diagnostics from `import Plumb.Linter` ([adoption guide](docs/guides/adoption.md)). Every diagnostic links to its explanation in the [rule reference](https://rbeauchamp.github.io/lean-plumb/dev/rules/), generated from the rule registry and checked examples and published by CI from `main` ([website guide](docs/guides/website.md)). Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
 
 ## Community review
 
@@ -32,6 +32,7 @@ Conformance means satisfying every applicable row of the [compliance checklist](
 | [docs/](docs/README.md) | Normative standard and practical guides. |
 | [lean/](lean/README.md) | Contracts, checked examples, checkers, and isolated qualification fixtures. |
 | [examples/](examples/README.md) | Self-contained adopting projects, each with its own README and Lake configuration. |
+| [website/](docs/guides/website.md) | Pinned Verso package that renders the generated rule reference. |
 
 Root configuration files keep this a directly usable Lake package. Tool-owned hidden directories stay in their expected locations; build output and temporary probes are not maintained content areas.
 

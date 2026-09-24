@@ -45,3 +45,4 @@ Return to the [project overview](../README.md).
 
 - [Source-owned rule examples](guides/rule-examples.md): fixture inputs, exact expectations and separate unavailable-analysis demonstrations.
 - [Opt-in intent screening](guides/intent-screening.md): probabilistic R-INTENT screening with user-set severities, formal discharge first, its evidence boundary and calibration.
+- [Rule-reference website](guides/website.md): sources, guarantees, build and publication of the generated rule reference, and the rule-change workflow.

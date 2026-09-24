@@ -9,6 +9,8 @@ on:
 permissions:
   contents: read
 
+# One run per ref: a newer push to main cancels an older run, including its deployment,
+# so an obsolete revision cannot replace a newer published one.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -36,27 +38,139 @@ jobs:
       - name: Verify documentation fences (same command and seven-minute limit as local)
         run: ./scripts/verify.sh docs
 
-      # PRODUCT-01 integration; canonical metadata design credits con-leche.
-      # Separate from, and never a partition of, 420-second acceptance.
+  # The rule-example corpus: detector qualification (docs/standard/8 §8.8) and the only
+  # source of the site's examples. Diagnostics, not a partition of acceptance.
+  rule-examples:
+    name: diagnostics rule-examples ${{ matrix.shard }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: '1/2'
+            index: 1
+          - shard: '2/2'
+            index: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
+      - name: Qualify (same command and seven-minute limit as local)
+        run: ./scripts/verify.sh diagnostics rule-examples ${{ matrix.shard }}
+
+      - name: Keep the shard export for the site build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rule-examples-${{ matrix.index }}of2-${{ github.sha }}
+          path: tmp/rule-examples-${{ matrix.index }}of2.json
+          if-no-files-found: error
+          retention-days: 30
+
+  # Rule-reference website (docs/guides/website.md): generated from the registry, the rule
+  # explanations and this run's admitted corpus exports, rendered with pinned Verso and
+  # checked. Separate from, and never a partition of, 420-second acceptance.
+  site:
+    needs: rule-examples
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
       - name: Restore pinned Verso dependencies
         id: verso
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: examples/rule-reference-prototype/site/.lake/packages
-          key: verso-prototype-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('examples/rule-reference-prototype/site/lean-toolchain', 'examples/rule-reference-prototype/site/lake-manifest.json') }}
+          path: website/.lake/packages
+          key: verso-website-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('website/lean-toolchain', 'website/lake-manifest.json') }}
 
       - name: Provision pinned Verso
-        timeout-minutes: 15
-        working-directory: examples/rule-reference-prototype/site
+        timeout-minutes: 20
+        working-directory: website
         run: lake build verso/VersoManual
 
       - name: Save pinned Verso dependencies
         if: steps.verso.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: examples/rule-reference-prototype/site/.lake/packages
+          path: website/.lake/packages
           key: ${{ steps.verso.outputs.cache-primary-key }}
 
-      - name: Verify one-rule linter and Verso integration
-        timeout-minutes: 10
-        run: lake env lean --run examples/rule-reference-prototype/Run.lean
+      - name: Receive this run's corpus exports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: rule-examples-*of2-${{ github.sha }}
+          path: tmp
+          merge-multiple: true
+
+      - name: Build site tooling
+        timeout-minutes: 20
+        run: lake build axiomGate ruleExampleQualification site
+
+      - name: Build and check the site (seven-minute limit)
+        run: ./scripts/verify.sh site
+
+      - name: Keep the validated artifact (preview and deployment check)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-${{ github.sha }}
+          path: _site
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the validated artifact for GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  # Publish exactly the artifact validated above, only for main and only after the same
+  # revision's acceptance job passed.
+  deploy:
+    needs: [verify, site]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # Observe that the live site serves this run's exact artifact.
+  verify-deployment:
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
+      - name: Receive the validated artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: site-${{ github.sha }}
+          path: _site
+
+      - name: Compare the live site with the artifact
+        run: lean --run lean/Plumb/Site/Deployment.lean _site ${{ needs.deploy.outputs.page_url }}

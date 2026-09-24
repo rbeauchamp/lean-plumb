@@ -49,6 +49,18 @@ check that success reaches exit 0 only through the audit's own accepted result
 links come from the registry's `helpUrl`. Editor claims need observation in the supported
 client; a link string or browser check alone does not qualify an editor interaction.
 
+## Rule and site changes
+
+A change to a rule reviews its registry descriptor (`PlumbCore/Rule.lean`), its explanation
+(`guide` in `PlumbCore/Guide.lean`), its fixtures and `corpus.json` entry, and its detector together.
+Check that the explanation states exactly what the detector rejects, which impact it reports,
+what a pass establishes and which `Residual` obligations stay open, with no suppression advice
+that implies conformance; that the correction preserves the violation's intended proposition or
+behavior; and that an ID keeps its meaning (a changed predicate needs a new ID and a retired
+descriptor). For site changes, check the generated pages in a browser at a narrow and a wide
+width and trace every claim in [the website guide](../../../../docs/guides/website.md) to its
+theorem or recorded observation. A passing site build is not semantic review of the prose.
+
 ## Evidence and repairs
 
 Check findings against the exact Lean claim and supported pin. A checker bypass repair needs
@@ -69,6 +81,7 @@ Choose checks from AGENTS.md and the applicable checklist rows:
 | Checker behavior or detection claims | Focused qualification of affected capabilities and invocation paths. |
 | Lake lint driver, build target or editor adapter | `diagnostics lint-driver` or `build-policy` as affected; `qualify native` for linter messages; recorded client observation for editor interaction. |
 | Optional serialized-graph claim | Supported fresh-checker evidence for that exact graph. |
+| Rule metadata, explanations, fixtures or site generation | Both corpus shards and `./scripts/verify.sh site` at the same commit; browser observation of affected pages; semantic review of the explanation. |
 | Instructions or editorial changes with unchanged Lean claims and inputs | References, instruction behavior, and scoped review. |
 
 Reuse prior semantic or diagnostic evidence when its relevant inputs, toolchain, and claim

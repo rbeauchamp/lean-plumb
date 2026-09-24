@@ -2,14 +2,14 @@
 
 Project-owned implementation follows the Lean 4 policy in `AGENTS.md`, not
 in the universal standard. The sixteen former Python entrypoints listed below have Lean
-replacements; ordinary acceptance, the producer/history/corpus CI campaigns, and the
-prototype do not need a Python interpreter. The four remaining acceptance, snapshot,
+replacements; ordinary acceptance, the producer/history/corpus CI campaigns and the
+site build do not need a Python interpreter. The four remaining acceptance, snapshot,
 documentation-dependency and input-inventory drivers were retired after their native
 controls passed. The [earlier receipt](../../session/evidence/ci-environment-census.md)
 and [completion receipt](../../session/evidence/ci-role-retention.md) retain the
 control mapping, runtime results, failed attempts and evidence-reuse boundaries.
 Historical implementations remain in Git history; use the Lean commands below.
-The prototype's project-owned JavaScript widget was also removed. External Lean, Lake,
+The former prototype's project-owned JavaScript widget was also removed. External Lean, Lake,
 Verso, runtime libraries and generated browser assets remain external dependencies, not
 claims of a wholly Lean or formally verified toolchain.
 
@@ -41,7 +41,7 @@ the external process, compiler or filesystem boundary they observe.
 | `frozen_exit_checks.py` | `lake exe qualify frozen-exits` | Frozen-input rechecks after imports and failed build/compilation operations. |
 | `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 37 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
 | `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty-two source-owned phases for twenty-one rules (Fixed and Violation, each in its own fresh workspace), plus authentic wrong-claim/classification refusal controls: 45 productions and 3 individual control admissions, then one corpus admission of every record. What admission concludes from any record is proved (`RuleExampleQualification.qualify_sound`), not sampled by mutation. `--shard K/N` selects every Nth rule by corpus position, keeping PL5001 and PL5002 in one shard. |
-| prototype `run.py` | `lake env lean --run examples/rule-reference-prototype/Run.lean` | Separately pinned Verso integration, native messages, Lake dependency dispatch and identical-output comparison. |
+| prototype `run.py` | Retired with the one-rule prototype: `./scripts/verify.sh site` ([website guide](website.md)) replaces its Verso integration and page checks; `diagnostics lint-driver` and `qualify native` replace its Lake dispatch and native-message checks. | — |
 | `acceptance_checks.py` | `lake exe qualify acceptance GROUP --evidence PATH` | Fence-compilation packet mutations with positive restoration. Group: `fences`. The former `surface`, `evidence`, `sources` and `process` groups mutated the removed surface-worker packet; project and documentation acceptance now run in one process with nothing serialized between them. |
 | `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies`, `lake exe qualify acceptance-snapshots history` and `lake exe qualify acceptance-snapshots git-status` | Ignored Git/non-Git dependency input coverage and mutation; PL3001 fresh/incremental/build-lint history refusal and restoration; dependency dirty decision against the retired pathspec status across Git collapse, rename, nested-repository, symlinked-root and outside-root cases. `all` runs all three under one deadline. |
 | `documentation_dependency_checks.py` | `lake exe qualify documentation-dependencies` | Both documentation commands retain pre-build dependency observations; combined project/documentation positive remains distinct. |
@@ -49,12 +49,12 @@ the external process, compiler or filesystem boundary they observe.
 
 The producer command retains `--evidence PATH`. `scripts/verify.sh` runs registry and native
 controls; `scripts/verify.sh diagnostics producers`, `scripts/verify.sh diagnostics history`
-and the two `scripts/verify.sh diagnostics rule-examples K/2` shards run as parallel
-capability-triggered CI jobs. Each invocation retains its own hard 420-second deadline. Direct `lake exe qualify`
-campaigns have a single 420-second process-group deadline; the prototype has a single
-600-second process-group deadline. These replace the old per-child timers, which cannot
+run as parallel
+capability-triggered CI jobs, and the two `scripts/verify.sh diagnostics rule-examples K/2` shards
+run in CI on every change, feeding `scripts/verify.sh site`. Each invocation retains its own hard 420-second deadline. Direct `lake exe qualify`
+campaigns have a single 420-second process-group deadline. These replace the old per-child timers, which cannot
 safely enforce descendant termination while sharing acceptance's outer process group.
-The prototype never substitutes for acceptance. `diagnostics rule-examples` retains the
+Neither the corpus nor the site build substitutes for acceptance. `diagnostics rule-examples` retains the
 upstream corpus selection; optional `--rules RULE ...` or `--shard K/N` follows
 `--evidence PATH` on the standalone command and never claims full-corpus coverage; the two
 CI shards together select every rule once. The corpus runner retains at most five
@@ -241,9 +241,9 @@ partition is not a CI job.
   the pinned toolchain. It owns argument selection, command recipes, sequential execution
   and success reporting. `scripts/verify.sh` only selects the root/GNU timeout and starts
   this runner under the external deadline, including all root-package builds.
-- `examples/rule-reference-prototype/Run.lean`: the experiment-specific driver. It remains
-  with its fixtures and separately pinned Verso package rather than becoming a checker
-  dependency. Production website delivery remains separate work.
+- `lean/Plumb/Site/`: the rule-reference site builder (`lake exe site`) and the
+  toolchain-only deployment check. Their pure decisions are proved in the claimed
+  `PlumbCore.Site*` modules; see the [website guide](website.md).
 
 This uses normal Lean module factoring and Lake targets. It does not impose a universal
 `tests/` directory convention or rename scripts while hiding another interpreter inside Lean.
@@ -410,14 +410,10 @@ by their source-level linkage. The proof is erased at execution.
   first refusals. Structural raw-tree laws avoid assuming parser well-formedness. These
   separately checked operational-module proofs do not authenticate parsing,
   duplicate-key handling, serialization, hashes, filesystem custody or subprocesses.
-- `Website.hasFence_exact`: the fence guard detects exactly a contiguous triple backtick
-  in the input character list. `checkedBlock` specifies refusal or exact LF-normalized
-  text wrapping. `checkedPage` admits exactly fence-free PL1001 inputs and returns a
-  proof-bearing `Page input`: its bytes equal the canonical `pageText input`, including
-  the supplied metadata and exact LF-normalized violation/diagnostic/fixed sections.
-  `checkedArtifact` proves field-level preservation of required IDs, emitted IDs (order
-  and multiplicity), route and the conjunction of observed checked-example conditions.
-  The driver consumes these contracts. They do not establish Verso/browser correctness.
+- The former prototype's `PlumbQualification.Website` page and artifact contracts were
+  retired with it. The production site's page, escaping, filter, diff and link-check
+  guarantees are in `PlumbCore.Site*` ([website guide](website.md)). They do not establish
+  Verso or browser correctness.
 - `PlumbVerification.parseMode_sound`, `parseMode_roundtrip`, and `select_exact`
   prove exact argument binding and acceptance of every documented invocation. The caller
   consumes the proof-bearing selection; recipes name the intended commands explicitly.

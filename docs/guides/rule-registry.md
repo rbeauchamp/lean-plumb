@@ -4,8 +4,8 @@ The implementation lives in `PlumbCore.RuleId`, `PlumbCore.Rule`,
 `Plumb.Diagnostic`, `Plumb.NameCodec`, `Plumb.RegistryCodec`,
 `Plumb.DiagnosticCodec` and `Plumb.Website`; the first two are on the claimed
 `PlumbCore` surface, whose declarations the gate audits. These modules supply one
-vocabulary to the existing checker, its native diagnostic prototype and the
-prototype website. The [coverage map](rule-coverage.md) defines the twenty-one
+vocabulary to the checker, the native editor linter and the
+[rule-reference website](website.md), whose pages `PlumbCore.Site*` derive from `descriptor`. The [coverage map](rule-coverage.md) defines the twenty-one
 reserved predicates and their residual semantic obligations.
 
 ## Identity and authoring
@@ -20,7 +20,7 @@ A descriptor supplies title, category, scope, evidence kind, normative clauses, 
 message-template identifiers, strict default, supported evidence modes,
 implementation availability, lifecycle and attribution. `existingChecker`
 means the named existing predicate has a checker implementation; it does not
-mean that every planned live editor or production website adapter is complete.
+mean that every planned live editor adapter is complete.
 PL5001–PL5003 now have native metadata-presence observers. PL1001–PL1007
 have partial command feedback; PL2002 covers invalid local foundation requests,
 and PL2005 covers unavailable or pending local analysis. Full project integration
@@ -191,14 +191,14 @@ of Lean's JSON parser, FileMap implementation or complete diagnostic decoder.
 ## Website admission and links
 
 Development help URLs are
-`https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/`. They describe the
-selected development route, not a claim that a public page has been deployed.
-Released `/v/<package-version>/` and immutable `/rev/<commit>/` publication remain
-subject to the architecture's publication contract; this unreleased producer
-advertises development links only.
+`https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/`; `Plumb.Site.Build.helpUrl_dev`
+proves each is the site's development page route of its rule. Released `/v/<package-version>/`
+publication awaits a release; the deployed commit's `/rev/<commit>/` snapshot is published
+with each deployment ([website guide](website.md)). This unreleased producer advertises
+development links only.
 
-The prototype now exports the complete registry and selects its page from that
-export. After building the actual artifact, it invokes:
+The site builder (`lake exe site build`, run by `./scripts/verify.sh site`) generates every
+page from the registry and, after assembling the artifact, invokes:
 
 ```sh
 lake exe axiomGate --validate-site tmp/registry.json tmp/site-artifact.json
@@ -211,15 +211,15 @@ canonical routes, checked examples, and an implementation for advertised enforce
 rules. Every emitted ID must belong to the selected page scope. Unknown fields
 fail. The builder supplies the observed artifact inventory and checked-example
 evidence; the validator does not prove filesystem or compiler observations.
-The prototype explicitly selects one page; it does not manufacture nineteen
-placeholder pages or satisfy production WEBSITE-01.
+The site submits every registered rule as required, one page per rule, and every rule ID its
+checked examples emitted.
 
 `Website.ExampleExpectation` distinguishes positive, compiler rejection, policy
 rejection and trusted teaching examples. A policy rejection may elaborate
 successfully and must have the expected rule/subreason, a real primary source
 range and no unexpected diagnostics. An incomplete collector result cannot
-satisfy any intended rejection. Production collection and example publication
-must connect this interface to their actual completed jobs.
+satisfy any intended rejection. The rule-example qualifier admits the completed jobs, and the site builder consumes only
+its admitted exports.
 
 ## Evidence and limits
 
@@ -239,8 +239,8 @@ malformed transport, missing/duplicate routes, unsupported modes, Unicode/CRLF
 coordinate boundaries, native/text agreement and incomplete negative outcomes.
 Those controls qualify operational boundaries; they are not sampled evidence for
 the universal theorems. `scripts/verify.sh` includes these checks within its same
-hard 420-second ordinary acceptance budget. The prototype separately exercises
-actual native diagnostics, Lake dispatch and deterministic Verso output.
+hard 420-second ordinary acceptance budget. The native-linter and lint-driver campaigns separately exercise actual native diagnostics and
+Lake dispatch; the site build checks the generated pages.
 
 ## Attribution and pinned interfaces
 
@@ -255,7 +255,7 @@ The source and native-message adapters use Lean 4.34.0, commit
 [FileMap](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Data/Position.lean),
 [UTF-16 conversion](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Data/Lsp/Utf16.lean),
 and [command linter hooks](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Elab/Command.lean).
-Credit Lean's authors for these APIs. The existing prototype retains Verso credit
+Credit Lean's authors for these APIs. The rule-reference site credits Verso
 and the [Microsoft CA1416](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416)
 illustrative presentation reference. The [ecosystem study](ecosystem-design.md) broadens
 the comparison; none of these examples prescribes an exact UX or supplies Lean policy
