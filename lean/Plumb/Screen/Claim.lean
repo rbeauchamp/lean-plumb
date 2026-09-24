@@ -15,8 +15,10 @@ statement by Lean's kernel definitional-equality check and `P` does not depend o
 hypothesis, whose proof the kernel re-checks against that type here, and whose transitive
 axioms lie within the Standard-Logical foundation (`propext`, `Quot.sound`,
 `Classical.choice`). Then `Name` applied to the claim proves `P`, and only whether `P` states
-the English clause is judged. The re-check covers the discharge's own proof term; the
-declarations it uses are trusted as built into their imported `.olean` files, not replayed. A marker
+the English clause is judged. The re-check covers only the discharge's own proof term; the
+declarations it uses are trusted as admitted by the build of their imported `.olean` files and
+are not re-checked here, so a dependency built under `debug.skipKernelTC` is not caught by the
+screen (only Plumb's fresh acceptance of a claimed surface re-admits it). A marker
 that fails any of these conditions makes the claim's screen unavailable; it never downgrades
 to a judged clause. -/
 

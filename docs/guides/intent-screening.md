@@ -40,16 +40,21 @@ The screen accepts the reference only when these conditions hold:
 - The named declaration is a theorem of the loaded environment.
 - Its type is `S → P`, where `P` does not depend on the hypothesis, and Lean's kernel
   definitional-equality check (`Lean.Kernel.isDefEq`) finds `S` equal to the claim's statement.
-- Lean's kernel re-checks its proof against that type when the screen runs (a fresh-named
-  copy is added to the loaded kernel environment). A proof admitted only because its module
-  was built with `debug.skipKernelTC` is refused. The declarations the proof uses are not
-  replayed: they are trusted as built into their imported `.olean` files.
+- Lean's kernel re-checks the theorem's own proof term against that type when the screen runs
+  (a fresh-named copy is added to the loaded kernel environment). A discharge whose own proof
+  term was admitted without kernel checking (`debug.skipKernelTC`) and is ill typed is refused.
+  The declarations that proof uses are not re-checked by the screen: they are trusted as
+  admitted by the build that produced their `.olean` files. A lemma built under
+  `debug.skipKernelTC` with an ill-typed proof is therefore not caught by the screen itself;
+  such dependencies are kernel re-admitted only when the project passes Plumb's fresh
+  acceptance (fresh source elaboration and kernel admission of its claimed surfaces).
 - Its transitive axioms lie within the Standard-Logical foundation: `propext`, `Quot.sound`
   and `Classical.choice`. A project axiom, `sorryAx`, `Lean.ofReduceBool` (`native_decide`) or
   `Lean.trustCompiler` refuses it. The report lists the exact axioms.
 
-The kernel checked the implication's proof, and the screen's adapter ran the other checks.
-That part of the clause is **checked** and involves no model judgment. The model
+The kernel re-checked the implication's own proof term, relative to its trusted dependencies,
+and the screen's adapter ran the other checks. That part of the clause is **checked** and
+involves no model judgment. The model
 judges only one question about it: does `P` state the English clause? The report calls this
 the *correspondence* judgment. The screen asks no coverage question for a discharged clause.
 A reference that fails any condition makes the whole screen incomplete. It never falls back
@@ -167,7 +172,9 @@ linter's severity vocabulary and diagnostic shape.
   question wording, the statement or the intent produces a new request.
 - **Trusted, not verified.** The screen's adapter code that reads claims, locates them and
   checks discharge references; the imported `.olean` environment, including the declarations a
-  discharge proof uses (only the discharge theorem itself is re-checked by the kernel); the
+  discharge proof uses, as admitted by their build (only the discharge theorem's own proof
+  term is re-checked by the kernel; a dependency built with `debug.skipKernelTC` is not caught
+  by the screen, only by Plumb's fresh acceptance of a claimed surface); the
   source files read for finding locations; the `curl` and `shasum` processes, the network, the
   service and its answers, the cache files, and Lean's pretty-printer that renders the
   statement.
