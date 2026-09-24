@@ -121,8 +121,9 @@ private def refuse (message : String) : IO Outcome := do
   IO.eprintln s!"plumb lint: {Outcome.configuration.label}: {message}"
   return .configuration
 
-/-- The checker executable the audit spawns as its worker (`runTypedWorker`). Lake's lint
-dispatch builds only the driver, so the driver builds it before the audit. -/
+/-- The Lake target of `workerBinary`, which the audit spawns as its worker. Lake's lint
+dispatch builds only the driver, so the driver builds it in `checkerWorkspace` before the
+audit. -/
 def workerTarget : String := "plumb/axiomGate"
 
 /-- Every path but the audit's `classify` returns a non-accepted class. -/
@@ -142,11 +143,8 @@ private unsafe def lint (args : List String) : IO Outcome := do
       return ← explain options
     IO.println s!"plumb lint: enforcing all manifested Lake surfaces; mode {modeText options.fresh}"
     (← IO.getStdout).flush
-    let repo ← match options.project with
-      | some dir => findRepoRoot dir
-      | none => repoRoot
-    let worker ← Lake.buildTargets repo #[workerTarget]
-    unless worker.succeeded do
+    let worker ← Lake.buildTargets (← checkerWorkspace) #[workerTarget]
+    unless worker.succeeded && (← (← workerBinary).pathExists) do
       IO.eprintln worker.output
       IO.eprintln s!"plumb lint: {Outcome.incomplete.label}: audit worker {workerTarget} did not build"
       return .incomplete

@@ -100,9 +100,7 @@ def inspectGroupCurrentSearchPath (modules : Array Name)
     (compiledSources : Array ProducerReport.SourceBinding := #[]) :
     IO (Except ProducerReport.AdmissionFailure GroupReport) := do
   return (← SourceBinding.withUnchanged compiledSources #[] do
-    let some selfLib ← checkerPackageLibDir
-      | throw <| IO.userError "checker library directory unavailable"
-    let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+    let binary ← workerBinary
     let mut resolvedSources := moduleSources ++ transcriptSources
     for name in modules do
       if !resolvedSources.any (·.1 == name) then
@@ -166,9 +164,7 @@ private def compileIn (repo scratch : FilePath) (spec : SourceSpec)
   SourceBinding.withUnchanged #[{
     moduleName := spec.module.toName, path := sourcePath.toString, content := spec.source }] #[] do
     if spec.captureRejection then
-      let some selfLib ← checkerPackageLibDir
-        | throw <| IO.userError "checker library directory unavailable"
-      let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+      let binary ← workerBinary
       let output := scratch / s!"{spec.«module»}.diagnostics.json"
       let workerStart ← IO.monoMsNow
       let process ← spawn binary.toString
@@ -237,9 +233,7 @@ def compileBatch (repo scratch : FilePath) (jobs : Nat) (specs : Array SourceSpe
     IO.FS.writeFile path spec.source
     pure ({ moduleName := spec.module.toName, path := path.toString, content := spec.source } : ProducerReport.SourceBinding)
   SourceBinding.withUnchanged sources #[] do
-    let some selfLib ← checkerPackageLibDir
-      | throw <| IO.userError "checker library directory unavailable"
-    let binary := selfLib.parent.getD selfLib / ".." / "bin" / "axiomGate"
+    let binary ← workerBinary
     withScratch repo "compile-batch" fun work => do
       let input := work / "request.json"
       let output := work / "result.json"
