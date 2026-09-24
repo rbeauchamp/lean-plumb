@@ -120,6 +120,9 @@
   `MUT-*` applies when checker behavior is implemented or changed; `DOGFOOD-*` applies
   to this repository; `MUT-05` applies to the optional serialized-graph claim. A `FAIL`,
   `INCOMPLETE`, unknown, omission, skip, timeout, or unsupported check blocks the affected claim.
+- `intentScreen` (`docs/guides/intent-screening.md`) calls a paid external model and sends source
+  text; never run it in acceptance or CI. Changing its questions or corpus invalidates the
+  committed calibration in `examples/intent-screening/` until a new, disclosed test run.
 
 Use `lake build` for the Lean development loop. Complete local acceptance is two commands,
 run in this order:

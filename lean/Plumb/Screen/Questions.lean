@@ -108,10 +108,12 @@ def correspondence : Json :=
     "The Lean proposition says exactly what the English clause requires, no more and no less."
     "The Lean proposition differs from the English clause: a missing or extra hypothesis, a different conclusion or bound, a different quantifier order, or a case the clause excludes."
 
-/-- Question ids of one claim request, in order: one coverage question per clause, then the
+/-- Question ids of one claim request, in order: one coverage question per clause not formally discharged (keeping the clause index), then the
 strength Choice and the three targeted checks. Ids are not sent to the model. -/
-def claimQuestions (mode : StateMode) (c : ClaimText) : List (String × Json) :=
-  (c.clauses.mapIdx fun i clause => (s!"coverage_{i}", coverage mode clause)) ++
+def claimQuestions (mode : StateMode) (c : ClaimText) (discharged : Nat → Bool := fun _ => false) :
+    List (String × Json) :=
+  (c.clauses.zipIdx.filterMap fun (clause, i) =>
+    if discharged i then none else some (s!"coverage_{i}", coverage mode clause)) ++
     [("strength", strength mode), ("quantifier_order", quantifierOrder mode),
       ("totalization", totalization mode), ("exclusions", exclusions mode)]
 

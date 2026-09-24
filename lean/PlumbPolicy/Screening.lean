@@ -90,15 +90,13 @@ def one : Decimal := ⟨1, 0⟩
 def add (a b : Decimal) : Decimal :=
   ⟨a.mantissa * 10 ^ b.exponent + b.mantissa * 10 ^ a.exponent, a.exponent + b.exponent⟩
 
-/-- Decimal text of the exact value, for evidence records (`0.93`, `1`, `0.05`). -/
+/-- Decimal text of the exact value, without trailing fractional zeros, for evidence records
+(`0.93`, `1`, `0.05`). -/
 def render (d : Decimal) : String :=
   let whole := d.mantissa / 10 ^ d.exponent
-  let frac := d.mantissa % 10 ^ d.exponent
-  if d.exponent = 0 then toString whole
-  else
-    let digits := toString frac
-    let padded := "".pushn '0' (d.exponent - digits.length) ++ digits
-    s!"{whole}.{padded}"
+  let digits := toString (d.mantissa % 10 ^ d.exponent)
+  let fraction := (("".pushn '0' (d.exponent - digits.length) ++ digits).toList.reverse.dropWhile (· == '0')).reverse
+  if fraction.isEmpty then toString whole else s!"{whole}.{String.ofList fraction}"
 
 /-- Instances of the exact order and of rescaling invariance. -/
 theorem order_examples :
