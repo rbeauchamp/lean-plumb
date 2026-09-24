@@ -182,8 +182,11 @@ The driver builds every manifested library and executable by its explicit Lake t
 inspects the completed environment. It re-evaluates current policy even when every module
 is cached, and it never invokes your default target. It runs the same audit body as
 `axiomGate`; it adds no second policy. Lake's lint dispatch builds only the driver, so the
-driver first builds the `plumb/axiomGate` executable that the audit runs as its worker; if
-that build fails, the run is `INCOMPLETE`. Its exit status separates the outcome:
+driver first builds the `plumb/axiomGate` executable that the audit runs as its worker, in
+the workspace where you ran `lake lint` (never the `--project` directory). That workspace
+built the driver itself, whether Plumb is a git dependency under `.lake/packages`, a path
+dependency or a custom `packagesDir`, so the worker uses the same dependencies and toolchain
+and needs no second dependency download. If that build fails, the run is `INCOMPLETE`. Its exit status separates the outcome:
 
 | Exit | Outcome |
 | --- | --- |
