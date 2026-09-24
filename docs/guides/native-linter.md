@@ -76,7 +76,7 @@ admission, ownership reconciliation, execution closure, mandatory documentation
 jobs and complete result assembly belong to the
 [project acceptance paths](policy-acceptance.md#1-observed-call-flow-and-every-success-boundary).
 #13 retains the complete twenty-rule example corpus, #14 the Lake
-`strictLint` driver/configuration explanation and actual editor-widget journeys,
+`plumb/lint` driver/configuration explanation and actual editor-widget journeys,
 and #15 the published Verso website.
 
 ## Documentation presence

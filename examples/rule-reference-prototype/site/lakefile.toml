@@ -1,4 +1,4 @@
-name = "strict_rule_prototype"
+name = "plumb_rule_prototype"
 defaultTargets = ["site"]
 
 [[require]]

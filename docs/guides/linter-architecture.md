@@ -45,7 +45,7 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | `lean/Plumb/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
 | `lean/Plumb/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
 | `lean/Plumb/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps. |
-| `lean/Plumb/Checker/Lint.lean` | Whole-project `strictLint` executable using the same registry/policy, not another checker. |
+| `lean/Plumb/Checker/Lint.lean` | Whole-project `lint` executable using the same registry/policy, not another checker. |
 | `lean/Plumb/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
 | `website/` | Separate pinned Verso Lake package and original explanatory prose. |
 | `examples/rules/<ID>/` | Actual violation/fix source plus typed expected outcome specification; isolated negatives. |
@@ -148,7 +148,7 @@ transitive package resolution does not require compiling its mathematical module
   plus `findDocString?` and module-doc metadata for the scoped presence checks. Text adequacy
   remains review. Reuse Batteries/Mathlib linter tests only after demonstrating their predicate
   and scope match; do not turn upstream optional style rules into universal strict rules.
-- Lake [PackageConfig.lintDriver][lake-config] accepts `"plumb/strictLint"` in either
+- Lake [PackageConfig.lintDriver][lake-config] accepts `"plumb/lint"` in either
   lakefile format. #14 adds that executable and qualifies `lake lint` end to end. The prototype
   verifies dependency dispatch with existing `plumb/axiomGate`, `--build-lint`. The driver
   builds only explicit manifest-derived targets, never recursively the default policy target.

@@ -19,14 +19,14 @@ Production entry points selected for #14:
 | Entry point | Contract |
 | --- | --- |
 | `import Plumb.Linter` in the project's chosen common import | Enable available local command/module feedback using the existing Lean server. The production import is planned in #13. Importing it does not enable whole-project enforcement. |
-| `lake lint` with `lintDriver = "plumb/strictLint"` | Incremental inspection of the exact declared manifest scope, including current policy on cached modules. The driver is planned; `axiomGate` remains the current checker. |
+| `lake lint` with `lintDriver = "plumb/lint"` | Incremental inspection of the exact declared manifest scope, including current policy on cached modules. The driver is planned; `axiomGate` remains the current checker. |
 | `lake lint -- --fresh` | Planned driver option selecting fresh project evidence; `--with-docs` additionally requests the separately accounted documentation set. Both use the existing producers and complete-result assembler. |
 | Enabled plain `lake build` | Keep the current explicit enforcing default target. Qualify the documented adapter; explain which Lake formats support this enforcing target. |
 | Existing file inspection | Retain `axiomGate --file ... --claim ...` and the distinct `freshFile` identity. Do not describe a file result as project coverage. |
 | `lake lint -- --explain-config` | New planned read-only configuration explanation; validate and display the selected manifest, resolved Lake scope, per-surface profiles/execution mode, source of each option, and scheduled evidence mode/stages. No audit PASS or `Accepted` value. |
 
 Examples in this table are future command contracts, not commands to run before #14 ships.
-`strictLint` dispatches into the current checker and #7's accepted-result path; it is not
+The `plumb/lint` driver dispatches into the current checker and #7's accepted-result path; it is not
 another policy implementation. Preserve existing `axiomGate`, schema-1 and legacy JSON
 migration interfaces until callers are deliberately migrated.
 
