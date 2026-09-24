@@ -155,9 +155,13 @@ class label is the spelling of the proved `EvidenceClass` definitions, not a fre
 The report also records completeness, so it is never read as a pass when the run is
 incomplete: top-level `complete` (false when any discharge reference was refused),
 `exitStatus` (the process exit status, 0, 1 or 2) and `incomplete` (each refused reference:
-claim, clause, theorem and reason). Each claim carries `complete` and its `status`
-(`screened` or `escalated to review`, from `ClaimScreen.status`). A run that stops early
-(missing key, network, service, parse or claim-reading failure) writes no JSON report.
+claim, clause, theorem and reason). Each claim carries `complete` (`ClaimScreen.complete`)
+and its `status` (`screened` or `escalated to review`, from `ClaimScreen.status`). Before any
+work, the screen replaces any existing file at the `--json` path with an unfinished report
+(`complete: false`, `exitStatus: 2`, `reason`), so an earlier passing report never survives
+a later run. A run that stops early (configuration, missing key, network, service, parse or
+claim-reading failure) leaves that unfinished report, with the error as its `reason`; only a
+run that finishes overwrites it with the full report.
 
 **Why not an in-elaboration rule.** A linter rule runs in every `lake build` and editor
 session. A screen calls a paid network service, sends source text off the machine, and its
@@ -214,7 +218,8 @@ Machine-checked, about the definitions the executable runs (each through a
   finding, and any reported confidence meets the minimum (`checkedRoute`). An answer with a
   finding always escalates (`Judged.escalate_of_severity`). A claim with any finding is
   escalated (`ClaimScreen.escalated_of_finding`), and so is a claim with a refused discharge
-  (`ClaimScreen.escalated_of_refused`).
+  (`ClaimScreen.escalated_of_refused`) or an incomplete screen
+  (`ClaimScreen.escalated_of_incomplete`).
 - Clause extraction finds clauses only in docstrings that PL5003 accepts and never returns a
   blank clause (`checkedClauses`, `intentBody?_isSome_iff`). Discharge-marker parsing, the
   pinned-model grammar, and clause splitting are checked on documented instances.

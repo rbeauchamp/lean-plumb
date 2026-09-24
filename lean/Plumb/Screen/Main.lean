@@ -162,7 +162,7 @@ obligations. `complete` is false exactly when a discharge reference was refused;
 the proved `ClaimScreen.status`. -/
 def claimJson (policy : Policy) (s : ClaimScreen) : Json :=
   Json.mkObj [("claim", .str s.claim.toString),
-    ("complete", .bool (s.clauses.all (!·.2.isRefused))), ("status", .str (s.status policy).spelling),
+    ("complete", .bool s.complete), ("status", .str (s.status policy).spelling),
     ("clauses", Json.arr (s.clauses.map fun (text, e) =>
       let discharge := match e with
         | .discharged proof formal axioms _ => Json.mkObj [("theorem", .str proof.toString),
@@ -173,6 +173,19 @@ def claimJson (policy : Policy) (s : ClaimScreen) : Json :=
         ("discharge", discharge)]).toArray),
     ("openReview", Json.mkObj [("class", .str EvidenceClass.openReview.spelling),
       ("obligations", Json.arr (unresolved.map (.str ·.spelling)).toArray)])]
+
+/-- The `--json` report. `reason` is set only for a run that did not finish. -/
+def reportJson (complete : Bool) (exitStatus : UInt32) (reason : Option String) (incomplete : Array Json)
+    (findings : Array ScreenFinding) (claims records : Array Json) : Json :=
+  Json.mkObj [("schemaVersion", (1 : Nat)), ("class", .str EvidenceClass.screened.spelling),
+    ("note", "Screened results are model judgments: never checked evidence and never a completed R-INTENT review."),
+    ("complete", .bool complete), ("exitStatus", exitStatus.toNat),
+    ("reason", match reason with | some r => .str r | none => .null), ("incomplete", Json.arr incomplete),
+    ("findings", Json.arr (findings.map (·.json))), ("claims", Json.arr claims), ("results", Json.arr records)]
+
+/-- Record an unfinished run at the `--json` path, replacing any earlier report. -/
+def writeUnfinished (path : System.FilePath) (reason : String) : IO Unit :=
+  IO.FS.writeFile path (reportJson false 2 (some reason) #[] #[] #[] #[]).pretty
 
 unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
   if args.modules.isEmpty then throw <| IO.userError "screen requires at least one --module"
@@ -186,6 +199,7 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
     pure (names.qsort (·.toString < ·.toString))
   if selected.isEmpty then
     IO.println "intent screen: no registered material declarations in the listed modules"
+    if let some path := args.json then IO.FS.writeFile path (reportJson true 0 none #[] #[] #[] #[]).pretty
     return 0
   let mut usage : Usage := {}
   let mut records := #[]
@@ -213,15 +227,16 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
     IO.println s!"intent screen incomplete: {incomplete.size} discharge reference(s) refused; those clauses are neither checked nor judged"
   IO.println (costNote cfg.model usage)
   if let some path := args.json then
-    IO.FS.writeFile path (Json.mkObj [("schemaVersion", (1 : Nat)), ("class", .str EvidenceClass.screened.spelling),
-      ("note", "Screened results are model judgments: never checked evidence and never a completed R-INTENT review."),
-      ("complete", .bool complete), ("exitStatus", exitStatus.toNat), ("incomplete", Json.arr incomplete),
-      ("findings", Json.arr (findings.map (·.json))), ("claims", Json.arr claims), ("results", Json.arr records)]).pretty
+    IO.FS.writeFile path (reportJson complete exitStatus none incomplete findings claims records).pretty
   return exitStatus
 
 unsafe def main (argv : List String) : IO UInt32 := do
+  let report? := match parseArgs argv with
+    | .ok args => if args.command == "screen" then args.json else none
+    | .error _ => none
   try
     let args ← IO.ofExcept (parseArgs argv)
+    if let some path := report? then writeUnfinished path "the run did not finish"
     let some configPath := args.config | throw <| IO.userError usage
     let cfg ← IO.ofExcept (parseConfig (← IO.FS.readFile configPath))
     match args.command with
@@ -238,6 +253,9 @@ unsafe def main (argv : List String) : IO UInt32 := do
     | _ => throw <| IO.userError usage
   catch e =>
     IO.eprintln s!"intent screen incomplete: {e}"
+    if let some path := report? then
+      try writeUnfinished path s!"{e}"
+      catch w => IO.eprintln s!"intent screen: could not record the unfinished run in {path}: {w}"
     return 2
 
 end Plumb.Screen.Main

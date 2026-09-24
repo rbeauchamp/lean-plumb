@@ -181,16 +181,20 @@ inductive Status where
 def Status.spelling : Status → String
   | .screened => "screened" | .escalated => "escalated to review"
 
-/-- `screened` exactly when no discharge was refused and every answer stays screened under the
+/-- A claim's screen is complete exactly when no discharge reference was refused. -/
+def ClaimScreen.complete (s : ClaimScreen) : Bool :=
+  s.clauses.all (!·.2.isRefused)
+
+/-- `screened` exactly when the screen is complete and every answer stays screened under the
 policy. -/
 def ClaimScreen.status (policy : Policy) (s : ClaimScreen) : Status :=
-  if s.clauses.all (!·.2.isRefused) && s.answers.all (·.route policy == .screened) then .screened
+  if s.complete && s.answers.all (·.route policy == .screened) then .screened
   else .escalated
 
 theorem ClaimScreen.status_eq_screened_iff (policy : Policy) (s : ClaimScreen) :
     s.status policy = .screened ↔
       (∀ c ∈ s.clauses, c.2.isRefused = false) ∧ ∀ j ∈ s.answers, j.route policy = .screened := by
-  unfold status
+  unfold status complete
   split
   · rename_i h
     simp only [Bool.and_eq_true, List.all_eq_true] at h
@@ -222,6 +226,18 @@ theorem ClaimScreen.escalated_of_refused (policy : Policy) (s : ClaimScreen) (c 
     have := ((status_eq_screened_iff policy s).mp hs).1 c hc
     rw [h] at this
     cases this
+
+/-- An incomplete claim screen is escalated. -/
+theorem ClaimScreen.escalated_of_incomplete (policy : Policy) (s : ClaimScreen)
+    (h : s.complete = false) : s.status policy = .escalated := by
+  cases hs : s.status policy with
+  | escalated => rfl
+  | screened =>
+    have h1 := ((status_eq_screened_iff policy s).mp hs).1
+    have : s.complete = true := by
+      simp only [complete, List.all_eq_true]
+      intro c hc; simp [h1 c hc]
+    rw [h] at this; cases this
 
 /-- Findings: the answers that raise a finding under the policy, with their severity. -/
 def ClaimScreen.findings (policy : Policy) (s : ClaimScreen) : List (Judged × ScreenSeverity) :=
