@@ -702,7 +702,8 @@ private def expectManifestPublicFailure (repo : FilePath) (name : String)
 public `axiomGate` CLI rendering the malformed, incomplete, wrong-version, unknown-key and
 bad-execution refusal classes and a Lake-inventory refusal. The pure parser is proved for every
 input instead of sampled in process: `Manifest.parse_sound` and `Manifest.parse_input` for what
-it accepts, `Manifest.parse_emptyExclusions` for empty exclusions, and the refusal-class
+it accepts, `Manifest.parseValue_ok` for exactly which JSON values its value stage accepts,
+`Manifest.parse_emptyExclusions` for empty exclusions, and the refusal-class
 theorems (`parse_malformed`, `topLevel_emptySurfaces`, `topLevel_schemaVersion`,
 `objectWithKeys_unknown`, `parseSurface_execution_refuses` and their lifts) for the
 message of each of those defects. -/
@@ -807,8 +808,12 @@ private def structuralClaims : Array String := #["AuditApp", "PlumbPolicy"]
 and executable excluded. `PlumbPolicy` must stay claimed because the checker probe's
 own imports resolve to it inside a self-hosted copy. It is derived from the actual
 manifest, so `Manifest.structural_libraries` and `structural_executables` make the
-classified names of this in-memory manifest exactly the actual ones. Its JSON
-serialization and re-parse by the gate are not covered by those theorems. The mutations'
+classified names of this in-memory manifest exactly the actual ones.
+`Manifest.structural_roundtrip` proves that the JSON value stage of the gate's `parse` recovers
+this manifest exactly from `Manifest.toJson`. Its hypothesis that the copy claims an actual
+surface is what the guard below checks at run time, not a theorem. Rendering with
+`Json.compress` and reading with `PolicyCodec.parse` stay trusted,
+as do the `auditAppVariant` rewrites. The mutations'
 intended reasons are surface-content-agnostic; the
 heavy-surface end-to-end coverage stays in the conditional tier's public-surface
 control and the standalone CI gate. -/
