@@ -32,9 +32,6 @@ def parseRule (j : Json) : Except String RuleId := do
 theorem rule_roundtrip (id : RuleId) : parseRule (ruleJson id) = .ok id := by
   cases id <;> rfl
 
-private def severityText : Severity → String
-  | .error => "error" | .warning => "warning" | .information => "information"
-
 private def categoryText : RuleCategory → String
   | .foundation => "foundation" | .declaration => "declaration"
   | .execution => "execution" | .environment => "environment"
@@ -62,7 +59,7 @@ def descriptorJson (id : RuleId) : Json :=
     ("scope", toJson (scopeText d.scope)), ("evidenceKind", toJson (evidenceText d.evidenceKind)),
     ("normativeClauses", toJson d.normativeClauses),
     ("applicability", toJson d.applicability),
-    ("defaultStrictSeverity", toJson (severityText d.defaultStrictSeverity)),
+    ("defaultStrictSeverity", toJson d.defaultStrictSeverity.spelling),
     ("evidenceModes", toJson (d.evidenceModes.map modeText)),
     ("messageTemplate", toJson d.messageTemplate),
     ("helpRoute", toJson id.route), ("helpUrl", toJson (helpUrl id)),
@@ -139,7 +136,7 @@ def diagnosticJson (f : Finding) : Json :=
       ("relation", toJson r.relation), ("location", locationJson r.location)])),
     ("mode", toJson (modeText d.mode)), ("claim", toJson d.claim),
     ("impact", .str (if d.impact == .violation then "violation" else "incomplete")),
-    ("severity", toJson (severityText d.severity)),
+    ("severity", toJson d.severity.spelling),
     ("text", toJson d.text), ("helpUrl", toJson (helpUrl id))]
 
 /-- Website artifact admission uses actual produced pages, not descriptors pretending to be pages. -/

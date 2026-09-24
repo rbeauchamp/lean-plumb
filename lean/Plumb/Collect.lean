@@ -45,18 +45,18 @@ def kindOf : ConstantInfo → DeclarationKind
   | .quotInfo _    => .«quotient»
 
 /-- Compact source position used in declaration-range evidence. -/
-private def positionReport (p : Lean.Position) : PlumbPolicy.Position :=
+def positionReport (p : Lean.Position) : PlumbPolicy.Position :=
   { line := p.line, column := p.column }
 
 /-- Typed encoding of one exact Lean declaration range. -/
-private def rangeReport (r : DeclarationRange) : PlumbPolicy.Range :=
+def rangeReport (r : DeclarationRange) : PlumbPolicy.Range :=
   { start := positionReport r.pos
     «end» := positionReport r.endPos
     startUtf16 := r.charUtf16
     endUtf16 := r.endCharUtf16 }
 
 /-- Typed encoding of full and selection declaration ranges. -/
-private def rangesReport (r : DeclarationRanges) : PlumbPolicy.Ranges :=
+def rangesReport (r : DeclarationRanges) : PlumbPolicy.Ranges :=
   { range := rangeReport r.range
     selectionRange := rangeReport r.selectionRange }
 
