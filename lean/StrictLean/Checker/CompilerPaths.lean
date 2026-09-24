@@ -211,7 +211,7 @@ private def phase (repo scratch : FilePath) (test : Case) (negative : Bool) : IO
       if let some missing := test.positiveExpected.find? (!result.output.contains ·) then
         return #[s!"{test.name}: positive missing {missing}:\n{result.output}"]
     return #[]
-  let mut failures := check (← runProcess scratch binary #["--file", "Wrapper.lean", "--execution", "checked"])
+  let mut failures := check (← runProcess scratch binary #["--file", "Wrapper.lean", "--execution", "checked", "--verbose"])
   if negative then
     if let some symbol := test.emittedSymbol then
       let cFile := scratch / "wrapper.c"
@@ -229,7 +229,8 @@ private def phase (repo scratch : FilePath) (test : Case) (negative : Bool) : IO
         "\"excluded-libraries\":[],\"excluded-executables\":[]}")
     -- Preserve the toolchain-only symlink overlay in this case. The claimed
     -- adopter sources are still built afresh in each independent phase.
-    let args := if initLookalike then #["--incremental"] else #[]
+    -- Boundary evidence lines are printed only in verbose mode.
+    let args := (if initLookalike then #["--incremental"] else #[]) ++ #["--verbose"]
     failures := failures ++ check (← runProcess scratch binary args)
   return failures
 

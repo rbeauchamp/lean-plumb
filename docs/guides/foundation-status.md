@@ -486,12 +486,14 @@ and documentation-evidence contracts, the traversal-law collapse and the rebase:
 | `diagnostics build-policy` | `16d694b` | PASS, 266 s |
 | `diagnostics structural` | `16d694b` | FAIL, 211 s; pre-existing: the same 37 failure labels as main `fa62dd1` (300 s) |
 
-The `structural` partition fails with 37 failures, and main `fa62dd1` fails with the
-same 37 failure labels. Its `structuralManifestText` omits libraries that the
-repository now has, so most controls are refused as an unclassified library (SL2002)
-before reaching their intended diagnostic. The rest (the unknown-library wording,
-correspondence and init-module-origin controls) fail the same way on main. It
-therefore gives no import-boundary evidence for this change.
+At `16d694b` the `structural` partition failed with 37 failures, and main `fa62dd1`
+failed with the same 37 failure labels. Its `structuralManifestText` then omitted
+libraries that the repository had, so most controls were refused as an unclassified
+library (SL2002) before reaching their intended diagnostic. The rest (the unknown-library
+wording, correspondence and init-module-origin controls) failed the same way on main. It
+therefore gave no import-boundary evidence for this change. The partition's later repair
+is recorded under "Structural partition status" in
+[Lean qualification tooling](lean-qualification.md#control-inventory).
 
 For the changed import boundary, the existing `checkerSelftest --forced-collector-only`
 control uses the real manifest, including `StrictLeanCore`. It runs a fresh positive,

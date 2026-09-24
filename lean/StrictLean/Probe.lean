@@ -17,6 +17,7 @@ import Lean.Meta.Eqns
 import Lean.Meta.RecExt
 import Lean.ProjFns
 import Lean.Util.FoldConsts
+import Std.Internal.UV.System
 import StrictLean.Report
 import StrictLean.Contract
 
@@ -104,11 +105,60 @@ private def ownedDecls (env : Environment) (modules : List Name) :
     CommandElabM (Array (Name × ConstantInfo)) :=
   pure (ownedConstants env modules)
 
+/-- Kernel heartbeat budget for one correspondence check: Lean's per-declaration default
+(`maxHeartbeats` at its default value, in the kernel's raw unit), so a checker-added
+correspondence obligation costs no more than a declaration the adopter could write. -/
+private def correspondenceHeartbeats : USize := (Core.getMaxHeartbeats {}).toUSize
+
+/-- Resident memory the correspondence checks of one process may add above its peak resident
+size at its first check: 1 GiB. The limit is fixed once per process, at that first check, to
+that peak plus this allowance. The peak is at least the resident size then, so the first
+check never fires on memory the process already held (its imported environment included).
+Every later check in the process runs under the same limit, so no number of checks, exhausted
+or not, raises the process's resident memory during a check above it. The allowance is shared
+by every later check and all other resident growth in the process, so a later check that
+starts at or above the limit exhausts at once and fails closed. At most three report workers
+run at once, so the checks add at most 3 GiB to their first-check peaks; that increment
+does not bound those peaks or memory used outside the checks. -/
+private def correspondenceMemoryBytes : Nat := 1024 * 1024 * 1024
+
+/-- This process's correspondence memory limit in bytes, fixed at its first check. -/
+private initialize correspondenceLimit : IO.Ref (Option Nat) ← IO.mkRef none
+
+/-- Lean's runtime memory limit in bytes (`lean -M`; `0` disables it). The kernel compares it
+with the process's resident memory at its system checks and raises `excessiveMemory`.
+`Lean.Shell` keeps its own binding of this runtime symbol private. -/
+@[extern "lean_internal_set_max_memory"]
+private opaque setMaxMemory (bytes : USize) : BaseIO Unit
+
+/-- Run `action` under this process's correspondence limit, fixing it at the first call from
+the peak resident size (libuv reports it in KiB), never above the limit the shell set from
+`max_memory`, and restore that limit afterward. The runtime limit is process-wide, and a
+process runs its correspondence checks sequentially. -/
+private def withCorrespondenceMemory (opts : Options) (action : IO α) : IO α := do
+  let outer := (opts.get? `max_memory).getD (0 : Nat) * 1024 * 1024
+  let bound ← match ← correspondenceLimit.get with
+    | some bound => pure bound
+    | none => do
+      let peak := (← Std.Internal.UV.System.getrusage).maxRSS.toNat * 1024
+      let bound := peak + correspondenceMemoryBytes
+      correspondenceLimit.set (some bound)
+      pure bound
+  let bound := if outer == 0 then bound else min outer bound
+  setMaxMemory bound.toUSize
+  try action finally setMaxMemory outer.toUSize
+
+/-- Kernel resource exhaustion ends admission without a verdict on the proof. -/
+private def kernelExhausted : Kernel.Exception → Bool
+  | .deterministicTimeout | .excessiveMemory | .deepRecursion | .interrupted => true
+  | _ => false
+
 /-- Admission checks the constructed closed proof against the exact required
 proposition in a disposable kernel declaration. Neither metavariable unification
-nor a matching theorem statement alone authorizes `checked`. -/
+nor a matching theorem statement alone authorizes `checked`. `none` means the
+kernel exhausted its resources before deciding; a kernel rejection throws. -/
 private def checkCorrespondenceProof (levels : List Name) (required proof : Expr) :
-    MetaM String := do
+    MetaM (Option String) := do
   let required ← instantiateMVars required
   let proof ← instantiateMVars proof
   if required.hasMVar || proof.hasMVar || required.hasFVar || proof.hasFVar then
@@ -119,16 +169,21 @@ private def checkCorrespondenceProof (levels : List Name) (required proof : Expr
     levelParams := levels
     type := required
     value := proof }
-  let checked ← match (← getEnv).addDeclCore 200000 1000 declaration none with
+  let env ← getEnv
+  let result ← withCorrespondenceMemory (← getOptions) <|
+    IO.lazyPure fun _ => env.addDeclCore correspondenceHeartbeats 1000 declaration none
+  let checked ← match result with
     | .ok checked => pure checked
-    | .error _ => throwError "kernel rejected exact correspondence"
+    | .error e =>
+      if kernelExhausted e then return none
+      throwError "kernel rejected exact correspondence"
   let axioms ← withEnv checked <| collectAxioms name
   unless axioms.all (fun ax =>
       ax == ``propext || ax == ``Quot.sound || ax == ``Classical.choice) do
     throwError "correspondence exceeds standard-logical foundations"
   withOptions (fun opts => opts.setBool `pp.all true |>.setBool `pp.deepTerms true
       |>.set `pp.maxSteps (1000000 : Nat)) do
-    return s!"proof={← Meta.ppExpr proof}; required={← Meta.ppExpr required}"
+    return some s!"proof={← Meta.ppExpr proof}; required={← Meta.ppExpr required}"
 
 /-- A theorem mentioning both endpoints is only a search candidate. For every
 prefix of the actual dependent domain, instantiate its universes and premises,
@@ -152,7 +207,7 @@ private def theoremCorrespondence? (levels : List Name) (reference replacement :
           for arg in domain.extract count domain.size do
             proof ← Meta.mkCongrFun proof arg
           proof ← Meta.mkLambdaFVars domain proof
-          let detail ← checkCorrespondenceProof levels required proof
+          let some detail ← checkCorrespondenceProof levels required proof | return none
           return some s!"proved: {name}; {detail}"
         catch _ => return none
       if result.isSome then return result
@@ -162,7 +217,10 @@ private def theoremCorrespondence? (levels : List Name) (reference replacement :
 are rigid universal level parameters and `xs` is the complete elaborated
 reference domain, including implicit, dependent, and proof parameters. The
 compiler's positional universe substitution must type-check at those same
-levels. Both definitional and theorem-backed evidence pass the same kernel gate. -/
+levels. Both definitional and theorem-backed evidence pass the same kernel gate.
+Theorem candidates, supplied then discovered, are tried before definitional
+unfolding, so a kernel-exhausting unfolding cannot consume the memory limit a
+supplied proof needs. -/
 private def replacementCorrespondence (env : Environment) (reference replacement : Name)
     (proofCandidates : Array Name := #[]) :
     CommandElabM (Correspondence × Option String) := do
@@ -182,11 +240,6 @@ private def replacementCorrespondence (env : Environment) (reference replacement
         let lhs := mkAppN ref domain
         let rhs := mkAppN impl domain
         let required ← Meta.mkForallFVars domain (← Meta.mkEq lhs rhs)
-        try
-          let proof ← Meta.mkLambdaFVars domain (← Meta.mkEqRefl lhs)
-          let detail ← checkCorrespondenceProof levels required proof
-          return (.checked, some s!"kernel-defeq; {detail}")
-        catch _ => pure ()
         for name in proofCandidates do
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
             return (.checked, some evidence)
@@ -196,7 +249,17 @@ private def replacementCorrespondence (env : Environment) (reference replacement
           if !used.contains reference || !used.contains replacement then continue
           if let some evidence ← theoremCorrespondence? levels ref impl domain required name then
             return (.checked, some evidence)
-        return (.trusted, some "no kernel-checked unconditional correspondence proof")
+        let mut defeqExhausted := false
+        try
+          let proof ← Meta.mkLambdaFVars domain (← Meta.mkEqRefl lhs)
+          match ← checkCorrespondenceProof levels required proof with
+          | some detail => return (.checked, some s!"kernel-defeq; {detail}")
+          | none => defeqExhausted := true
+        catch _ => pure ()
+        return (.trusted, some <| if defeqExhausted then
+          "no kernel-checked unconditional correspondence proof; " ++
+            "kernel resources exhausted before deciding definitional correspondence"
+          else "no kernel-checked unconditional correspondence proof")
   catch _ =>
     return (.unresolved, some s!"cannot construct exact correspondence for {reference} and {replacement}")
 

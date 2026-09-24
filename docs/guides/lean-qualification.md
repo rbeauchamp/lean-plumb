@@ -158,6 +158,63 @@ evidence (standard §0 "The Role of Testing").
 | standalone | `qualify acceptance fences` packet mutations | worker-packet admission through a real proxy | External transport; admission proved by #50 (`checkedIndexedResults`) | kept |
 | standalone | snapshots, input inventory, receipts, frozen exits, documentation source, closure/configuration/fence evidence, timeout | Git, Lake, filesystem, elaboration-time IO, signals | External | kept |
 
+**Structural partition status.** Each structural copy's manifests derive from the actual
+repository manifest. `Manifest.structuralManifest` builds the base manifest in memory, and
+`structural_libraries` and `structural_executables` prove that this base manifest classifies
+exactly the actual library and executable names. No theorem covers what the gate reads: the
+`Manifest.toJson` serialization, its re-parse by `Manifest.parse`, and the lib-only,
+claimed-exe and app-omitted-exe variants that rewrite the `AuditApp` surface after
+derivation. Those variants exclude every actual `AuditApp` executable they stop claiming,
+except app-omitted-exe, which leaves them unclassified on purpose. Before this, every copy
+failed early because the libraries `StrictLeanPolicy`, `StrictLeanVerification`,
+`StrictLeanQualification` and `StrictLeanCore` and the executables `qualify`, `ruleExamples`
+and `ruleExampleQualification` were unclassified, which masked a checker defect.
+`checkCorrespondenceProof` gave the kernel 200000 raw heartbeats, 1/1000 of Lean's default,
+so every definitionally equal `implemented_by` replacement timed out and was reported as
+trusted. Its heartbeat budget is now Lean's per-declaration default
+(`Core.getMaxHeartbeats` of the default options), so a checker-added correspondence
+obligation costs no more than a declaration the adopter could write. Heartbeats count small
+allocations, not live memory, so the check also runs under Lean's runtime memory limit (the
+limit `lean -M` sets). The kernel compares it with the process's resident memory and raises
+`excessiveMemory`. The limit is fixed once per process, at its first correspondence check, to
+the process's peak resident size then plus a 1 GiB allowance. It is set only while a check
+runs, never exceeds a `max_memory` the shell set, and that limit is restored afterward.
+Guarantee: while any correspondence check runs, the kernel stops it once the process's
+resident memory exceeds its first-check peak by 1 GiB, however many checks the process runs
+and whether or not earlier ones exhausted. Derivation, argued from the Lean runtime source
+rather than observed on Linux: the kernel throws only when current resident memory reaches
+the limit, and the first-check peak is at least the resident memory then, so the first check
+never fires on memory the process already held (a file-mode audit that imports `Lean`
+already peaks above 4 GiB, which an absolute limit would hit). The limit does not re-read the
+peak, so a check that exhausts cannot raise the next check's limit; a limit based on the
+rising lifetime peak would let each exhausted check add another 1 GiB. The remaining
+limitation: the 1 GiB of headroom above the first-check peak is shared by every later check
+in the worker and by any other resident growth there (pages that successful or exhausted
+checks leave resident, since Lean's allocator may keep them, execution-walk caches, later
+environment loads). Once one check exhausts memory, or other growth consumes the headroom,
+later checks in the same worker may exhaust immediately. These fail closed: such a check is
+never reported checked, and its correspondence is reported as not established. At most
+three report workers run at once, each running its checks sequentially, so while checks run
+they add at most 3 × 1 = 3 GiB of resident memory above those workers' first-check peaks.
+That is an increment, not a total: it does not by itself show the audit fits in 16 GiB,
+because each worker's first-check peak is set by what it already holds (a worker that
+imports `Lean` already peaks around 4.2 GiB on Linux), and memory used outside the checks
+is not bounded by this limit. To keep a kernel-exhausting unfolding from consuming the
+headroom a supplied proof needs, supplied and then discovered theorem candidates are tried
+before the kernel-defeq check, so a replacement with both reports `proved:` evidence. Kernel
+resource exhaustion is not conflated with rejection: its reason says the kernel ran out of
+resources before deciding definitional correspondence. The replacement is then currently
+classified trusted, as before this change. That does not yet conform to
+[§8.6](../standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly), which
+defines a comparison that could not complete as unresolved;
+[issue #63](https://github.com/rbeauchamp/strict-lean/issues/63) tracks the conforming
+code change. With both fixed,
+`diagnostics structural` passed locally in 806 s, down from 1015 s (observed before the
+memory bound was added). That is still over the
+420-second budget, which remains follow-up work. `StrictLeanPolicy` stays claimed in each
+copy because the checker probe's own imports resolve to it in a self-hosted copy; this
+partition is not a CI job.
+
 ## Organization
 
 - `lean/StrictLeanQualification/`: a separate **positive Lake library**, discovered through
