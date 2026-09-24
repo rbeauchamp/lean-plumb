@@ -108,6 +108,11 @@ combined documentation audit decides its result status, including without `--jso
 `lint` derives its exit class from this and the exit code (`Lint.classify`). -/
 initialize terminalObservation : IO.Ref (Option Lint.Observation) ← IO.mkRef none
 
+/-- The claimed-source build of a project audit: the ordinary `lake build`, or
+`Lake.buildAuditTargets` when the `lint` driver selects it for its own audit. -/
+initialize claimedBuild : IO.Ref (FilePath → Array String → IO ProcessResult) ←
+  IO.mkRef Lake.buildTargets
+
 private def recordStatus (status : ResultProtocol.Status) (findings : Array Plumb.Finding) : IO Unit :=
   terminalObservation.set (some ⟨status, !findings.isEmpty && findings.all (·.1 == .configuration)⟩)
 
@@ -341,7 +346,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         (sourceBindings.find? (·.moduleName == name)).map fun s => ⟨s.path, s.content⟩
       SourceBinding.configurationUnchanged configuration
       let positiveTargets := Manifest.positiveTargets manifest
-      let (buildProcess, buildResult) ← timedPhase "claimed-source build" <| Lake.buildCheckedObservation repo positiveTargets (if fresh then "fresh" else "incrementally") Lake.buildAuditTargets
+      let (buildProcess, buildResult) ← timedPhase "claimed-source build" <| Lake.buildCheckedObservation repo positiveTargets (if fresh then "fresh" else "incrementally") (← claimedBuild.get)
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
       if let some lines := buildResult then
@@ -791,7 +796,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
     withSourceEvidence sources configuration path.toString .freshFile composed resultOut do
       if manifest.isSome || (← manifestPath.pathExists) then
         let claimed ← Manifest.load manifestPath
-        let buildResult ← Lake.buildChecked repo (Manifest.positiveTargets claimed) "incrementally" Lake.buildAuditTargets
+        let buildResult ← Lake.buildChecked repo (Manifest.positiveTargets claimed) "incrementally"
         SourceBinding.unchanged sources
         SourceBinding.configurationUnchanged configuration
         if let some lines := buildResult then
