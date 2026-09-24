@@ -190,11 +190,12 @@ and needs no second dependency download. If that build fails, the run is `INCOMP
 Run `lake lint` from the project root, without `-d`/`--dir`: Lake does not change the
 driver's working directory, so the driver refuses with exit 2 when the workspace there is
 positively identified as not the one that dispatched it, and stops with exit 3 when the
-working directory is outside any Lean project or its workspace fails to load. Lake v4.34.0 passes the dispatching workspace's package library
-directories, then its own `LEAN_SYSROOT/lib/lean`, then any inherited `LEAN_PATH`, as the
-driver's `LEAN_PATH`; the driver requires the working-directory workspace's library
-directories and that directory to begin it (`Plumb.Checker.Lint.dispatchedFrom_iff`). A
-driver started outside Lake, or by a Lake not collocated with the toolchain, is refused.
+working directory is outside any Lean project or its workspace fails to load. Lake v4.34.0
+passes the dispatching workspace's package library directories, then its own
+`LEAN_SYSROOT/lib/lean`, then any inherited `LEAN_PATH`, as the driver's `LEAN_PATH`; the
+driver requires the working-directory workspace's library directories and that directory to
+begin it (`Plumb.Checker.Lint.dispatchedFrom_iff`). A driver started outside Lake, or by a
+Lake not collocated with the toolchain, is refused.
 Its exit status separates the outcome:
 
 | Exit | Outcome |

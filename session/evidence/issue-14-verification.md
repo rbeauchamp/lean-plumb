@@ -125,10 +125,11 @@ not run this partition; it stays outside the diagnostics matrix under the
 verification-slimming decision. A working directory outside any Lean project, or one whose
 workspace fails to load, stops the driver with exit 3 before the comparison (observed at
 `c5ced6d` from `/tmp`: `plumb lint: INCOMPLETE: cannot find Lean project root`, exit 3).
-Observed earlier on macOS arm64 at this change, with `--explain-config` so no audit runs: from this checkout's root, `lake env .lake/build/bin/lint --explain-config` (Lake's
-same `augmentedEnvVars`) passed the check and printed the configuration; the same binary with
-`LEAN_PATH` set to the example adopter's library directory, then `LEAN_SYSROOT/lib/lean`, was
-refused with exit 2 and the message above.
+Observed earlier on macOS arm64 at this change, with `--explain-config` so no audit runs:
+from this checkout's root, `lake env .lake/build/bin/lint --explain-config` (Lake's same
+`augmentedEnvVars`) passed the check and printed the configuration; the same binary with
+`LEAN_PATH` set to the example adopter's library directory, then `LEAN_SYSROOT/lib/lean`,
+was refused with exit 2 and the message above.
 
 Decision: the weak `linter.plumb` override applies only in the `lake lint` driver's claimed
 build (`AxiomGate.claimedBuild`, set by `Lint`). Lake scopes Lean options by package and
