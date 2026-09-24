@@ -1,9 +1,9 @@
 import Lake
 open Lake DSL
 
-package «strict_lean» where
+package «plumb» where
   srcDir := "lean"
-  -- The verification toolset for the Strict Lean (see docs/).
+  -- The verification toolset for Plumb for Lean (see docs/).
   -- Code here exists to machine-check claims, patterns, and examples from the standard.
   leanOptions := #[⟨`warningAsError, true⟩]  -- Build warnings are failures
 
@@ -27,54 +27,54 @@ lean_lib «Fixtures» where
   globs := #[.submodules `Fixtures]
 
 @[default_target]
-lean_lib «StrictLeanPolicy» where
-  globs := #[.andSubmodules `StrictLeanPolicy]
+lean_lib «PlumbPolicy» where
+  globs := #[.andSubmodules `PlumbPolicy]
 
 @[default_target]
-lean_lib «StrictLeanVerification»
+lean_lib «PlumbVerification»
 
 @[default_target]
-lean_lib «StrictLeanQualification» where
+lean_lib «PlumbQualification» where
   -- Pure, proof-backed observation contracts; no process or filesystem drivers.
-  globs := #[.submodules `StrictLeanQualification]
+  globs := #[.submodules `PlumbQualification]
 
 @[default_target]
-lean_lib «StrictLeanCore» where
+lean_lib «PlumbCore» where
   -- The rule registry and the pure checker projections of policy decisions that the
   -- operational checker executes; claimed, so the gate audits their declarations.
-  globs := #[.submodules `StrictLeanCore]
+  globs := #[.submodules `PlumbCore]
 
-lean_lib «StrictLean» where
+lean_lib «Plumb» where
   -- Lean-only checker implementation. Operational checker modules are
   -- separately qualified; they are not part of the conforming proof surface.
-  globs := #[.submodules `StrictLean]
+  globs := #[.submodules `Plumb]
 
 lean_exe «axiomGate» where
-  root := `StrictLean.Checker.AxiomGateMain
+  root := `Plumb.Checker.AxiomGateMain
   supportInterpreter := true
 
 lean_exe «docFenceAudit» where
-  root := `StrictLean.Checker.DocFenceAudit
+  root := `Plumb.Checker.DocFenceAudit
   supportInterpreter := true
 
 lean_exe «freshChecker» where
-  root := `StrictLean.Checker.FreshChecker
+  root := `Plumb.Checker.FreshChecker
   supportInterpreter := true
 
 lean_exe «checkerSelftest» where
-  root := `StrictLean.Checker.CheckerSelftest
+  root := `Plumb.Checker.CheckerSelftest
   supportInterpreter := true
 
 lean_exe «qualify» where
-  root := `StrictLean.Qualification.Main
+  root := `Plumb.Qualification.Main
   supportInterpreter := true
 
 lean_exe «ruleExamples» where
-  root := `StrictLean.Checker.RuleExamples
+  root := `Plumb.Checker.RuleExamples
   supportInterpreter := true
 
 lean_exe «ruleExampleQualification» where
-  root := `StrictLean.Checker.RuleExampleQualificationMain
+  root := `Plumb.Checker.RuleExampleQualificationMain
 
 lean_exe «auditApp» where
   root := `Main

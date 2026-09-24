@@ -1,4 +1,4 @@
-import StrictLean.Checker.ResultProtocol
+import Plumb.Checker.ResultProtocol
 /-! Export the actual shared registry. Canonical construction credits con-leche (RuleId). -/
 def main : IO Unit :=
-  IO.println (StrictLean.RegistryCodec.registryJson StrictLean.Checker.ResultProtocol.producer).compress
+  IO.println (Plumb.RegistryCodec.registryJson Plumb.Checker.ResultProtocol.producer).compress

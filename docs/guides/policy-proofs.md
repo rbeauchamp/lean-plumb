@@ -1,6 +1,6 @@
 # Policy proofs and their execution boundary
 
-Strict Lean proves its pure policy decisions over admitted observations. It does
+Plumb proves its pure policy decisions over admitted observations. It does
 not claim that these proofs verify the Lean compiler, source collectors, filesystem,
 JSON parser, registry adapter, or a user's intended specification.
 
@@ -10,8 +10,8 @@ acceptance boundary. Normative meaning comes from [chapter 8](../standard/8-tool
 
 ## What the theorems establish
 
-All names below are in `StrictLeanPolicy`. Source files are under
-`lean/StrictLeanPolicy/`. The quantifiers range over finite data values; proof fields
+All names below are in `PlumbPolicy`. Source files are under
+`lean/PlumbPolicy/`. The quantifiers range over finite data values; proof fields
 and stated hypotheses are part of the domain, not evidence of external execution.
 
 | Property | Authoritative declarations | Exact meaning |
@@ -27,7 +27,7 @@ and stated hypotheses are part of the domain, not evidence of external execution
 | Expected compiler diagnostics | `Pattern.matchesPattern_iff`, `orderedLiterals_iff` | Matching is the declared valid pattern's ordered leftmost-split relation within one effective-error message. Producer completion and effective-error extraction remain operational. |
 
 File prefixes in this table identify the source file, not extra Lean namespaces.
-For example, the actual theorem name is `StrictLeanPolicy.accept_iff`.
+For example, the actual theorem name is `PlumbPolicy.accept_iff`.
 
 The least-foundation proof uses containment in the three permitted sets. The
 collection laws reuse Std's extensional ordered structures. Generated-role
@@ -45,20 +45,20 @@ claimed.
 
 ## Actual consumers
 
-Paths in this table start at `lean/StrictLean/`.
+Paths in this table start at `lean/Plumb/`.
 
 | Operational caller | Proved pure function | Remaining boundary |
 | --- | --- | --- |
-| `Checker/Policy.admitScope` | `checkedScope` (`ScopeContract`, for every coordinate check): first coordinate refusal in transcript order, then exactly `admitInventory` with `authorize`; success iff all coordinate checks and `InventoryValid` hold, retaining both input arrays. The adapter supplies `Frontend.validateCoordinates`, which runs `checkedCoordinates` (`CoordinateContract` in claimed `StrictLeanCore.Coordinates`): success iff `CoordinatesAgree`, refusal with the first unmet obligation in traversal order | Lean's UTF-16 column function (`FileMap.leanPosToLspPos`) and `FileMap` implementation; actual source and compiler observation acquisition. |
-| `Checker/Policy.request`, `ruleFor` / `reasonFor`, `ruleForMember` (defined in claimed `StrictLeanCore.Policy`) | `checkedRequest` (`RequestContract`), `checkedRule` (`RuleContract`) over `policyFor`; `ruleForFailure_injective`, `reasonFor_eq_some_iff`; `checkedMemberRule` (`MemberRuleContract`: equals `ruleFor` for every inventory member) over `checkedMemberFailure` | Registry descriptor text itself; adequacy of the mapped rule set. |
-| `Checker/Policy.labelOf`, `labelOfMember` (claimed `StrictLeanCore.Policy`) / `classify`, `classifyMember` | `foundationFor`; `checkedMemberFoundation` (`MemberFoundationContract`), `labelOf_member`, `classifyMember_eq` | Actual transitive `Lean.collectAxioms` results and module ownership. |
-| `Checker/Policy.executionFailureRecords` (identity) / `executionFailures` (claimed `StrictLeanCore.Policy`), `executionSummary` | `executionFailureRecords`, `executionRule_injective`, `checkedSummary` (`SummaryContract`), `checkedExecutionFailures` (`ExecutionFailuresContract`: line `k` renders record `k`, none added or dropped, so the lines are empty iff `ExecutionOK`) | Root/closure collection, retained compiler edges, correspondence admission, source history and canonical runtime origins. |
+| `Checker/Policy.admitScope` | `checkedScope` (`ScopeContract`, for every coordinate check): first coordinate refusal in transcript order, then exactly `admitInventory` with `authorize`; success iff all coordinate checks and `InventoryValid` hold, retaining both input arrays. The adapter supplies `Frontend.validateCoordinates`, which runs `checkedCoordinates` (`CoordinateContract` in claimed `PlumbCore.Coordinates`): success iff `CoordinatesAgree`, refusal with the first unmet obligation in traversal order | Lean's UTF-16 column function (`FileMap.leanPosToLspPos`) and `FileMap` implementation; actual source and compiler observation acquisition. |
+| `Checker/Policy.request`, `ruleFor` / `reasonFor`, `ruleForMember` (defined in claimed `PlumbCore.Policy`) | `checkedRequest` (`RequestContract`), `checkedRule` (`RuleContract`) over `policyFor`; `ruleForFailure_injective`, `reasonFor_eq_some_iff`; `checkedMemberRule` (`MemberRuleContract`: equals `ruleFor` for every inventory member) over `checkedMemberFailure` | Registry descriptor text itself; adequacy of the mapped rule set. |
+| `Checker/Policy.labelOf`, `labelOfMember` (claimed `PlumbCore.Policy`) / `classify`, `classifyMember` | `foundationFor`; `checkedMemberFoundation` (`MemberFoundationContract`), `labelOf_member`, `classifyMember_eq` | Actual transitive `Lean.collectAxioms` results and module ownership. |
+| `Checker/Policy.executionFailureRecords` (identity) / `executionFailures` (claimed `PlumbCore.Policy`), `executionSummary` | `executionFailureRecords`, `executionRule_injective`, `checkedSummary` (`SummaryContract`), `checkedExecutionFailures` (`ExecutionFailuresContract`: line `k` renders record `k`, none added or dropped, so the lines are empty iff `ExecutionOK`) | Root/closure collection, retained compiler edges, correspondence admission, source history and canonical runtime origins. |
 | `Checker/Common.admitIndexedWorkerResults`, `mapWorkQueue`, `Documentation.auditTasks` | `checkedIndexedResults` (`IndexedResultsContract`) over `ResultState.collect` | Child completion, strict packet decoding, in-process task scheduling and exact request/source binding. |
 | `Checker/Documentation.matchesPattern` | `matchesPattern` | Structural fence scanning, supported-pattern diagnostic text, and completed effective-error extraction. |
-| `AxiomGate.auditSurfaceAt`, `FreshChecker`, file gate (via `Checker/Acceptance`) | `checkedSurfaceAssignments` (`SurfaceAssignmentsContract`), `checkedConformingProfile` (`ConformingProfileContract`), `checkedHistories` (`HistoriesContract`), `checkedEnvironmentJob` (`EnvironmentJobContract`) and `checkedEnvironmentEvidence` (`DocumentationEvidenceContract`) in claimed `StrictLeanCore.Assembly` | Manifest parsing, Lake loading and producer history; the contracts concern the decoded records. |
+| `AxiomGate.auditSurfaceAt`, `FreshChecker`, file gate (via `Checker/Acceptance`) | `checkedSurfaceAssignments` (`SurfaceAssignmentsContract`), `checkedConformingProfile` (`ConformingProfileContract`), `checkedHistories` (`HistoriesContract`), `checkedEnvironmentJob` (`EnvironmentJobContract`) and `checkedEnvironmentEvidence` (`DocumentationEvidenceContract`) in claimed `PlumbCore.Assembly` | Manifest parsing, Lake loading and producer history; the contracts concern the decoded records. |
 | `Checker/Acceptance.finish`; `Documentation.finishDocuments`; `FreshChecker.finishGraph` | `finalize`, `finalize_iff`, `accepted_report_identity`, `accepted_covers_slot` | Independently supplied census and truthful actual observations remain external; each finalizer supplies all derived jobs and returns `AcceptedRun`. |
 | `AxiomGate.auditSurface` combined success | `combineAccepted`, `combined_policy`, `combined_reports_same_snapshot` | Child completion/raw decoding, terminal source stability and truthful environment extraction remain operational. |
-| `ResultProtocol.writeAccepted`, `acceptedJson`; project/file/build-lint/combined/docs/graph success renderers | `AcceptedRun.report`, `acceptedRun_claim`; the report account `Account.account` (`checkedAccount`, `AccountContract`) in claimed `StrictLeanCore.Account`, `Account.accepted`, and `Status.spelling_eq_completed_iff`/`Status.completed_accepted`: a `completed` status requires an account, and every account is the projection of an accepted run | Rendering/JSON/OS exit semantics are not universally proved. JSON is never decoded into acceptance. Adequacy of each contract requirement and the other rule-coverage residuals remain semantic review. |
+| `ResultProtocol.writeAccepted`, `acceptedJson`; project/file/build-lint/combined/docs/graph success renderers | `AcceptedRun.report`, `acceptedRun_claim`; the report account `Account.account` (`checkedAccount`, `AccountContract`) in claimed `PlumbCore.Account`, `Account.accepted`, and `Status.spelling_eq_completed_iff`/`Status.completed_accepted`: a `completed` status requires an account, and every account is the projection of an accepted run | Rendering/JSON/OS exit semantics are not universally proved. JSON is never decoded into acceptance. Adequacy of each contract requirement and the other rule-coverage residuals remain semantic review. |
 
 Source extraction and transport qualification remain necessary. The existing
 `Admission.validate`, fresh frontend attribution, canonical pinned `.olean`
@@ -107,15 +107,15 @@ The table does not claim the rules' external collectors or residual review are p
 
 | Rule IDs | Proved relation and actual consumer | Limit |
 | --- | --- | --- |
-| SL1001, SL1002, SL1003 | `declarationFailure_iff` / `policyFor_ordered` select project-axiom, hole and unknown-dependency failures; `Checker.Policy.ruleFor` maps them. `foundationFor_iff` supplies exact classification through `labelOf`/`classify`. | Actual ownership and transitive axiom acquisition remain operational. |
-| SL1004 | Same declaration outcome theorems plus `authorizedNativeAxioms_iff`, consumed by `admitScope`/`ruleFor`. | Native authorization permits teaching only; transcript/replay truth is external. |
-| SL1005 | `foundationFor_least`, `leastFoundation_ext`, `policyFor_conforming_iff` and ordered outcome equivalence; `labelOf`/`ruleFor`. | Least containing profile of observed axioms, not least possible axioms for the proposition. |
-| SL1006 | `authorizedUnsafeRecHelpers_iff`, `policyFor_conforming_iff` and ordered outcome equivalence; `admitScope`/`ruleFor`. | Exact helper observations are checked; acquisition authenticity and execution coverage remain separate. |
-| SL1007 | `ContractOK` and declaration outcome equivalence through `ruleFor`. | Recorded contract failures are enforced. Probe's proposition/root extraction, proof admission and adequacy are not proved by this relation. |
-| SL2004 | `policyFor_ordered` places invalid-inventory membership refusal first; `ruleFor` maps it to coverage. `CensusOK`/`PlanOK` also contribute to executed composite acceptance. | Membership refusal does not establish complete Lake/environment ownership acquisition. |
-| SL3001, SL3002 | `executionFailureRecords_empty_iff` and `boundaryFailures_empty_iff`; `Checker.Policy.executionFailureRecords`/`executionFailures`. | Theorems cover supplied unresolved paths and boundaries, not complete root/closure discovery or external runtime correctness. |
-| SL4003 | `matchesPattern_iff` and `orderedLiterals_iff`; `Checker.Documentation.matchesPattern`. | One effective error under the restricted grammar; producer completion and error extraction are operational. Policy-negative source fixtures retain the separate registry-bound expectation qualifier; a rejection is not positive conformance. |
-| SL2001–SL2005, SL4001–SL4004, SL5001–SL5002 | Concrete `PlanOK`, `StageOK` and named scope/build/admission/document/example/presence predicates compose through `accept_iff` and `accepted_report_identity`. | The adapters populate these relations and route audit success through `AcceptedRun`; completed ENGINE collectors retain their provenance guards. The proof remains about supplied observations, not external acquisition. |
+| PL1001, PL1002, PL1003 | `declarationFailure_iff` / `policyFor_ordered` select project-axiom, hole and unknown-dependency failures; `Checker.Policy.ruleFor` maps them. `foundationFor_iff` supplies exact classification through `labelOf`/`classify`. | Actual ownership and transitive axiom acquisition remain operational. |
+| PL1004 | Same declaration outcome theorems plus `authorizedNativeAxioms_iff`, consumed by `admitScope`/`ruleFor`. | Native authorization permits teaching only; transcript/replay truth is external. |
+| PL1005 | `foundationFor_least`, `leastFoundation_ext`, `policyFor_conforming_iff` and ordered outcome equivalence; `labelOf`/`ruleFor`. | Least containing profile of observed axioms, not least possible axioms for the proposition. |
+| PL1006 | `authorizedUnsafeRecHelpers_iff`, `policyFor_conforming_iff` and ordered outcome equivalence; `admitScope`/`ruleFor`. | Exact helper observations are checked; acquisition authenticity and execution coverage remain separate. |
+| PL1007 | `ContractOK` and declaration outcome equivalence through `ruleFor`. | Recorded contract failures are enforced. Probe's proposition/root extraction, proof admission and adequacy are not proved by this relation. |
+| PL2004 | `policyFor_ordered` places invalid-inventory membership refusal first; `ruleFor` maps it to coverage. `CensusOK`/`PlanOK` also contribute to executed composite acceptance. | Membership refusal does not establish complete Lake/environment ownership acquisition. |
+| PL3001, PL3002 | `executionFailureRecords_empty_iff` and `boundaryFailures_empty_iff`; `Checker.Policy.executionFailureRecords`/`executionFailures`. | Theorems cover supplied unresolved paths and boundaries, not complete root/closure discovery or external runtime correctness. |
+| PL4003 | `matchesPattern_iff` and `orderedLiterals_iff`; `Checker.Documentation.matchesPattern`. | One effective error under the restricted grammar; producer completion and error extraction are operational. Policy-negative source fixtures retain the separate registry-bound expectation qualifier; a rejection is not positive conformance. |
+| PL2001–PL2005, PL4001–PL4004, PL5001–PL5002 | Concrete `PlanOK`, `StageOK` and named scope/build/admission/document/example/presence predicates compose through `accept_iff` and `accepted_report_identity`. | The adapters populate these relations and route audit success through `AcceptedRun`; completed ENGINE collectors retain their provenance guards. The proof remains about supplied observations, not external acquisition. |
 
 ## Complete observations and example expectations
 
@@ -184,7 +184,7 @@ Con-leche's authors/contributors, maintained by Joachim Breitner at Lean FRO,
 are credited for the design influence of [canonical semantic representations][propwhen]
 and [complete indexed assembly with checked admission][installed]. No con-leche
 code, model or theorem is imported, and its kernel/model guarantees are not claimed
-for Strict Lean. See the [contribution-specific attribution guide](design-influences.md).
+for Plumb. See the [contribution-specific attribution guide](design-influences.md).
 
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean

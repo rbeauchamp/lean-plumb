@@ -1,10 +1,10 @@
-import StrictLean.Qualification.Project
-import StrictLeanQualification.Website
+import Plumb.Qualification.Project
+import PlumbQualification.Website
 
 /-! Bounded PRODUCT-01 integration probe. The separate Verso pin renders text checked
 by the root compiler; it does not recheck the fixtures. Filesystem and compiler results
 are operational observations. See README.md for attribution and exact evidence limits. -/
-open Lean System StrictLean.Qualification
+open Lean System Plumb.Qualification
 
 private def field (j : Json) (key : String) : IO Json := IO.ofExcept (j.getObjVal? key)
 private def text (j : Json) (key : String) : IO String := IO.ofExcept (j.getObjValAs? String key)
@@ -12,10 +12,10 @@ private def text (j : Json) (key : String) : IO String := IO.ofExcept (j.getObjV
 private def page (metadata : Json) (violation diagnostic fixed : String) : IO String := do
   let clauses ← IO.ofExcept (metadata.getObjValAs? (Array String) "normativeClauses")
   let some clause := clauses[0]? | throw <| IO.userError "missing normative clause"
-  let input : StrictLeanQualification.Website.PageInput := {
+  let input : PlumbQualification.Website.PageInput := {
     id := (← text metadata "id"), title := (← text metadata "title"),
     normativePath := (clause.splitOn " §").head!, violation, diagnostic, fixed }
-  let result ← IO.ofExcept (StrictLeanQualification.Website.checkedPage.run input)
+  let result ← IO.ofExcept (PlumbQualification.Website.checkedPage.run input)
   return result.val
 
 /-- Snapshot exact relative file names and bytes. Byte equality is stronger than the
@@ -61,8 +61,8 @@ private def runPrototype : IO Unit := do
   let registry ← IO.ofExcept (Json.parse (← invoke root "lake" #["env", "lean", "--run", (here / "Export.lean").toString] 0 env))
   writeJson (out / "registry.json") registry
   let rules ← IO.ofExcept (registry.getObjValAs? (Array Json) "rules")
-  let some metadata := rules.find? (fun rule => (rule.getObjValAs? String "id").toOption == some "SL1001")
-    | throw <| IO.userError "registry lacks SL1001"
+  let some metadata := rules.find? (fun rule => (rule.getObjValAs? String "id").toOption == some "PL1001")
+    | throw <| IO.userError "registry lacks PL1001"
   requireChecks [⟨"project axiom metadata", (← text metadata "applicability") == "project-axiom"⟩]
   writeJson (out / "rule.json") metadata
   let helpRoute ← text metadata "helpRoute"
@@ -81,12 +81,12 @@ private def runPrototype : IO Unit := do
       let [diagnostic] := messages | throw <| IO.userError "expected exactly one violation message"
       requireChecks [
         ⟨"native error", (← text diagnostic "severity") == "error"⟩,
-        ⟨"native identity", (← text diagnostic "kind") == "StrictLean.SL1001._namedError"⟩,
+        ⟨"native identity", (← text diagnostic "kind") == "Plumb.PL1001._namedError"⟩,
         ⟨"native start", (← field diagnostic "pos") == Json.mkObj [("line", toJson (2 : Nat)), ("column", toJson (6 : Nat))]⟩,
         ⟨"native end", (← field diagnostic "endPos") == Json.mkObj [("line", toJson (2 : Nat)), ("column", toJson (17 : Nat))]⟩,
         ⟨"native source", (← text diagnostic "fileName") == source.toString⟩,
         ⟨"native title", (← text diagnostic "data").contains title⟩,
-        ⟨"native route", (← text diagnostic "data").endsWith ("/strict-lean/dev/" ++ helpRoute)⟩]
+        ⟨"native route", (← text diagnostic "data").endsWith ("/lean-plumb/dev/" ++ helpRoute)⟩]
     else requireChecks [⟨"fixed has no diagnostics", messages.isEmpty⟩]
     results := results.setObjVal! name (Json.mkObj [("source", .str (← IO.FS.readFile source)), ("messages", toJson messages)])
   -- Isolated adopter is disposable, including on exceptional return.
@@ -95,7 +95,7 @@ private def runPrototype : IO Unit := do
     let mut adopterResults := initialResults
     prepareProject root adopter "rule_probe_adopter" "standard-logical" "Isolated prototype control."
     IO.FS.removeFile (adopter / "lakefile.lean")
-    IO.FS.writeFile (adopter / "lakefile.toml") s!"name = \"rule_probe_adopter\"\nlintDriver = \"strict_lean/axiomGate\"\nlintDriverArgs = [\"--build-lint\"]\n[[require]]\nname = \"strict_lean\"\npath = {(toJson root.toString).compress}\n[[lean_lib]]\nname = \"Example\"\n"
+    IO.FS.writeFile (adopter / "lakefile.toml") s!"name = \"rule_probe_adopter\"\nlintDriver = \"plumb/axiomGate\"\nlintDriverArgs = [\"--build-lint\"]\n[[require]]\nname = \"plumb\"\npath = {(toJson root.toString).compress}\n[[lean_lib]]\nname = \"Example\"\n"
     -- This prototype checks logical policy, not the producer suite's checked execution mode.
     let manifest ← readJson (adopter / "foundation_manifest.json")
     let surfaces ← IO.ofExcept (manifest.getObjValAs? (Array Json) "surfaces")
@@ -121,20 +121,20 @@ private def runPrototype : IO Unit := do
   let _ ← invoke (here / "site") "lake" #["exe", "site"] 0 cleanEnv
   let siteRoot := out / "public"
   if ← siteRoot.pathExists then IO.FS.removeDirAll siteRoot
-  let route := siteRoot / "strict-lean/dev" / helpRoute
+  let route := siteRoot / "lean-plumb/dev" / helpRoute
   copyTree (here / "site/_out/html-single") route
   let rendered ← IO.FS.readFile (route / "index.html")
-  requireChecks [⟨"rendered rule and checked sources", rendered.contains "SL1001" && rendered.contains "unsupported" && rendered.contains "conditional"⟩]
+  requireChecks [⟨"rendered rule and checked sources", rendered.contains "PL1001" && rendered.contains "unsupported" && rendered.contains "conditional"⟩]
   -- The landing link is static markup; no project-owned browser implementation is needed.
-  IO.FS.writeFile (siteRoot / "index.html") s!"<!doctype html><title>Diagnostic link probe</title><a href=\"/strict-lean/dev/{helpRoute}\">Explain SL1001</a>"
+  IO.FS.writeFile (siteRoot / "index.html") s!"<!doctype html><title>Diagnostic link probe</title><a href=\"/lean-plumb/dev/{helpRoute}\">Explain PL1001</a>"
   let first ← snapshot route
   let _ ← invoke (here / "site") "lake" #["exe", "site"] 0 cleanEnv
   let second ← snapshot (here / "site/_out/html-single")
   requireChecks [⟨"identical static bytes at identical inputs", first == second⟩]
   let emitted ← messages.mapM fun message => do
-    return (← text message "kind").replace "StrictLean." "" |>.replace "._namedError" ""
+    return (← text message "kind").replace "Plumb." "" |>.replace "._namedError" ""
   let fixedMessages ← IO.ofExcept (fixed.getObjValAs? (Array Json) "messages")
-  let artifact := StrictLeanQualification.Website.checkedArtifact.run {
+  let artifact := PlumbQualification.Website.checkedArtifact.run {
     id := (← text metadata "id"), route := helpRoute, emitted := emitted.toList,
     routeExists := (← route.isDir), violationExists := !messages.isEmpty,
     fixedEmpty := fixedMessages.isEmpty }

@@ -2,7 +2,7 @@
 
 This package is the reference Lake integration for the current build-time enforcement
 MVP. It demonstrates how an adopting project uses the existing linter; the implementation
-lives in [`lean/StrictLean/Checker/`](../../lean/StrictLean/Checker/).
+lives in [`lean/Plumb/Checker/`](../../lean/Plumb/Checker/).
 
 It requires the checker by local path. From this directory:
 
@@ -11,7 +11,7 @@ MATHLIB_NO_CACHE_ON_UPDATE=1 lake update
 lake build
 ```
 
-To use it elsewhere, copy this directory and change `require strict_lean from
+To use it elsewhere, copy this directory and change `require plumb from
 "../.."` in `lakefile.lean` to the checker's path or an exact git revision. Lake resolves
 the dependency manifest; no files named `Audit` or `Fixtures` are required. The checker
 has transitive Mathlib dependencies, but this Core-only example does not compile Mathlib.

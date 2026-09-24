@@ -61,6 +61,6 @@
    "inputRev": "main",
    "inherited": true,
    "configFile": "lakefile.lean"}],
- "name": "strict_rule_prototype",
+ "name": "plumb_rule_prototype",
  "lakeDir": ".lake",
  "fixedToolchain": false}

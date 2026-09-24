@@ -1,0 +1,26 @@
+import Lean
+import Plumb.RegistryCodec
+
+/-! Build identity shared by operational result and raw worker transports. -/
+namespace Plumb.Checker.Producer
+open Lean Plumb
+/-- Captured when this module is elaborated, not from an adopter's working directory. -/
+elab "plumb_build_revision" : term => do
+  let source := System.FilePath.mk (← getFileName)
+  let some root := source.parent >>= (·.parent) >>= (·.parent) >>= (·.parent)
+    | throwError "cannot identify checker package source directory"
+  let root ← IO.FS.realPath root
+  unless ← (root / "lakefile.lean").pathExists do throwError "checker package configuration unavailable"
+  let head ← IO.Process.output { cmd := "git", args := #["-C", root.toString, "rev-parse", "HEAD"] }
+  unless head.exitCode == 0 do throwError "cannot identify checker source revision"
+  let state ← IO.Process.output { cmd := "git", args := #["-C", root.toString, "status", "--porcelain", "--untracked-files=normal"] }
+  unless state.exitCode == 0 do throwError "cannot identify checker source state"
+  let suffix := if state.stdout.isEmpty then "" else ":unreleased-worktree"
+  return mkStrLit (head.stdout.trimAscii.toString ++ suffix)
+
+def identity : RegistryCodec.ProducerIdentity := {
+  producerVersion := "unreleased"
+  toolchain := Lean.versionString
+  sourceRevision := plumb_build_revision }
+
+end Plumb.Checker.Producer

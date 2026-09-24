@@ -1,9 +1,9 @@
 # Rule registry and diagnostic interface
 
-The implementation lives in `StrictLeanCore.RuleId`, `StrictLeanCore.Rule`,
-`StrictLean.Diagnostic`, `StrictLean.NameCodec`, `StrictLean.RegistryCodec`,
-`StrictLean.DiagnosticCodec` and `StrictLean.Website`; the first two are on the claimed
-`StrictLeanCore` surface, whose declarations the gate audits. These modules supply one
+The implementation lives in `PlumbCore.RuleId`, `PlumbCore.Rule`,
+`Plumb.Diagnostic`, `Plumb.NameCodec`, `Plumb.RegistryCodec`,
+`Plumb.DiagnosticCodec` and `Plumb.Website`; the first two are on the claimed
+`PlumbCore` surface, whose declarations the gate audits. These modules supply one
 vocabulary to the existing checker, its native diagnostic prototype and the
 prototype website. The [coverage map](rule-coverage.md) defines the twenty
 reserved predicates and their residual semantic obligations.
@@ -21,9 +21,9 @@ message-template identifiers, strict default, supported evidence modes,
 implementation availability, lifecycle and attribution. `existingChecker`
 means the named existing predicate has a checker implementation; it does not
 mean that every planned live editor or production website adapter is complete.
-SL5001 and SL5002 now have native metadata-presence observers. SL1001–SL1007
-have partial command feedback; SL2002 covers invalid local foundation requests,
-and SL2005 covers unavailable or pending local analysis. Full project integration
+PL5001 and PL5002 now have native metadata-presence observers. PL1001–PL1007
+have partial command feedback; PL2002 covers invalid local foundation requests,
+and PL2005 covers unavailable or pending local analysis. Full project integration
 is separate from those local modes. See [native-linter.md](native-linter.md) for
 actual APIs, scope, options and qualification. Production pages remain #15.
 
@@ -64,8 +64,8 @@ scope. A source location retains the exact text and byte offsets for both full
 and selection ranges. `admitSource` checks bounds, character boundaries, ordering
 and containment. `sourceFromReport` additionally requires the recorded codepoint
 and UTF-16 coordinates to agree with that text. `admitSource` and the conversion live in
-the claimed `StrictLeanCore.Source`; the UTF-16 column is Lean's `leanPosToLspPos`, supplied
-by `StrictLean.Diagnostic`. Missing ranges have module
+the claimed `PlumbCore.Source`; the UTF-16 column is Lean's `leanPosToLspPos`, supplied
+by `Plumb.Diagnostic`. Missing ranges have module
 attribution; inconsistent supplied ranges fail instead of acquiring a fabricated
 location.
 
@@ -86,7 +86,7 @@ run. No textual path substitution is applied to the new transport.
 
 Names use outermost-first tagged string/numeric components, preserving anonymous
 roots and names whose printed forms are ambiguous. `Probe` retains Lean's actual `Name` throughout collection and policy admission. The operational name
-codec is public `StrictLean.StructuralName`; `NameCodec` is a compatibility import.
+codec is public `Plumb.StructuralName`; `NameCodec` is a compatibility import.
 Only the legacy output adapter renders the display `name` field. Old display-only
 worker records cannot supply a new declaration diagnostic. JSON syntax parsing and the compiler's collection of
 names, ranges and source identity remain trusted operational boundaries.
@@ -152,10 +152,10 @@ Lean proof or whole-standard semantic conformance. The
 [acceptance guide](policy-acceptance.md#1-observed-call-flow-and-every-success-boundary)
 owns the accepted-result boundary and its JSON metadata semantics. Since #42, a result envelope's
 `completed` status is rendered only through `Account.Status`, whose `completed`
-constructor requires an accepted report account (`StrictLeanCore.Account`), and the
+constructor requires an accepted report account (`PlumbCore.Account`), and the
 `acceptance` object gains an additive `account` member (then within result schema 1):
 `coverage` (only `freshWholeProject` is whole-project acceptance), `checked` (the
-`theorem` `StrictLeanPolicy.accept_iff`, whose right side is the checked relation, and the job count), `contracts` (each SL1007
+`theorem` `PlumbPolicy.accept_iff`, whose right side is the checked relation, and the job count), `contracts` (each PL1007
 registration, its implementation and rendered requirement, with `unresolvedReview`
 `R-INTENT`, `R-INVARIANT`), per-environment `execution` counts, `fences` by expectation,
 `trusted` mechanisms and the run's `unresolvedReview` identifiers. No existing key changes;
@@ -191,7 +191,7 @@ of Lean's JSON parser, FileMap implementation or complete diagnostic decoder.
 ## Website admission and links
 
 Development help URLs are
-`https://rbeauchamp.github.io/strict-lean/dev/rules/<ID>/`. They describe the
+`https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/`. They describe the
 selected development route, not a claim that a public page has been deployed.
 Released `/v/<package-version>/` and immutable `/rev/<commit>/` publication remain
 subject to the architecture's publication contract; this unreleased producer
@@ -248,7 +248,7 @@ Canonical representation and complete indexed metadata credit con-leche's
 [PropWhen](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean)
 and [Installed](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean),
 Joachim Breitner and contributors at Lean FRO. No con-leche code or proof is copied
-or imported as a proof of Strict Lean's predicates.
+or imported as a proof of Plumb's predicates.
 
 The source and native-message adapters use Lean 4.34.0, commit
 `293d5d0c0c3f3dded4688b3ccd6a33939ac5102b`:

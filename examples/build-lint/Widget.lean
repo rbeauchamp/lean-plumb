@@ -1,4 +1,4 @@
-import StrictLean.Contract
+import Plumb.Contract
 
 /-! Minimal executable witness with an exact, proof-required relation. -/
 
@@ -16,7 +16,7 @@ def SuccessorSpec (f : Nat → Nat) : Prop :=
 
 /-- A contract is evidence of the exact predicate applied to `successor`. -/
 theorem successorContract :
-    StrictLean.ExecutableContract successor SuccessorSpec :=
+    Plumb.ExecutableContract successor SuccessorSpec :=
   ⟨fun _ => rfl⟩
 
 /-- The public API consumes the requirement's evidence. -/

@@ -3,7 +3,7 @@
 The corpus in [`examples/rules/`](../../examples/rules/) supplies page inputs for all twenty
 registry IDs. `corpus.json` fixes invocation, evidence mode, expected IDs, legacy subreasons,
 message patterns, subjects and full primary locations before execution. Sources are copied
-verbatim into disjoint Core-only adopters. `StrictLean.Qualification.RuleExamples`
+verbatim into disjoint Core-only adopters. `Plumb.Qualification.RuleExamples`
 orchestrates processes and files in Lean; the
 existing Lean detectors produce the findings and `Checker.RuleExampleQualification` admits
 the canonical evidence. This is scoped qualification, not a universal detector proof or
@@ -18,7 +18,7 @@ list every expected finding, including generated declarations and underlying dia
 No extra finding may disappear. A source-free detector keeps its module/project location;
 an example adapter must not manufacture a source range.
 
-SL2001, SL2005 and SL3001 have **diagnostic demonstrations** for unavailable analysis. They
+PL2001, PL2005 and PL3001 have **diagnostic demonstrations** for unavailable analysis. They
 require completed, authentic diagnostic production and exact source/configuration/mode,
 registry ID, reason, primary/related location evidence. The checker result remains
 `incomplete`. A crash, missing response, stale source or unrelated error is not a demonstration.
@@ -37,7 +37,7 @@ this example qualifier does not authorize configuration relocation transformatio
 `--with-docs` requests. After initial configuration capture succeeds, early terminal failures
 retain the producer request and any effective configuration captured before failure. If the
 initial configuration read itself fails, the terminal result retains the original IO diagnostic
-as SL2001/incomplete with an empty source account and no request/effective account; it cannot
+as PL2001/incomplete with an empty source account and no request/effective account; it cannot
 qualify as an example or demonstration. The [producer transport contract](engine-producers.md#transport-and-consumer-boundary)
 owns source retention on terminal exits; absent source evidence refuses qualification. The shared
 `admitExampleSources` guard requires every observed source to belong to the frozen snapshot
@@ -49,7 +49,7 @@ binding/completion and the exact diagnostic list before applying the four-kind p
 completed production, nonempty expected findings, a selected-rule incomplete finding, exact mode and
 canonical diagnostic equality. The observed list itself must contain an incomplete finding for the selected rule,
 without assuming injectivity of JSON rendering. Its soundness/completeness theorems concern these data, not
-process authenticity. `StrictLeanPolicy.incomplete_example_refused` proves that an incomplete
+process authenticity. `PlumbPolicy.incomplete_example_refused` proves that an incomplete
 outcome satisfies none of the existing fence expectations. The executed validator additionally proves `demonstration_not_accepted`: every admitted
 demonstration fails each accepted-example classification, for any expected finding list.
 All six named new guarantees
@@ -71,26 +71,26 @@ run is not full-standard conformance.
 
 | Rule | Source-owned input | What the correction preserves and changes |
 | --- | --- | --- |
-| SL1001 | `SL1001/{Violation,Fixed}.lean` | Proves the same `∀ n : Nat, n = n` instead of assuming it as an axiom. |
-| SL1002 | `SL1002/{Violation,Fixed}.lean` | Fills the same reflexivity proof with `rfl`; diagnostic-only inspection retains the original compiler warning. The fixed side uses the ordinary warning-rejecting gate. |
-| SL1003 | `SL1003/Example.lean` and dependency `{Violation,Fixed}.lean` | The unchanged client imports reflexivity from an unowned dependency; the dependency supplies a proof of the same proposition instead of an axiom. Imported dependencies remain a declared trust boundary. |
-| SL1004 | `SL1004/{Violation,Fixed}.lean` | Proves the same concrete equality by kernel reduction instead of native proof evaluation. Both native axiom and parent findings are retained. |
-| SL1005 | `SL1005/{Violation,Fixed}.lean` | Proves the same universally quantified reflexivity without `propext`, under the unchanged Kernel-only maximum. |
-| SL1006 | `SL1006/{Violation,Fixed}.lean` | Keeps identity's domain and body; removes an unnecessary `unsafe` declaration. |
-| SL1007 | `SL1007/{Violation,Fixed}.lean` | Moves the complete natural-number domain inside the identity contract's predicate, retaining the same pointwise equality. |
-| SL2001 | `SL2001/Example.lean` and `{Violation,Fixed}.json` | Removes the unavailable Lake dependency; the requested reflexivity source is unchanged. The unavailable-workspace result is a demonstration. |
-| SL2002 | `SL2002/Example.lean` and `{Violation,Fixed}.json` | Removes an unknown manifest key without changing the selected source, profile or execution requirement. |
-| SL2003 | `SL2003/{Violation,Fixed}.lean` | Removes a dead lambda binding while preserving identity's complete natural-number behavior. No warning or linter is disabled. |
-| SL2004 | `SL2004/{Violation,Fixed}.lean` | Removes an unused forbidden reporter import; preserves reflexivity and its assumptions. |
-| SL2005 | `SL2005/{Violation,Fixed}.lean` | Replaces ill-typed unchecked evidence with a checked proof of the same reflexivity statement. Admission failure is a demonstration, never accepted evidence. |
-| SL3001 | `SL3001/{Violation,Fixed}.lean` | Removes a no-effect custom evaluator that prevents history authentication; preserves the same reference, replacement and correspondence. |
-| SL3002 | `SL3002/{Violation,Fixed}.lean` | Adds the missing equality on the full natural-number domain; keeps the checked execution claim and both implementations. |
-| SL4001 | `SL4001/{Violation,Fixed}.md` | Removes an orphan marker; the positive reflexivity fence is unchanged. |
-| SL4002 | `SL4002/{Violation,Fixed}.md` | Proves the same reflexivity claim in a positive fence; retains the SL1001 underlying rejection alongside SL4002. |
-| SL4003 | `SL4003/{Violation,Fixed}.md` | Correctly labels an already valid reflexivity proof as positive; does not invent a compiler failure. |
-| SL4004 | `SL4004/{Violation,Fixed}.md` | Correctly labels the same kernel proof as positive rather than native teaching. |
-| SL5001 | `SL5001/{Violation,Fixed}.lean` | Adds module documentation to unchanged reflexivity evidence. |
-| SL5002 | `SL5002/{Violation,Fixed}.lean` | Adds the registered public theorem's docstring; registration, proposition and proof are unchanged. |
+| PL1001 | `PL1001/{Violation,Fixed}.lean` | Proves the same `∀ n : Nat, n = n` instead of assuming it as an axiom. |
+| PL1002 | `PL1002/{Violation,Fixed}.lean` | Fills the same reflexivity proof with `rfl`; diagnostic-only inspection retains the original compiler warning. The fixed side uses the ordinary warning-rejecting gate. |
+| PL1003 | `PL1003/Example.lean` and dependency `{Violation,Fixed}.lean` | The unchanged client imports reflexivity from an unowned dependency; the dependency supplies a proof of the same proposition instead of an axiom. Imported dependencies remain a declared trust boundary. |
+| PL1004 | `PL1004/{Violation,Fixed}.lean` | Proves the same concrete equality by kernel reduction instead of native proof evaluation. Both native axiom and parent findings are retained. |
+| PL1005 | `PL1005/{Violation,Fixed}.lean` | Proves the same universally quantified reflexivity without `propext`, under the unchanged Kernel-only maximum. |
+| PL1006 | `PL1006/{Violation,Fixed}.lean` | Keeps identity's domain and body; removes an unnecessary `unsafe` declaration. |
+| PL1007 | `PL1007/{Violation,Fixed}.lean` | Moves the complete natural-number domain inside the identity contract's predicate, retaining the same pointwise equality. |
+| PL2001 | `PL2001/Example.lean` and `{Violation,Fixed}.json` | Removes the unavailable Lake dependency; the requested reflexivity source is unchanged. The unavailable-workspace result is a demonstration. |
+| PL2002 | `PL2002/Example.lean` and `{Violation,Fixed}.json` | Removes an unknown manifest key without changing the selected source, profile or execution requirement. |
+| PL2003 | `PL2003/{Violation,Fixed}.lean` | Removes a dead lambda binding while preserving identity's complete natural-number behavior. No warning or linter is disabled. |
+| PL2004 | `PL2004/{Violation,Fixed}.lean` | Removes an unused forbidden reporter import; preserves reflexivity and its assumptions. |
+| PL2005 | `PL2005/{Violation,Fixed}.lean` | Replaces ill-typed unchecked evidence with a checked proof of the same reflexivity statement. Admission failure is a demonstration, never accepted evidence. |
+| PL3001 | `PL3001/{Violation,Fixed}.lean` | Removes a no-effect custom evaluator that prevents history authentication; preserves the same reference, replacement and correspondence. |
+| PL3002 | `PL3002/{Violation,Fixed}.lean` | Adds the missing equality on the full natural-number domain; keeps the checked execution claim and both implementations. |
+| PL4001 | `PL4001/{Violation,Fixed}.md` | Removes an orphan marker; the positive reflexivity fence is unchanged. |
+| PL4002 | `PL4002/{Violation,Fixed}.md` | Proves the same reflexivity claim in a positive fence; retains the PL1001 underlying rejection alongside PL4002. |
+| PL4003 | `PL4003/{Violation,Fixed}.md` | Correctly labels an already valid reflexivity proof as positive; does not invent a compiler failure. |
+| PL4004 | `PL4004/{Violation,Fixed}.md` | Correctly labels the same kernel proof as positive rather than native teaching. |
+| PL5001 | `PL5001/{Violation,Fixed}.lean` | Adds module documentation to unchanged reflexivity evidence. |
+| PL5002 | `PL5002/{Violation,Fixed}.lean` | Adds the registered public theorem's docstring; registration, proposition and proof are unchanged. |
 
 ## Authoring and export contract
 
@@ -117,7 +117,7 @@ mode and checker build identity, plus exact checker source bytes before and afte
 The campaign additionally exercises authentic Standard-Logical output against a Kernel-only
 request and actual successful negative/trusted documentation against a positive correction
 expectation; the fixed phases are the fresh positives. Relabelling a demonstration's selected rule is
-refused while retaining its complete findings. Authentic early SL2003/SL2005 results are also
+refused while retaining its complete findings. Authentic early PL2003/PL2005 results are also
 refused against corrected caller snapshots or after removal of producer source evidence.
 These controls qualify the adapters; the
 universal data predicates and their proofs remain distinct from observed process behavior.
@@ -140,11 +140,11 @@ repository's diagnostic deadline and includes its housekeeping checks.
 
 The `ruleExamples` and `ruleExampleQualification` executables are excluded in the root manifest solely as operational
 qualification tooling, alongside the existing checker executables. Their modules belong to the
-already-excluded `StrictLean` tooling library; no product module or detector is newly exempted
+already-excluded `Plumb` tooling library; no product module or detector is newly exempted
 from its applicable qualification.
 
-For development, append `--rules SL1001 SL1002` after `--evidence PATH` to produce
-explicitly scoped evidence. `--shard K/N` selects every rule whose corpus position is K − 1 modulo N, except that SL5002 follows SL5001 into its shard so the shared fresh-project theorem-type check still runs (`mem_selectRules_shard`, `mem_selectRules_some_shard`, `sl5001_sl5002_same_shard`);
+For development, append `--rules PL1001 PL1002` after `--evidence PATH` to produce
+explicitly scoped evidence. `--shard K/N` selects every rule whose corpus position is K − 1 modulo N, except that PL5002 follows PL5001 into its shard so the shared fresh-project theorem-type check still runs (`mem_selectRules_shard`, `mem_selectRules_some_shard`, `pl5001_pl5002_same_shard`);
 `./scripts/verify.sh diagnostics rule-examples 1/2` and `2/2` run the two CI shards. [Lean qualification](lean-qualification.md) specifies the
 proved template transformation, Lake-discovered source snapshot and trusted IO boundary. Ordinary
 acceptance (`./scripts/verify.sh`, then `./scripts/verify.sh docs`) remains separate.

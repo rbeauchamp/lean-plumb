@@ -1,6 +1,8 @@
-# Strict Lean
+# Plumb for Lean
 
-A strict Lean linter and linked rule-reference website, backed by a standard requiring precise types, propositions, and kernel-checked evidence.
+A strict linter and correctness standard for Lean.
+
+Plumb pairs a Lean linter and linked rule-reference website with a standard requiring precise types, propositions, and kernel-checked evidence.
 
 The [standard](docs/standard/README.md) defines normative meaning. The current checker enforces declaration, foundation, execution-boundary, and checked-example requirements; the [product architecture](docs/guides/linter-architecture.md) specifies the typed rule catalogue, editor integration, and GitHub Pages website being built. The website and complete editor integration are not yet published. Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
 
@@ -9,7 +11,7 @@ The [standard](docs/standard/README.md) defines normative meaning. The current c
 **Public review draft.** We invite the Lean community to challenge the rules, examples,
 and checker behavior.
 
-Please [open an issue](https://github.com/rbeauchamp/strict-lean/issues) with
+Please [open an issue](https://github.com/rbeauchamp/lean-plumb/issues) with
 unclear or unnecessarily restrictive requirements, incorrect Lean claims, checker false
 positives or omissions, or adoption difficulties. Cite the relevant section and include
 a small Lean example and toolchain version where useful. Feedback should help establish

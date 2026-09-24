@@ -1,6 +1,6 @@
 # One-rule architecture experiment
 
-PRODUCT-01 exercises existing **project-axiom** policy as **SL1001**, not the complete registry,
+PRODUCT-01 exercises existing **project-axiom** policy as **PL1001**, not the complete registry,
 editor scheduler, acceptance proofs or public website. See the [architecture](../../docs/guides/linter-architecture.md)
 and [complete map](../../docs/guides/rule-coverage.md) for successor contracts.
 
@@ -9,7 +9,7 @@ and [complete map](../../docs/guides/rule-coverage.md) for successor contracts.
 From the repository root, provision its pinned dependencies per the contributor guide, then:
 
 ```sh
-lake build axiomGate StrictLeanQualification +StrictLean.Qualification.Project:olean
+lake build axiomGate PlumbQualification +Plumb.Qualification.Project:olean
 cd examples/rule-reference-prototype/site
 lake build verso/VersoManual
 cd ../../..
@@ -25,7 +25,7 @@ actual API/toolchain integration, which a pure policy theorem cannot establish. 
 outcomes were required for go; a fallback required a concrete blocker. Verso met the criterion.
 
 The generated files are under `generated/public/`; the landing page links to
-`/strict-lean/dev/rules/SL1001/`. No Python HTTP server is part of the recipe.
+`/lean-plumb/dev/rules/PL1001/`. No Python HTTP server is part of the recipe.
 Browser navigation requires an independently provided static-file host at that base;
 no new server implementation or deployment is supplied here. The production HTTPS
 destination is planned, not yet live.
@@ -37,12 +37,12 @@ destination is planned, not yet live.
    explicitly named empty environment linter checks registration compatibility only, not detection.
 2. Actual fixture files compile independently. The violation contains an unused axiom; the fix
    proves only `False → False`, not `False`. A generated client imports each completed fixture
-   and triggers the hook, which reuses **existing** `StrictLean.Probe.environmentReport` and
-   `StrictLean.Checker.Policy.reasonFor`. No duplicate project-axiom detector is written.
+   and triggers the hook, which reuses **existing** `Plumb.Probe.environmentReport` and
+   `Plumb.Checker.Policy.reasonFor`. No duplicate project-axiom detector is written.
    The violation must emit exactly one effective error, with named kind
-   `StrictLean.SL1001._namedError`, actual line 2 / columns 6–17, and derived help URL.
+   `Plumb.PL1001._namedError`, actual line 2 / columns 6–17, and derived help URL.
    Fixed controls emit no messages. Invalid sources stay isolated from positive source.
-3. A disposable Core-only adopter uses `lintDriver = "strict_lean/axiomGate"` and
+3. A disposable Core-only adopter uses `lintDriver = "plumb/axiomGate"` and
    `lintDriverArgs = ["--build-lint"]`. Actual `lake lint` invokes the public checker and completed
    logical admission on the same pair. Positive–negative–restored-positive controls each start
    with empty adopter output. Intended `project-axiom` rejection is required; generic failure
@@ -65,7 +65,7 @@ files** across two renders. This is one observation, not a performance promise. 
 inputs the driver must pass again; generated evidence records the current outcomes/time.
 The public checker accepted one module/one declaration for the restored fixed control.
 The in-app browser rendered the rule page, actual sources and credits at the project base;
-keyboard activation of **Explain SL1001** reached it from the diagnostic control. The Chrome
+keyboard activation of **Explain PL1001** reached it from the diagnostic control. The Chrome
 CLI bridge could not start and hidden-tab mouse actions timed out; keyboard navigation supplied
 the successful browser observation. This is **not VS Code evidence**.
 
@@ -92,7 +92,7 @@ not prove its collector or policy universally correct; proof-bearing acceptance 
 - **Lean FRO's con-leche**: [Installed.lean](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean)
   and [PropWhen.lean](https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean)
   motivate canonical metadata and proof-bearing boundaries. No con-leche code/proof is copied;
-  this does not claim that con-leche proves Strict Lean correct.
+  this does not claim that con-leche proves Plumb correct.
 - Lean authors supply [linter registration](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Elab/Command.lean)
   and the [message/widget pattern](https://github.com/leanprover/lean4/blob/293d5d0c0c3f3dded4688b3ccd6a33939ac5102b/src/Lean/Log.lean).
   The diagnostic adapter is original API-use code informed by that pattern.
@@ -106,7 +106,7 @@ not prove its collector or policy universally correct; proof-bearing acceptance 
 ## Shared registry migration
 
 CATALOG-01 replaces the prototype-only descriptor with the product registry.
-`Export.lean` emits the full schema-1 registry; the generator selects SL1001 from
+`Export.lean` emits the full schema-1 registry; the generator selects PL1001 from
 that value and submits actual page/emitted-ID inventory to `axiomGate --validate-site`.
 Native diagnostics use the same typed payload, source admission and renderer as
 the checker. The experiment remains one page and an explicit imported-module

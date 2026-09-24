@@ -11,13 +11,13 @@ interface evidence. The [coverage map](rule-coverage.md) accounts for the comple
 
 ## Product and authority
 
-Strict Lean delivers an enforcing Lean linter and a linked rule-reference website, backed
+Plumb for Lean delivers an enforcing Lean linter and a linked rule-reference website, backed
 by a precise standard. `docs/standard/` remains authoritative for normative meaning.
 The Lean registry supplies machine metadata and diagnostic identity; checked source supplies
 website examples. Neither a prose-only repository nor a green lint command establishes full
 conformance. Every applicable chapter 9 row still needs its stated evidence.
 
-Reuse the existing `StrictLean.Checker` implementation incrementally. Keep `Audit`, `AuditApp`
+Reuse the existing `Plumb.Checker` implementation incrementally. Keep `Audit`, `AuditApp`
 and standalone `Main` as dogfood surfaces. Operational tooling and intentionally invalid
 fixtures remain separately classified. No new rule bans Float, IO, local mutation syntax,
 classical erased proofs, noncomputable mathematical definitions, or arbitrary naming styles.
@@ -38,22 +38,22 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 
 | Path | Owner and contract |
 | --- | --- |
-| `lean/StrictLeanCore/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
-| `lean/StrictLeanCore/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
-| `lean/StrictLean/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
-| `lean/StrictLean/Checker/PolicyDomain.lean` | Canonical decoded inputs and typed failures; POLICY-02 (#5). |
-| `lean/StrictLean/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
-| `lean/StrictLean/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
-| `lean/StrictLean/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps. |
-| `lean/StrictLean/Checker/Lint.lean` | Whole-project `strictLint` executable using the same registry/policy, not another checker. |
-| `lean/StrictLean/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
+| `lean/PlumbCore/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
+| `lean/PlumbCore/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
+| `lean/Plumb/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
+| `lean/Plumb/Checker/PolicyDomain.lean` | Canonical decoded inputs and typed failures; POLICY-02 (#5). |
+| `lean/Plumb/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
+| `lean/Plumb/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
+| `lean/Plumb/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps. |
+| `lean/Plumb/Checker/Lint.lean` | Whole-project `lint` executable using the same registry/policy, not another checker. |
+| `lean/Plumb/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
 | `website/` | Separate pinned Verso Lake package and original explanatory prose. |
 | `examples/rules/<ID>/` | Actual violation/fix source plus typed expected outcome specification; isolated negatives. |
 | Lean modules in the website package | Planned build, validation, assembly, and publish-artifact preparation via Lake; no Python or additional unapproved shell scripts. |
 
 `RuleId` is the closed initial vocabulary in the coverage map, not a natural number or free
 string accepted without validation. `descriptor : (id : RuleId) → RuleDescriptor id` is total by exhaustive
-matching. External strings are serialized spellings (`SL1001`, etc.), not policy authority.
+matching. External strings are serialized spellings (`PL1001`, etc.), not policy authority.
 Never reuse an ID after changing its semantic predicate. Preserve retired descriptors as
 tombstones; create a new ID for incompatible meaning. Compatible clarifications retain identity
 and record the applicable implementation version. Chapter 9 IDs remain checklist rows, not
@@ -133,7 +133,7 @@ transitive package resolution does not require compiling its mathematical module
 - Environment hooks: `Lean.Linter.EnvLinter.EnvLinter`, with `test : Name → MetaM (Option
   MessageData)`, and `@[builtin_env_linter optionName]` on public meta definitions. Registration
   requires a Boolean option. [The native framework][env-lint] supports local omission/options;
-  therefore its filtered default scan alone cannot establish Strict Lean's mandatory coverage.
+  therefore its filtered default scan alone cannot establish Plumb's mandatory coverage.
   Reuse compatible tests, not its suppression semantics as authority.
 - Source/semantic evidence: `ConstantInfo`, `Lean.collectAxioms`, environment module indices,
   `Lean.findDeclarationRangesCore?`, file-map positions, elaboration info, and Lake's elaborated
@@ -148,9 +148,9 @@ transitive package resolution does not require compiling its mathematical module
   plus `findDocString?` and module-doc metadata for the scoped presence checks. Text adequacy
   remains review. Reuse Batteries/Mathlib linter tests only after demonstrating their predicate
   and scope match; do not turn upstream optional style rules into universal strict rules.
-- Lake [PackageConfig.lintDriver][lake-config] accepts `"strict_lean/strictLint"` in either
+- Lake [PackageConfig.lintDriver][lake-config] accepts `"plumb/lint"` in either
   lakefile format. #14 adds that executable and qualifies `lake lint` end to end. The prototype
-  verifies dependency dispatch with existing `strict_lean/axiomGate`, `--build-lint`. The driver
+  verifies dependency dispatch with existing `plumb/axiomGate`, `--build-lint`. The driver
   builds only explicit manifest-derived targets, never recursively the default policy target.
   Native `builtinLint` is separate and must not weaken strict policy.
 - Preserve the existing uncached sole-default `policy` target for enabled plain `lake build`.
@@ -177,7 +177,7 @@ HTTPS fallback. The repository's Lean-only policy supersedes that implementation
 the prototype now retains the textual URL only. A future interactive link must reuse an
 appropriate upstream Lean interface without introducing project-owned JavaScript; that
 interaction remains unimplemented and requires its own qualification. Render tagged
-`MessageData` with name `StrictLean.<ID>` through `logMessage`, supplying the actual file/range
+`MessageData` with name `Plumb.<ID>` through `logMessage`, supplying the actual file/range
 and message context, rather than the `logAt` path that appends the wrong built-in widget.
 The [interactive diagnostic adapter][interactive] derives `code?` from the named message kind.
 The prototype verifies serialized named kind, source location, policy rejection and fallback URL;
@@ -211,12 +211,12 @@ Each page contains identity/category/default behavior, applicability and exact c
 clauses, violation and fixed examples, expected diagnostic identity and real locations, rationale,
 fix guidance, permitted technical exceptions/configuration, limitations/false-positive conditions,
 version availability, and credits. Do not imply that every violating Lean file fails elaboration:
-the SL1001 axiom fixture elaborates and is then rejected by the actual policy.
+the PL1001 axiom fixture elaborates and is then rejected by the actual policy.
 
-Canonical public base: `https://rbeauchamp.github.io/strict-lean/`.
-Paths: `/strict-lean/dev/rules/<ID>/` for latest successfully deployed development documentation;
-`/strict-lean/v/<package-version>/rules/<ID>/` for immutable released-package help;
-`/strict-lean/rev/<commit>/rules/<ID>/` for published commit snapshots. A package build embeds
+Canonical public base: `https://rbeauchamp.github.io/lean-plumb/`.
+Paths: `/lean-plumb/dev/rules/<ID>/` for latest successfully deployed development documentation;
+`/lean-plumb/v/<package-version>/rules/<ID>/` for immutable released-package help;
+`/lean-plumb/rev/<commit>/rules/<ID>/` for published commit snapshots. A package build embeds
 its matching documentation identity. An unpublished worktree uses an explicit dev identity with
 an unreleased-version notice; it cannot claim an immutable page already exists. Publishing a
 release is a separate authorized action, not required by this architecture issue. Retain pages
@@ -271,7 +271,7 @@ Canonical semantics, accepted values carrying evidence, and optimized/executable
 informed by **Lean FRO's con-leche** at `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0`:
 [Installed.lean][installed] (`CheckedRecord`, `FullyChecked`),
 [PropWhen.lean][propwhen] and [scanner equivalence][equiv]. These are design precedents, not a
-proof of Strict Lean or an adoption of con-leche's kernel/model. The
+proof of Plumb or an adoption of con-leche's kernel/model. The
 [attribution account](design-influences.md) distinguishes these specific precedents from actual
 code dependencies and optional exports. Cite influences at the relevant component boundary;
 copied code preserves its actual license notices. Lean authors supply the linter, elaboration and message APIs; Verso authors
@@ -279,7 +279,7 @@ supply rendering and the template. [Microsoft CA1416][ca1416], Ruff and Pyrefly 
 references, not exclusive templates. The [comparative study](ecosystem-design.md) records
 Lean, Clippy, ESLint and HLint/HLS influences and their exact limits; no external tool defines
 Lean policy or permits suppressing mandatory requirements. The archived comparative reference
-is [issue #3](https://github.com/rbeauchamp/strict-lean/issues/3); its con-ron discussion is historical.
+is [issue #3](https://github.com/rbeauchamp/lean-plumb/issues/3); its con-ron discussion is historical.
 
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean

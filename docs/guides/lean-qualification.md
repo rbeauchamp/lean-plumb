@@ -32,7 +32,7 @@ the external process, compiler or filesystem boundary they observe.
 | --- | --- | --- |
 | `registry_cli_checks.py` | `lake exe qualify registry` | Seven malformed CLI invocations must invalidate seeded stale output. |
 | `native_linter_checks.py` | `lake exe qualify native` | 36 real compiler controls: identity, multiplicity, severity, source ranges, documentation and metadata ownership. |
-| `producer_checks.py` | `lake exe qualify producers` | Twelve source-owned documentation controls: for incremental and build-lint and each of SL5001/SL5002, one workspace runs Fixed, then Violation over that Fixed build (stale-artifact detection), then Fixed again from a cleared build. Also two standalone-executable controls, each in its own fresh workspace. The fresh-project SL5001/SL5002 observations are the rule-example corpus records, validated there by the same producer oracle. |
+| `producer_checks.py` | `lake exe qualify producers` | Twelve source-owned documentation controls: for incremental and build-lint and each of PL5001/PL5002, one workspace runs Fixed, then Violation over that Fixed build (stale-artifact detection), then Fixed again from a cleared build. Also two standalone-executable controls, each in its own fresh workspace. The fresh-project PL5001/PL5002 observations are the rule-example corpus records, validated there by the same producer oracle. |
 | `history_checks.py` | `lake exe qualify history` | Ten project/file invocations, each in its own fresh workspace: private/imported roots, reached-closure/source accounts, unsupported-evaluator refusal and source-snapshot changes. |
 | `closure_evidence_checks.py` | `lake exe qualify closure-evidence` | Reflexive candidate versus active cycle, retained recursive IR edges, and range refusals through four invocation paths. |
 | `configuration_capture_checks.py` | `lake exe qualify configuration-capture` | Initial configuration IO failure through project/file result protocols. |
@@ -40,10 +40,10 @@ the external process, compiler or filesystem boundary they observe.
 | `fence_evidence_checks.py` | `lake exe qualify fence-evidence` | Independent range, admission, policy and compiler failures inside positive fences, plus restoration. |
 | `frozen_exit_checks.py` | `lake exe qualify frozen-exits` | Frozen-input rechecks after imports and failed build/compilation operations. |
 | `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 36 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
-| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty source-owned phases for twenty rules (Fixed and Violation, each in its own fresh workspace), plus authentic wrong-claim/classification refusal controls: 43 productions and 3 individual control admissions, then one corpus admission of every record. What admission concludes from any record is proved (`RuleExampleQualification.qualify_sound`), not sampled by mutation. `--shard K/N` selects every Nth rule by corpus position, keeping SL5001 and SL5002 in one shard. |
+| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty source-owned phases for twenty rules (Fixed and Violation, each in its own fresh workspace), plus authentic wrong-claim/classification refusal controls: 43 productions and 3 individual control admissions, then one corpus admission of every record. What admission concludes from any record is proved (`RuleExampleQualification.qualify_sound`), not sampled by mutation. `--shard K/N` selects every Nth rule by corpus position, keeping PL5001 and PL5002 in one shard. |
 | prototype `run.py` | `lake env lean --run examples/rule-reference-prototype/Run.lean` | Separately pinned Verso integration, native messages, Lake dependency dispatch and identical-output comparison. |
 | `acceptance_checks.py` | `lake exe qualify acceptance GROUP --evidence PATH` | Fence-compilation packet mutations with positive restoration. Group: `fences`. The former `surface`, `evidence`, `sources` and `process` groups mutated the removed surface-worker packet; project and documentation acceptance now run in one process with nothing serialized between them. |
-| `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies`, `lake exe qualify acceptance-snapshots history` and `lake exe qualify acceptance-snapshots git-status` | Ignored Git/non-Git dependency input coverage and mutation; SL3001 fresh/incremental/build-lint history refusal and restoration; dependency dirty decision against the retired pathspec status across Git collapse, rename, nested-repository, symlinked-root and outside-root cases. `all` runs all three under one deadline. |
+| `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies`, `lake exe qualify acceptance-snapshots history` and `lake exe qualify acceptance-snapshots git-status` | Ignored Git/non-Git dependency input coverage and mutation; PL3001 fresh/incremental/build-lint history refusal and restoration; dependency dirty decision against the retired pathspec status across Git collapse, rename, nested-repository, symlinked-root and outside-root cases. `all` runs all three under one deadline. |
 | `documentation_dependency_checks.py` | `lake exe qualify documentation-dependencies` | Both documentation commands retain pre-build dependency observations; combined project/documentation positive remains distinct. |
 | `input_inventory_checks.py` | `lake exe qualify input-inventory` | Root additions and Markdown edit/removal during prerequisite build; actual new-module build and restored fresh controls. |
 
@@ -60,7 +60,7 @@ upstream corpus selection; optional `--rules RULE ...` or `--shard K/N` follows
 CI shards together select every rule once. The corpus runner retains at most five
 concurrent producer detector invocations, each in its own fresh workspace. Each invocation
 may launch subprocesses. Every launch and the consumption order come from the pure
-`StrictLeanQualification.CorpusWindow` definitions the runner calls: `launched_le` bounds
+`PlumbQualification.CorpusWindow` definitions the runner calls: `launched_le` bounds
 the launched but unconsumed Tasks by the width, `launch_order` shows that the launches of
 a complete run name every job once in index order, `launched_eq_total` shows that every
 launched Task has been awaited once every record is taken, and `productions_nodup` gives
@@ -88,7 +88,7 @@ retained path. Producers run through the internal
 `ruleExamples --injected-git-facts FACTS [axiomGate] ARGS` entry. It runs the same
 `axiomGate` or `ruleExamples` body, reads every source and configuration byte itself, and
 uses an injected pair only for a request that matches exactly. The private
-`strict_lean` copy and fixture dependencies are always observed fresh.
+`plumb` copy and fixture dependencies are always observed fresh.
 `Snapshot.assemble_facts_eq` shows that equal Git facts give an identical capture, and so
 (`stateOfCore_congruence`) identical request and report bytes. The no-writer premise is that
 the facts stay equal throughout the producer window; the terminal checks establish only
@@ -166,8 +166,8 @@ exactly the actual library and executable names. No theorem covers what the gate
 claimed-exe and app-omitted-exe variants that rewrite the `AuditApp` surface after
 derivation. Those variants exclude every actual `AuditApp` executable they stop claiming,
 except app-omitted-exe, which leaves them unclassified on purpose. Before this, every copy
-failed early because the libraries `StrictLeanPolicy`, `StrictLeanVerification`,
-`StrictLeanQualification` and `StrictLeanCore` and the executables `qualify`, `ruleExamples`
+failed early because the libraries `PlumbPolicy`, `PlumbVerification`,
+`PlumbQualification` and `PlumbCore` and the executables `qualify`, `ruleExamples`
 and `ruleExampleQualification` were unclassified, which masked a checker defect.
 `checkCorrespondenceProof` gave the kernel 200000 raw heartbeats, 1/1000 of Lean's default,
 so every definitionally equal `implemented_by` replacement timed out and was reported as
@@ -207,25 +207,25 @@ resources before deciding definitional correspondence. The replacement is then c
 classified trusted, as before this change. That does not yet conform to
 [§8.6](../standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly), which
 defines a comparison that could not complete as unresolved;
-[issue #63](https://github.com/rbeauchamp/strict-lean/issues/63) tracks the conforming
+[issue #63](https://github.com/rbeauchamp/lean-plumb/issues/63) tracks the conforming
 code change. With both fixed,
 `diagnostics structural` passed locally in 806 s, down from 1015 s (observed before the
 memory bound was added). That is still over the
-420-second budget, which remains follow-up work. `StrictLeanPolicy` stays claimed in each
+420-second budget, which remains follow-up work. `PlumbPolicy` stays claimed in each
 copy because the checker probe's own imports resolve to it in a self-hosted copy; this
 partition is not a CI job.
 
 ## Organization
 
-- `lean/StrictLeanQualification/`: a separate **positive Lake library**, discovered through
+- `lean/PlumbQualification/`: a separate **positive Lake library**, discovered through
   its all-submodules glob. It contains pure observation requirements and checked contracts,
   not process launchers. Testing requirements are not production policy, so this library
-  does not belong in `StrictLeanPolicy`, nor in the mathematical `Audit` examples.
-- `lean/StrictLean/Qualification/`: operational drivers, the single `qualify` Lake executable,
+  does not belong in `PlumbPolicy`, nor in the mathematical `Audit` examples.
+- `lean/Plumb/Qualification/`: operational drivers, the single `qualify` Lake executable,
   and shared process/scratch/adopter support. These remain in the existing operational
-  `StrictLean` library, explicitly excluded from the positive proof surface. Calling a
+  `Plumb` library, explicitly excluded from the positive proof surface. Calling a
   proved oracle does not prove the entire driver or its IO effects.
-- `lean/StrictLeanVerification.lean`: a separately claimed cold-start runner importing only
+- `lean/PlumbVerification.lean`: a separately claimed cold-start runner importing only
   the pinned toolchain. It owns argument selection, command recipes, sequential execution
   and success reporting. `scripts/verify.sh` only selects the root/GNU timeout and starts
   this runner under the external deadline, including all root-package builds.
@@ -283,7 +283,7 @@ by their source-level linkage. The proof is erased at execution.
   documentation groups and acceptance call `checkedValidate.run`, so each call site
   requires this `ExecutableContract`. These replace the former 8 producer and 17
   history/closure/source transport mutations. They do not authenticate the observations.
-  They live in the excluded operational `StrictLean` library, so acceptance's
+  They live in the excluded operational `Plumb` library, so acceptance's
   claimed-surface audit neither re-elaborates nor reports them: the `lake build` kernel-checks
   them under `warningAsError` (which also rejects `sorry`), and the module's `run_cmd`
   `collectAxioms` ceiling bounds their transitive axioms to Standard-Logical.
@@ -326,11 +326,11 @@ by their source-level linkage. The proof is erased at execution.
   (`parseAll parseSurface` succeeds), with exactly those surfaces. This completeness
   statement replaces the in-process excluded-empty case; it does not prove that any
   particular surface is accepted. Axioms of these theorems are bounded by the module's
-  `collectAxioms` command; the module is in the excluded `StrictLean` library.
-- `StrictLeanPolicy.boundaryFailures_ids` and `rootFailures_ids`: the failure kind of
+  `collectAxioms` command; the module is in the excluded `Plumb` library.
+- `PlumbPolicy.boundaryFailures_ids` and `rootFailures_ids`: the failure kind of
   every boundary and unresolved path for every claim. With
   `executionFailureRecords_empty_iff` they replace the 11 in-memory execution-policy
-  cases. They are on the claimed `StrictLeanPolicy` surface.
+  cases. They are on the claimed `PlumbPolicy` surface.
 - `Checker.RuleExampleQualification.qualify_sound`: every rule-example record that
   `qualify` admits satisfies `RecordAdmissible`: its result carries the exact current
   producer identity fields; the result mode is the record's parsed evidence mode; the
@@ -345,7 +345,7 @@ by their source-level linkage. The proof is erased at execution.
   `DemonstrationOK` for the record's parsed `rule` and those findings. The terminal corpus admission and every individual
   admission run this `qualify`. It replaces the former 7 in-process mutations of each
   record and the 7 derived admission subprocesses. Its axiom ceiling is checked by the
-  module's `collectAxioms` command; the module is in the excluded `StrictLean` library,
+  module's `collectAxioms` command; the module is in the excluded `Plumb` library,
   so acceptance's claimed-surface audit does not re-report it. It proves nothing about
   the producer that wrote the record.
 - `Evidence.checkedValidation` and `checkedDocumentation`: exact conjunctions of decoded
@@ -374,13 +374,13 @@ by their source-level linkage. The proof is erased at execution.
   duplicate-key handling, serialization, hashes, filesystem custody or subprocesses.
 - `Website.hasFence_exact`: the fence guard detects exactly a contiguous triple backtick
   in the input character list. `checkedBlock` specifies refusal or exact LF-normalized
-  text wrapping. `checkedPage` admits exactly fence-free SL1001 inputs and returns a
+  text wrapping. `checkedPage` admits exactly fence-free PL1001 inputs and returns a
   proof-bearing `Page input`: its bytes equal the canonical `pageText input`, including
   the supplied metadata and exact LF-normalized violation/diagnostic/fixed sections.
   `checkedArtifact` proves field-level preservation of required IDs, emitted IDs (order
   and multiplicity), route and the conjunction of observed checked-example conditions.
   The driver consumes these contracts. They do not establish Verso/browser correctness.
-- `StrictLeanVerification.parseMode_sound`, `parseMode_roundtrip`, and `select_exact`
+- `PlumbVerification.parseMode_sound`, `parseMode_roundtrip`, and `select_exact`
   prove exact argument binding and acceptance of every documented invocation. The caller
   consumes the proof-bearing selection; recipes name the intended commands explicitly.
   `commands_nonempty` rules out a selected empty campaign. Process execution remains IO.

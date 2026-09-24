@@ -6,12 +6,12 @@ name: Diagnostics
 on:
   pull_request:
     paths:
-      - lean/StrictLean/**
-      - lean/StrictLeanPolicy/**
-      - lean/StrictLeanPolicy.lean
-      - lean/StrictLeanCore/**
-      - lean/StrictLeanQualification/**
-      - lean/StrictLeanVerification.lean
+      - lean/Plumb/**
+      - lean/PlumbPolicy/**
+      - lean/PlumbPolicy.lean
+      - lean/PlumbCore/**
+      - lean/PlumbQualification/**
+      - lean/PlumbVerification.lean
       - examples/rules/**
       - lakefile.lean
       - lake-manifest.json

@@ -1,11 +1,11 @@
 {
-  "SL1001": {
+  "PL1001": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL1001",
+        "id": "PL1001",
         "subreason": "project-axiom",
         "detailPattern": "unknown-axiom",
         "location": {
@@ -54,13 +54,13 @@
       }
     ]
   },
-  "SL1002": {
+  "PL1002": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL1002",
+        "id": "PL1002",
         "subreason": "hole",
         "detailPattern": "hole",
         "location": {
@@ -110,13 +110,13 @@
     ],
     "claim": "standard-logical"
   },
-  "SL1003": {
+  "PL1003": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL1003",
+        "id": "PL1003",
         "subreason": "unknown-axiom",
         "detailPattern": "unknown-axiom",
         "location": {
@@ -166,13 +166,13 @@
     ],
     "source": "Example.lean"
   },
-  "SL1004": {
+  "PL1004": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL1004",
+        "id": "PL1004",
         "subreason": "compiler-trusting",
         "detailPattern": "compiler-trusting",
         "location": {
@@ -232,7 +232,7 @@
         "claim": "kernel-only"
       },
       {
-        "id": "SL1004",
+        "id": "PL1004",
         "subreason": "compiler-trusting",
         "detailPattern": "compiler-trusting",
         "location": {
@@ -281,13 +281,13 @@
       }
     ]
   },
-  "SL1005": {
+  "PL1005": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL1005",
+        "id": "PL1005",
         "subreason": "label-exceeds-claim",
         "detailPattern": "choice-free",
         "location": {
@@ -336,13 +336,13 @@
       }
     ]
   },
-  "SL1006": {
+  "PL1006": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL1006",
+        "id": "PL1006",
         "subreason": "escape-hatch",
         "detailPattern": "unsafe",
         "location": {
@@ -391,25 +391,25 @@
       }
     ]
   },
-  "SL1007": {
+  "PL1007": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL1007",
+        "id": "PL1007",
         "subreason": "executable-contract",
         "detailPattern": "registration must be closed",
         "location": {
           "uri": "$SOURCE",
           "source": "$SOURCE_TEXT",
           "selectionRange": {
-            "startByte": 136,
-            "endByte": 144
+            "startByte": 131,
+            "endByte": 139
           },
           "range": {
-            "startByte": 128,
-            "endByte": 237
+            "startByte": 123,
+            "endByte": 227
           },
           "lspSelectionRange": {
             "start": {
@@ -428,7 +428,7 @@
             },
             "end": {
               "line": 3,
-              "character": 105
+              "character": 100
             }
           },
           "kind": "source"
@@ -446,13 +446,13 @@
       }
     ]
   },
-  "SL2001": {
+  "PL2001": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "diagnosticDemonstration",
     "diagnostics": [
       {
-        "id": "SL2001",
+        "id": "PL2001",
         "subreason": "environment",
         "detailPattern": "lake-workspace-load-failed",
         "location": {
@@ -471,13 +471,13 @@
       "lake-workspace-load-failed"
     ]
   },
-  "SL2002": {
+  "PL2002": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL2002",
+        "id": "PL2002",
         "subreason": "configuration",
         "detailPattern": "manifest-schema:.*unknown key",
         "location": {
@@ -496,13 +496,13 @@
       "manifest-schema:.*unknown key"
     ]
   },
-  "SL2003": {
+  "PL2003": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL2003",
+        "id": "PL2003",
         "subreason": "source-build",
         "detailPattern": "Variable name `unused` is not explicitly referenced",
         "location": {
@@ -517,15 +517,15 @@
       }
     ]
   },
-  "SL2004": {
+  "PL2004": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL2004",
+        "id": "PL2004",
         "subreason": "coverage",
-        "detailPattern": "unexpected-project-module.*StrictLean.Report",
+        "detailPattern": "unexpected-project-module.*Plumb.Report",
         "location": {
           "kind": "project",
           "identity": "$PROJECT"
@@ -538,13 +538,13 @@
       }
     ]
   },
-  "SL2005": {
+  "PL2005": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "diagnosticDemonstration",
     "diagnostics": [
       {
-        "id": "SL2005",
+        "id": "PL2005",
         "subreason": "admission",
         "detailPattern": "kernel-admission",
         "location": {
@@ -559,13 +559,13 @@
       }
     ]
   },
-  "SL3001": {
+  "PL3001": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "diagnosticDemonstration",
     "diagnostics": [
       {
-        "id": "SL3001",
+        "id": "PL3001",
         "subreason": "execution-unresolved",
         "detailPattern": "replacement history unavailable.*unsupported replacement-history evaluators",
         "location": {
@@ -614,13 +614,13 @@
       }
     ]
   },
-  "SL3002": {
+  "PL3002": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL3002",
+        "id": "PL3002",
         "subreason": "execution-trusted-boundary",
         "detailPattern": "identity reaches identity",
         "location": {
@@ -669,13 +669,13 @@
       }
     ]
   },
-  "SL4001": {
+  "PL4001": {
     "invocation": "documentation",
     "mode": "documentationExample",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL4001",
+        "id": "PL4001",
         "subreason": "fence-structure",
         "detailPattern": "marker is not immediately adjacent",
         "location": {
@@ -691,13 +691,13 @@
     ],
     "source": "{case}.md"
   },
-  "SL4002": {
+  "PL4002": {
     "invocation": "documentation",
     "mode": "documentationExample",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL4002",
+        "id": "PL4002",
         "subreason": "positive-example",
         "detailPattern": "project-axiom: reflexive",
         "location": {
@@ -711,7 +711,7 @@
         "claim": null
       },
       {
-        "id": "SL1001",
+        "id": "PL1001",
         "subreason": "project-axiom",
         "detailPattern": "project-axiom: reflexive",
         "location": {
@@ -766,13 +766,13 @@
       "Example.md:1"
     ]
   },
-  "SL4003": {
+  "PL4003": {
     "invocation": "documentation",
     "mode": "documentationExample",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL4003",
+        "id": "PL4003",
         "subreason": "negative-example",
         "detailPattern": "negative example elaborated successfully",
         "location": {
@@ -788,13 +788,13 @@
     ],
     "source": "{case}.md"
   },
-  "SL4004": {
+  "PL4004": {
     "invocation": "documentation",
     "mode": "documentationExample",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL4004",
+        "id": "PL4004",
         "subreason": "trusted-example",
         "detailPattern": "trusted marker found no compiler-trusting declaration",
         "location": {
@@ -810,13 +810,13 @@
     ],
     "source": "{case}.md"
   },
-  "SL5001": {
+  "PL5001": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL5001",
+        "id": "PL5001",
         "subreason": "module-documentation",
         "detailPattern": "module-documentation",
         "location": {
@@ -836,13 +836,13 @@
       }
     ]
   },
-  "SL5002": {
+  "PL5002": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "SL5002",
+        "id": "PL5002",
         "subreason": "material-documentation",
         "detailPattern": "material-documentation",
         "location": {
@@ -850,12 +850,12 @@
           "uri": "$SOURCE",
           "source": "$SOURCE_TEXT",
           "range": {
-            "startByte": 112,
-            "endByte": 178
+            "startByte": 107,
+            "endByte": 167
           },
           "selectionRange": {
-            "startByte": 144,
-            "endByte": 153
+            "startByte": 133,
+            "endByte": 142
           },
           "lspRange": {
             "start": {
@@ -864,17 +864,17 @@
             },
             "end": {
               "line": 2,
-              "character": 66
+              "character": 60
             }
           },
           "lspSelectionRange": {
             "start": {
               "line": 2,
-              "character": 32
+              "character": 26
             },
             "end": {
               "line": 2,
-              "character": 41
+              "character": 35
             }
           }
         },

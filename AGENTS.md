@@ -8,7 +8,7 @@
   correctness is critical.
 - `docs/standard/` defines normative meaning; `docs/guides/` contains practical guidance.
   `lean/Audit/` and the Lean-oriented checkers must dogfood the applicable rules.
-- `lean/StrictLean/` implements mechanically checkable requirements; `examples/build-lint/`
+- `lean/Plumb/` implements mechanically checkable requirements; `examples/build-lint/`
   is the reference build integration. Keep enforced rules, required proof evidence, and
   remaining semantic-review obligations distinct.
 - The normative standard excludes general software-process requirements: lifecycle,
