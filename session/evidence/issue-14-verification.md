@@ -55,22 +55,50 @@ process exit, IO and Lake's lint dispatch.
 
 ## Observed
 
-- `./scripts/verify.sh diagnostics lint-driver`: PASS, 14 controls in two disposable adopters,
-  93 s wall. Lean format: positive, explain-config, violation, cached violation, builtin-only
-  (exit 0 with a violation present, no driver output), builtin plus driver (exit 1),
-  configuration (exit 2), invalid argument (exit 2), incomplete (exit 3), fresh restored.
-  TOML format: positive, editor opt-out still rejected (exit 1), live finding (exit 3 with
-  the original `PL1001 … editorSnapshot` warning), fresh restored with `--fresh` (`plumb lint:
-  PASS — fresh whole-project acceptance`).
+Current head: macOS arm64, `ad05fef` plus the `Frontend.buildCore` change from
+`linter.plumb` to `weak.linter.plumb`. The operator ran each command in a disposable
+checkout, under the hard 420 s deadline:
+
+- `./scripts/verify.sh diagnostics lint-driver`: PASS, 14 controls in two disposable
+  adopters, 113 s wall. Lean format: positive, explain-config (exit 2), violation, cached
+  violation, builtin-only (exit 0 with a violation present, no driver output), builtin plus
+  driver (exit 1), configuration (exit 2), invalid argument (exit 2), incomplete (exit 3),
+  fresh restored. TOML format: positive, editor opt-out still rejected (exit 1), live
+  finding (exit 1, `VIOLATION`, from the audit's own PL1001 after an ordinary `lake build`
+  cached the module with the live warning; no `build-failed` or `editorSnapshot` in the
+  driver's output), fresh restored with `--fresh` (`plumb lint: PASS — fresh whole-project
+  acceptance`). The TOML live-finding control runs the in-process driver build
+  (`Lake.buildAuditTargets`).
+- Cold `./scripts/verify.sh` (root `.lake/build` removed first): PASS in 147 s (6 claimed
+  libraries, 52 owned modules, 7055 owned declarations, 9786 policy jobs for
+  `freshProject`). Then cold `./scripts/verify.sh docs`: PASS in 85 s (inputs equal the
+  accepted ordinary inputs).
+- Warm `./scripts/verify.sh`: PASS in 126 s. Then warm `./scripts/verify.sh docs`: PASS in
+  116 s.
+- Defect fixed by that change: at `ad05fef` without it, `./scripts/verify.sh` failed (exit 1
+  after 129 s). The failure was "fresh frontend elaboration failed for
+  PlumbQualification.Template … invalid -D parameter, unknown configuration option
+  'linter.plumb'", repeated for other modules whose imports do not register the option.
+
+Decision: the weak `linter.plumb` override applies only in the `lake lint` driver's claimed
+build (`AxiomGate.claimedBuild`, set by `Lint`). Lake scopes Lean options by package and
+library, not by module, so the override changes the trace of every root-package module.
+`axiomGate` audits, the build-lint target and `./scripts/verify.sh` therefore keep ordinary
+options. A source `set_option linter.plumb true` still re-enables live warnings in the
+driver's build; follow-up is
+[#69](https://github.com/rbeauchamp/lean-plumb/issues/69).
+
+Observed at `1153e48` and superseded: `lint-driver` PASS with 14 controls in 93 s. In that
+run, explain-config exited 0 and the TOML live finding exited 3 with the original
+`PL1001 … editorSnapshot` warning. The ordinary acceptance runs at `1153e48` took 141 s and
+111 s.
+
+Observed at `1153e48`, and still current:
+
 - `lake exe qualify native`: PASS, 36 actual Lean source controls, after routing the editor
   linter through `PlumbCore.EditorPolicy`.
 - VS Code journeys: [issue-14-editor-journeys.md](issue-14-editor-journeys.md). The adopter's
   `lake lint -- --json-out` result is 14 KB (result schema 2).
-- Ordinary acceptance on the final tree: cold `./scripts/verify.sh` PASS in 141 s (6 claimed
-  libraries, 52 owned modules, 7055 owned declarations, 9786 policy jobs; `checkedClassify`,
-  `checkedEditorRequest` and `checkedEditorDecision` recognized as PL1007 registrations), then
-  `./scripts/verify.sh docs` PASS in 111 s (70 positive, 23 compiler-rejection, 1 trusted
-  teaching; inputs equal the accepted ordinary inputs).
 
 ## Not established
 
