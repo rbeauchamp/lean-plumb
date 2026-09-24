@@ -152,6 +152,12 @@ text form. With `--json`, the output keeps the classes apart: `findings`; each c
 clauses with their evidence classes (a discharge's checked implication beside its screened
 correspondence) and open review obligations; and every screened answer in `results`. Every
 class label is the spelling of the proved `EvidenceClass` definitions, not a free string.
+The report also records completeness, so it is never read as a pass when the run is
+incomplete: top-level `complete` (false when any discharge reference was refused),
+`exitStatus` (the process exit status, 0, 1 or 2) and `incomplete` (each refused reference:
+claim, clause, theorem and reason). Each claim carries `complete` and its `status`
+(`screened` or `escalated to review`, from `ClaimScreen.status`). A run that stops early
+(missing key, network, service, parse or claim-reading failure) writes no JSON report.
 
 **Why not an in-elaboration rule.** A linter rule runs in every `lake build` and editor
 session. A screen calls a paid network service, sends source text off the machine, and its

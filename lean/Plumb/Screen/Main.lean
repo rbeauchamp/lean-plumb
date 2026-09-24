@@ -158,9 +158,11 @@ def costNote (model : PinnedModel) (u : Usage) : String :=
 
 /-- The machine record of one claim: each clause with its evidence classes (a discharge's
 checked implication beside, not inside, its screened correspondence) and the open review
-obligations. -/
-def claimJson (s : ClaimScreen) : Json :=
+obligations. `complete` is false exactly when a discharge reference was refused; `status` is
+the proved `ClaimScreen.status`. -/
+def claimJson (policy : Policy) (s : ClaimScreen) : Json :=
   Json.mkObj [("claim", .str s.claim.toString),
+    ("complete", .bool (s.clauses.all (!·.2.isRefused))), ("status", .str (s.status policy).spelling),
     ("clauses", Json.arr (s.clauses.map fun (text, e) =>
       let discharge := match e with
         | .discharged proof formal axioms _ => Json.mkObj [("theorem", .str proof.toString),
@@ -189,7 +191,7 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
   let mut records := #[]
   let mut claims := #[]
   let mut findings : Array ScreenFinding := #[]
-  let mut refused := 0
+  let mut incomplete : Array Json := #[]
   for name in selected do
     let input ← runMeta env (readClaim name)
     let location ← runMeta env (claimLocation name)
@@ -197,19 +199,25 @@ unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
     usage := u
     for line in s.lines cfg.policy do IO.println line
     records := records ++ (s.answers.map (judgedJson cfg.policy name)).toArray
-    claims := claims.push (claimJson s)
-    refused := refused + (s.clauses.filter (·.2.isRefused)).length
+    claims := claims.push (claimJson cfg.policy s)
+    for (text, e) in s.clauses do
+      if let .refused proof reason := e then
+        incomplete := incomplete.push (Json.mkObj [("claim", .str name.toString), ("clause", .str text),
+          ("theorem", .str proof.toString), ("refused", .str reason)])
     findings := findings ++ ((s.findings cfg.policy).map fun (answer, severity) =>
       { claim := name, location, answer, severity : ScreenFinding }).toArray
   for f in findings do IO.println f.text
-  if refused > 0 then
-    IO.println s!"intent screen incomplete: {refused} discharge reference(s) refused; those clauses are neither checked nor judged"
+  let complete := incomplete.isEmpty
+  let exitStatus : UInt32 := if !complete then 2 else if findings.any (·.severity == .error) then 1 else 0
+  unless complete do
+    IO.println s!"intent screen incomplete: {incomplete.size} discharge reference(s) refused; those clauses are neither checked nor judged"
   IO.println (costNote cfg.model usage)
   if let some path := args.json then
     IO.FS.writeFile path (Json.mkObj [("schemaVersion", (1 : Nat)), ("class", .str EvidenceClass.screened.spelling),
       ("note", "Screened results are model judgments: never checked evidence and never a completed R-INTENT review."),
+      ("complete", .bool complete), ("exitStatus", exitStatus.toNat), ("incomplete", Json.arr incomplete),
       ("findings", Json.arr (findings.map (·.json))), ("claims", Json.arr claims), ("results", Json.arr records)]).pretty
-  return if refused > 0 then 2 else if findings.any (·.severity == .error) then 1 else 0
+  return exitStatus
 
 unsafe def main (argv : List String) : IO UInt32 := do
   try
