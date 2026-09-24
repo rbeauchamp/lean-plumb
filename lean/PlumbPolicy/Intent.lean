@@ -7,8 +7,10 @@ docstring (standard §5.2; rules PL5002 and PL5003).
 
 A docstring is read as its line-feed-separated lines (`docLines`). An *Intent section*
 is a Markdown ATX heading line whose text is exactly `Intent`, followed by the lines
-before the next heading line (of any level) or the end of the docstring. The section
-is *nonempty* when one of those lines contains a non-whitespace character.
+before the next heading line of equal or higher level (at most as many `#`) or the end
+of the docstring, following CommonMark section nesting: deeper subsection headings stay
+inside the section. The section is *nonempty* when one of its non-heading lines contains
+a non-whitespace character; a subsection heading line is not content, but text under it is.
 
 Heading lines follow CommonMark's ATX form without a closing sequence: after trailing
 whitespace (including a carriage return) is removed, at most three spaces of indentation,
@@ -41,24 +43,37 @@ def dropIndent : Nat → List Char → List Char
   | n + 1, ' ' :: rest => dropIndent n rest
   | _, line => line
 
-/-- The text of an ATX heading line, or `none` when the line is not a heading. -/
-def headingText? (line : List Char) : Option (List Char) :=
+/-- The level and text of an ATX heading line, or `none` when the line is not a heading. -/
+def heading? (line : List Char) : Option (Nat × List Char) :=
   let body := dropIndent 3 (trimEnd line)
   let level := (body.takeWhile (· == '#')).length
   if 1 ≤ level ∧ level ≤ 6 then
     match body.dropWhile (· == '#') with
-    | [] => some []
-    | c :: text => if c == ' ' || c == '\t' then some (trim text) else none
+    | [] => some (level, [])
+    | c :: text => if c == ' ' || c == '\t' then some (level, trim text) else none
   else none
 
-/-- A heading line of any level; it ends the preceding section. -/
-def isHeading (line : List Char) : Bool := (headingText? line).isSome
+/-- The level (number of `#`) of an ATX heading line. -/
+def headingLevel? (line : List Char) : Option Nat := (heading? line).map (·.1)
+
+/-- The text of an ATX heading line. -/
+def headingText? (line : List Char) : Option (List Char) := (heading? line).map (·.2)
+
+/-- A heading line of any level. -/
+def isHeading (line : List Char) : Bool := (heading? line).isSome
 
 /-- A heading line labelled exactly `Intent`. -/
 def isIntentHeading (line : List Char) : Bool := headingText? line == some "Intent".toList
 
+/-- A heading of level at most `level`; it ends a section opened by a level-`level` heading. -/
+def endsSection (level : Nat) (line : List Char) : Bool :=
+  (headingLevel? line).any (decide <| · ≤ level)
+
 /-- A line with at least one non-whitespace character. -/
 def isContent (line : List Char) : Bool := line.any (!isSpace ·)
+
+/-- A non-heading line with content; a subsection heading line itself is not content. -/
+def isText (line : List Char) : Bool := !isHeading line && isContent line
 
 /-- Split at every line feed: the current (first) line and the lines after it. -/
 def splitLinesAux : List Char → List Char × List (List Char)
@@ -75,29 +90,31 @@ def splitLines (cs : List Char) : List (List Char) :=
 /-- The docstring's lines, as characters. -/
 def docLines (doc : String) : List (List Char) := splitLines doc.toList
 
-/-- The specification: some Intent heading is followed, before any further heading,
-by a content line. `body` is an initial run of the section's lines. -/
+/-- The specification: some level-`level` Intent heading is followed, before any heading
+of level at most `level`, by a text line. `body` is an initial run of the section's lines. -/
 def IntentSection (lines : List (List Char)) : Prop :=
-  ∃ before heading body after, lines = before ++ heading :: (body ++ after) ∧
-    isIntentHeading heading = true ∧ (∀ line ∈ body, isHeading line = false) ∧
-    ∃ line ∈ body, isContent line = true
+  ∃ before heading level body after, lines = before ++ heading :: (body ++ after) ∧
+    isIntentHeading heading = true ∧ headingLevel? heading = some level ∧
+    (∀ line ∈ body, endsSection level line = false) ∧ ∃ line ∈ body, isText line = true
 
-/-- Scan a section: content occurs before the next heading. -/
-def sectionHasContent : List (List Char) → Bool
+/-- Scan a section opened at `level`: text occurs before a heading that ends it. -/
+def sectionHasContent (level : Nat) : List (List Char) → Bool
   | [] => false
-  | line :: rest => !isHeading line && (isContent line || sectionHasContent rest)
+  | line :: rest => !endsSection level line && (isText line || sectionHasContent level rest)
 
-/-- Scan every line for an Intent heading whose section has content. -/
+/-- Scan every line for an Intent heading whose section has text. -/
 def hasIntentLines : List (List Char) → Bool
   | [] => false
-  | line :: rest => (isIntentHeading line && sectionHasContent rest) || hasIntentLines rest
+  | line :: rest =>
+    (isIntentHeading line && (headingLevel? line).any (sectionHasContent · rest)) ||
+      hasIntentLines rest
 
 /-- The executed decision for one docstring. -/
 def hasIntentSection (doc : String) : Bool := hasIntentLines (docLines doc)
 
-theorem sectionHasContent_iff (lines : List (List Char)) :
-    sectionHasContent lines = true ↔ ∃ body after, lines = body ++ after ∧
-      (∀ line ∈ body, isHeading line = false) ∧ ∃ line ∈ body, isContent line = true := by
+theorem sectionHasContent_iff (level : Nat) (lines : List (List Char)) :
+    sectionHasContent level lines = true ↔ ∃ body after, lines = body ++ after ∧
+      (∀ line ∈ body, endsSection level line = false) ∧ ∃ line ∈ body, isText line = true := by
   induction lines with
   | nil => simp [sectionHasContent]
   | cons line rest ih =>
@@ -130,22 +147,23 @@ theorem hasIntentLines_iff (lines : List (List Char)) :
   induction lines with
   | nil => simp [hasIntentLines, IntentSection]
   | cons line rest ih =>
-    simp only [hasIntentLines, Bool.or_eq_true, Bool.and_eq_true, sectionHasContent_iff, ih,
-      IntentSection]
+    simp only [hasIntentLines, Bool.or_eq_true, Bool.and_eq_true, Option.any_eq_true,
+      sectionHasContent_iff, ih, IntentSection]
     constructor
-    · rintro (⟨heading, body, after, split, headings, found⟩ | ⟨before, h, body, after, split, rest'⟩)
-      · exact ⟨[], line, body, after, by simp [split], heading, headings, found⟩
-      · exact ⟨line :: before, h, body, after, by simp [split], rest'⟩
-    · rintro ⟨before, h, body, after, split, heading, headings, found⟩
+    · rintro (⟨heading, level, lvl, body, after, split, headings, found⟩ |
+          ⟨before, h, level, body, after, split, rest'⟩)
+      · exact ⟨[], line, level, body, after, by simp [split], heading, lvl, headings, found⟩
+      · exact ⟨line :: before, h, level, body, after, by simp [split], rest'⟩
+    · rintro ⟨before, h, level, body, after, split, heading, lvl, headings, found⟩
       cases before with
       | nil =>
         simp only [List.nil_append, List.cons.injEq] at split
         obtain ⟨rfl, rfl⟩ := split
-        exact Or.inl ⟨heading, body, after, rfl, headings, found⟩
+        exact Or.inl ⟨heading, level, lvl, body, after, rfl, headings, found⟩
       | cons first before =>
         simp only [List.cons_append, List.cons.injEq] at split
         obtain ⟨rfl, rfl⟩ := split
-        exact Or.inr ⟨before, h, body, after, rfl, heading, headings, found⟩
+        exact Or.inr ⟨before, h, level, body, after, rfl, heading, lvl, headings, found⟩
 
 /-- The executed docstring decision accepts exactly the docstrings with a nonempty
 labelled Intent section. -/
@@ -207,12 +225,18 @@ theorem intentSection_example :
     IntentSection (docLines "Claim.\n\n## Intent\nWhy the claim is required.") :=
   (hasIntentSection_iff _).mp (by decide)
 
+/-- Non-vacuity: text under a subsection of the Intent section is accepted. -/
+theorem structured_intentSection_example :
+    IntentSection (docLines "Claim.\n\n# Intent\n## Requirement\nWhy the claim is required.") :=
+  (hasIntentSection_iff _).mp (by decide)
+
 /-- Kernel-checked instances of the documented line grammar (not a universal
-characterization of it): any level from one to six, trailing whitespace and a CRLF
-carriage return are accepted; a missing separator, four spaces of indentation, a
-closing sequence, and a different case are refused. -/
+characterization of it): any level from one to six (the number of `#`), trailing
+whitespace and a CRLF carriage return are accepted; a missing separator, four spaces of
+indentation, a closing sequence, and a different case are refused. -/
 theorem intentHeading_examples :
     isIntentHeading "# Intent".toList = true ∧ isIntentHeading "###### Intent  ".toList = true ∧
+    headingLevel? "###### Intent  ".toList = some 6 ∧
     isIntentHeading "   # Intent\r".toList = true ∧ isHeading "#\r".toList = true ∧
     isIntentHeading "#Intent".toList = false ∧ isIntentHeading "    # Intent".toList = false ∧
     isIntentHeading "# Intent #".toList = false ∧ isIntentHeading "# intent".toList = false := by
@@ -221,6 +245,16 @@ theorem intentHeading_examples :
 /-- An Intent heading followed directly by another heading has an empty section. -/
 theorem empty_intentSection_refused :
     ¬ IntentSection (docLines "Claim.\n\n## Intent\n\n## Notes\nOther text.") :=
+  fun h => absurd ((hasIntentSection_iff _).mpr h) (by decide)
+
+/-- A higher-level heading ends the Intent section, so text after it does not count. -/
+theorem higher_heading_ends_intentSection :
+    ¬ IntentSection (docLines "Claim.\n\n## Intent\n# Next\nOther text.") :=
+  fun h => absurd ((hasIntentSection_iff _).mpr h) (by decide)
+
+/-- A subsection heading line alone is not Intent content. -/
+theorem subsection_heading_alone_refused :
+    ¬ IntentSection (docLines "Claim.\n\n# Intent\n## Requirement") :=
   fun h => absurd ((hasIntentSection_iff _).mpr h) (by decide)
 
 end PlumbPolicy.Intent
