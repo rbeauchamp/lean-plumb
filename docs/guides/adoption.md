@@ -187,8 +187,8 @@ is cached, and it never invokes your default target. It runs the same audit body
 | --- | --- |
 | 0 | `ACCEPTED`: the audit constructed its accepted result for the selected mode. |
 | 1 | `VIOLATION`: completed policy rejections, for example PL1001–PL1007 or PL3002. |
-| 2 | `INVALID CONFIGURATION`: only PL2002 manifest/scope rejections, or an invalid driver argument. |
-| 3 | `INCOMPLETE`: an incomplete finding, for example PL2001, PL2003, PL2005 or PL3001. It takes precedence over violations reported in the same run. |
+| 2 | `INVALID CONFIGURATION`: only PL2002 manifest/scope rejections, an invalid driver argument, or `--help`/`--explain-config`, which run no audit. |
+| 3 | `INCOMPLETE`: an incomplete finding, for example PL2001, PL2003, PL2005 or PL3001, or an error that escaped the audit. It takes precedence over violations reported in the same run. |
 
 Exit 0 requires a zero audit exit and the audit's recorded `completed` status, which carries
 the accepted account of the requested mode (`Plumb.Checker.Lint.accepted_sound`: an accepted
@@ -196,10 +196,16 @@ run complete for its plan that meets every stage policy); any disagreement is `I
 The success line is the account's `plumb lint: PASS — …` text, and it names the coverage: an
 incremental run reads "incremental project acceptance over existing build state, not a
 fresh-source audit"; only `--fresh` reads as fresh whole-project acceptance.
-A source build failure, including a warning, stops the audit before policy inspection, so
-it is `INCOMPLETE` even when the warning is itself a Plumb editor finding. The
-original compiler message is printed as evidence. `--json-out` carries the same status and
-diagnostics for machines. `--help` and `--explain-config` run no audit and establish nothing.
+The audit builds the claimed targets with your package's `linter.plumb` off, so a live
+Plumb finding is not a build warning there: the audit's own policy stages report it, as a
+`VIOLATION`. Any other warning or build failure stops the audit before policy inspection
+and is `INCOMPLETE`, with the original compiler message printed as evidence. The option is
+part of Lake's module trace, so modules last built with live feedback (for example by an
+ordinary `lake build` or the editor) are rebuilt for the audit, and their replayed logs
+never enter its warning check. `--json-out` carries the same status and diagnostics for
+machines. `--help` and `--explain-config` run no audit, establish nothing and exit 2, so
+putting either in `lintDriverArgs` cannot make `lake lint` succeed; neither accepts
+`--json-out` or `--verbose`.
 
 Lake details that affect what ran:
 
@@ -260,8 +266,9 @@ policy target, or `axiomGate`. A clean editor buffer means no current local find
 project result. `set_option linter.plumb false` and `plumb.localFoundation`
 change only local feedback. `lake lint` still rejects the same declaration.
 
-Because local findings are compiler warnings, a module importing `Plumb.Linter` fails
-the strict build while a finding remains. Fix the finding, or rerun after it clears.
+Local findings are ordinary compiler warnings in the editor and in a plain `lake build`.
+The project audit turns the linter off for its own build and reports the same rules
+itself, so `lake lint` exits `VIOLATION` (1), not `INCOMPLETE`, while one remains.
 Rule links currently point to the development route
 `https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/`; the published site is delivered
 separately, and until it is deployed that route may not resolve.
