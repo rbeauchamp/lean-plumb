@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 # One run per ref: a newer push to main cancels an older run, including its deployment.
-# The deploy job's gate step additionally refuses a re-run of an older revision (docs/guides/website.md).
+# The deploy-gate job and the deploy job's dependency-free re-check additionally refuse a
+# re-run of an older revision (docs/guides/website.md).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -131,26 +132,13 @@ jobs:
         with:
           path: _site
 
-  # Publish exactly the artifact validated above, only a clean artifact of the current head of
-  # main, after the same revision's acceptance and site jobs passed. The gate runs in this job,
-  # immediately before deploy-pages, so re-running this job alone re-runs the gate too.
-  deploy:
+  # Unprivileged gate: only a clean artifact of the current head of main, after the same
+  # revision's acceptance and site jobs passed, may proceed to deployment.
+  deploy-gate:
     needs: [verify, site]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    concurrency:
-      group: github-pages
-      cancel-in-progress: false
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -166,6 +154,33 @@ jobs:
 
       - name: Refuse a dirty artifact or a revision that is no longer the head of main
         run: lean --run lean/Plumb/Site/Deployment.lean gate _site
+
+  # Privileged publication of exactly the artifact validated above. This job holds the
+  # deployment token, so it runs no checkout, provisioning or project code: only a
+  # dependency-free re-check of the head of main (re-run with this job) and deploy-pages.
+  deploy:
+    needs: deploy-gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Refuse a revision that is no longer the head of main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EXPECTED: ${{ github.sha }}
+        run: gh api "repos/{owner}/{repo}/git/ref/heads/main" --jq 'if .object.sha == env.EXPECTED then "main is at \(env.EXPECTED)" else error("main moved to \(.object.sha); not publishing \(env.EXPECTED)") end'
 
       - name: Deploy to GitHub Pages
         id: deployment

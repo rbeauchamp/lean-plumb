@@ -10,9 +10,10 @@ lean --run lean/Plumb/Site/Deployment.lean gate ARTIFACT_DIR     # before deploy
 lean --run lean/Plumb/Site/Deployment.lean verify ARTIFACT_DIR   # after deploying
 ```
 
-`gate` requires the artifact to be built from a clean checkout of `GITHUB_SHA` and that commit
-to still be the head of `main` (`git ls-remote`), so a re-run of an older run cannot publish over
-a newer revision. A newer push after the gate is still deployed later, because each run on `main`
+`gate` (in the unprivileged `deploy-gate` job) requires the artifact to be built from a clean
+checkout of `GITHUB_SHA` and that commit to still be the head of `main` (`git ls-remote`), so a
+re-run of an older run cannot publish over a newer revision; the privileged deploy job repeats
+the head check without Lean. A newer push after the gate is still deployed later, because each run on `main`
 cancels older ones and deployments are serialized. `verify` requires `PLUMB_PAGE_URL` to be the
 artifact's recorded site, the live `build.json` to equal the artifact's bytes (retrying while the
 deployment propagates), every rule page of every edition listed in `build.json` to be served with

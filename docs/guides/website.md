@@ -103,13 +103,16 @@ CI runs on every pull request and on `main`:
 3. `site`: builds the site tooling, then `./scripts/verify.sh site` over this run's exports,
    and uploads the checked `_site/` as `site-<commit>` (preview) and, on `main`, as the Pages
    artifact. Pull requests never publish.
-4. `deploy` (`main` only, after `verify` and `site`): first
+4. `deploy-gate` (`main` only, after `verify` and `site`, unprivileged):
    [`Plumb.Site.Deployment`](../../lean/Plumb/Site/Deployment.lean) `gate` refuses an artifact
    built from uncommitted changes or from another commit, and a commit that is no longer the
-   head of `main` (`git ls-remote`); then, in the same job, `actions/deploy-pages` publishes
-   exactly that artifact to the `github-pages` environment (which allows `main` only). Only
-   this job has `pages: write` and `id-token: write`; the others have `contents: read`.
-5. `verify-deployment`: `Deployment verify` fetches the live `build.json` with a per-attempt
+   head of `main` (`git ls-remote`).
+5. `deploy`: a dependency-free step asks the GitHub API (default token, `contents: read`)
+   whether this commit is still the head of `main` and refuses otherwise; then
+   `actions/deploy-pages` publishes exactly the validated artifact to the `github-pages`
+   environment (which allows `main` only). Only this job has `pages: write` and
+   `id-token: write`; the others have `contents: read`.
+6. `verify-deployment`: `Deployment verify` fetches the live `build.json` with a per-attempt
    query string until it equals the artifact's bytes, then requires every rule page of every
    edition to be served with the artifact's exact bytes and an unpublished route to return the
    artifact's `404.html` with HTTP 404. It compares only those files.
@@ -118,8 +121,14 @@ Each run on `main` cancels older runs of `main`, the gate refuses to publish a r
 no longer the head of `main` (for example a manual re-run of an older run), and deployments are
 serialized in the `github-pages` concurrency group. A push that lands between an older run's
 gate and its deployment cancels that run, and its own run deploys afterwards; the remaining
-window is GitHub's cancellation latency. Because the gate runs in the deploy job, re-running only
-that job re-runs the gate. Re-running an older run while a newer one is in progress cancels the
+window is GitHub's cancellation latency. Because the deploy job repeats the head-of-`main` check itself, re-running only that job
+re-checks it.
+
+The deploy job runs no checkout, toolchain provisioning or project code. Anything those steps
+fetch and execute (the Elan installer, Lake, the Mathlib cache tool, the checker) could request
+the job's OIDC token and deploy arbitrary content, so the Lean gate runs in the unprivileged
+`deploy-gate` job and the privileged job keeps only the runner's `gh` client and the pinned
+`deploy-pages` action. Re-running an older run while a newer one is in progress cancels the
 newer run and then refuses the older revision, so nothing is published and the site stays on its
 previous deployment until the next push to `main`. The `site` job and the corpus shards are not yet
 required status checks (only `verify` is); until the operator adds them, a change that breaks

@@ -242,8 +242,9 @@ build/check on every PR and `main`, saving the validated artifact as `site-<comm
 after the same revision's acceptance and site jobs pass, it uploads that artifact with
 `actions/upload-pages-artifact` and deploys it with `actions/deploy-pages` in the `github-pages`
 environment; only the deploy job has `pages: write` and `id-token: write`. Action SHAs are pinned
-to the current official releases. One run per ref (a newer `main` run cancels an older one), a gate
-that refuses a revision no longer at the head of `main`, and a serialized deployment group keep an
+to the current official releases. One run per ref (a newer `main` run cancels an older one), an
+unprivileged gate and a dependency-free re-check in the deploy job that refuse a revision no
+longer at the head of `main`, and a serialized deployment group keep an
 older run from overwriting a newer one; a final job compares the live site with the artifact. A site lagging pending or failed CI is expected: the invariant
 is same-revision consistency, not instantaneous agreement with latest main. No custom domain,
 paid hosting, release or visibility change is involved.
