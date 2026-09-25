@@ -22,7 +22,8 @@ probability, and the SHA-256 of the request the model answered. For example:
   (`Plumb.Checker.Screening.Status`) has only `screened` and `escalated` constructors. No
   checked or reviewed state exists to reach.
 - Screening is off by default. The first `scripts/verify.sh` acceptance step type-checks its
-  modules but never runs it; it calls the network only when you run it yourself.
+  modules but never runs it; it calls the network only when you run it yourself, or, in this
+  repository, when the [dogfood screen](#dogfood-screen) runs it.
 
 ## Formal discharge first
 
@@ -217,10 +218,11 @@ linter's severity vocabulary and diagnostic shape.
   fully cached run needs no key and makes no network call. Any change to the model, the
   question wording, the statement or the intent produces a new request.
 - **Trusted, not verified.** The screen's adapter code that reads claims, locates them and
-  checks discharge references; the imported `.olean` environment, including the declarations a
-  discharge proof uses, as admitted by their build (only the discharge theorem's own proof
-  term is re-checked by the kernel; a dependency built with `debug.skipKernelTC` is not caught
-  by the screen, only by Plumb's fresh acceptance of a claimed surface); the
+  checks discharge references; Lake's module discovery for `--library`; the imported `.olean`
+  environment, including the declarations a discharge proof uses, as admitted by their build
+  (only the discharge theorem's own proof term is re-checked by the kernel; a dependency built
+  with `debug.skipKernelTC` is not caught by the screen, only by Plumb's fresh acceptance of a
+  claimed surface); the
   source files read for finding locations; the `curl` and `shasum` processes, the network, the
   service and its answers, the cache files, and Lean's pretty-printer that renders the
   statement.

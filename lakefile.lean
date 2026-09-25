@@ -55,7 +55,7 @@ lean_exe «axiomGate» where
   supportInterpreter := true
 
 lean_exe «lint» where
-  -- Lake lint driver: `lintDriver = "plumb/lint"` in an adopting package.
+  -- Lake lint driver: `lintDriver = "plumb/lint"` in an adopting package and in this one.
   root := `Plumb.Checker.LintMain
   supportInterpreter := true
 
