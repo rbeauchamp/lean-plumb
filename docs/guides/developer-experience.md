@@ -207,23 +207,19 @@ visual styling or Lean semantics. See the [comparison and attribution](ecosystem
 | #5 | Preserve pure `PlumbPolicy` domain, one RuleId vocabulary and exact legacy policy predicates. Carry typed outcome/scope/configuration origins needed by explanation without making presentation authoritative. No renderer/server imports into pure core; arrange the neutral public-import boundary above without duplicating existing records/codecs. | Domain admission/codec/type guarantees over actual inputs; unsupported query states cannot construct a conforming claim. |
 | #6 | Keep independent predicates and proofs about actual decisions. Preserve exact report identity, failed-insertion frames and observation assumptions. | Machine-checked promised laws; no theorem about UX, extraction fidelity or native effects inferred from those laws. |
 | #7 | Same required-job census and Accepted assembly across all audit paths. Represent incomplete/cancelled/stale work distinctly; configuration explanation/help is non-audit completion. | Actual parent/worker/render/exit paths refuse missing or stale accepted evidence; preserve all subreasons. |
-| #13 | Reuse matching Lean tests with independent mandatory scope; implement all twenty mapped conditions including two doc-presence rules. Shared live/imported declaration construction and Lean snapshot scheduling; public adapter imports must satisfy the unchanged probe-contamination boundary. | Predicate/source/API review plus focused controls for private/generated/module boundaries, stale/cancelled data and exact rule/subreason. |
+| #13 | Reuse matching Lean tests with independent mandatory scope; implement all twenty mapped conditions including two doc-presence rules (PL5003 later added a third, #71). Shared live/imported declaration construction and Lean snapshot scheduling; public adapter imports must satisfy the unchanged probe-contamination boundary. | Predicate/source/API review plus focused controls for private/generated/module boundaries, stale/cancelled data and exact rule/subreason. |
 | #14 | Native import, driver/build/config-explanation contracts, concise renderer and detailed evidence, coexistence with Mathlib driver, three journeys and no automatic source edits. | Actual pinned supported editor interaction, both documented lakefile formats where claimed, dispatch matrix, Unicode and fallback/failed-help paths. No browser-only substitute for editor evidence. |
 | #15 | Generated static/searchable catalog, purposeful pages, keyboard/no-JS behavior and actual source-linked examples. Keep Verso/pins/versioned artifacts. | Complete rule/page/example coverage, metadata identity, links and the bounded usability checks on the actual build, then authorized Pages publication. |
 | #10 | Qualify Core-only application and Mathlib library workflows with explicit supported scope. Reconcile all residual accounts and release-facing feature claims. | Real end-to-end correction flows, supported-version matrix, no claimed user study/latency guarantee without evidence. |
 
 No broad implementation rewrite is a prerequisite for the next unit. The shipped registry remains
-useful; #15 retired the one-rule prototype. New requirements must be copied into the full live successor bodies
-before #20 is marked Done; the links here do not substitute for missing settled decisions.
+useful; #15 retired the one-rule prototype. #20 is complete; its settled decisions were copied into the successor issue bodies.
 The source-dependent findings in this design were inspected on Lean 4.33.1; the links
 below retain that historical snapshot, not evidence for the current
 [supported toolchain](../../README.md#supported-toolchain). Conventional integration and
-UX remain future qualified behavior. The ordinary hard 420-second acceptance budget is unchanged.
+UX were delivered by #14 and #15 and qualified by #10 ([product qualification](product-qualification.md)). The ordinary hard 420-second acceptance budget is unchanged.
 
 [lake-help]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/lake/Lake/CLI/Help.lean
 [lake-main]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/lake/Lake/CLI/Main.lean
 [lake-actions]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/lake/Lake/CLI/Actions.lean
 [mathlib-lake]: https://github.com/leanprover-community/mathlib4/blob/0df444a360eaa60ab8c11dca51a86af692955474/lakefile.lean
-
-[diagnostic-source]: https://github.com/rbeauchamp/lean-plumb/blob/79851f567ac8c1000575b707630e7ea593bfccb0/lean/StrictLean/Diagnostic.lean
-[guard-source]: https://github.com/rbeauchamp/lean-plumb/blob/79851f567ac8c1000575b707630e7ea593bfccb0/lean/StrictLean/Checker/AxiomGate.lean

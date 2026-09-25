@@ -523,7 +523,7 @@ guides the new library via Lake discovery, not hardcoded declaration/file lists.
 | #6 POLICY-03 | Remaining Specification/Decision/Acceptance theorems: least-label proof, decision iff predicates, exact role evidence, insertion/frame laws, accepted soundness/completeness and report identity. Check actual functions used by #5; no duplicate reference evaluator assumed equivalent. |
 | #7 POLICY-04 | Freeze census/plan, validate all worker packets and every success boundary in §1, consume Accepted values in renderers/exit adapters, compose project+docs under one snapshot. Refuse empty/missing/duplicate/mismatched responses through public paths. Remove obsolete raw success APIs only after accounting for all callers. |
 | #12 CATALOG | Keep one registry; add `freshFile`, share scope/status identities with core; accepted diagnostics export is read-only projection, never certificate input. |
-| #13 ENGINE | Shared semantic collectors for current-document and imported modules; complete census/roots/role extraction and typed outcomes for all twenty rules; two scoped doc-presence checks retained. |
+| #13 ENGINE | Shared semantic collectors for current-document and imported modules; complete census/roots/role extraction and typed outcomes for all twenty initial rules (PL5003 was added later by #71); two scoped doc-presence checks retained. |
 | #14 ADOPTION | All actual Lake lint/build/editor adapters consume the same outcome; cached policy re-evaluation and source-located links retained; freshFile and snapshot modes honestly labeled. Delivered: `lint` driver and exit classes, upstream-widget editor links, adopter fixtures in both lakefile formats. |
 | #10 DELIVERY / #15 WEBSITE | Reconcile residual semantic accounts and same-revision rule/example/status exports. No accepted data report is full conformance; site consumes status, not exit code alone. |
 | #8/#9 optional | Separate requested graph/export jobs and result type; absence cannot block core policy/site delivery. No new export format or adapter selected here. |
@@ -592,8 +592,9 @@ Implemented proof coverage is recorded in the [domain](policy-domain.md) and
 [proof](policy-proofs.md) guides, with exact axiom evidence in their delivery records.
 The success map in §1 owns implemented collector/worker linkage and acceptance routes;
 [issue7 evidence](../../session/evidence/issue-7-verification.md#pending-delivery-gates)
-owns remaining delivery obligations. Editor/adopter and website integration remain their
-separate product deliverables. Unsupported compiler versions, incomplete census/admission,
+recorded the delivery obligations open at #7 (historical). Editor/adopter and website integration
+were delivered by #14 and #15; the [product qualification](product-qualification.md) records
+their integrated evidence. Unsupported compiler versions, incomplete census/admission,
 ambiguous role origin and unresolved execution are refusals. Any failed proof or pin
 capability blocks its specific guarantee and must be reported.
 

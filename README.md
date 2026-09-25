@@ -47,12 +47,16 @@ Only the pinned Lean release is supported. The checker imports no Mathlib module
 
 ## Verification
 
-Run `./scripts/verify.sh` for complete local checks under a hard seven-minute
-deadline, including cold root-package builds. CI runs the same command after
-restoring or provisioning pinned toolchain and dependency caches. See the
-[contributor guide](docs/guides/contributing.md#develop-and-verify) for setup and
-focused diagnostics.
+Complete local acceptance is exactly two commands, run in order, each under its own hard
+420-second deadline: `./scripts/verify.sh` (including cold root-package builds) and then
+`./scripts/verify.sh docs`. CI runs the same two commands after provisioning pinned toolchain
+and dependency caches, and separately builds and checks the rule-reference site. See the
+[contributor guide](docs/guides/contributing.md#develop-and-verify) for setup and focused
+diagnostics, and the [product qualification](docs/guides/product-qualification.md) for what
+the integrated linter and website establish.
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE), except the adapted container recursion of Lean's JSON parser in
+`lean/Plumb/Checker/PolicyCodec.lean`, which keeps its upstream Apache 2.0 notice
+([license text](LICENSES/Apache-2.0.txt); see [design influences](docs/guides/design-influences.md#adapted-code-and-licenses)).

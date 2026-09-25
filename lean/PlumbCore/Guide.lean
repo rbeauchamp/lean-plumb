@@ -114,14 +114,15 @@ def guide : RuleId → Guide
         "A metaprogram that adds declarations still produces owned constants; they are inspected like authored ones."]
       correction := "The correction proves the same `∀ n : Nat, n = n` by `rfl` instead of assuming it, under the unchanged Kernel-only claim."
       residuals := [.intent, .nonvacuity]
-      checklist := ["FOUND-01", "TYPE-04", "THEOREM-09"]
+      checklist := ["FOUND-01", "TYPE-04", "THEOREM-09", "THEOREM-01", "DECL-03", "BUILD-01"]
       sources := ["lean/PlumbCore/Policy.lean", "lean/PlumbPolicy/Decision.lean", "lean/Plumb/Findings.lean", "docs/standard/3-logic-proof-patterns.md"] }
   | .proofHole => {
       problem := "The declaration depends on `sorryAx`: a `sorry`, an `admit`, an unfinished tactic proof, or an imported declaration with such a hole occurs in its transitive axiom set. The proposition is not proved."
       action := "Complete the proof. If the statement is an open problem, define it as a `Prop` and state results conditionally on it instead of asserting it."
       trigger := [
         "The checker computes the exact transitive axiom set of every owned declaration with Lean's `collectAxioms`. If `sorryAx` belongs to it, the declaration is rejected with applicability `hole`.",
-        "Theorems, proof-valued definitions and instances, and data definitions are all inspected; alternate syntax (`admit`, a tactic `sorry`, an elaboration error recovered as `sorry`) is caught because the kernel term contains `sorryAx`."]
+        "Theorems, proof-valued definitions and instances, and data definitions are all inspected; alternate syntax (`admit`, a tactic `sorry`) is caught because the kernel term contains `sorryAx`.",
+        "Lean itself warns `declaration uses 'sorry'` by default, and an elaboration error recovered as `sorry` is an error. In `lake lint`, `axiomGate` and the build-lint `policy` target that warning or error stops the audit at the warning-free build check before policy inspection, so an owned `sorry` in a claimed module is reported as PL2003 and the result is INCOMPLETE (`lake lint` exit 3); a single-file `axiomGate --file F --claim P` audit reports it as a PL2003 violation. This rule's own finding appears in the editor, in a file audit without `--claim` (which does not reject warnings), and in project and claimed-file audits when no warning was emitted (for example a hole inherited from an imported declaration, or `set_option warn.sorry false`, which does not waive the rule)."]
       rationale := [
         "`sorryAx` proves every proposition. A declaration that depends on it has no evidence, even if Lean elaborated the file, and every theorem that uses it inherits the gap."]
       fixes := [
@@ -134,13 +135,14 @@ def guide : RuleId → Guide
         "No owned declaration of the checked scope has `sorryAx` in its exact transitive axiom set."]
       notEstablished := [
         "That the completed proof proves the intended statement; the proposition itself is reviewed against its intent.",
-        "Lean's own warning for `sorry` is a separate compiler diagnostic (see PL2003); this rule does not depend on it."]
+        "Lean's own warning for `sorry` is a separate compiler diagnostic (PL2003); this rule does not depend on it, and disabling that warning does not waive this rule."]
       configuration := [noLocalException, projectCommands]
       limitations := [
-        "In the editor the rule is reported for completed declarations of the current snapshot. A cancelled collection reports nothing for that declaration; a failed one is reported as PL2005 (incomplete), never as an invented PL1002."]
+        "In the editor the rule is reported for completed declarations of the current snapshot. A cancelled collection reports nothing for that declaration; a failed one is reported as PL2005 (incomplete), never as an invented PL1002.",
+        "The checked example below comes from a diagnostic single-file inspection that keeps Lean's `sorry` warning as related evidence and continues to policy inspection; the ordinary project commands stop earlier with PL2003, as described above."]
       correction := "The correction fills the same reflexivity proof with `rfl`. The checked violation records Lean's original `sorry` warning as well; the corrected file passes the ordinary warning-rejecting gate."
       residuals := [.qualify, .intent]
-      checklist := ["FOUND-02", "THEOREM-06"]
+      checklist := ["FOUND-02", "THEOREM-06", "TYPE-04", "THEOREM-01", "THEOREM-09", "BUILD-01"]
       sources := ["lean/PlumbCore/Policy.lean", "lean/PlumbPolicy/Decision.lean", "lean/Plumb/Findings.lean"] }
   | .unknownAxiom => {
       problem := "A declaration's exact transitive axiom set contains an axiom outside Lean's standard logical foundation (`propext`, `Quot.sound`, `Classical.choice`) that is neither `sorryAx` nor a compiler-trusting axiom (Lean's built-in `Lean.trustCompiler`, `Lean.ofReduceBool` and `Lean.ofReduceNat`, or an authenticated `native_decide` axiom)."
@@ -166,7 +168,7 @@ def guide : RuleId → Guide
         "Classification uses exact constant names and authenticated compiler evidence, not name patterns; a lookalike name gets no special treatment."]
       correction := "The client file is unchanged. The dependency supplies a proof of the same reflexivity statement instead of declaring it as an axiom."
       residuals := [.qualify]
-      checklist := ["FOUND-03"]
+      checklist := ["FOUND-03", "TYPE-04", "THEOREM-01", "THEOREM-09", "BUILD-01"]
       sources := ["lean/PlumbCore/Policy.lean", "lean/PlumbPolicy/Foundation.lean", "lean/PlumbPolicy/Decision.lean"] }
   | .compilerTrusting => {
       problem := "A declaration on a positive surface depends on a compiler-trusting axiom: a native-proof axiom generated by `native_decide`, or Lean's built-in `Lean.trustCompiler`, `Lean.ofReduceBool` or `Lean.ofReduceNat`. Its proof trusts compiled code and the Lean compiler, not the kernel."
@@ -195,7 +197,7 @@ def guide : RuleId → Guide
         "An unauthenticated axiom that merely looks native is not compiler-trusting; it is rejected as an unknown axiom (PL1003) or project axiom (PL1001)."]
       correction := "The correction proves the same concrete equality `(2 : Nat) = 2` by `rfl`. The violation reports both the generated axiom and its parent theorem."
       residuals := [.qualify, .cost]
-      checklist := ["FOUND-05", "FOUND-03", "THEOREM-10"]
+      checklist := ["FOUND-05", "FOUND-03", "THEOREM-10", "THEOREM-01", "THEOREM-06", "DECL-03", "COMP-01", "BUILD-01"]
       sources := ["lean/PlumbPolicy/Decision.lean", "lean/Plumb/Checker/Frontend.lean", "lean/PlumbCore/Policy.lean"] }
   | .profileExceeded => {
       problem := "A declaration's exact transitive axiom set is admissible, but its least foundation label is stronger than the claim of the surface it belongs to."
@@ -223,7 +225,7 @@ def guide : RuleId → Guide
         "The label is computed from the exact transitive set; a proof that merely could avoid an axiom still carries it until rewritten."]
       correction := "The correction proves the same universally quantified reflexivity with an empty axiom set, under the unchanged Kernel-only claim, instead of routing through `propext`."
       residuals := [.qualify]
-      checklist := ["FOUND-03", "FOUND-04", "BUILD-02"]
+      checklist := ["FOUND-03", "FOUND-04", "BUILD-02", "THEOREM-01", "THEOREM-10", "BUILD-01"]
       sources := ["lean/PlumbPolicy/Foundation.lean", "lean/PlumbCore/Policy.lean", "docs/standard/4-mathematical-foundations.md"] }
   | .escapeHatch => {
       problem := "An owned declaration is marked `unsafe` or `partial` and is not the exactly authenticated code-generation helper of a safe recursive definition."
@@ -253,11 +255,11 @@ def guide : RuleId → Guide
         "Editor feedback may be pending until the project command completes the fresh-frontend check."]
       correction := "The correction keeps identity's domain and body and removes the unnecessary `unsafe` marker."
       residuals := [.qualify, .cost, .intent]
-      checklist := ["COMP-02", "THEOREM-05"]
+      checklist := ["COMP-02", "THEOREM-05", "THEOREM-01", "DECL-03", "BUILD-01"]
       sources := ["lean/PlumbPolicy/Decision.lean", "lean/Plumb/Checker/Frontend.lean", "lean/PlumbCore/Policy.lean"] }
   | .executableContract => {
       problem := "A closed `ExecutableContract f R` registration does not have the supported shape: it is not closed, it names no complete implementation constant, or the implementation is not an eligible executable definition."
-      action := "Register the named implementation itself and put its complete domain inside the predicate: `theorem c : ExecutableContract f (fun g => ∀ x, P (g x))`."
+      action := "Register the named implementation itself and put its complete domain inside the predicate: `theorem c : ExecutableContract f (fun g => ∀ x, P x (g x))`."
       trigger := [
         "The checker recognizes declarations of type `Plumb.ExecutableContract f R` as executable promises about `f`. It rejects, with applicability `executable-contract`, a registration with free parameters, a partially applied or term-parameterized implementation, or an implementation that is missing, noncomputable, unsafe, partial, proposition-valued, type-producing or not an executable definition.",
         "Lean's type checker separately checks the supplied proof of `R f`."]
@@ -279,13 +281,14 @@ def guide : RuleId → Guide
         "Term-parameterized and partial-application registrations are unsupported shapes, not proofs of incorrectness; restate them as closed full-domain contracts."]
       correction := "The correction moves the complete natural-number domain inside the identity contract's predicate, retaining the same pointwise equality."
       residuals := [.intent, .invariant, .qualify]
-      checklist := ["BUILD-03", "THEOREM-07", "DOGFOOD-05"]
+      checklist := ["BUILD-03", "THEOREM-07", "DOGFOOD-05", "SCOPE-02", "SCOPE-03", "TYPE-01", "THEOREM-01", "THEOREM-03", "COMP-01", "BUILD-01", "BUILD-02"]
       sources := ["lean/Plumb/Contract.lean", "lean/Plumb/Probe.lean", "lean/PlumbCore/Policy.lean"] }
   | .environment => {
       problem := "The declared Lean environment could not be loaded or identified, so the requested audit could not run. The result is INCOMPLETE, not a violation of the source."
       action := "Repair the workspace so Lake can load it with its exact toolchain and dependencies, then rerun the same command."
       trigger := [
-        "Setup checks load the Lake workspace, resolve dependencies to exact source states, and establish the compiler assumptions the audit needs. A failure (for example `lake-workspace-load-failed` when a required package directory is missing) is reported with impact `incomplete`."]
+        "Setup checks load the Lake workspace, resolve dependencies to exact source states, and establish the compiler assumptions the audit needs. A failure (for example `lake-workspace-load-failed` when a required package directory is missing) is reported with impact `incomplete`.",
+        "PL2001 is also the finding for any other error that escapes the audit before a more specific rule classifies it (for example a malformed Lake query result). Read the detail: it names the failing step. Such an error is INCOMPLETE, never a pass."]
       rationale := [
         "Every conformance claim is about one exact elaboration environment: toolchain, dependency revisions and source state. A result under an unknown or different environment is not evidence for the declared one."]
       fixes := [
@@ -336,14 +339,14 @@ def guide : RuleId → Guide
         "The editor never guesses an omitted project scope."]
       correction := "The correction removes the unknown manifest key without changing the selected source, profile or execution requirement."
       residuals := [.qualify, .intent, .invariant]
-      checklist := ["DECL-04", "SCOPE-05", "BUILD-04"]
+      checklist := ["DECL-04", "SCOPE-05", "BUILD-04", "DECL-01", "BUILD-01", "DOGFOOD-02"]
       sources := ["lean/Plumb/Checker/Manifest.lean", "lean/Plumb/Checker/Lake.lean", "lean/Plumb/Findings.lean"] }
   | .sourceBuild => {
       problem := "The claimed source did not elaborate warning-free under the audit's build: the build failed or emitted a warning."
       action := "Fix the compiler diagnostic at its source. Do not disable the warning or linter that reported it."
       trigger := [
-        "The audit builds the claimed targets itself and checks both the exit status and every emitted diagnostic. Any warning fails, including when the source sets `warningAsError` to false locally. The original compiler message is preserved in the finding.",
-        "In project runs (`lake lint`, `axiomGate`, the build-lint `policy` target) a warning or failed build stops the audit before policy inspection, so the finding is incomplete and the result INCOMPLETE (`lake lint` exit 3). A single-file `axiomGate --file` audit reports a completed source rejection as a violation, as in the example below."]
+        "The audit builds the claimed targets itself and checks both the exit status and every emitted diagnostic. Any warning fails, including when the source sets `warningAsError` to false locally (for a single-file audit, when any `--claim` is requested). The original compiler message is preserved in the finding.",
+        "In project runs (`lake lint`, `axiomGate`, the build-lint `policy` target) a warning or failed build stops the audit before policy inspection, so the finding is incomplete and the result INCOMPLETE (`lake lint` exit 3). A single-file `axiomGate --file F --claim P` audit reports a completed source rejection as a violation, as in the example below; without `--claim` warnings do not fail a file audit (an elaboration error is still a PL2003 violation), a file that elaborates and passes the declaration rules is CLASSIFIED rather than accepted, and a failed build of the manifest's claimed targets it depends on is INCOMPLETE."]
       rationale := [
         "Warnings often mark real defects (unused hypotheses, deprecated semantics, unreachable cases). Treating them as failures keeps the elaborated statements exactly those the author intended, and prevents a local option from changing what conformance means."]
       fixes := [
@@ -369,7 +372,8 @@ def guide : RuleId → Guide
       problem := "The exact module and declaration inventory from Lake does not match the owned coverage: a claimed library imports an excluded or checker-probe module, a module is outside every manifested library, or ownership cannot be determined."
       action := "Remove the forbidden import, or add the module to the intended claimed library's globs, so every owned module belongs to exactly one classified target."
       trigger := [
-        "Module inventory comes from Lake's elaborated configuration and Lean's recorded module indices, not from file lists or name prefixes. The checker resolves each imported root-package module's origin and rejects unexpected project modules, imports of excluded modules into claimed ones, and unknown ownership (`unexpected-project-module` and related subreasons)."]
+        "Module inventory comes from Lake's elaborated configuration and Lean's recorded module indices, not from file lists or name prefixes. The checker resolves each imported root-package module's origin and rejects unexpected project modules, imports of excluded modules into claimed ones, and unknown ownership (`unexpected-project-module` and related subreasons).",
+        "The impact depends on the subreason. A forbidden import or a module outside every manifested library (`unexpected-project-module`) is a violation (`lake lint` exit 1 unless the same run also has an incomplete finding). A configured module that was omitted or not freshly built, or a declaration attributed outside the claimed surface, is incomplete evidence (INCOMPLETE, `lake lint` exit 3)."]
       rationale := [
         "A conformance claim covers an exact set of modules. A module imported into a claimed library but outside every surface would contribute declarations nobody classified, and an umbrella import alone does not define that set."]
       fixes := [
@@ -382,19 +386,21 @@ def guide : RuleId → Guide
         "The claimed modules are exactly Lake's configured modules for the claimed targets, and every owned constant is attributed to one of them."]
       notEstablished := [
         "That the chosen library boundaries are the ones the project intends to claim; that is reviewed with the manifest rationale."]
-      configuration := [noLocalException, projectCommands]
+      configuration := [
+        "No source option, attribute or command-line flag makes this rule pass on a claimed surface; an exclusion in the manifest never permits a claimed module to import the excluded one.",
+        projectCommands]
       limitations := [
-        "Whole-project scope only: the editor is explicitly partial and does not report this rule."]
+        "Whole-project scope only: the editor is explicitly partial and does not report this rule, and a single-file audit does not either."]
       correction := "The correction removes an unused forbidden reporter import; the reflexivity statement and its assumptions are unchanged."
       residuals := [.qualify]
-      checklist := ["DECL-02", "DECL-03", "DOGFOOD-02"]
+      checklist := ["DECL-02", "DECL-03", "DOGFOOD-02", "SCOPE-05", "DECL-01", "DECL-04", "BUILD-01", "BUILD-03", "BUILD-04", "DOGFOOD-05"]
       sources := ["lean/Plumb/Checker/Lake.lean", "lean/Plumb/Probe.lean", "lean/Plumb/Checker/AxiomGate.lean"] }
   | .admission => {
       problem := "Required evidence is missing, incomplete, unsupported or invalid: owned declarations did not pass kernel admission, a frozen source changed during the audit, or authentication the result needs could not complete. The result is INCOMPLETE."
       action := "Remove the construction that bypasses kernel checking (or the source change during the run), then run the project command that collects the missing evidence."
       trigger := [
         "Before accepting proof evidence the checker replays every owned logical declaration and its owned dependencies through Lean's kernel (`Admission.validate`). A declaration that fails replay, source bytes that changed after they were frozen, or a required authentication that failed is reported here with impact `incomplete`.",
-        "In the editor, this rule marks results that need fresh evidence only the project command collects, and names `lake lint`."]
+        "In the editor, this rule marks results that need fresh evidence only the project command collects, and those messages name `lake lint`. The editor also reports it, as incomplete, when its own analysis of a declaration fails or the module has elaboration errors."]
       rationale := [
         "Successful elaboration alone is not checked admission: metaprograms and debug options can store declarations the kernel never checked. An accepted result must rest on kernel-checked evidence for the exact frozen sources."]
       fixes := [
@@ -415,11 +421,11 @@ def guide : RuleId → Guide
         "This page's example is a diagnostic demonstration: the violating run is INCOMPLETE by design and is not accepted negative evidence. Its corrected counterpart passed a completed positive check."]
       correction := "The correction replaces ill-typed unchecked evidence with a checked proof of the same reflexivity statement."
       residuals := [.qualify]
-      checklist := ["DECL-01", "DECL-02", "FOUND-05"]
+      checklist := ["DECL-01", "DECL-02", "FOUND-05", "SCOPE-02", "TYPE-01", "THEOREM-01", "THEOREM-03", "THEOREM-07", "DECL-03", "DECL-04", "COMP-02", "COMP-04", "BUILD-01", "BUILD-04", "DOGFOOD-05"]
       sources := ["lean/Plumb/Checker/Admission.lean", "lean/Plumb/Checker/SourceAudit.lean", "lean/Plumb/Checker/SourceBinding.lean"] }
   | .executionUnresolved => {
       problem := "The conservative execution closure of an executable root has a path the checker could not resolve: a missing compiled body, unavailable replacement history, an unsupported evaluator, or a cycle of replacement edges. The execution claim is INCOMPLETE."
-      action := "Remove the construction that prevents the analysis (for example a custom evaluator command in the module), or make the missing compiled code available, then rerun."
+      action := "Remove the construction that prevents the analysis (for example a metaprogramming command such as `run_cmd` in the module), or make the missing compiled code available, then rerun."
       trigger := [
         "For every owned executable root the checker follows retained compiler edges, logical value dependencies, `csimp` candidates, observed `implemented_by` choices and partial helpers. Anything it cannot resolve or classify is reported with applicability `execution-unresolved` and impact `incomplete`, in both `report` and `checked` execution modes.",
         "Replacement history is reconstructed by fresh re-elaboration; metaprogramming commands such as `run_cmd`, `run_elab` or module-local elaborators make it unavailable."]
@@ -440,10 +446,10 @@ def guide : RuleId → Guide
         projectCommands]
       limitations := [
         "This page's example is a diagnostic demonstration: the violating run is INCOMPLETE by design and is not accepted negative evidence. Its corrected counterpart passed a completed positive check.",
-        "The editor may defer execution analysis to the project command."]
-      correction := "The correction removes a no-effect custom evaluator command that prevents history authentication; the reference, replacement and correspondence theorem are unchanged."
+        "The editor does not analyze execution: it reports neither this rule nor a pending notice for it. Only `lake lint`, `axiomGate` (including `--file`) and the build-lint `policy` target do."]
+      correction := "The correction removes a no-effect `run_cmd` metaprogramming command that prevents history authentication; the reference, replacement and correspondence theorem are unchanged."
       residuals := [.qualify, .invariant, .intent]
-      checklist := ["COMP-03", "SCOPE-05"]
+      checklist := ["COMP-03", "SCOPE-05", "SCOPE-03", "THEOREM-05", "BUILD-01", "BUILD-03"]
       sources := ["lean/Plumb/Probe.lean", "lean/PlumbCore/Policy.lean", "lean/Plumb/Checker/RuleDiagnostics.lean"] }
   | .executionBoundary => {
       problem := "On a surface claiming `\"execution\": \"checked\"`, a reachable boundary other than a toolchain native-runtime primitive lacks kernel-checked correspondence: for example an `implemented_by` replacement without an admitted equality proof, an external `extern`, or unsafe or partial computation."
@@ -471,7 +477,7 @@ def guide : RuleId → Guide
         "Proof search is deliberately incomplete: a candidate whose remaining premises cannot be instantiated supplies no evidence, and the boundary stays trusted."]
       correction := "The correction adds the missing equality between the reference and its replacement on the full natural-number domain, keeping the checked execution claim and both implementations."
       residuals := [.intent, .invariant, .qualify]
-      checklist := ["COMP-03", "COMP-04", "SCOPE-03"]
+      checklist := ["COMP-03", "COMP-04", "SCOPE-03", "SCOPE-05", "THEOREM-05", "BUILD-01", "BUILD-03"]
       sources := ["lean/Plumb/Probe.lean", "lean/PlumbCore/Policy.lean", "docs/standard/8-tooling-and-machine-audit.md"] }
   | .fenceStructure => {
       problem := "A Markdown file in the checked documentation tree has a malformed Lean fence classification: an orphan, misplaced, duplicated or misspelled marker, an invalid expected-error pattern, or an unclosed fence."
@@ -504,7 +510,8 @@ def guide : RuleId → Guide
       problem := "A positive Lean fence in the documentation did not elaborate verbatim and warning-free, or it did and then failed admission or the declaration and axiom rules."
       action := "Make the example correct as printed: fix its errors or warnings, and make its declarations satisfy the same rules as project code."
       trigger := [
-        "Each positive fence is elaborated exactly as printed, with no inserted imports or wrappers, against a fresh build of the claimed libraries. It must be warning-free, pass checked admission, and pass the declaration and axiom rules under Standard-Logical. The fence failure is reported here together with the underlying finding (for example PL1001 for an axiom in the example)."]
+        "Each positive fence is elaborated exactly as printed, with no inserted imports or wrappers, against a fresh build of the claimed libraries. It must be warning-free, pass checked admission, and pass the declaration and axiom rules under Standard-Logical. The fence failure is reported here together with the underlying finding (for example PL1001 for an axiom in the example).",
+        "A fence that fails without a source diagnostic (for example a worker that stopped before completing) is reported as INCOMPLETE, not as a violation."]
       rationale := [
         "Readers copy documented examples and trust them. A positive example that does not elaborate, or that proves its claim with an axiom, teaches a false claim."]
       fixes := [
@@ -530,7 +537,8 @@ def guide : RuleId → Guide
       problem := "A fence marked `lean-fail` did not fail as specified: it elaborated successfully, failed for a different reason, or the worker crashed or timed out."
       action := "Make the example fail for exactly the documented reason, adjust the pattern to match one real error message, or remove the marker if the example is valid."
       trigger := [
-        "A negative fence must complete with a source rejection, and one effective error message must match the entire expected pattern. Informational output, a pattern matched across several messages, a crash, a timeout or a successful elaboration does not pass."]
+        "A negative fence must complete with a source rejection, and one effective error message must match the entire expected pattern. Informational output, a pattern matched across several messages, a crash, a timeout or a successful elaboration does not pass.",
+        "An example that elaborated successfully or failed with a non-matching message is a violation; a worker that crashed, timed out or did not complete is INCOMPLETE."]
       rationale := [
         "A negative example documents what Lean rejects. If it stops failing, or fails for another reason, the documentation claims a rejection that no longer holds."]
       fixes := [
@@ -555,7 +563,8 @@ def guide : RuleId → Guide
       problem := "A fence marked `lean-trusted-compiler` did not elaborate warning-free with an authenticated compiler-trusting declaration: it contains no native proof, or authentication failed."
       action := "Use the marker only for an example that demonstrates `native_decide` (or another authenticated compiler-trusting mechanism); otherwise remove it."
       trigger := [
-        "A teaching fence must elaborate warning-free and the checker must authenticate at least one compiler-trusting declaration in it, using the same fresh-frontend evidence as PL1004. If none is found, or authentication fails, the fence is rejected with applicability `trusted-example`."]
+        "A teaching fence must elaborate warning-free and the checker must authenticate at least one compiler-trusting declaration in it, using the same fresh-frontend evidence as PL1004. If none is found, or authentication fails, the fence is rejected with applicability `trusted-example`.",
+        "The fence is also rejected, with the underlying finding, when any declaration in it fails the declaration rules under the teaching request (for example PL1001 for an axiom or PL1006 for an unsafe or partial declaration)."]
       rationale := [
         "Conforming claims reject compiler-trusting proofs (PL1004). A teaching fence is how the documentation shows one: it is classified and never counts as a conforming positive. A marker on an ordinary example would hide it from positive checking."]
       fixes := [
@@ -593,7 +602,7 @@ def guide : RuleId → Guide
         "That the documentation identifies all material declarations and assumptions, or describes them faithfully (R-DOC). Presence says nothing about content; no headings or layout are imposed."]
       configuration := [noLocalException, projectCommands]
       limitations := [
-        "The editor reports this rule only when the module has finished elaborating."]
+        "The editor reports this rule only when the module has finished elaborating without errors; a module with elaboration errors gets PL2005 (incomplete) instead."]
       correction := "The correction adds module documentation to the unchanged reflexivity evidence."
       residuals := [.doc]
       checklist := ["DOC-01"]
@@ -621,7 +630,8 @@ def guide : RuleId → Guide
         "Registration is `@[plumb_material]` from `Plumb.MaterialClaim`. Removing a registration from a material declaration changes the reviewed claim, not only this rule's result.",
         projectCommands]
       limitations := [
-        "Lean's broader `linter.missingDocs` checks all public declarations; this rule deliberately covers only registered material evidence."]
+        "Lean's broader `linter.missingDocs` checks all public declarations; this rule deliberately covers only registered material evidence.",
+        "The editor reports this rule only when the module has finished elaborating without errors; a module with elaboration errors gets PL2005 (incomplete) instead."]
       correction := "The correction adds the registered theorem's docstring, including its `# Intent` section; registration, proposition and proof are unchanged."
       residuals := [.doc]
       checklist := ["DOC-01"]
@@ -649,7 +659,8 @@ def guide : RuleId → Guide
         "The rule checks only declarations registered with `@[plumb_material]` from `Plumb.MaterialClaim`. Removing a registration from a material declaration changes the reviewed claim, not only this rule's result.",
         projectCommands]
       limitations := [
-        "Setext headings and closing sequences such as `# Intent #` are not recognized as Intent headings."]
+        "Setext headings and closing sequences such as `# Intent #` are not recognized as Intent headings.",
+        "The editor reports this rule only when the module has finished elaborating without errors; a module with elaboration errors gets PL2005 (incomplete) instead."]
       correction := "The correction adds a nonempty `# Intent` section, structured with a `## Requirement` subsection, to the registered theorem's existing docstring; the explanation, registration, proposition and proof are unchanged."
       residuals := [.intent, .doc]
       checklist := ["DOC-02"]

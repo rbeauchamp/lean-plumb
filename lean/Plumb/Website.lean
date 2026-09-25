@@ -1,9 +1,9 @@
 import Plumb.DiagnosticCodec
 import PlumbPolicy.Observation
 
-/-! Shared website metadata and checked-example interfaces. Canonical metadata and
-validation credit con-leche (RuleId); presentation credits Verso and Microsoft CA1416,
-not their rule semantics. Collector completion remains an explicit trusted boundary. -/
+/-! Shared website metadata and checked-example interfaces. The registry metadata's
+design credit is in RuleId; presentation credits Verso and Microsoft CA1416, neither of
+which supplies rule semantics. Collector completion remains an explicit trusted boundary. -/
 namespace Plumb.Website
 open Lean RegistryCodec
 

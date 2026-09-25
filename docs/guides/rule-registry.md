@@ -16,16 +16,18 @@ independently changed in a descriptor. `descriptor : (id : RuleId) →
 RuleDescriptor id` is exhaustive. There is no runtime registration table whose
 missing entries silently disappear.
 
-A descriptor supplies title, category, scope, evidence kind, normative clauses, applicability and
-message-template identifiers, strict default, supported evidence modes,
-implementation availability, lifecycle and attribution. `existingChecker`
+A descriptor supplies title, category, scope, evidence kind, normative clauses, applicability
+identifier, strict default, supported evidence modes,
+implementation availability, lifecycle and attribution. The message form is not a field: it is
+`messageForm id`, the same `messageLine` the checker renders. `existingChecker`
 means the named existing predicate has a checker implementation; it does not
 mean that every planned live editor adapter is complete.
 PL5001–PL5003 now have native metadata-presence observers. PL1001–PL1007
 have partial command feedback; PL2002 covers invalid local foundation requests,
 and PL2005 covers unavailable or pending local analysis. Full project integration
 is separate from those local modes. See [native-linter.md](native-linter.md) for
-actual APIs, scope, options and qualification. Production pages remain #15.
+actual APIs, scope, options and qualification. The [website guide](website.md) owns the
+published rule pages.
 
 To add a rule, establish its exact Lean predicate and coverage-map entry first.
 Add its constructor, stable spelling/parser branch, exhaustive descriptor and

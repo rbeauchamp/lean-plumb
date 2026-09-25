@@ -257,8 +257,7 @@ accounts or analytics.
 
 ## Credits and licenses
 
-Plumb for Lean is MIT licensed. Verso (Lean FRO, Apache 2.0) renders the site and bundles
-search and table-of-contents scripts whose licenses its generated credits page lists. The
-typed registry and complete acceptance design credit con-leche (Joachim Breitner and
-contributors, Lean FRO; no code or proof copied). Microsoft's CA1416 page is one illustrative
-reference for the page structure; no content is copied. See [design influences](design-influences.md).
+The credits page is generated from `creditsPage` in
+[`PlumbCore.SiteDocs`](../../lean/PlumbCore/SiteDocs.lean); that definition owns the page's
+text. The attribution and license account it summarizes is
+[design influences](design-influences.md).

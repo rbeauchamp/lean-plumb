@@ -149,8 +149,8 @@ lake exe qualify producers --evidence tmp/producer-examples.json
 The export embeds exact source bytes and canonical diagnostic/result data, including the
 checker build identity. Its temporary observation URIs identify the actual checked source;
 consumers render the embedded source and its repository path, not a now-removed scratch file.
-This supplies scoped source/evidence inputs, not the future site's complete typed expectation
-validator. CI runs this named campaign separately from the unchanged unpartitioned ordinary
+This supplies scoped source/evidence inputs, not the site's complete typed expectation
+validator ([website guide](website.md)). CI runs this named campaign separately from the unchanged unpartitioned ordinary
 420-second acceptance. No unrun broader campaign is claimed PASS. Older structural-campaign
 manifests still need reconciliation with the `PlumbPolicy` root before that campaign
 can establish its broader claims; the small adopter qualifies the changed standalone path.

@@ -458,6 +458,17 @@ theorem modulePresence_iff (present : Bool) :
     DocumentationPresenceOK (modulePresence present) ↔ present = true := by
   cases present <;> simp [modulePresence, DocumentationPresenceOK]
 
+/-- The documentation-presence rules PL5001–PL5003 are registered for exactly the evidence
+modes whose required stages include documentation presence: their registry modes neither omit
+a mode that checks presence nor advertise one that does not. -/
+theorem documentationPresence_modes (id : Plumb.RuleId)
+    (h : id = .moduleDocumentation ∨ id = .materialDocumentation ∨ id = .materialIntent)
+    (c : PlumbPolicy.Claim) :
+    c.val.mode ∈ (Plumb.descriptor id).evidenceModes ↔
+      PlumbPolicy.Stage.documentationPresence ∈ PlumbPolicy.requiredStages c := by
+  rcases h with rfl | rfl | rfl <;> cases hm : c.val.mode <;>
+    simp [Plumb.descriptor, Plumb.projectModes, PlumbPolicy.requiredStages, hm]
+
 /-- Each required slot receives its actual stage's observation. Failed lookup returns an
 explicit error; unknown stages cannot become a completed empty payload. The caller supplies
 the actual build process observation, not a synthesized success from diagnostic counts. -/

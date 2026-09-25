@@ -290,7 +290,7 @@ def Account.lines (a : Account) : Array String :=
   let checked := s!"checked: {acceptanceTheorem} — each of the {d.jobs} required jobs has exactly one " ++
     "completed observation meeting its stage policy (CompleteFor ∧ AllPolicyOK)"
   let contracts := d.contracts.map fun k =>
-    s!"PL1007 contract {k.registration}: Lean checked the requirement about implementation " ++
+    s!"{RuleId.executableContract.spelling} contract {k.registration}: Lean checked the requirement about implementation " ++
       s!"{k.implementation}: {k.requirement}; unresolved review: " ++
       s!"{residualList ContractAccount.unresolved} (adequacy of the requirement, caller coverage)"
   let execution := d.execution.mapIdx fun i s =>

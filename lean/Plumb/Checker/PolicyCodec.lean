@@ -2,8 +2,14 @@ import Lean.Data.Json
 import PlumbPolicy.Codec
 
 /-! Strict operational JSON parsing. Scalar syntax reuses Lean's parser; the container
-recursion below is adapted from Lean/Data/Json/Parser.lean (Gabriel Ebner and Marc Huisinga,
-Copyright 2019 Gabriel Ebner, Apache-2.0) to reject duplicate keys before insertion.
+recursion below is adapted from the Lean 4 repository's `src/Lean/Data/Json/Parser.lean` (notice as at
+`v4.34.0`), modified to reject duplicate keys before insertion. Upstream notice, retained:
+
+    Copyright (c) 2019 Gabriel Ebner. All rights reserved.
+    Released under Apache 2.0 license as described in the file LICENSE.
+    Authors: Gabriel Ebner, Marc Huisinga
+
+The Apache 2.0 license text is `LICENSES/Apache-2.0.txt` in this repository.
 The pure wire laws do not prove this text parser or external producer authenticity. -/
 namespace Plumb.Checker.PolicyCodec
 open Lean Std.Internal.Parsec Std.Internal.Parsec.String
