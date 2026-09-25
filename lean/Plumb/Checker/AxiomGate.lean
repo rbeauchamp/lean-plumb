@@ -374,8 +374,8 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         result
       let configuredModules := libraries.foldl (fun result info => result ++ info.modules) #[]
         ++ inventory.executables.map (·.root)
-      -- At most three heavy subprocesses (surface report workers and frontend
-      -- attributions) run at once, as before. A surface's frontend attributions share
+      -- At most three slot holders (surface report workers and frontend attributions) run
+      -- at once, as before; each report worker may still run its history helper. A surface's frontend attributions share
       -- those three slots, so they run in parallel on slots other surfaces released
       -- instead of one after another behind their own report. A report may retain its
       -- environment while awaiting an existing replacement-history helper.
@@ -397,8 +397,8 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           ownedOutput := inventory.leanLibDir.toString
           historyMemo := historyMemo.toString
         }
-        let outcome : ProducerReport.Outcome ← timedPhase s!"declaration inspection {surface.library}" <|
-          withSlot <| runTypedWorker "--declaration-report-worker" request
+        let outcome : ProducerReport.Outcome ← withSlot <| timedPhase s!"declaration inspection {surface.library}" <|
+          runTypedWorker "--declaration-report-worker" request
         if let .admissionFailed failure := outcome then return .error failure
         let .reported report := outcome
           | throw <| IO.userError "unreachable admission outcome"
@@ -407,7 +407,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         -- `mapWorkQueue` returns results in module order, so transcripts and failures
         -- keep the order of the former sequential loop.
         let modules := candidateModules report.declarations
-        let attempts ← mapWorkQueue (max 1 modules.size) modules fun moduleName => do
+        let attempts ← mapWorkQueue 3 modules fun moduleName => do
           let some source := info.sources.find? (·.«module» == moduleName)
             | return Sum.inl s!"frontend-source-missing: {moduleName}"
           try

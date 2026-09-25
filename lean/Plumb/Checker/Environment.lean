@@ -101,12 +101,16 @@ private structure HistoryMemo where
 
 /-- The history worker's output bytes for exactly these inputs, shared by the surface
 workers of one audit through `memo` (a directory the coordinator owns for the audit).
-A re-elaboration is a deterministic function of the module source, the effective search
-path (`searchIdentity`, see `loadReportCore`) and the pinned binary, and every field is compared exactly before a record is used, so a
-reused record carries the bytes this worker would have produced itself. The first worker
+Trusted assumption (the §8.5 supported-process boundary): the worker's output is a
+deterministic function of the module source, the effective search path (`searchIdentity`,
+see `loadReportCore`) and the pinned binary, with the audit's inherited environment and
+unchanged imported artifacts. Every field is compared exactly before a record is used, so
+under that assumption a reused record carries the bytes this worker would have produced;
+the requester still validates the packet and its own before/after source comparison. The first worker
 to claim a key (an exclusive-create lock) runs the subprocess; the others wait for its
 record, and run the subprocess themselves if the record does not appear or does not match.
-Without `memo`, or on any memo failure, the worker runs as before. -/
+Without `memo`, or on any memo failure, the worker runs as before; a failure to publish a
+record never changes the returned output. -/
 private def historyWorkerOutput (memo : Option FilePath) (inputs : HistoryMemo)
     (run : IO String) : IO String := do
   let some directory := memo | run
@@ -122,16 +126,21 @@ private def historyWorkerOutput (memo : Option FilePath) (inputs : HistoryMemo)
   let claimed ← (do discard <| IO.FS.Handle.mk lock .writeNew; pure true) <|> pure false
   if claimed then
     try
+      -- Another worker may have published while this one claimed the key.
+      if let some output ← (reuse <|> pure none) then return output
       let output ← run
-      let staged := directory / s!"{key}.staged"
-      IO.FS.writeFile staged (toJson { inputs with output }).compress
-      IO.FS.rename staged record
+      try
+        let staged := directory / s!"{key}.staged"
+        IO.FS.writeFile staged (toJson { inputs with output }).compress
+        IO.FS.rename staged record
+      catch _ => pure ()
       return output
     finally
       try IO.FS.removeFile lock catch _ => pure ()
-  -- Another worker holds the key: wait for its record for at most two minutes.
+  -- Another worker holds the key: wait while it does, for at most ten minutes (beyond the
+  -- audit's own deadline), then compute here.
   let start ← IO.monoMsNow
-  while (← IO.monoMsNow) - start < 120000 do
+  while (← IO.monoMsNow) - start < 600000 do
     if let some output ← (reuse <|> pure none) then return output
     unless ← lock.pathExists do
       if let some output ← (reuse <|> pure none) then return output
@@ -271,8 +280,8 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       }
       SourceBinding.unchanged report.sourceBindings
       if let .error failure := report.validateSourceEvidence then return .error failure
-      -- The project coordinator re-runs this exact check on the decoded report in
-      -- `Acceptance.freezeEnvironment` before any acceptance; only that caller opts out.
+      -- The project coordinator's decoder runs this exact check (`fromJson_admissible`), and
+      -- `Acceptance.freezeEnvironment` runs it again before acceptance; only that caller opts out.
       if validateReport then IO.ofExcept (ProducerReport.checkedValidate.run report)
       return .ok report
   ).bind id
