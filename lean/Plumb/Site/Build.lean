@@ -229,7 +229,7 @@ private def writeModule (dir : FilePath) (name : String) (content : String) : IO
   IO.FS.writeFile path content
 
 /-- Exact relative file names and bytes of a tree. -/
-partial def snapshotTree (root : FilePath) : IO (List (String × ByteArray)) := do
+def snapshotTree (root : FilePath) : IO (List (String × ByteArray)) := do
   let root ← IO.FS.realPath root
   let mut files := []
   for path in ← root.walkDir do

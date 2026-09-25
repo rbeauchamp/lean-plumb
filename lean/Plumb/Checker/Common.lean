@@ -112,7 +112,12 @@ def diagnosticBlocks (output : String) (isHead : String → Bool) : Array String
     blocks := blocks.pop
   return blocks
 
-partial def findRepoRoot (start : FilePath) : IO FilePath := do
+/-- The nearest ancestor of `start` (itself included) holding one Lake configuration file and
+a `lean-toolchain`. The upward walk terminates on the byte length of the path. The length
+check cannot fail: `FilePath.parent` returns a proper prefix, cut at the last separator or
+after the root directory. Its `revFind?`-based definition has no lemmas in core to prove
+that, so the check states it. -/
+def findRepoRoot (start : FilePath) : IO FilePath := do
   let root ← IO.FS.realPath start
   let rec loop (path : FilePath) : IO FilePath := do
     let hasLean ← (path / "lakefile.lean").pathExists
@@ -122,8 +127,11 @@ partial def findRepoRoot (start : FilePath) : IO FilePath := do
     if (hasLean || hasToml) && (← (path / "lean-toolchain").pathExists) then
       return path
     match path.parent with
-    | some parent => loop parent
+    | some parent =>
+      if parent.toString.utf8ByteSize < path.toString.utf8ByteSize then loop parent
+      else throw <| IO.userError s!"parent of {path} is not a proper prefix"
     | none => throw <| IO.userError s!"cannot find Lean project root above {root}"
+  termination_by path.toString.utf8ByteSize
   loop root
 
 def repoRoot : IO FilePath := do

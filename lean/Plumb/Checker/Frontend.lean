@@ -109,10 +109,61 @@ def validateCoordinates (declarations : Array Plumb.Report.Declaration)
     (transcript : Transcript) : Except String Unit :=
   checkedCoordinates.run Plumb.lspUtf16Column declarations transcript
 
+mutual
+/-- The elements under a persistent-array node, left to right. -/
+private def nodeElems : PersistentArrayNode α → List α
+  | .node ⟨children⟩ => nodesElems children
+  | .leaf values => values.toList
+
+private def nodesElems : List (PersistentArrayNode α) → List α
+  | [] => []
+  | child :: children => nodeElems child ++ nodesElems children
+end
+
+/-- The elements of a persistent array in `toArray` order: the root's leaves left to right,
+then the tail. Core computes `toArray` with the `partial` `foldlMAux`, which the kernel cannot
+unfold, so the `InfoTree` traversals below recurse through this structural enumeration,
+which follows `foldlMAux` case for case, and `sizeOf_lt_elems` bounds its members. -/
+private def elems (t : PersistentArray α) : List α := nodeElems t.root ++ t.tail.toList
+
+mutual
+private theorem sizeOf_lt_nodeElems [SizeOf α] {x : α} :
+    (n : PersistentArrayNode α) → x ∈ nodeElems n → sizeOf x < sizeOf n
+  | .node ⟨children⟩, h => by
+    have := sizeOf_lt_nodesElems children (by simpa [nodeElems] using h)
+    simp; omega
+  | .leaf values, h => by
+    have := Array.sizeOf_lt_of_mem (Array.mem_def.mpr (by simpa [nodeElems] using h))
+    simp; omega
+
+private theorem sizeOf_lt_nodesElems [SizeOf α] {x : α} :
+    (ns : List (PersistentArrayNode α)) → x ∈ nodesElems ns → sizeOf x < sizeOf ns
+  | [], h => by simp [nodesElems] at h
+  | n :: ns, h => by
+    simp only [nodesElems, List.mem_append] at h
+    rcases h with h | h
+    · have := sizeOf_lt_nodeElems n h; simp; omega
+    · have := sizeOf_lt_nodesElems ns h; simp; omega
+end
+
+private theorem sizeOf_lt_elems [SizeOf α] {x : α} {t : PersistentArray α} (h : x ∈ elems t) :
+    sizeOf x < sizeOf t := by
+  rcases t with ⟨root, tail, _, _, _⟩
+  simp only [elems, List.mem_append] at h
+  rcases h with h | h
+  · have := sizeOf_lt_nodeElems root h; simp; omega
+  · have := Array.sizeOf_lt_of_mem (Array.mem_def.mpr h); simp; omega
+
+/-- A child of an `InfoTree` node is smaller than the node: the termination measure of the
+traversals below. -/
+private theorem sizeOf_child_lt {i : Info} {children : PersistentArray InfoTree} {child : InfoTree}
+    (h : child ∈ elems children) : sizeOf child < sizeOf (InfoTree.node i children) := by
+  have := sizeOf_lt_elems h; simp; omega
+
 /-- Keep every implementation selected in a command context, before later
 attribute assignments can overwrite it. Nested command contexts matter: a
 namespace's final environment is not its complete compilation history. -/
-private partial def replacementRecords (tree : InfoTree)
+private def replacementRecords (tree : InfoTree)
     (seen : Array (Name × Name)) : Array (Name × Name) := Id.run do
   let mut seen := seen
   match tree with
@@ -125,19 +176,24 @@ private partial def replacementRecords (tree : InfoTree)
       return replacementRecords child seen
   | .context _ child => return replacementRecords child seen
   | .node _ children =>
-      return children.toArray.foldl (fun seen child => replacementRecords child seen) seen
+      return (elems children).attach.foldl
+        (fun seen ⟨child, _⟩ => replacementRecords child seen) seen
   | .hole _ => return seen
+termination_by tree
+decreasing_by all_goals first | exact sizeOf_child_lt ‹_› | (simp_wf; omega)
 
-private partial def commandRecord? (tree : InfoTree) :
+private def commandRecord? (tree : InfoTree) :
     Option (CommandContextInfo × CommandInfo) :=
   match tree with
   | .context (.commandCtx ctx) child =>
       match child with
       | .node (.ofCommandInfo info) _ => some (ctx, info)
-      | _ => commandRecord? child
+      | other => commandRecord? other
   | .context _ child => commandRecord? child
-  | .node _ children => children.toArray.findSome? commandRecord?
+  | .node _ children => (elems children).attach.findSome? fun ⟨child, _⟩ => commandRecord? child
   | .hole _ => none
+termination_by tree
+decreasing_by all_goals first | exact sizeOf_child_lt ‹_› | (simp_wf; omega)
 
 private def position (p : Lean.Position) : Plumb.Report.Position :=
   { line := p.line, column := p.column }
@@ -183,7 +239,7 @@ private def evaluatorInfo? : Info → Option (EvaluatorRole × ElabInfo)
   | .ofChoiceInfo i => some (.term, i.toElabInfo)
   | _ => none
 
-private partial def evaluatorRecords (baselineEnv commandEnv : Environment)
+private def evaluatorRecords (baselineEnv commandEnv : Environment)
     (fileMap : FileMap) (tree : InfoTree) (specializeSame : Bool) : Array Evaluator :=
   match tree with
   | .context _ child => evaluatorRecords baselineEnv commandEnv fileMap child specializeSame
@@ -198,13 +254,16 @@ private partial def evaluatorRecords (baselineEnv commandEnv : Environment)
               i.elaborator i.stx.getKind specializeSame
           }]
         | none => #[]
-      children.toArray.foldl
-        (fun acc child => acc ++ evaluatorRecords baselineEnv commandEnv fileMap child specializeSame) own
+      (elems children).attach.foldl
+        (fun acc ⟨child, _⟩ =>
+          acc ++ evaluatorRecords baselineEnv commandEnv fileMap child specializeSame) own
   | .hole _ => #[]
+termination_by tree
+decreasing_by all_goals first | exact sizeOf_child_lt ‹_› | (simp_wf; omega)
 
 /-- Pinned predefinition elaboration records the exact constant binder at its
 declaration identifier, including nested `where` definitions. -/
-private partial def declarationBindings (fileMap : FileMap) (tree : InfoTree) :
+private def declarationBindings (fileMap : FileMap) (tree : InfoTree) :
     Array DeclarationBinding :=
   match tree with
   | .context _ child => declarationBindings fileMap child
@@ -216,13 +275,16 @@ private partial def declarationBindings (fileMap : FileMap) (tree : InfoTree) :
             else #[]
           | _ => #[]
         | _ => #[]
-      children.toArray.foldl (fun result child => result ++ declarationBindings fileMap child) own
+      (elems children).attach.foldl
+        (fun result ⟨child, _⟩ => result ++ declarationBindings fileMap child) own
   | .hole _ => #[]
+termination_by tree
+decreasing_by all_goals first | exact sizeOf_child_lt ‹_› | (simp_wf; omega)
 
 /-- Source metaprograms can compile with a temporary replacement and restore
 the map within one command. Command snapshots cannot certify that history.
 Imported trusted elaborators remain inside the documented process boundary. -/
-private partial def unsupportedReplacementEvaluators (compilerEnv : Environment) (attributeRefs : Array Name)
+private def unsupportedReplacementEvaluators (compilerEnv : Environment) (attributeRefs : Array Name)
     (baselineEnv commandEnv : Environment)
     (tree : InfoTree) : Array String :=
   match tree with
@@ -250,9 +312,11 @@ private partial def unsupportedReplacementEvaluators (compilerEnv : Environment)
               #[s!"{role}: {elaborator} ({kind})"]
             else #[]
         | none => #[]
-      return children.toArray.foldl (fun found child =>
+      return (elems children).attach.foldl (fun found ⟨child, _⟩ =>
         found ++ unsupportedReplacementEvaluators compilerEnv attributeRefs baselineEnv commandEnv child) own
   | .hole _ => #[]
+termination_by tree
+decreasing_by all_goals first | exact sizeOf_child_lt ‹_› | (simp_wf; omega)
 
 private def constantKind : ConstantInfo → PlumbPolicy.DeclarationKind
   | .axiomInfo _  => .axiom
