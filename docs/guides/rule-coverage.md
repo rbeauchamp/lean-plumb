@@ -137,7 +137,8 @@ mechanical selectors/adapters in #13 and accepted-evidence construction in #7.
 - **R-QUALIFY:** maintain claim-scoped positive controls, intended-reason mutations, isolated restored
   controls and exact invocation/toolchain evidence. Unrun campaigns remain unrun; universal pure
   policy proofs in #6 complement rather than replace collector/integration qualification.
-- **R-GRAPH:** optional serialized-graph/export compatibility is #8/#9; absence of that claim does
+- **R-GRAPH:** the optional serialized-graph claim is `freshChecker` (§8.9). The con-leche export
+  route from #8/#9 ended in a [no-go](con-leche-research.md). Absence of either claim does
   not block core delivery. A claimed graph still requires every exact selected root covered.
 
 The report account's `Residual` type in
