@@ -2,8 +2,8 @@ import Lean.Data.Json
 import PlumbPolicy.Codec
 
 /-! Strict operational JSON parsing. Scalar syntax reuses Lean's parser; the container
-recursion below is adapted from Lean 4's `src/lean/Lean/Data/Json/Parser.lean`,
-modified to reject duplicate keys before insertion. Upstream notice, retained:
+recursion below is adapted from the Lean 4 repository's `src/Lean/Data/Json/Parser.lean` (notice as at
+`v4.34.0`), modified to reject duplicate keys before insertion. Upstream notice, retained:
 
     Copyright (c) 2019 Gabriel Ebner. All rights reserved.
     Released under Apache 2.0 license as described in the file LICENSE.

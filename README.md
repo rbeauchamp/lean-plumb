@@ -57,4 +57,6 @@ the integrated linter and website establish.
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE), except the adapted container recursion of Lean's JSON parser in
+`lean/Plumb/Checker/PolicyCodec.lean`, which keeps its upstream Apache 2.0 notice
+([license text](LICENSES/Apache-2.0.txt); see [design influences](docs/guides/design-influences.md#adapted-code-and-licenses)).

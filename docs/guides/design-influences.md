@@ -43,7 +43,7 @@ these messages. These are dependencies, not design influences on Plumb's policy.
 
 | Code | Origin and license | Treatment |
 | --- | --- | --- |
-| Container recursion of the strict JSON parser in [`PolicyCodec.lean`](../../lean/Plumb/Checker/PolicyCodec.lean) | Lean 4's `src/lean/Lean/Data/Json/Parser.lean`, Copyright (c) 2019 Gabriel Ebner, authors Gabriel Ebner and Marc Huisinga, Apache 2.0 | Modified to reject duplicate keys. The upstream notice is retained in the source, the [Apache 2.0 text](../../LICENSES/Apache-2.0.txt) is in the repository, and the site's credits page names it. |
+| Container recursion of the strict JSON parser in [`PolicyCodec.lean`](../../lean/Plumb/Checker/PolicyCodec.lean) | Lean 4's [`src/Lean/Data/Json/Parser.lean`](https://github.com/leanprover/lean4/blob/v4.34.0/src/Lean/Data/Json/Parser.lean) (notice as at `v4.34.0`), Copyright (c) 2019 Gabriel Ebner, authors Gabriel Ebner and Marc Huisinga, Apache 2.0 | Modified to reject duplicate keys. The upstream notice is retained in the source, the [Apache 2.0 text](../../LICENSES/Apache-2.0.txt) is in the repository, and the site's credits page names it. |
 
 No other third-party code is copied or adapted in the linter, the site builder or the Verso
 extension. The rest of Plumb is MIT licensed ([LICENSE](../../LICENSE)).

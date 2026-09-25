@@ -16,9 +16,10 @@ independently changed in a descriptor. `descriptor : (id : RuleId) →
 RuleDescriptor id` is exhaustive. There is no runtime registration table whose
 missing entries silently disappear.
 
-A descriptor supplies title, category, scope, evidence kind, normative clauses, applicability and
-message-template identifiers, strict default, supported evidence modes,
-implementation availability, lifecycle and attribution. `existingChecker`
+A descriptor supplies title, category, scope, evidence kind, normative clauses, applicability
+identifier, strict default, supported evidence modes,
+implementation availability, lifecycle and attribution. The message form is not a field: it is
+`messageForm id`, the same `messageLine` the checker renders. `existingChecker`
 means the named existing predicate has a checker implementation; it does not
 mean that every planned live editor adapter is complete.
 PL5001–PL5003 now have native metadata-presence observers. PL1001–PL1007

@@ -122,7 +122,7 @@ def guide : RuleId → Guide
       trigger := [
         "The checker computes the exact transitive axiom set of every owned declaration with Lean's `collectAxioms`. If `sorryAx` belongs to it, the declaration is rejected with applicability `hole`.",
         "Theorems, proof-valued definitions and instances, and data definitions are all inspected; alternate syntax (`admit`, a tactic `sorry`) is caught because the kernel term contains `sorryAx`.",
-        "Lean itself warns `declaration uses 'sorry'` by default, and an elaboration error recovered as `sorry` is an error. In `lake lint`, `axiomGate` and the build-lint `policy` target that warning or error stops the audit at the warning-free build check before policy inspection, so an owned `sorry` in a claimed module is reported as PL2003 and the result is INCOMPLETE (`lake lint` exit 3); a single-file `axiomGate --file F --claim P` audit reports it as a PL2003 violation. This rule's own finding appears in the editor, and in project and file audits when no warning was emitted (for example a hole inherited from an imported declaration, or `set_option warn.sorry false`, which does not waive the rule)."]
+        "Lean itself warns `declaration uses 'sorry'` by default, and an elaboration error recovered as `sorry` is an error. In `lake lint`, `axiomGate` and the build-lint `policy` target that warning or error stops the audit at the warning-free build check before policy inspection, so an owned `sorry` in a claimed module is reported as PL2003 and the result is INCOMPLETE (`lake lint` exit 3); a single-file `axiomGate --file F --claim P` audit reports it as a PL2003 violation. This rule's own finding appears in the editor, in a file audit without `--claim` (which does not reject warnings), and in project and claimed-file audits when no warning was emitted (for example a hole inherited from an imported declaration, or `set_option warn.sorry false`, which does not waive the rule)."]
       rationale := [
         "`sorryAx` proves every proposition. A declaration that depends on it has no evidence, even if Lean elaborated the file, and every theorem that uses it inherits the gap."]
       fixes := [
@@ -345,8 +345,8 @@ def guide : RuleId → Guide
       problem := "The claimed source did not elaborate warning-free under the audit's build: the build failed or emitted a warning."
       action := "Fix the compiler diagnostic at its source. Do not disable the warning or linter that reported it."
       trigger := [
-        "The audit builds the claimed targets itself and checks both the exit status and every emitted diagnostic. Any warning fails, including when the source sets `warningAsError` to false locally (for a single-file audit, when a foundation `--claim` is requested). The original compiler message is preserved in the finding.",
-        "In project runs (`lake lint`, `axiomGate`, the build-lint `policy` target) a warning or failed build stops the audit before policy inspection, so the finding is incomplete and the result INCOMPLETE (`lake lint` exit 3). A single-file `axiomGate --file F --claim P` audit reports a completed source rejection as a violation, as in the example below; without `--claim` a file audit is classification only (CLASSIFIED), and a failed build of the manifest's claimed targets it depends on is INCOMPLETE."]
+        "The audit builds the claimed targets itself and checks both the exit status and every emitted diagnostic. Any warning fails, including when the source sets `warningAsError` to false locally (for a single-file audit, when any `--claim` is requested). The original compiler message is preserved in the finding.",
+        "In project runs (`lake lint`, `axiomGate`, the build-lint `policy` target) a warning or failed build stops the audit before policy inspection, so the finding is incomplete and the result INCOMPLETE (`lake lint` exit 3). A single-file `axiomGate --file F --claim P` audit reports a completed source rejection as a violation, as in the example below; without `--claim` warnings do not fail a file audit (an elaboration error is still a PL2003 violation), a file that elaborates and passes the declaration rules is CLASSIFIED rather than accepted, and a failed build of the manifest's claimed targets it depends on is INCOMPLETE."]
       rationale := [
         "Warnings often mark real defects (unused hypotheses, deprecated semantics, unreachable cases). Treating them as failures keeps the elaborated statements exactly those the author intended, and prevents a local option from changing what conformance means."]
       fixes := [
@@ -373,7 +373,7 @@ def guide : RuleId → Guide
       action := "Remove the forbidden import, or add the module to the intended claimed library's globs, so every owned module belongs to exactly one classified target."
       trigger := [
         "Module inventory comes from Lake's elaborated configuration and Lean's recorded module indices, not from file lists or name prefixes. The checker resolves each imported root-package module's origin and rejects unexpected project modules, imports of excluded modules into claimed ones, and unknown ownership (`unexpected-project-module` and related subreasons).",
-        "The impact depends on the subreason. A forbidden import or a module outside every manifested library (`unexpected-project-module`) is a violation (`lake lint` exit 1). A configured module that was omitted or not freshly built, or a declaration attributed outside the claimed surface, is incomplete evidence (INCOMPLETE, `lake lint` exit 3)."]
+        "The impact depends on the subreason. A forbidden import or a module outside every manifested library (`unexpected-project-module`) is a violation (`lake lint` exit 1 unless the same run also has an incomplete finding). A configured module that was omitted or not freshly built, or a declaration attributed outside the claimed surface, is incomplete evidence (INCOMPLETE, `lake lint` exit 3)."]
       rationale := [
         "A conformance claim covers an exact set of modules. A module imported into a claimed library but outside every surface would contribute declarations nobody classified, and an umbrella import alone does not define that set."]
       fixes := [
@@ -564,7 +564,7 @@ def guide : RuleId → Guide
       action := "Use the marker only for an example that demonstrates `native_decide` (or another authenticated compiler-trusting mechanism); otherwise remove it."
       trigger := [
         "A teaching fence must elaborate warning-free and the checker must authenticate at least one compiler-trusting declaration in it, using the same fresh-frontend evidence as PL1004. If none is found, or authentication fails, the fence is rejected with applicability `trusted-example`.",
-        "The fence is also rejected, with the underlying finding, when any declaration in it fails the declaration rules under the teaching request (for example PL1001 for an axiom or PL1002 for a hole)."]
+        "The fence is also rejected, with the underlying finding, when any declaration in it fails the declaration rules under the teaching request (for example PL1001 for an axiom or PL1006 for an unsafe or partial declaration)."]
       rationale := [
         "Conforming claims reject compiler-trusting proofs (PL1004). A teaching fence is how the documentation shows one: it is classified and never counts as a conforming positive. A marker on an ordinary example would hide it from positive checking."]
       fixes := [
@@ -630,7 +630,8 @@ def guide : RuleId → Guide
         "Registration is `@[plumb_material]` from `Plumb.MaterialClaim`. Removing a registration from a material declaration changes the reviewed claim, not only this rule's result.",
         projectCommands]
       limitations := [
-        "Lean's broader `linter.missingDocs` checks all public declarations; this rule deliberately covers only registered material evidence."]
+        "Lean's broader `linter.missingDocs` checks all public declarations; this rule deliberately covers only registered material evidence.",
+        "The editor reports this rule only when the module has finished elaborating without errors; a module with elaboration errors gets PL2005 (incomplete) instead."]
       correction := "The correction adds the registered theorem's docstring, including its `# Intent` section; registration, proposition and proof are unchanged."
       residuals := [.doc]
       checklist := ["DOC-01"]
@@ -658,7 +659,8 @@ def guide : RuleId → Guide
         "The rule checks only declarations registered with `@[plumb_material]` from `Plumb.MaterialClaim`. Removing a registration from a material declaration changes the reviewed claim, not only this rule's result.",
         projectCommands]
       limitations := [
-        "Setext headings and closing sequences such as `# Intent #` are not recognized as Intent headings."]
+        "Setext headings and closing sequences such as `# Intent #` are not recognized as Intent headings.",
+        "The editor reports this rule only when the module has finished elaborating without errors; a module with elaboration errors gets PL2005 (incomplete) instead."]
       correction := "The correction adds a nonempty `# Intent` section, structured with a `## Requirement` subsection, to the registered theorem's existing docstring; the explanation, registration, proposition and proof are unchanged."
       residuals := [.intent, .doc]
       checklist := ["DOC-02"]

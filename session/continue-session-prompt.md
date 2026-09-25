@@ -2,8 +2,10 @@ Read `session/session-context.md` from your own verified worktree. Refresh curre
 `origin/main`, the live GitHub Project 8 board and the issue you are working on
 (https://github.com/rbeauchamp/lean-plumb/issues), including its comments and native blockers.
 
-The core Project 8 product (issues #11–#15, #25, #43 foundation) is delivered; issue #10
-qualified it end to end ([product qualification](../docs/guides/product-qualification.md)).
+The core Project 8 deliveries (#11–#15, #25) and the foundation work behind #43 are merged; issue
+#10's integrated qualification is recorded in
+[product qualification](../docs/guides/product-qualification.md). Check each issue's live state
+(#43 was still open when that record was made).
 Optional #8 (con-leche export research) and conditional #9 (adapter) remain separate and do not
 gate core work. Separately tracked follow-ups (for example #69) keep their own issues.
 

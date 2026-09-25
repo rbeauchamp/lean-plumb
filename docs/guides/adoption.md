@@ -215,7 +215,8 @@ fresh-source audit"; only `--fresh` reads as fresh whole-project acceptance.
 Plumb finding is not a build warning there: the audit's own policy stages report it, as a
 `VIOLATION`. Any other warning or build failure stops the audit before policy inspection
 and is `INCOMPLETE`, with the original compiler message printed as evidence. That includes
-Lean's `declaration uses 'sorry'` warning: an owned `sorry` is reported as PL2003, not PL1002.
+Lean's default `declaration uses 'sorry'` warning: an owned `sorry` is reported as PL2003, not
+PL1002 (with `set_option warn.sorry false` it reaches the PL1002 stage instead).
 The option is
 part of Lake's module trace, and Lake scopes it to the whole package rather than to the
 modules that import `Plumb.Linter` (elsewhere it changes nothing), so modules last built
@@ -274,7 +275,8 @@ supported editor is VS Code with the Lean 4 extension on the
 commands and modules show:
 
 - Warnings with codes `Plumb.PL1001`–`PL1007`, `PL2002` and `PL2005`, at the actual declaration
-  range, plus `PL5001`–`PL5003` when the module finishes elaborating.
+  range, plus `PL5001`–`PL5003` when the module finishes elaborating without errors (with errors,
+  `PL2005`).
 - In the infoview, Lean's own error-code widget with a **View explanation** link to the rule
   page. The message text always ends with the same URL, which the Problems panel and
   command-line output show when no widget renders.
@@ -290,8 +292,8 @@ change only local feedback. `lake lint` still rejects the same declaration.
 Local findings are ordinary compiler warnings in the editor and in a plain `lake build`.
 `lake lint` turns the linter off for its own build and reports the same rules itself, so
 it exits `VIOLATION` (1), not `INCOMPLETE`, while one remains. Lean's own warnings are
-unaffected: a `sorry` also makes Lean warn `declaration uses 'sorry'`, so under `lake lint` an
-owned hole stops the audit at its warning-free build check (PL2003, `INCOMPLETE`, exit 3) before
+unaffected: by default a `sorry` also makes Lean warn `declaration uses 'sorry'`, so under
+`lake lint` an owned hole stops the audit at its warning-free build check (PL2003, `INCOMPLETE`, exit 3) before
 the PL1002 stage; the editor shows both messages.
 Rule links point to the development route
 `https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/` of the [rule reference](#rule-reference-website),

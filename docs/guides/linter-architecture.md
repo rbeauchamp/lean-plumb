@@ -60,7 +60,7 @@ and record the applicable implementation version. Chapter 9 IDs remain checklist
 one-to-one diagnostic IDs.
 
 Descriptor fields: `id`, title, category, normative clause references, applicability predicate
-identifier, default strict severity, supported evidence modes, message template identifier,
+identifier, default strict severity, supported evidence modes, message form (derived from `messageLine`),
 help route, introduced version, optional retired version/replacement, attribution records.
 Attribution records identify source URL, exact revision, credited authors/project, borrowed idea
 or adapted code, and applicable license notice. Derive route and ID text from `RuleId`, rather

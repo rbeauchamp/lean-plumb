@@ -86,8 +86,8 @@ def evidenceFor : RuleId → EvidenceKind
   | .positiveExample | .negativeExample | .trustedExample => .checkedExample
   | .moduleDocumentation | .materialDocumentation | .materialIntent => .metadataPresence
 
-/-- The first line of every rendered diagnostic of `id` (`Plumb.Diagnostic.text`); the rule's
-help URL follows on the next line. -/
+/-- The message of every rendered diagnostic of `id`: `Plumb.Diagnostic.text` is this line
+followed by a newline and the rule's help URL. A detail can itself span several lines. -/
 def messageLine (id : RuleId) (impact mode claim location subject detail : String) : String :=
   id.spelling ++ " [" ++ impact ++ "; " ++ mode ++ "; claim=" ++ claim ++ "; " ++ location ++ "]: " ++
     subject ++ ": " ++ detail
