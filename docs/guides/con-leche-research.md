@@ -23,8 +23,8 @@ The reasons, in the order the study took them:
    in item 3.
 2. **Correspondence.** A statement-preserving claim cannot be justified.
    - The exporter-to-source relation is trusted.
-   - Con-leche's preservation theorem does not cover the 192 owned inductive blocks and their
-     629 constructors and recursors.
+   - Con-leche's preservation theorem does not cover the 192 owned inductive types (191 blocks)
+     or their 630 constructors and recursors.
    - The exporter skips the 32 generated `_unsafe_rec` helpers by default.
    - Two claimed roots declare the same name `main`, so no single export can hold the whole
      surface.
@@ -32,7 +32,7 @@ The reasons, in the order the study took them:
    What would remain is an artifact-only claim with trusted correspondence.
 3. **Cost.** Costs that would recur:
    - con-leche runs a second toolchain (`v4.33.0`), has no releases and has an unusually
-     fast-moving `main`;
+     fast-moving default branch (`master`);
    - it has a `v4.34.0-rc2` pin variant but no `v4.34.0` one;
    - any adapter would have to be written in Lean, with a process protocol, qualification
      controls, proofs of its pure parts and a manual CI job;
@@ -58,9 +58,10 @@ The strongest claim con-leche could honestly support for Plumb has this form.
   in any `V` with `[SetTheory V]`. The metatheory axioms are `propext`, `Classical.choice` and
   `Quot.sound`. `[SetTheory V]` is ZF without infinity or choice, plus an ω-chain of
   Grothendieck universes. So every theorem type that environment accepts denotes a nonempty set.
-- **Preservation.** By `checkDecls_consts`, each definition, theorem, opaque or non-`sorryAx`
-  axiom record of the checker input appears in that environment with the same name and level
-  parameters. Its type is the checker's annotation of the record's type, up to ζ-reduction.
+- **Preservation.** By `checkDecls_consts`, also stated under `[SetTheory V]`, each definition,
+  theorem, opaque or axiom record (other than `sorryAx` and `Quot.sound`) of the checker input
+  appears in that environment with the same name and level parameters. Its type is the checker's
+  annotation of the record's type, up to ζ-reduction.
 
 Who it is for: an adopter who distrusts Lean's C++ kernel and wants a second, independently
 implemented checker with a machine-checked consistency theorem.
@@ -85,15 +86,16 @@ What it cannot do:
 
 | Component | Pin | License | Notes |
 | --- | --- | --- | --- |
-| con-leche | [`ae0c0c4e4ce6a0081648aff03fe9c39d002c4526`](https://github.com/leanprover/con-leche/tree/ae0c0c4e4ce6a0081648aff03fe9c39d002c4526) (`main`, 2026-09-21) | Apache 2.0 | Toolchain `leanprover/lean4:v4.33.0`. No GitHub releases. The package has no Lake dependencies. |
-| lean4export | tag [`v4.34.0`](https://github.com/leanprover/lean4export/tree/v4.34.0) = `076e8e57707e813375e8f9da8bf989799ace9680` | Apache 2.0 | Toolchain `v4.34.0`. The `v4.34.0` Lean distribution has no bundled `leanexport` binary (checked in the local toolchain's `bin/`). |
+| con-leche | [`ae0c0c4e4ce6a0081648aff03fe9c39d002c4526`](https://github.com/leanprover/con-leche/tree/ae0c0c4e4ce6a0081648aff03fe9c39d002c4526) (`master`, 2026-09-21) | Apache 2.0 | Toolchain `leanprover/lean4:v4.33.0`. No GitHub releases. The package has no Lake dependencies. |
+| lean4export | tag `v4.34.0` = [`076e8e57707e813375e8f9da8bf989799ace9680`](https://github.com/leanprover/lean4export/tree/076e8e57707e813375e8f9da8bf989799ace9680) | Apache 2.0 | Toolchain `v4.34.0`. The `v4.34.0` Lean distribution has no bundled `leanexport` binary (checked in the local toolchain's `bin/`). |
 | Plumb source | Lean `v4.34.0` (`293d5d0c`) | MIT | Not downgraded. |
 
 The earlier research pin `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0` (Lean 4.33.0) is superseded
 for this record by `ae0c0c4`. Links below use the new pin.
 
-Credit: con-leche is by its authors and contributors, maintained by Joachim Breitner at Lean FRO
-([README](https://github.com/leanprover/con-leche/blob/ae0c0c4e4ce6a0081648aff03fe9c39d002c4526/README.md)).
+Credit: con-leche is by its authors and contributors. Its README says it was "implemented
+and proven to be consistent by Claude (Fable and Opus), under heavy supervision by Joachim
+Breitner at the Lean FRO" ([README](https://github.com/leanprover/con-leche/blob/ae0c0c4e4ce6a0081648aff03fe9c39d002c4526/README.md)).
 lean4export is by Lean FRO and contributors. This record quotes their theorem names, command-line
 text and design, and cites them. No con-leche or lean4export code or proof is copied into Plumb,
 and Plumb does not depend on either. No upstream endorsement is implied.
@@ -110,33 +112,44 @@ thing that was run.
 - **Exit codes:** `0` accepted; `1` rejected, or out of memory, which the Lean runtime reports
   as `INTERNAL PANIC: out of memory` on stderr and which must be told apart from a reject; `2`
   declined (an unsupported feature, or a census-only diagnostic run); `3` usage error, malformed
-  input or internal failure; `134` means the runtime could not create a worker thread.
+  input or internal failure. Upstream documents `134`, a generic abort code, for a run whose
+  runtime could not create a worker thread.
 - **Help:** `--help` anywhere prints usage on stdout and exits `0` without reading input. Exit
   `0` alone is therefore not acceptance.
 - **Evidence of an intended accept:** all of the following, together.
   - Exit `0`.
   - Stdout is exactly `con-leche: accepted N declarations (--verified)`, where `N` is the
-    stream's own record count. Generated model records and built-in prelude records are not
-    counted.
-  - The invocation had no `--trusted` flag and no `CON_LECHE_INMODEL*` variables set.
+    stream's declaration-record count: one per def, theorem, opaque, axiom, inductive or quot
+    record, not counting name, level or expression lines. Generated model records and built-in
+    prelude records are not counted.
+  - The invocation had no `--trusted` flag and none of the four debug variables below set.
   - A single file argument whose digest is bound to the request.
 
   Every verdict line names its mode.
-- **Environment switches:** `CON_LECHE_INMODEL=0`, `CON_LECHE_INMODEL_CENSUS=1` and
-  `CON_LECHE_INMODEL_DUMP=OUT` are debug switches. A verdict produced with any of them set is
-  not the checker's verdict.
+- **Environment switches:** upstream names four debug switches. With `CON_LECHE_INMODEL=0`, it
+  says the verdict is not the checker's verdict on the stream. `CON_LECHE_INMODEL_CENSUS=1` stops
+  after the parse and always exits `2`. `CON_LECHE_INMODEL_DUMP=OUT` writes a copy of the input
+  with the generated model records spliced in. `CON_LECHE_PROJREC_TRACE`, named in `DESIGN.md`
+  rather than `--help`, writes a trace to stderr. Plumb's evidence rule, not
+  upstream's, is to refuse any run with one of them set.
 - **Workers:** by default the check phase uses one worker per hardware thread. Each worker
-  reserves about 1 GiB of address space, so a bounded run must pass an explicit `--jobs`.
+  reserves about 1 GiB of address space, so upstream says a run under an address-space limit
+  (`ulimit -v`) must lower the count. A reproducible run should pass an explicit `--jobs`.
 - **Nat pins:** a pin-certified `Nat` operation is accepted only against a pin variant. The
   embedded variants are `v4.33.0` (which, per the pin README, covers v4.29.0 to v4.33.1),
   `v4.34.0-rc2` and `nightly-2026-09-10`. When no variant matches, the stream declines (exit
   `2`). Whether Lean `v4.34.0`'s definitions match the `v4.34.0-rc2` variant was not tested.
-- **Exporter hazards**, from lean4export `Export.lean` and `Main.lean` at the tag:
+- **Exporter hazards**, from lean4export
+  [`Export.lean`](https://github.com/leanprover/lean4export/blob/076e8e57707e813375e8f9da8bf989799ace9680/Export.lean)
+  and [`Main.lean`](https://github.com/leanprover/lean4export/blob/076e8e57707e813375e8f9da8bf989799ace9680/Main.lean)
+  at the pin:
   - Roots are passed after `--` and decoded with `Syntax.decodeNameLit … |>.get!`.
   - A missing constant triggers `panic!`, but the process still exits `0`. The upstream matrix
     script notes the same, and reads missing names off stderr.
   - Unsafe and `partial` constants are skipped unless `--export-unsafe` is given.
   - `mdata` is dropped unless `--export-mdata` is given.
+  - `--ignore-missing` skips missing constants without a panic, which would defeat the stderr
+    check. A revival must forbid it.
 
 ## Boundary account
 
@@ -144,10 +157,10 @@ thing that was run.
 | --- | --- | --- |
 | Lean source → elaborated environment | Plumb's own gate: fresh elaboration and `Admission.validate` replay with the official kernel | Plumb evidence, separate claim |
 | Environment/`.olean` → lean4export records | None. The exporter walks the imported environment. | Trusted |
-| Stream bytes → parsed declarations | The fast parser is proved equal (`@[csimp]`) to a naive reference parser. The main corollary `no_False_declaration` is stated on raw bytes, but only for streams satisfying `jsonWithTheoremFalse`. | Proved upstream, narrow |
+| Stream bytes → parsed declarations | The fast parser is proved equal (`@[csimp]`) to a naive reference parser, but the naive parser's faithfulness is not proved. The main corollary `no_False_declaration` is stated on raw bytes under `[SetTheory V]`, but only for streams satisfying `jsonWithTheoremFalse`. | Parse faithfulness trusted; fast = naive proved; corollary conditional and narrow |
 | Parse-time rewrites: projection rewrites, in-process `_model` generation for mutual/nested blocks | Generated records are checked like any others and cannot cause a wrong accept, but no theorem relates them to the source block. | Trusted for correspondence |
 | Parsed declarations → `preparePrelude` | `preparePrelude_perm`: the output is a permutation of the input plus added prelude records | Proved upstream |
-| Checker input → output environment | `checkDecls_consts`: name, level parameters and annotated type are kept for definition, theorem, opaque and non-`sorryAx` axiom records. Not for inductive blocks, basis blocks or quotient records, and not for bodies. | Proved upstream, partial |
+| Checker input → output environment | `checkDecls_consts`: name, level parameters and annotated type are kept for definition, theorem, opaque and axiom records other than `sorryAx` and `Quot.sound`. Not for inductive blocks, basis blocks or quotient records, and not for bodies. | Proved upstream, conditional on `[SetTheory V]`, partial |
 | Output environment → model | `model_exists` under `[SetTheory V]` | Proved upstream, conditional |
 | Compiled con-leche binary, Lean runtime, `Nat` bignums, IO driver | None | Trusted |
 
@@ -179,9 +192,9 @@ the rule `Plumb.Probe.ownedConstants` uses.
 | Realized equation lemma | `Plumb.ExecutableContract.run.eq_1` is owned by two surfaces (`PlumbPolicy.Screening`, `PlumbQualification.Json`). | Ownership of realized generated declarations is not unique per module. A stream records one copy. |
 | Generated `_unsafe_rec` helpers | 32, all `partial`: `PlumbPolicy` 18, `PlumbQualification` 5, `PlumbCore` 5, `Audit` 2, `AuditApp` 2. They match the gate's authorized helper count. | lean4export skips them by default. They carry no logical evidence, but an adapter must list them as authenticated exclusions, not as silent omissions. |
 | Name literals | All 8,347 probe names round-tripped through `Syntax.decodeNameLit`, the exporter's root parser. | Private names can be passed as roots. |
-| Inductive blocks | 192 blocks with 437 constructors and 193 recursors. Mutual and nested blocks are modelled in-process. | Outside `checkDecls_consts`. Their preservation is not proved. |
-| Axioms in the dependency closure | Exactly `propext`, `Classical.choice` and `Quot.sound`. No `sorryAx`, `Lean.ofReduceBool` or `Lean.trustCompiler`. | These three are exactly the axioms con-leche accepts. They would not cause a decline. |
-| Static dependency closure | 30,132 safe, non-partial constants from the owned roots: `Init` 10,792, `Mathlib` 8,499, owned 8,315, `Std` 2,328, `Lean` 103, `Batteries` 89, `Plumb` 6. Computed by a temporary probe that follows lean4export's traversal, not by an export. | This sizes the stream an export would be. No export exists to confirm it. |
+| Inductive blocks | 192 inductive types in 191 blocks (the generated `PlumbQualification.Template.Maps.below` and `Maps.below_1` share one mutual block), with 437 constructors and 193 recursors. Mutual and nested blocks are modelled in-process. | Outside `checkDecls_consts`. Their preservation is not proved. |
+| Axioms in the dependency closure | Exactly `propext`, `Classical.choice` and `Quot.sound`. No `sorryAx`, `Lean.ofReduceBool` or `Lean.trustCompiler`. | Con-leche accepts these three. It also tolerates an unused `sorryAx` declaration and admits the compiler-trust family (`Lean.trustCompiler`, `Lean.ofReduceBool`, `Lean.ofReduceNat`) through pins; none of those occurs here. The axioms would not cause a decline. |
+| Static dependency closure | 30,132 safe, non-partial constants from the 8,347 library-module roots, which omit `Main`'s `main.match_1` and `main.match_3`: `Init` 10,792, `Mathlib` 8,499, owned 8,315, `Std` 2,328, `Lean` 103, `Batteries` 89, `Plumb` 6. Computed by a temporary probe that follows lean4export's traversal, not by an export. | This sizes the stream an export would be. No export exists to confirm it. |
 
 Missing obligations if the work were revived:
 - a theorem or checked relation from the exporter to the environment;
@@ -212,7 +225,9 @@ evidence. Machine: 14 hardware threads, 24 GiB, macOS 27.0 arm64.
 - `lake build con-leche` at `ae0c0c4` with Lean `v4.33.0` completed in 47 s wall time
   (195 s user), with 2.5 GB peak RSS. Binary SHA-256
   `e28ef96f95aa4ccfcd47c237b8febc81ad00fdd0b301cde6be50e3fd6a4852ab`.
-- `con-leche --help` exited `0` and printed the protocol summarized above.
+- `con-leche --help` exited `0` and printed the usage, modes, worker, switch and verdict-count
+  text. The meanings of exits `1` and `3` and the out-of-memory rule come from the `Main.lean`
+  module docstring.
 - The gate run that produced the inventory took 107 s wall time. It is ordinary Plumb evidence.
 
 Checker runs: **none performed.** Stage 1 and stage 2 are incomplete by design, because the
@@ -234,11 +249,12 @@ This option was never taken; Plumb stays on `v4.34.0`.
   - invalidating all delivered qualification evidence: acceptance, rule examples, site and
     diagnostic campaigns;
   - pinning Plumb *behind* upstream Lean on behalf of an optional checker.
-- **Likely lag:** con-leche's `lean-toolchain` has been `v4.33.0` since its first commit
-  (2026-08-19). Lean `v4.34.0` was released on 2026-09-14 and was still unadopted 11 days later.
-  `v4.35.0-rc1` appeared on 2026-09-15. The `v4.34.0-rc2` pin variant arrived on 2026-09-10. A
-  37-day history is too short to estimate a lag distribution. The lag is structural, because
-  every toolchain needs a new pinner and dump upstream.
+- **Likely lag:** con-leche's `lean-toolchain` has been `v4.33.0`, unchanged, since the file
+  was added in the repository's second commit (`ab16c06d`, 2026-08-19). Lean `v4.34.0`
+  was released on 2026-09-14 and was still unadopted 11 days later. `v4.35.0-rc1` appeared on
+  2026-09-15. The `v4.34.0-rc2` pin variant arrived on 2026-09-10. A 37-day history is too
+  short to estimate a lag distribution. The lag is structural, because every toolchain needs a
+  new pinner and dump upstream.
 
 ## Reproduction
 
@@ -247,7 +263,8 @@ This option was never taken; Plumb stays on `v4.34.0`.
 # scope.surfaces[].report.declarations of the JSON output.
 lake exe axiomGate -- --json-out /path/to/gate.json
 
-# Exporter and checker at the recorded pins (setup only; built outside the repository).
+# Exporter and checker at the recorded pins (setup only; this study built them
+# in the ignored `tmp/` scratch directory).
 git clone https://github.com/leanprover/lean4export && git -C lean4export checkout v4.34.0
 (cd lean4export && lake build lean4export)
 git clone https://github.com/leanprover/con-leche && git -C con-leche checkout ae0c0c4e4ce6a0081648aff03fe9c39d002c4526
@@ -259,11 +276,12 @@ the fixed plan. From the Plumb root, pass `lake env` the exporter binary, the ro
 `--` and every expected owned name, redirecting to a stream file. Then run
 `con-leche --verified --jobs=4` on that file under `timeout 360`. A revival must also check the
 exporter's stderr for `not found` panics and reconcile the verdict count against the stream's
-records.
+declaration records.
 
-The temporary inventory and closure probes lived in the ignored `tmp/` directory and were
-removed after these results were recorded. The gate command above reproduces the inventory
-counts. The closure count is a derived observation from that removed probe.
+The temporary inventory and closure probes, the upstream clones and their builds lived in the
+ignored `tmp/` directory and were removed after these results were recorded. The gate command
+above reproduces the inventory counts. The closure count is a derived observation from that
+removed probe.
 
 ## When to revisit
 
