@@ -21,7 +21,7 @@ pointer, not an authority.
 ## Open work outside core delivery
 
 - [#8](https://github.com/rbeauchamp/lean-plumb/issues/8) optional con-leche export research:
-  pending, no go/no-go decision. [#9](https://github.com/rbeauchamp/lean-plumb/issues/9)
-  adapter: conditional on a go decision from #8.
+  no-go, recorded in [con-leche research](../docs/guides/con-leche-research.md).
+  [#9](https://github.com/rbeauchamp/lean-plumb/issues/9) adapter: not planned.
 - Operator settings (not code): require `site` and the corpus shards as status checks; protect
   `site-archive` against force-push and deletion.
