@@ -22,8 +22,9 @@ and standalone `Main` as dogfood surfaces. Operational tooling and intentionally
 fixtures remain separately classified. No new rule bans Float, IO, local mutation syntax,
 classical erased proofs, noncomputable mathematical definitions, or arbitrary naming styles.
 
-Con-ron is excluded. Optional con-leche export checking (#8/#9) is supplementary and does not
-block the core linter/site delivery. Preserve the user-selected acceptance: exactly `./scripts/verify.sh` (including cold root-package
+Con-ron is excluded. Optional con-leche export checking was researched in #8 and ended in a
+[no-go](con-leche-research.md); #9 is not planned, and neither ever blocked the core linter/site
+delivery. Preserve the user-selected acceptance: exactly `./scripts/verify.sh` (including cold root-package
 builds after dependency setup) then `./scripts/verify.sh docs`, each under its own hard
 **420-second** deadline. Website dependency provisioning, the site build and the diagnostic
 campaigns are separate operations, not subdivisions or substitutes for that acceptance.
@@ -262,7 +263,8 @@ paid hosting, release or visibility change is involved.
 5. #14 after #7/#13: conventional adoption and editor interaction; #15 after #12/#13/#7:
    complete rule site and publication workflow.
 6. #10 after #7/#14/#15: integrated exact-scope product acceptance and documentation.
-7. Optional #8 after #11 investigates con-leche export compatibility; #9 only on #8's supported go.
+7. Optional #8 after #11 investigated con-leche export compatibility and ended in a
+   [no-go](con-leche-research.md), so #9 is closed as not planned.
 
 Open implementation details belong to their named issue: exact proof decomposition (#4/#6),
 efficient live scheduling/current-document extraction and qualification (#13), supported client

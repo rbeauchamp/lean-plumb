@@ -233,7 +233,9 @@ Review of the delivered product found and fixed:
 
 ## Optional external checking
 
-[#8](https://github.com/rbeauchamp/lean-plumb/issues/8) (con-leche export research) is pending
-with no go/no-go decision, and [#9](https://github.com/rbeauchamp/lean-plumb/issues/9) (adapter)
-is conditional on a go decision from #8. Neither is part of or blocks core delivery, and neither
-is complete. Con-ron is excluded.
+[#8](https://github.com/rbeauchamp/lean-plumb/issues/8) (con-leche export research) ended in a **no-go**
+([decision record](con-leche-research.md)), so [#9](https://github.com/rbeauchamp/lean-plumb/issues/9)
+(adapter) is closed as not planned. There is no con-leche checking integration. No export was
+checked, so export compatibility is unperformed rather than passed or failed. Neither issue was
+part of or blocked core delivery. The optional serialized-graph claim remains `freshChecker`.
+Con-ron is excluded.
