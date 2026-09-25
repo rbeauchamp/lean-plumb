@@ -93,6 +93,10 @@ def checkAt (root scratch : FilePath) (launcher : Launcher.State) (jobs : Nat :=
       { label := "ScopedNarrow", source := base ++ "set_option plumb.localFoundation \"kernel-only\" in\n" ++
         "theorem classicalClaim (p : Prop) : p ∨ ¬p := Classical.em p\n", ids := ["PL1005"] },
       { label := "ScopedDisabled", source := base ++ "set_option linter.plumb false in\naxiom forbidden : False\n" },
+      -- The audit-build marker (`Lake.auditLeanOptions`) silences the `Axiom` control's
+      -- finding even where the source turns `linter.plumb` back on.
+      { label := "AuditBuild", source := base ++ "set_option linter.plumb true\naxiom forbidden : False\n" ++
+        "set_option linter.plumb true in\naxiom scopedForbidden : False\n", options := #["-Dweak.plumb.auditBuild=true"] },
       { label := "ScopedPromoted", source := base ++ "set_option warningAsError true in\naxiom forbidden : False\n",
         ids := ["PL1001"], errors := true, nativeSeverity := some "error" },
       { label := "Hole", source := base ++ "theorem unfinished : True := by sorry\n", ids := ["PL1002"],

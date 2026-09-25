@@ -23,7 +23,5 @@ pointer, not an authority.
 - [#8](https://github.com/rbeauchamp/lean-plumb/issues/8) optional con-leche export research:
   pending, no go/no-go decision. [#9](https://github.com/rbeauchamp/lean-plumb/issues/9)
   adapter: conditional on a go decision from #8.
-- [#69](https://github.com/rbeauchamp/lean-plumb/issues/69): a source
-  `set_option linter.plumb true` makes a live violation exit 3 under `lake lint`.
 - Operator settings (not code): require `site` and the corpus shards as status checks; protect
   `site-archive` against force-push and deletion.

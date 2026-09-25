@@ -112,7 +112,7 @@ the rule's message form.
 | Route | What runs | Result | Evidence |
 | --- | --- | --- | --- |
 | Editor, `import Plumb.Linter` | Command and module hooks over the current snapshot | `editorSnapshot` feedback: PL1001–PL1007, PL2002, PL2005, PL5001–PL5003 at their ranges; never project acceptance | Proved editor/project equality above; observed in VS Code ([#14 journeys](../../session/evidence/issue-14-editor-journeys.md), #10 journey) |
-| `lake lint` | `plumb/lint` driver: builds the manifest's targets with `linter.plumb` weakly off, then the `axiomGate` project audit | `incrementalProject`; exit 0/1/2/3 | `accepted_sound`, `checkedClassify`; lint-driver campaign (16 controls); #10 fresh-adopter journey |
+| `lake lint` | `plumb/lint` driver: builds the manifest's targets with the audit-build marker (local findings off whatever the source sets `linter.plumb` to), then the `axiomGate` project audit | `incrementalProject`; exit 0/1/2/3 | `accepted_sound`, `checkedClassify`; `liveFeedback_auditBuild`; lint-driver campaign (17 controls); #10 fresh-adopter journey |
 | `lake lint -- --fresh` | Same audit in an isolated copy from empty build output | `freshProject`, the only fresh whole-project claim | Observed PASS in the fresh adopter |
 | `lake lint -- --json-out PATH` | Same audit, result schema 2 | `status`, diagnostics with `helpUrl` and source ranges | Observed |
 | `lake lint -- --explain-config`, `--help` | No audit | Exit 2; establish nothing | Observed (both); lint-driver campaign covers `--explain-config` |
@@ -213,8 +213,6 @@ Review of the delivered product found and fixed:
 
 ## Remaining limits
 
-- [#69](https://github.com/rbeauchamp/lean-plumb/issues/69): a source `set_option linter.plumb
-  true` makes a live violation exit 3 under `lake lint` (fail-closed, tracked separately).
 - The human transcript names the file and declaration of a finding; exact ranges are in
   `--json-out` and the editor.
 - PL2001/PL2002 routing of escaped errors is by error-message prefix, and PL1007 contract
@@ -231,8 +229,6 @@ Review of the delivered product found and fixed:
 - Diagnostic help links target the moving `/dev/` route, so an adopter pinned at an older
   revision reads the latest deployed explanation there; the unchanged text of any published
   revision stays at `/rev/<commit>/rules/<ID>/`, and versioned `/v/` links await a release.
-- Native blocker [#43](https://github.com/rbeauchamp/lean-plumb/issues/43): its delivery (PR 64)
-  is merged, but the issue was still open when this qualification ran.
 - All nine residual obligations stay open; every accepted account lists them.
 
 ## Optional external checking

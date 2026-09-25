@@ -19,8 +19,29 @@ register_option plumb.localFoundation : String := {
   defValue := "classification-only"
   descr := "Local feedback request: classification-only, kernel-only, choice-free or standard-logical." }
 
+/-- Whether import-time options carry `auditBuildOption` set to true: typed by Lake's module
+setup and the audit's in-process frontend, or the unparsed string a `-D` argument leaves. -/
+private def auditMarked (opts : Options) : Bool :=
+  match opts.find? auditBuildOption with
+  | some (.ofBool true) | some (.ofString "true") => true
+  | _ => false
+
+/-- The audit-build bit of the module being elaborated, fixed from its import-time options
+(`ImportM`), which Lean takes from the command line or Lake's module setup before any source
+command. No entry type exists, so nothing after import changes it; being unregistered, the
+option never enters a command scope. -/
+private initialize auditBuild : PersistentEnvExtension Unit Empty Bool ←
+  registerPersistentEnvExtension {
+    mkInitial := pure false
+    addImportedFn := fun _ => return auditMarked (← read).opts
+    addEntryFn := fun state entry => nomatch entry
+    exportEntriesFn := fun _ => #[] }
+
+/-- The only gate of Plumb's local findings (`checkedLiveFeedback`): in an audit build it is
+off for every command scope (`liveFeedback_auditBuild`). -/
 private def enabled : CommandElabM Bool := do
-  return Lean.Linter.getLinterValue linter.plumb (← Lean.Linter.getLinterOptions)
+  return liveFeedback (auditBuild.getState (← getEnv))
+    (Lean.Linter.getLinterValue linter.plumb (← Lean.Linter.getLinterOptions))
 
 /-- Lean's own error-description widget (a builtin widget module), pointed at the rule's
 registry help URL: an interactive infoview link with no project JavaScript. Its text

@@ -105,8 +105,8 @@ private def leanAdopter (repo adopter : FilePath) : IO (Array String) := do
   return failures
 
 /-- `lakefile.toml` adopter importing `Plumb.Linter`: disabling live feedback cannot waive
-the project predicate, and a live finding, also replayed from an ordinary `lake build`
-with live feedback, is the audit's violation rather than a failed build. -/
+the project predicate, and a live finding, also re-enabled by the source or replayed from an
+ordinary `lake build` with live feedback, is the audit's violation rather than a failed build. -/
 private def tomlAdopter (repo adopter : FilePath) : IO (Array String) := do
   BuildLintQualification.setup repo adopter "lake-lint-toml" #["Gadget.lean", "Gadget/Double.lean"]
     "lakefile.toml"
@@ -123,6 +123,13 @@ private def tomlAdopter (repo adopter : FilePath) : IO (Array String) := do
   failures := failures ++ (← expect adopter {
       label := "toml/editor-opt-out", exitCode := 1,
       contains := #["PL1001", "optedOut", "plumb lint: VIOLATION (exit 1)"] })
+  restore adopter originals
+  -- A source re-enable cannot bring live feedback back into the audit build (#69).
+  mutate double "end Gadget" "set_option linter.plumb true\naxiom reenabled : True\nend Gadget"
+  failures := failures ++ (← expect adopter {
+      label := "toml/source-reenabled", exitCode := 1,
+      contains := #["PL1001", "reenabled", "plumb lint: VIOLATION (exit 1)"],
+      excludes := #["build-failed", "editorSnapshot"] })
   restore adopter originals
   mutate double "end Gadget" "axiom liveFinding : True\nend Gadget"
   let ordinary ← runProcess adopter "lake" #["build"] scrubbedLeanPathEnv

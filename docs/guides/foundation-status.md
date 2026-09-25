@@ -606,7 +606,9 @@ This section closes the F01–F12 inventory. It was reconciled on main `3cc121d`
 Mathlib `5ed29652` and, for the documentation prototype, Verso `cad4b633`, all unchanged since
 the #38 baseline. The foundation deliveries are #38 (PR #44), #7 (PR #33 with #45–#49), #39
 (PR #50), #40 (PR #53), #41 (PR #56) and #42 (PR #59). All six predecessor issues are closed;
-#42 closed on 2026-09-23 after PR #59 merged.
+#42 closed on 2026-09-23 after PR #59 merged. This closure was delivered by
+[PR #64](https://github.com/rbeauchamp/lean-plumb/pull/64); #43 closed on 2026-09-24 after
+reconciliation against its acceptance criteria.
 
 Each row was read against its actual definitions, statements, hypotheses and call sites. No
 selected obligation is missing: every selected relation has a definition, a theorem about the

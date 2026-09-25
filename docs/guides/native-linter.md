@@ -29,7 +29,11 @@ the finding to an invented declaration.
 
 `linter.plumb` defaults to true. It follows Lean's `linter.all` option
 semantics; an explicit per-linter setting takes precedence. Disabling local
-feedback cannot disable a mandatory project predicate. The optional string
+feedback cannot disable a mandatory project predicate, and enabling it cannot reach a project
+audit's own build: `lake lint`'s claimed build and the audit's fresh elaboration pass the
+unregistered command-line marker `weak.plumb.auditBuild`, which the linter reads only from a
+module's import-time options and under which it emits nothing, whatever a command scope sets
+`linter.plumb` to (`PlumbCore.EditorPolicy.liveFeedback_auditBuild`). The optional string
 `plumb.localFoundation` accepts `classification-only` (default),
 `kernel-only`, `choice-free` or `standard-logical`. It requests local foundation
 feedback, not a Lake surface claim. An unsupported request is a local configuration
