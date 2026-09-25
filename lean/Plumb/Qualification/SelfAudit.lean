@@ -35,6 +35,8 @@ def claim : String := "operational"
 structure ModuleObservation where
   «module» : Name
   declarations : Array PlumbPolicy.Declaration
+  /-- Owned declarations of this module that kernel replay admitted. -/
+  admitted : Nat
   /-- Axioms reached from this module that a toolchain `Lake` module declares. -/
   toolchain : Array Name
   moduleDocumented : Bool
@@ -53,8 +55,10 @@ private unsafe def observe (toolchainLib : FilePath) (moduleName : Name) :
   Lean.enableInitializersExecution
   let env ← importModules #[{ module := moduleName, importAll := true }] {} 0
     (loadExts := true) (level := .private)
-  if let .error failure ← Checker.Admission.validate env #[moduleName] then
-    return .error failure.detail
+  let receipt ← match ← Checker.Admission.validate env #[moduleName] with
+    | .ok receipt => pure receipt
+    | .error failure => return .error failure.detail
+  let admitted := (receipt.admitted.filter (·.1 == moduleName)).size
   let own := Plumb.Probe.ownedConstants env [moduleName]
   let ctx : Elab.Command.Context := {
     fileName := "<operational-self-audit>", fileMap := FileMap.ofString "",
@@ -81,7 +85,7 @@ private unsafe def observe (toolchainLib : FilePath) (moduleName : Name) :
   for (name, _) in own do
     if Linter.Documentation.selected env name then
       material := material.push (name, ← Linter.Documentation.declarationFailure env name)
-  return .ok { «module» := moduleName, declarations, toolchain, moduleDocumented, material }
+  return .ok { «module» := moduleName, declarations, admitted, toolchain, moduleDocumented, material }
 
 /-- Text of one violation finding at the declaration's module. -/
 private def declarationText (id : RuleId) (name : Name) (detail : String) (moduleName : Name) :
@@ -94,6 +98,7 @@ private def declarationText (id : RuleId) (name : Name) (detail : String) (modul
 structure ModuleResult where
   «module» : String
   declarations : Nat
+  admitted : Nat
   contracts : Nat
   violations : Array String
   unsafeDeclarations : Array String
@@ -137,7 +142,7 @@ private def decide (o : ModuleObservation) : Except String ModuleResult := do
       let detail := (descriptor id).applicability ++
         (if extra.isEmpty then "" else s!" (axioms outside Standard-Logical: {extra.toList})")
       violations := violations.push (← declarationText id d.name detail o.module)
-  return ⟨o.module.toString, o.declarations.size, contracts, violations, unsafeDeclarations,
+  return ⟨o.module.toString, o.declarations.size, o.admitted, contracts, violations, unsafeDeclarations,
     partialDefinitions,
     toolchain.names.map toString, dependents⟩
 
@@ -177,11 +182,12 @@ def check (jobs : Nat := 4) : IO Unit := do
   for line in violations do IO.println line
   for line in incomplete do IO.println s!"INCOMPLETE {line}"
   let declarations := results.foldl (· + ·.declarations) 0
+  let admitted := results.foldl (· + ·.admitted) 0
   let contracts := results.foldl (· + ·.contracts) 0
   let unsafeDeclarations := union (·.unsafeDeclarations)
   let partialDefinitions := union (·.partialDefinitions)
   let dependents := union (·.toolchainDependents)
-  IO.println s!"operational self-audit of library {library}: {results.size}/{info.modules.size} module(s), {declarations} declaration(s) kernel-admitted and inspected, {contracts} executable contract registration(s)"
+  IO.println s!"operational self-audit of library {library}: {results.size}/{info.modules.size} module(s), {declarations} declaration(s) inspected, {admitted} (every one neither unsafe nor partial) kernel-admitted, {contracts} executable contract registration(s)"
   IO.println s!"reported, not failed: {unsafeDeclarations.size} unsafe declaration(s): {unsafeDeclarations.toList}"
   IO.println s!"reported, not failed: {partialDefinitions.size} partial definition(s): {partialDefinitions.toList}"
   IO.println s!"reported, not failed: {dependents.size} definition(s) reach toolchain Lake axiom(s) {(union (·.toolchainAxioms)).toList}: {dependents.toList}"

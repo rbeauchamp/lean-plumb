@@ -1,28 +1,28 @@
 {"response":
- {"usage": {"output_tokens": 127, "input_tokens": 2583},
+ {"usage": {"output_tokens": 127, "input_tokens": 2352},
   "model": "jev-1.13.0",
   "answers":
-  {"totalization": {"type": "noul", "noul": 0.64},
+  {"totalization": {"type": "noul", "noul": 0.68},
    "strength":
    {"type": "choice",
     "probabilities":
-    {"weaker": 0.36,
+    {"weaker": 0.19,
      "stronger": 0.42,
-     "incomparable": 0.15,
-     "equivalent": 0.07},
-    "confidence": 0.23,
+     "incomparable": 0.03,
+     "equivalent": 0.36},
+    "confidence": 0.21,
     "choice": "stronger"},
-   "quantifier_order": {"type": "noul", "noul": 0.73},
-   "exclusions": {"type": "noul", "noul": 0.71},
-   "coverage_0": {"type": "noul", "noul": 0.54}}},
+   "quantifier_order": {"type": "noul", "noul": 0.82},
+   "exclusions": {"type": "noul", "noul": 0.84},
+   "coverage_0": {"type": "noul", "noul": 0.42}}},
  "request":
  {"state":
   {"statement":
-   "structure Claim : Prop where\n  admission : ∀ (capacity : ℕ),\n  AuditApp.admit capacity = if 0 < capacity then some { capacity := capacity, inUse := 0, bounded := ⋯ } else none\n  grant_success : ∀ {l l' : AuditApp.Limiter}, AuditApp.grant l = some l' → l'.capacity = l.capacity ∧ l'.inUse = l.inUse + 1\n  grant_refusal : ∀ {l : AuditApp.Limiter}, AuditApp.grant l = none ↔ l.inUse = l.capacity\n  release_busy : ∀ {l : AuditApp.Limiter}, 0 < l.inUse → (AuditApp.release l).inUse = l.inUse - 1\n  release_idle : ∀ {l : AuditApp.Limiter}, l.inUse = 0 → AuditApp.release l = l\n  reset_empty : ∀ (l : AuditApp.Limiter), (AuditApp.reset l).inUse = 0\n  reset_frame : ∀ (l : AuditApp.Limiter), (AuditApp.reset l).capacity = l.capacity\n  dispatch : ∀ (l : AuditApp.Limiter) (op : AuditApp.Op),\n  AuditApp.step l op =\n    match op with\n    | AuditApp.Op.grant => (AuditApp.grant l).getD l\n    | AuditApp.Op.release => AuditApp.release l\n    | AuditApp.Op.reset => AuditApp.reset l\n  composition : ∀ (ops : List AuditApp.Op) (l : AuditApp.Limiter), AuditApp.run ops l = List.foldl AuditApp.step l ops\n  capacity_frame : ∀ (l : AuditApp.Limiter) (op : AuditApp.Op), (AuditApp.step l op).capacity = l.capacity\n  run_frame : ∀ (l : AuditApp.Limiter) (ops : List AuditApp.Op), (AuditApp.run ops l).capacity = l.capacity\n  input_meaning : ∀ (args : List String),\n  AuditApp.requestedCapacity args =\n    match args with\n    | [] => 2\n    | arg :: tail => arg.toNat?.getD 2\n  checked_step : ∀ (op : AuditApp.Op) (l : AuditApp.Limiter),\n  AuditApp.checkedStep op l =\n    if op = AuditApp.Op.grant ∧ l.inUse = l.capacity then (Except.error (), l) else (Except.ok (), AuditApp.step l op)\n  checked_success : ∀ (ops : List AuditApp.Op) (l final : AuditApp.Limiter),\n  AuditApp.runChecked ops l = (Except.ok (), final) ↔ AuditApp.Fits ops l ∧ final = AuditApp.run ops l\n  checked_error : ∀ (ops : List AuditApp.Op) (l final : AuditApp.Limiter),\n  AuditApp.runChecked ops l = (Except.error (), final) ↔\n    ∃ before after,\n      ops = before ++ AuditApp.Op.grant :: after ∧\n        AuditApp.Fits before l ∧ final = AuditApp.run before l ∧ final.inUse = final.capacity\n  checked_composition : ∀ (xs ys : List AuditApp.Op) (l : AuditApp.Limiter),\n  AuditApp.runChecked (xs ++ ys) l =\n    match AuditApp.runChecked xs l with\n    | (Except.error e, s) => (Except.error e, s)\n    | (Except.ok a, s) => AuditApp.runChecked ys s\n  checked_frame : ∀ (ops : List AuditApp.Op) (l : AuditApp.Limiter), (AuditApp.runChecked ops l).2.capacity = l.capacity\n  burst : ∀ (l : AuditApp.Limiter) (n : ℕ),\n  l.inUse + n ≤ l.capacity → (AuditApp.run (List.replicate n AuditApp.Op.grant) l).inUse = l.inUse + n",
+   "AuditApp.RequiredContracts\n\nwhere\n\nstructure AuditApp.RequiredContracts : Prop where\n  admission : ∀ (capacity : ℕ),\n    AuditApp.admit capacity = if 0 < capacity then some { capacity := capacity, inUse := 0, bounded := ⋯ } else none\n  grant_success : ∀ {l l' : AuditApp.Limiter},\n    AuditApp.grant l = some l' → l'.capacity = l.capacity ∧ l'.inUse = l.inUse + 1\n  grant_refusal : ∀ {l : AuditApp.Limiter}, AuditApp.grant l = none ↔ l.inUse = l.capacity\n  release_busy : ∀ {l : AuditApp.Limiter}, 0 < l.inUse → (AuditApp.release l).inUse = l.inUse - 1\n  release_idle : ∀ {l : AuditApp.Limiter}, l.inUse = 0 → AuditApp.release l = l\n  reset_empty : ∀ (l : AuditApp.Limiter), (AuditApp.reset l).inUse = 0\n  reset_frame : ∀ (l : AuditApp.Limiter), (AuditApp.reset l).capacity = l.capacity\n  dispatch : ∀ (l : AuditApp.Limiter) (op : AuditApp.Op),\n    AuditApp.step l op =\n      match op with\n      | AuditApp.Op.grant => (AuditApp.grant l).getD l\n      | AuditApp.Op.release => AuditApp.release l\n      | AuditApp.Op.reset => AuditApp.reset l\n  composition : ∀ (ops : List AuditApp.Op) (l : AuditApp.Limiter), AuditApp.run ops l = List.foldl AuditApp.step l ops\n  capacity_frame : ∀ (l : AuditApp.Limiter) (op : AuditApp.Op), (AuditApp.step l op).capacity = l.capacity\n  run_frame : ∀ (l : AuditApp.Limiter) (ops : List AuditApp.Op), (AuditApp.run ops l).capacity = l.capacity\n  input_meaning : ∀ (args : List String),\n    AuditApp.requestedCapacity args =\n      match args with\n      | [] => 2\n      | arg :: tail => arg.toNat?.getD 2\n  checked_step : ∀ (op : AuditApp.Op) (l : AuditApp.Limiter),\n    AuditApp.checkedStep op l =\n      if op = AuditApp.Op.grant ∧ l.inUse = l.capacity then (Except.error (), l) else (Except.ok (), AuditApp.step l op)\n  checked_success : ∀ (ops : List AuditApp.Op) (l final : AuditApp.Limiter),\n    AuditApp.runChecked ops l = (Except.ok (), final) ↔ AuditApp.Fits ops l ∧ final = AuditApp.run ops l\n  checked_error : ∀ (ops : List AuditApp.Op) (l final : AuditApp.Limiter),\n    AuditApp.runChecked ops l = (Except.error (), final) ↔\n      ∃ before after,\n        ops = before ++ AuditApp.Op.grant :: after ∧\n          AuditApp.Fits before l ∧ final = AuditApp.run before l ∧ final.inUse = final.capacity\n  checked_composition : ∀ (xs ys : List AuditApp.Op) (l : AuditApp.Limiter),\n    AuditApp.runChecked (xs ++ ys) l =\n      match AuditApp.runChecked xs l with\n      | (Except.error e, s) => (Except.error e, s)\n      | (Except.ok a, s) => AuditApp.runChecked ys s\n  checked_frame : ∀ (ops : List AuditApp.Op) (l : AuditApp.Limiter), (AuditApp.runChecked ops l).2.capacity = l.capacity\n  burst : ∀ (l : AuditApp.Limiter) (n : ℕ),\n    l.inUse + n ≤ l.capacity → (AuditApp.run (List.replicate n AuditApp.Op.grant) l).inUse = l.inUse + n",
    "intent":
-   ["A slot limiter must never hand out more slots than the capacity it was created with. Creation must refuse a zero capacity and start idle; a grant must take exactly one free slot or be refused only when none is free; a release must free one slot when any is in use; a reset must free every slot; no operation may change the capacity. A script must apply its operations in order, and the strict runner must stop at the first refused grant, keeping exactly the state reached before it. The command-line capacity is the first argument read as a natural number, defaulting to 2. Timing, fairness and the IO shell are deliberately out of scope."],
+   ["Every required behavior of the limiter must be proved about the exact definitions the application executes."],
    "explanation":
-   "Explicit required propositions for the actual application definitions. These\nfields specify admission, each update, dispatch, and composition; their adequacy\nis reviewed against the application's intended behavior. The state's bound is\nalready enforced by `Limiter`, so it needs no duplicate field theorem."},
+   "Evidence required by the application entrypoint. Deleting or weakening an\nassigned proof cannot inhabit its unchanged field proposition. Equivalent\nproofs are welcome; neither theorem names nor declaration counts are the rule."},
   "questions":
   {"totalization":
    {"type": "noul",
@@ -92,7 +92,7 @@
      "intent":
      "`clause` is one clause of `intent`; read it in the context of the other clauses, so a word such as \"this\" refers to what they say.",
      "clause":
-     "A slot limiter must never hand out more slots than the capacity it was created with. Creation must refuse a zero capacity and start idle; a grant must take exactly one free slot or be refused only when none is free; a release must free one slot when any is in use; a reset must free every slot; no operation may change the capacity. A script must apply its operations in order, and the strict runner must stop at the first refused grant, keeping exactly the state reached before it. The command-line capacity is the first argument read as a natural number, defaulting to 2. Timing, fairness and the IO shell are deliberately out of scope.",
+     "Every required behavior of the limiter must be proved about the exact definitions the application executes.",
      "claim":
      "The formal claim is the Lean proposition `statement`; `explanation` describes it in English. Where they differ, the Lean proposition is the claim."},
     "criteria":

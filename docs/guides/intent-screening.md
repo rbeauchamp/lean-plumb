@@ -289,7 +289,10 @@ described under [Judgments](#judgments); the same answer is now p = 0.71. With t
 visible, `requiredContracts` exposed a mismatch. Its Intent said the application "may run only
 when" the evidence exists, but that is a property of `executeChecked`'s signature, stated by
 `checkedExecutable`, not of this theorem. The Intent now states what the theorem establishes,
-and its strength answer rose from 0.32 to 0.81.
+and its strength answer rose from 0.32 to 0.81. A later fix indented the continuation lines of a
+wrapped field type, so the rendered structure reads as its Lean declaration. That changed both
+requests: `RequiredContracts` now has exclusions 0.71, coverage 0.44 and strength 0.43, and
+`requiredContracts` has strength 0.78 and coverage 0.42.
 
 The remaining answers below 0.5 are all for judgments without calibrated thresholds, so they
 raise no finding and escalate to review:
@@ -299,11 +302,14 @@ raise no finding and escalate to review:
   admitted limiter idle at that capacity and runs the strict interpreter.
 - `demo_checked_error`: coverage 0.41. The statement is exact for the fixed demonstration
   script at capacity 2. The model sees `demoScript` and `demoInitial` only by name.
-- `requiredContracts`: coverage 0.41. Its statement is the fully rendered `RequiredContracts`
+- `RequiredContracts`: coverage 0.44, strength 0.43. Its statement is the structure's field
+  propositions, which the model judges together against a many-sentence Intent.
+- `requiredContracts`: coverage 0.42. Its statement is the fully rendered `RequiredContracts`
   bundle.
 
-Spend: three runs sent 8 requests and were billed 14,107 input tokens, about $0.0006 at the
-list price. The last run sent 1 request; the other 5 answers came from the cache.
+Spend: four runs sent 10 requests and were billed 19,043 input tokens, about $0.0008 at the
+list price. The last run sent 2 requests and was billed 4,936 input tokens; the other 4 answers
+came from the cache.
 
 ## Calibration protocol
 

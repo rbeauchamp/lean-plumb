@@ -78,11 +78,11 @@ def structureFields? (name : Name) (header : String) : MetaM (Option String) := 
   let [ctor] := i.ctors | return none
   let some (.ctorInfo c) := (← getEnv).find? ctor | return none
   forallTelescope c.type fun fields _ => do
-    let mut lines := #[s!"structure {header} : Prop where"]
+    let mut body : Format := .nil
     for field in fields do
       let decl ← field.fvarId!.getDecl
-      lines := lines.push s!"  {decl.userName} : {← ppExpr decl.type}"
-    return some ("\n".intercalate lines.toList)
+      body := body ++ .line ++ f!"{decl.userName} : {← ppExpr decl.type}"
+    return some (toString (f!"structure {header} : Prop where" ++ .nest 2 body))
 
 /-- The statement text sent for judgment: `statementExpr` pretty-printed, except that a
 statement which is a parameterless `Prop`-valued structure also carries that structure's field
