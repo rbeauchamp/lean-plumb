@@ -60,17 +60,17 @@ names are the required-stage slots of `PlumbPolicy.Stage` whose observation the 
 | PL1001 | §8.5; FOUND-01 | D (`projectAxiom`); `Findings.declarationFinding` | editor, incremental, fresh, file, docs | declarationPolicy | D | corpus; native, lint-driver, build-policy, fixture controls | Native teaching axioms are PL1004 | Lean `ConstantInfo` |
 | PL1002 | §8.5; FOUND-02 | D (`sorryAx` in axioms) | editor, incremental, fresh, file, docs | declarationPolicy | D | corpus (diagnostic inspection that keeps Lean's warning); native, fixture controls | Lean's `sorry` warning makes project and claimed-file audits stop at PL2003 first | Lean `collectAxioms` |
 | PL1003 | §8.5; FOUND-03 | D (axiom outside the standard and compiler sets) | editor, incremental, fresh, file, docs | declarationPolicy | D | corpus (project, vendored dependency); native, fixture controls | Imported axioms are not exempt | Lean `collectAxioms` |
-| PL1004 | §8.5; FOUND-05 | D (compiler-trusting or native-role axiom on a conforming claim) | editor, incremental, fresh, file, docs | declarationPolicy, transcript, origin | D; role sets from `authorize` | corpus; native, fixture controls | Editor defers role authentication (PL2005) | Lean frontend transcripts |
+| PL1004 | §8.5; FOUND-05 | D (compiler-trusting or native-role axiom on a conforming claim) | editor, incremental, fresh, file, docs | declarationPolicy, transcript | D; role sets from `authorize` | corpus; native, fixture controls | Editor defers role authentication (PL2005) | Lean frontend transcripts |
 | PL1005 | §8.5, §4.5; FOUND-03/04 | D (`ProfileOK` fails) | editor (with `plumb.localFoundation`), incremental, fresh, file | declarationPolicy | D | corpus plus wrong-claim refusal control; native, build-policy controls | Documentation fences use Standard-Logical or teaching requests, under neither of which it can fire | Lean `collectAxioms` |
-| PL1006 | §8.4; COMP-02 | D (unsafe or partial, not an authenticated helper) | editor, incremental, fresh, file, docs | declarationPolicy, transcript, origin | D; `authorizedUnsafeRecHelpers_iff` | corpus; native, fixture controls | Editor defers helper authentication (PL2005) | Lean frontend transcripts |
+| PL1006 | §8.4; COMP-02 | D (unsafe or partial, not an authenticated helper) | editor, incremental, fresh, file, docs | declarationPolicy, transcript | D; `authorizedUnsafeRecHelpers_iff` | corpus; native, fixture controls | Editor defers helper authentication (PL2005) | Lean frontend transcripts |
 | PL1007 | §8.12, §8.5; BUILD-03, THEOREM-07 | D (contract observation has a failure) | editor, incremental, fresh, file, docs | declarationPolicy | D over the observation; `Collect.executableContract?` is operational | corpus; native, build-policy controls | Adequacy of `R` and caller linkage are R-INTENT, R-INVARIANT | Lean type checker |
 | PL2001 | §8.1; DECL-01/04 | Setup failures and every escaped audit error not prefixed `manifest-` (`AxiomGate` catch-all) | incremental, fresh, file | setup, before any stage | None: classification by error prefix, fail-closed | corpus demonstration (INCOMPLETE by design) | Always INCOMPLETE; `docFenceAudit` setup failures print FAIL without a finding | Lake workspace loader |
 | PL2002 | §8.2; DECL-04 | `Manifest.parse`/`load`, `checkClassification`; editor `Rules.request` | editor, incremental, fresh, file | configuration | `Manifest.parse_sound`, `parseValue_complete` (excluded library, kernel-checked); `checkedEditorRequest` | corpus; structural, build-policy, lint-driver (exit 2), native controls | Routing by `manifest-` prefix is unproved; editor never guesses scope | Lake elaborated package model |
 | PL2003 | §8.3; DECL-01, BUILD-01 | `Lake.buildChecked` result lines; file compile via `SourceAudit` | incremental, fresh, file | build | Acceptance side only (`BuildOK`) | corpus; build-policy, lint-driver (exit 3), `sourceDiagnosticFailure` controls | Project runs: always INCOMPLETE. File runs reject warnings only with `--claim` | Lake build |
 | PL2004 | §8.2; DECL-02/03 | Inline inventory checks in `AxiomGate` | incremental, fresh | discovery | Acceptance side only (`ScopeOK`, `checkedSurfaceAssignments`) | corpus; structural, environments controls | Violation for `unexpected-project-module`; INCOMPLETE for omission, not-fresh, attribution mismatch | Lake module arrays, `.olean` origin |
-| PL2005 | §8.3; DECL-01/02 | `Admission.validate`, source freshness, authentication; editor pending | editor, incremental, fresh, file, docs | admission, transcript, origin | Acceptance side (`AdmissionOK`); `editor_decision_pending` | corpus demonstration; fixture, history controls | Always INCOMPLETE; imported base trusted | Lean `Environment.replay` |
+| PL2005 | §8.3; DECL-01/02 | `Admission.validate`, source freshness, authentication; editor pending | editor, incremental, fresh, file, docs | admission, transcript | Acceptance side (`AdmissionOK`); `editor_decision_pending` | corpus demonstration; fixture, history controls | Always INCOMPLETE; imported base trusted | Lean `Environment.replay` |
 | PL3001 | §8.6; COMP-03 | `executionFailureRecords` → `RuleDiagnostics.executionFinding` | incremental, fresh, file | execution, history | `executionFailureRecords_empty_iff`, `checkedExecutionFailures`, `executionRule_injective` | corpus demonstration; policy-domain controls | Always INCOMPLETE; closure overapproximates runtime edges; not an editor rule | Lean compiler IR |
-| PL3002 | §8.6; COMP-03/04 | Same, checked-mode branch | incremental, fresh, file | execution | Same; `BoundaryOK` | corpus; fixture, build-policy controls | Native runtime stays trusted; external code unproved | Lean compiler IR |
+| PL3002 | §8.6; COMP-03/04 | Same, checked-mode branch | incremental, fresh, file | execution, origin (Init native-runtime exemption) | Same; `BoundaryOK` | corpus; fixture, build-policy controls | Native runtime stays trusted; external code unproved | Lean compiler IR |
 | PL4001 | §8.7; DOC-03 | `Documentation.scan` | docs | documentScan | Acceptance side (`DocumentOK`); scanner unproved | corpus; fence corpus controls | Structure only | — |
 | PL4002 | §8.7; DOC-04 | `assessPositive` (D plus warning check) | docs | example | D; `ExampleExpectationOK`; `incomplete_example_refused` | corpus; fence corpus controls | Standard-Logical only | Lean elaborator |
 | PL4003 | §8.7; DOC-05 | `auditNegative` with `matchesPattern` | docs | example | `matchesPattern_iff` on the executed matcher | corpus; fence corpus controls | Worker non-completion is INCOMPLETE | — |
@@ -120,7 +120,7 @@ the rule's message form.
 | Build-lint `policy` target | Sole default target runs `axiomGate --build-lint` | Incremental audit; failure fails `lake build` | build-policy campaign |
 | `lake exe axiomGate` | Fresh project audit (default), `--incremental`, `--file F [--claim P]`, `--with-docs` | Accepted account and exit status | Ordinary acceptance dogfoods it on six claimed libraries |
 | `docFenceAudit`, `./scripts/verify.sh docs` | Every Lean fence under `docs/` | `documentationExample` | Acceptance step 2 |
-| Workers | `axiomGate` inspection and fence diagnostic workers, with indexed result admission (`checkedIndexedResults`) | A crashed, timed-out or incomplete worker is INCOMPLETE, never a pass | Proved admission; fixtures and fence-corpus controls (abnormal termination) |
+| Workers | `axiomGate` inspection and fence diagnostic workers, with indexed result admission (`checkedIndexedResults`) | A crashed, abnormally terminated or incomplete worker is INCOMPLETE, never a pass | Proved admission; fixtures and fence-corpus controls (abnormal termination) |
 | `freshChecker` | Optional serialized-graph recheck (§8.9) | Emits no rule findings | Optional MUT-05 claim; not part of product acceptance |
 | Direct `lean`, `lake build <other target>`, `lake lint --builtin-only`, TOML `lake build` | Nothing of Plumb's project audit | Not enforcement | Documented as such everywhere |
 
@@ -129,9 +129,9 @@ Incremental and cached paths re-evaluate current policy on every run: the driver
 (lint-driver repeated cached violation and build-policy cached-failure and
 configuration-change controls). Local
 options (`linter.plumb`, `plumb.localFoundation`, `warningAsError`) change only local feedback;
-the project audit still rejects. A cancelled or failed editor collection reports nothing or
-PL2005 for that declaration, never an invented rule or a PASS (observed in the
-[#14 journeys](../../session/evidence/issue-14-editor-journeys.md#stale-and-cancelled-snapshots)). Unknown rules cannot occur: the
+the project audit still rejects. A cancelled editor collection reports nothing for that declaration (observed in the
+[#14 journeys](../../session/evidence/issue-14-editor-journeys.md#stale-and-cancelled-snapshots)),
+and a failed one reports PL2005 (`Plumb.Linter` `unavailable`), never an invented rule or a PASS. Unknown rules cannot occur: the
 registry is closed, and codecs refuse unknown IDs, fields and modes.
 
 ## Adopter journeys
@@ -179,8 +179,9 @@ These are bounded observations of real runs, not theorems about the tools.
   404) without redirecting; search finds rules; keyboard traversal reaches the table of contents
   and rule index with visible focus; the index lists 21 rules. At 390 px every rule page scrolled
   horizontally because the attribution's commit hash did not wrap; #10 adds wrapping for inline code and
-  links; its local build of this change showed no horizontal scroll on any rule page at 390 px
-  (the credits page's long URL, also present on the live site, is covered by the link rule).
+  links; its local build of this change showed no horizontal scroll at 390 px on any
+  rule page or on the index, versions and credits pages (the credits page's long plain-text URL,
+  also present on the live site, is covered by paragraph wrapping).
 - **Hosting**: GitHub Pages project site from GitHub Actions, no custom domain, no release, no
   paid hosting. The site lags `main` while checks run; each page names its commit. Operator
   settings not configured: `site` and the corpus shards are not required status checks, and
@@ -204,7 +205,7 @@ Review of the delivered product found and fixed:
 - Credits: the adapted Lean JSON parser (Apache 2.0) now has its verbatim notice, the Apache
   text in `LICENSES/`, and a credits entry; Verso's license is linked; the CDN-loaded marked
   library, Batteries and the vscode-lean4 infoview are credited; no endorsement is implied.
-- Narrow-screen layout: long inline code and link text now wrap.
+- Narrow-screen layout: long inline code, links and paragraph text now wrap.
 - A theorem (`documentationPresence_modes`) now fixes the documentation-presence rules' modes to
   the stage structure at build time.
 - Stale documentation: two-command acceptance, twenty-one rules, delivered integration, the

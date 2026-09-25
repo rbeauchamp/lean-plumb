@@ -20,7 +20,7 @@ def css : String := r#"
 .plumb-scroll { overflow-x: auto; max-width: 100%; }
 .plumb-scroll:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
 main :not(pre) > code { overflow-wrap: anywhere; }
-main a { overflow-wrap: anywhere; }
+main :is(p, li, a) { overflow-wrap: break-word; }
 table.plumb-facts, table.plumb-rules { border-collapse: collapse; width: 100%; margin: 1rem 0; }
 .plumb-index, .plumb-example, table.plumb-facts, table.plumb-rules, figure.plumb-file figcaption, .plumb-filters, .plumb-filters input { font-family: var(--verso-text-font-family); }
 .plumb-finding pre.plumb-code { white-space: pre-wrap; overflow-wrap: anywhere; }

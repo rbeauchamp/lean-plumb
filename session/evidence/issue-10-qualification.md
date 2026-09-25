@@ -80,6 +80,44 @@ protocol with trusted input events.
   anywhere; }` into the live PL5003 page reduced the width to 390 px. The index and home pages
   did not overflow.
 
+## Additional route observations (base `a52bf1f`, fresh adopter)
+
+- `lake lint -- --help`: exit 2, usage text; no audit.
+- `lake exe lint`: exit 0, `plumb lint: PASS — incremental project acceptance over existing build
+  state, not a fresh-source audit` (10.6 s).
+
 ## Commands and results for the #10 change
 
-Recorded after the runs on the committed change; see below.
+All commands ran locally, sequentially, each under its own hard 420-second limit, after
+deleting `.lake/build/lib/lean/Plumb/Checker/Producer.*` so the embedded revision matched.
+
+| Command | `2cd2ffd` (initial change) | `1ee3e71` (review repairs) |
+| --- | --- | --- |
+| `./scripts/verify.sh` | PASS 140 s | PASS 138 s |
+| `./scripts/verify.sh docs` | PASS 79 s | PASS 78 s |
+| `./scripts/verify.sh diagnostics rule-examples 1/2` | PASS 79 s | PASS 75 s |
+| `./scripts/verify.sh diagnostics rule-examples 2/2` | PASS 59 s | PASS 60 s |
+| `./scripts/verify.sh site` | PASS 120 s | PASS 25 s |
+| `./scripts/verify.sh diagnostics lint-driver` | PASS 76 s | not rerun (driver, rendering and editor code unchanged since `2cd2ffd`) |
+| `./scripts/verify.sh diagnostics producers` | PASS 93 s | not rerun (same reason) |
+
+Ordinary acceptance at `2cd2ffd`: registry, registry-CLI (7 configuration failures) and native
+bridge (37 Lean source controls) qualification PASS; 6 claimed libraries, 1 claimed executable,
+58 owned modules, 8320 owned declarations; 11595 policy jobs accepted for `freshProject`; `axiom
+gate: PASS — fresh whole-project acceptance of the claimed Lake surfaces`. Documentation: 97
+jobs; 70 conforming positive, 23 compiler-rejection, 1 trusted teaching fence. Campaigns not
+listed (fixtures, structural, cli, environments, build-policy, history, serialized graph) were not
+run for this change; their earlier evidence stands for unchanged code and is not relabelled.
+
+Local site build of `1ee3e71` served at `/lean-plumb/` and viewed in headless Chrome: at
+390 × 844 no rule page overflowed horizontally; the credits page still did (574 px) because of a
+plain-text URL in Verso's bundled W3C license text, also present on the live site. Injecting the
+final rule `main :is(p, li, a) { overflow-wrap: break-word; }` reduced it to 390 px. At 1280 px the
+credits page showed the new Batteries, marked and no-endorsement text; PL2002's facts table showed
+the rule-specific strict-impact row, narrowed evidence modes and the derived message form
+`PL2002 [{impact}; {mode}; claim={claim}; {location}]: {subject}: {detail}`.
+
+### Final head
+
+The runs on the final change commit are listed here after they complete; the commit that adds
+this section changes only this evidence file.
