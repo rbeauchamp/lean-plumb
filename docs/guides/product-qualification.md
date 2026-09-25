@@ -229,8 +229,6 @@ Review of the delivered product found and fixed:
 - Diagnostic help links target the moving `/dev/` route, so an adopter pinned at an older
   revision reads the latest deployed explanation there; the unchanged text of any published
   revision stays at `/rev/<commit>/rules/<ID>/`, and versioned `/v/` links await a release.
-- Native blocker [#43](https://github.com/rbeauchamp/lean-plumb/issues/43): its delivery (PR 64)
-  is merged, but the issue was still open when this qualification ran.
 - All nine residual obligations stay open; every accepted account lists them.
 
 ## Optional external checking

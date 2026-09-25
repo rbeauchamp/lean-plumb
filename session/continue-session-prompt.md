@@ -4,8 +4,8 @@ Read `session/session-context.md` from your own verified worktree. Refresh curre
 
 The core Project 8 deliveries (#11–#15, #25) and the foundation work behind #43 are merged; issue
 #10's integrated qualification is recorded in
-[product qualification](../docs/guides/product-qualification.md). Check each issue's live state
-(#43 was still open when that record was made).
+[product qualification](../docs/guides/product-qualification.md). #43 is closed (reconciled
+against its acceptance criteria on 2026-09-24; delivery PR 64). Check each issue's live state.
 Optional #8 (con-leche export research) and conditional #9 (adapter) remain separate and do not
 gate core work. Separately tracked follow-ups keep their own issues.
 
