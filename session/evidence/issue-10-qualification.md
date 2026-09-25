@@ -119,5 +119,16 @@ the rule-specific strict-impact row, narrowed evidence modes and the derived mes
 
 ### Final head
 
-The runs on the final change commit are listed here after they complete; the commit that adds
-this section changes only this evidence file.
+Runs on `9a9d9bd` (the last commit changing anything other than this file), same procedure:
+
+| Command | Result |
+| --- | --- |
+| `./scripts/verify.sh` | PASS 142 s |
+| `./scripts/verify.sh docs` | PASS 82 s |
+| `./scripts/verify.sh diagnostics rule-examples 1/2` | PASS 77 s |
+| `./scripts/verify.sh diagnostics rule-examples 2/2` | PASS 61 s |
+| `./scripts/verify.sh site` | PASS 26 s |
+
+The site artifact names revision `9a9d9bd0d91cddd0b477ced597d9ca3699fec79e`; at 390 × 844 its
+credits page, rule index and PL5003 page no longer scroll horizontally. The commit adding this
+table changes only this evidence file; exact-head CI reruns acceptance, the shards and the site.
