@@ -1,6 +1,7 @@
 import Plumb.Report
 import Plumb.Diagnostic
 import PlumbCore.Coordinates
+import PlumbCore.EditorPolicy
 import Plumb.Checker.Common
 import Lean
 
@@ -284,9 +285,10 @@ private unsafe def newConstants (before after : Environment) : Array Name :=
 
 /-- Elaborate one exact source from a fresh frontend state and return the
 first-introduction transcript. Any diagnostic error or concurrent source
-change fails the call. Plumb's local feedback is always off here through the `weak.` form,
-as in the `lint` driver's claimed build (`Lake.auditLeanOptions`): a module whose imports do
-not register `linter.plumb` ignores it and elaborates exactly as without it. -/
+change fails the call. Plumb's local feedback is always off here through the audit-build
+marker, as in the `lint` driver's claimed build (`Lake.auditLeanOptions`), whatever the source
+sets `linter.plumb` to (`Plumb.Linter.liveFeedback_auditBuild`); the marker is unregistered and
+`weak.`, so every command scope elaborates exactly as without it. -/
 private unsafe def buildCore (moduleName : Name) (sourcePath : System.FilePath)
     (history : Bool := false) : IO Transcript := do
   unsafe Lean.enableInitializersExecution
@@ -300,7 +302,7 @@ private unsafe def buildCore (moduleName : Name) (sourcePath : System.FilePath)
   let attributeRefs := (← Lean.attributeMapRef.get).toArray.map (·.2.ref)
   let inputCtx := Parser.mkInputContext sourceBefore sourcePath.toString
   let ctx := { inputCtx with }
-  let opts := (Lean.Elab.async.set (warningAsError.set {} true) false).setBool `weak.linter.plumb false
+  let opts := (Lean.Elab.async.set (warningAsError.set {} true) false).setBool Plumb.Linter.auditBuildOption true
   let processor := Lean.Language.Lean.process
   let importsRef ← IO.mkRef (#[] : Array Import)
   let snap ← processor (fun stx => do

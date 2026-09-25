@@ -7,7 +7,7 @@ The core Project 8 deliveries (#11–#15, #25) and the foundation work behind #4
 [product qualification](../docs/guides/product-qualification.md). Check each issue's live state
 (#43 was still open when that record was made).
 Optional #8 (con-leche export research) and conditional #9 (adapter) remain separate and do not
-gate core work. Separately tracked follow-ups (for example #69) keep their own issues.
+gate core work. Separately tracked follow-ups keep their own issues.
 
 Acceptance is exactly `./scripts/verify.sh` then `./scripts/verify.sh docs`, each under its own
 hard 420-second deadline (AGENTS.md). Rule, explanation, example or site changes also need both

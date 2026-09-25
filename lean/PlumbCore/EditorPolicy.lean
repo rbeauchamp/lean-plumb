@@ -10,8 +10,11 @@ by the `plumb.localFoundation` option and the per-declaration outcome. Each is a
 with a closed `ExecutableContract` registration that the linter runs. `PlumbCore.Policy`
 relates both to the project checker's `request` and `ruleForMember` (`editor_request_sound`,
 `editor_decision_rule`): the editor's request domain is the project's without teaching, and a
-rendered rule is the project rule for the same member and request. Collection, snapshots and
-message emission stay in the operational linter. -/
+rendered rule is the project rule for the same member and request. `checkedLiveFeedback`
+registers the switch that gates every local finding: an audit build's import-time marker
+(`auditBuildOption`) turns it off whatever the source's `linter.plumb` value
+(`liveFeedback_auditBuild`). Collection, snapshots and message emission stay in the
+operational linter. -/
 
 namespace Plumb.Linter
 
@@ -107,5 +110,33 @@ def editorDecision (i : Inventory) (roles : Roles i) (d : Declaration)
 /-- `EditorDecisionContract` stated about `editorDecision` itself. -/
 theorem editorDecision_contract : EditorDecisionContract editorDecision :=
   checkedEditorDecision.evidence
+
+/-- Command-line Lean option marking a project audit's own build (`lake lint`'s claimed build
+and the audit's fresh frontend elaboration). It is never registered, so its `weak.` form is
+dropped from every command scope and no `set_option` can name it; the operational linter reads
+it only from a module's import-time options, which precede every source command. -/
+def auditBuildOption : Lean.Name := `weak.plumb.auditBuild
+
+/-- Required meaning of the live-feedback switch: a command's local findings are emitted
+exactly when the module is not an audit build and the command scope's `linter.plumb` value is
+on. -/
+def LiveFeedbackContract (live : Bool → Bool → Bool) : Prop :=
+  ∀ auditBuild scopeValue, live auditBuild scopeValue = true ↔
+    auditBuild = false ∧ scopeValue = true
+
+def liveFeedbackImpl (auditBuild scopeValue : Bool) : Bool := !auditBuild && scopeValue
+
+/-- Registers `LiveFeedbackContract` about the executed switch. -/
+theorem checkedLiveFeedback : Plumb.ExecutableContract liveFeedbackImpl LiveFeedbackContract :=
+  ⟨fun auditBuild scopeValue => by cases auditBuild <;> cases scopeValue <;> decide⟩
+
+/-- Whether a command emits local findings, through `checkedLiveFeedback`. -/
+def liveFeedback (auditBuild scopeValue : Bool) : Bool :=
+  checkedLiveFeedback.run auditBuild scopeValue
+
+/-- In an audit build no command scope's `linter.plumb` value, including a source
+`set_option linter.plumb true`, turns local feedback on. -/
+theorem liveFeedback_auditBuild (scopeValue : Bool) : liveFeedback true scopeValue = false :=
+  Bool.eq_false_iff.mpr fun h => nomatch ((checkedLiveFeedback.evidence true scopeValue).mp h).1
 
 end Plumb.Linter

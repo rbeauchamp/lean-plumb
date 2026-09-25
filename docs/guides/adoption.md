@@ -211,20 +211,21 @@ run complete for its plan that meets every stage policy); any disagreement is `I
 The success line is the account's `plumb lint: PASS — …` text, and it names the coverage: an
 incremental run reads "incremental project acceptance over existing build state, not a
 fresh-source audit"; only `--fresh` reads as fresh whole-project acceptance.
-`lake lint` builds the claimed targets with your package's `linter.plumb` off, so a live
-Plumb finding is not a build warning there: the audit's own policy stages report it, as a
-`VIOLATION`. Any other warning or build failure stops the audit before policy inspection
+`lake lint` builds the claimed targets with Plumb's audit-build marker
+(`weak.plumb.auditBuild`), which turns the local linter off whatever your sources set
+`linter.plumb` to, `set_option linter.plumb true` included, so a live Plumb finding is not a
+build warning there: the audit's own policy stages report it, as a `VIOLATION`. Any other warning or build failure stops the audit before policy inspection
 and is `INCOMPLETE`, with the original compiler message printed as evidence. That includes
 Lean's default `declaration uses 'sorry'` warning: an owned `sorry` is reported as PL2003, not
 PL1002 (with `set_option warn.sorry false` it reaches the PL1002 stage instead).
-The option is
+The marker is
 part of Lake's module trace, and Lake scopes it to the whole package rather than to the
-modules that import `Plumb.Linter` (elsewhere it changes nothing), so modules last built
+modules that import `Plumb.Linter` (elsewhere it changes nothing; no source command can name
+or change it), so modules last built
 with ordinary options (for example by `lake build` or the editor) are rebuilt for the
 audit, and their replayed logs never enter its warning check. `axiomGate` and the
 build-lint `policy` target keep ordinary options, so there a live finding stops the build
-check as `INCOMPLETE`. A source `set_option linter.plumb true` does the same under
-`lake lint` ([#69](https://github.com/rbeauchamp/lean-plumb/issues/69)). `--json-out` carries the same status and diagnostics for
+check as `INCOMPLETE`. `--json-out` carries the same status and diagnostics for
 machines. `--help` and `--explain-config` run no audit, establish nothing and exit 2, so
 putting either in `lintDriverArgs` cannot make `lake lint` succeed; neither accepts
 `--json-out` or `--verbose`.

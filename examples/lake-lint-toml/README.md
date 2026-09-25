@@ -23,10 +23,11 @@ To use it elsewhere, replace `path = "../.."` with the git form in the
 enforcement. Use `lake lint` locally and in CI.
 
 A live finding is a compiler warning in the editor and in a plain `lake build`. `lake lint`
-builds with `linter.plumb` off and reports the same rule as a policy violation
-(`VIOLATION`, exit 1), also after a plain `lake build` cached the module with the warning.
-Disabling live feedback with `set_option linter.plumb false` does not waive the project
-check: `lake lint` still reports the violation (exit 1).
-`lake exe checkerSelftest --build-bound --partition lint-driver` qualifies both behaviors.
+builds with live feedback off, whatever the source sets `linter.plumb` to, and reports the
+same rule as a policy violation (`VIOLATION`, exit 1), also after a plain `lake build` cached
+the module with the warning and when the source re-enables it with
+`set_option linter.plumb true`. Disabling live feedback with `set_option linter.plumb false`
+does not waive the project check: `lake lint` still reports the violation (exit 1).
+`lake exe checkerSelftest --build-bound --partition lint-driver` qualifies these behaviors.
 The editor journeys are recorded in
 [session/evidence/issue-14-editor-journeys.md](../../session/evidence/issue-14-editor-journeys.md).

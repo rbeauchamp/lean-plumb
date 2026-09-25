@@ -63,7 +63,7 @@ instance (g : Guide) : Decidable g.WellFormed := by
 
 /-- Shared statement: what Plumb's local linter options change in project runs. -/
 private def localOptions : String :=
-  "`set_option linter.plumb false` and `plumb.localFoundation` never waive it: `lake lint`, the build-lint `policy` target and `axiomGate` still apply the rule. Where Plumb's local linter reports a finding during a project build (`axiomGate` and the `policy` target keep it on by default; under `lake lint` a source `set_option linter.plumb true` turns it back on), that finding is a build warning, so the result is INCOMPLETE under PL2003 instead of carrying this rule's finding. Switching the local linter off changes which finding is reported, never whether the result is accepted. Hiding the diagnostic does not establish the property it checks."
+  "`set_option linter.plumb false` and `plumb.localFoundation` never waive it: `lake lint`, the build-lint `policy` target and `axiomGate` still apply the rule. Where Plumb's local linter reports a finding during a project build (`axiomGate` and the `policy` target keep it on by default; `lake lint` builds with it off, whatever the source sets `linter.plumb` to), that finding is a build warning, so the result is INCOMPLETE under PL2003 instead of carrying this rule's finding. Switching the local linter off changes which finding is reported, never whether the result is accepted. Hiding the diagnostic does not establish the property it checks."
 
 /-- Shared statement: local options never create a strict exception. -/
 private def noLocalException : String :=
@@ -363,7 +363,7 @@ def guide : RuleId → Guide
         "`warningAsError := false` in the source cannot hide a warning from the audit. Disabling a linter (for example `set_option linter.unusedVariables false`) can stop it from emitting, which makes this rule pass without discharging the property the linter checks; do not do it.",
         projectCommands]
       limitations := [
-        "`lake lint` builds with `linter.plumb` weakly off, so Plumb's own local findings are not build warnings there and its policy stages report those rules; a source `set_option linter.plumb true` turns the local linter back on (issue #69). `axiomGate` and the build-lint `policy` target keep ordinary options, so in a module that imports `Plumb.Linter` a local Plumb finding is a build warning and makes the result INCOMPLETE under this rule."]
+        "`lake lint` builds with Plumb's audit-build marker, which turns the local linter off whatever the source sets `linter.plumb` to, so Plumb's own local findings are not build warnings there and its policy stages report those rules. `axiomGate` and the build-lint `policy` target keep ordinary options, so in a module that imports `Plumb.Linter` a local Plumb finding is a build warning and makes the result INCOMPLETE under this rule."]
       correction := "The correction removes a dead lambda binding while preserving identity's complete natural-number behavior. No warning or linter is disabled."
       residuals := [.qualify]
       checklist := ["DECL-01", "BUILD-01"]
