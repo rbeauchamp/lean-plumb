@@ -2,8 +2,8 @@ name: Dogfood
 
 # Plumb run on its own code base (docs/guides/lean-qualification.md#dogfooding-plumb-on-itself):
 # the repository's own `lake lint` through `plumb/lint`, the operational self-audit of the
-# excluded `Plumb` library, and the opt-in Jev intent screen of the repository's own claims
-# with Intent sections. None is part of acceptance; each verify.sh partition keeps its own
+# excluded `Plumb` library, and the opt-in Jev intent screen of the repository's own
+# `@[plumb_material]` claims. None is part of acceptance; each verify.sh partition keeps its own
 # 420-second limit. It runs when Lean sources, Lake configuration, manifests or the screen
 # configuration change, always on main, and nightly.
 on:
@@ -69,10 +69,10 @@ jobs:
 
       # Answers already in the committed cache need no key and send nothing; only a changed
       # claim sends a request. Exit 1 on an error-severity finding, 2 when incomplete.
-      - name: Screen every public claim with an Intent section
+      - name: Screen every registered material claim
         env:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
         run: >-
           lake exe intentScreen screen --config examples/intent-screening/screen.json
           --library PlumbPolicy --library PlumbVerification --library PlumbQualification
-          --library PlumbCore --library Audit --library AuditApp --intent-sections
+          --library PlumbCore --library Audit --library AuditApp

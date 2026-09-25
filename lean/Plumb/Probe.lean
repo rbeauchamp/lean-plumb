@@ -20,6 +20,7 @@ import Lean.Util.FoldConsts
 import Std.Internal.UV.System
 import Plumb.Report
 import Plumb.Contract
+import Plumb.MaterialClaim
 
 /-!
 Machine-audit support consumed directly by the repository's Lean checker

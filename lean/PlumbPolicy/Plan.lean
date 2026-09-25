@@ -26,14 +26,25 @@ structure TargetAssignment where
   surface : Option String
   deriving Repr, DecidableEq
 
-/-- Exact reporter identities used only to select authentication obligations. Membership
-alone never grants an exemption. Contract remains the public contract interface. -/
-def reporterModuleNames : Array Name :=
-  #[`Plumb.Probe, `Plumb.Report, `Plumb.Contract, `Plumb.Checker.PolicyCodec]
-
 /-- These implementation imports remain forbidden through ordinary dependencies. -/
 def reporterOnlyModuleNames : Array Name :=
   #[`Plumb.Probe, `Plumb.Report, `Plumb.Checker.PolicyCodec]
+
+/-- The published checker interfaces a claimed module may import by design (standard §8.10):
+the executable-contract type and the material-claim registration attribute. The probe
+force-loads both, so they are authenticated like the reporter and are never owned. -/
+def publishedInterfaceModuleNames : Array Name :=
+  #[`Plumb.Contract, `Plumb.MaterialClaim]
+
+/-- Exact reporter identities used only to select authentication obligations. Membership
+alone never grants an exemption. -/
+def reporterModuleNames : Array Name :=
+  reporterOnlyModuleNames ++ publishedInterfaceModuleNames
+
+/-- A published interface is never a reporter-only module, so admitting it as a claimed
+import leaves every reporter-only import restriction unchanged. -/
+theorem publishedInterface_not_reporterOnly :
+    ∀ n ∈ publishedInterfaceModuleNames, n ∉ reporterOnlyModuleNames := by decide +kernel
 
 /-- Only the existing force-loaded reporter, public name codec and conditional collector
 can enter the infrastructure partition. This is not a whole-library exemption. -/
