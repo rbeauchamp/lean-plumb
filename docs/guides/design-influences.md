@@ -38,6 +38,9 @@ Lake's `lintDriver` package field and `lake lint` dispatch (`Lake.CLI.Main`, `Pa
 builtin widget behind named errors, renders the editor's **View explanation** link with Plumb's
 registry URL. The VS Code Lean 4 extension and infoview (leanprover/vscode-lean4) host
 these messages. These are dependencies, not design influences on Plumb's policy.
+The repository's audit surface depends on Mathlib, and its qualification and site tooling also
+use Batteries (both Apache 2.0, pinned dependencies); the linter itself imports only Lean's core
+libraries.
 
 ## Adapted code and licenses
 

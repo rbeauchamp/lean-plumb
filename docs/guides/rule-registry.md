@@ -26,7 +26,8 @@ PL5001–PL5003 now have native metadata-presence observers. PL1001–PL1007
 have partial command feedback; PL2002 covers invalid local foundation requests,
 and PL2005 covers unavailable or pending local analysis. Full project integration
 is separate from those local modes. See [native-linter.md](native-linter.md) for
-actual APIs, scope, options and qualification. Production pages remain #15.
+actual APIs, scope, options and qualification. The [website guide](website.md) owns the
+published rule pages.
 
 To add a rule, establish its exact Lean predicate and coverage-map entry first.
 Add its constructor, stable spelling/parser branch, exhaustive descriptor and

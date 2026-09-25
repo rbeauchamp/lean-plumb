@@ -258,16 +258,6 @@ accounts or analytics.
 ## Credits and licenses
 
 The credits page is generated from `creditsPage` in
-[`PlumbCore.SiteDocs`](../../lean/PlumbCore/SiteDocs.lean). Plumb for Lean is MIT licensed. It
-credits Lean and Lake (Lean FRO, Apache 2.0) and the VS Code Lean 4 extension's infoview for
-the editor link; the strict JSON parser adapted from Lean with its retained notice and the
-repository's [Apache 2.0 text](../../LICENSES/Apache-2.0.txt); Verso (Lean FRO, Apache 2.0,
-linked license), whose stylesheets and search and table-of-contents scripts every page serves,
-and the third-party components Verso bundles (elasticlunr, fuzzysort, KaTeX, the W3C APG
-combobox) with their licenses; the marked library that pages load from the jsDelivr CDN; David
-Thrane Christiansen's package-docs template for the toolchain separation; con-leche (Joachim
-Breitner and contributors, Lean FRO; no code or proof copied) for the typed registry,
-complete acceptance and executed-form equality design; Microsoft's CA1416 page as one
-illustrative reference for the page structure (no content copied, no endorsement implied);
-and Mathlib and Batteries (Apache 2.0) for the repository's audit and tooling surfaces. See
+[`PlumbCore.SiteDocs`](../../lean/PlumbCore/SiteDocs.lean); that definition owns the page's
+text. The attribution and license account it summarizes is
 [design influences](design-influences.md).

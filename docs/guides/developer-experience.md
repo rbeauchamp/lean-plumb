@@ -223,4 +223,3 @@ UX were delivered by #14 and #15 and qualified by #10 ([product qualification](p
 [lake-main]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/lake/Lake/CLI/Main.lean
 [lake-actions]: https://github.com/leanprover/lean4/blob/819816b2e0a3bf405af45ae5c7af2491d8f5bee6/src/lake/Lake/CLI/Actions.lean
 [mathlib-lake]: https://github.com/leanprover-community/mathlib4/blob/0df444a360eaa60ab8c11dca51a86af692955474/lakefile.lean
-
