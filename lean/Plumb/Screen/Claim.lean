@@ -55,15 +55,47 @@ structure ClaimInput where
   /-- Per clause: no discharge marker, or the outcome of checking its reference. -/
   discharges : List (Option DischargeCheck)
 
-/-- The claim's statement: a theorem's type, or the body of a definition whose type is `Prop`
-(calibration corpus items are such definitions), otherwise the declaration's type. -/
+/-- The claim's statement: a theorem's type, the body of a definition whose type is `Prop`
+(calibration corpus items are such definitions), the proposition itself for a parameterless
+`Prop`-valued inductive such as a structure of required contracts, otherwise the declaration's
+type. -/
 def statementExpr (info : ConstantInfo) : Expr :=
   match info with
   | .defnInfo d => if d.type.isProp then d.value else d.type
+  | .inductInfo i =>
+    if i.type.isProp && i.numParams == 0 then mkConst i.name (i.levelParams.map mkLevelParam)
+    else i.type
   | _ => info.type
 
 def pretty (e : Expr) : MetaM String := do
   return toString (← ppExpr e)
+
+/-- The fields of a parameterless `Prop`-valued structure, in the shape of its Lean declaration
+under `header`. The structure means exactly the conjunction of these field propositions. -/
+def structureFields? (name : Name) (header : String) : MetaM (Option String) := do
+  let some (.inductInfo i) := (← getEnv).find? name | return none
+  unless i.type.isProp && i.numParams == 0 do return none
+  let [ctor] := i.ctors | return none
+  let some (.ctorInfo c) := (← getEnv).find? ctor | return none
+  forallTelescope c.type fun fields _ => do
+    let mut body : Format := .nil
+    for field in fields do
+      let decl ← field.fvarId!.getDecl
+      body := body ++ .line ++ f!"{decl.userName} : {← ppExpr decl.type}"
+    return some (toString (f!"structure {header} : Prop where" ++ .nest 2 body))
+
+/-- The statement text sent for judgment: `statementExpr` pretty-printed, except that a
+statement which is a parameterless `Prop`-valued structure also carries that structure's field
+propositions, since its bare name states nothing. The claim's own name is never sent, so a
+structure claim is rendered under the neutral name `Claim`. -/
+def statementText (info : ConstantInfo) : MetaM String := do
+  let statement := statementExpr info
+  if let .const name _ := statement then
+    if name == info.name then
+      if let some fields ← structureFields? name "Claim" then return fields
+    else if let some fields ← structureFields? name name.toString then
+      return s!"{← pretty statement}\n\nwhere\n\n{fields}"
+  pretty statement
 
 /-- Check a discharge reference against the claim's statement, whose universe parameters are
 `claimLevels`. -/
@@ -115,7 +147,7 @@ def readClaim (name : Name) : MetaM ClaimInput := do
       | none =>
         clauses := clauses.push clause
         discharges := discharges.push none
-  return { name, text := ⟨clauses.toList, PlumbPolicy.Screening.explanation doc, ← pretty statement⟩,
+  return { name, text := ⟨clauses.toList, PlumbPolicy.Screening.explanation doc, ← statementText info⟩,
            discharges := discharges.toList }
 
 /-- Where a claim's findings are reported: its Lean declaration range in its module's source,

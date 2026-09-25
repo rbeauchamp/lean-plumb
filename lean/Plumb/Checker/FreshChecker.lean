@@ -47,7 +47,7 @@ private def usage : String :=
   "usage: lake exe freshChecker -- [--project DIR] [--manifest PATH] [--json-out PATH] " ++
   "[--plan-only] [--fail-fast] [--verbose]"
 
-private partial def parseArgs : List String → Options → IO Options
+private def parseArgs : List String → Options → IO Options
   | [], options => return options
   | "--" :: rest, options => parseArgs rest options
   | "--manifest" :: value :: rest, options =>

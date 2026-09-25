@@ -106,7 +106,7 @@ private def usage : String :=
   "fence corpus, external adopters, clean-checkout environment, public controls)\n" ++
   "--partition: run only the named build-bound group; all six groups are required for full qualification"
 
-private partial def parseArgs : List String → Options → IO Options
+private def parseArgs : List String → Options → IO Options
   | [], options => do
       if options.partition.isSome && !options.buildBound then
         throw <| IO.userError "--partition requires --build-bound"

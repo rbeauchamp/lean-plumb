@@ -60,6 +60,8 @@ checker behavior:
 | `lint-driver` | `lake lint` dispatch and exit classes in both shipped adopters. |
 | `producers` | [Project producer and documentation qualification](engine-producers.md). |
 | `history` | [Source-bound replacement history qualification](engine-producers.md). |
+| `self-lint` | This repository's own `lake lint` through the `plumb/lint` driver ([dogfooding](lean-qualification.md#dogfooding-plumb-on-itself)). |
+| `self-audit` | Operational self-audit of the excluded `Plumb` library ([dogfooding](lean-qualification.md#dogfooding-plumb-on-itself)). |
 | `rule-examples`, `rule-examples 1/2`, `rule-examples 2/2` | [Source-owned corpus and diagnostic demonstrations](rule-examples.md); a shard runs half of the rules. |
 
 The `environments` clean-checkout `freshChecker` control claims two import-free modules
@@ -89,6 +91,11 @@ under the same limit when the `lake lint` driver or anything it imports changes,
 adopter fixtures in `examples/lake-lint-toml` and `examples/build-lint` change, on every push
 to `main`, and nightly. These campaigns are capability-triggered diagnostics (standard
 §8.8), not a partition of ordinary acceptance.
+The [dogfood workflow](../../.github/workflows/dogfood.yml) runs `self-lint` and `self-audit`
+as parallel jobs under the same limit, and the opt-in
+[intent screen](intent-screening.md#dogfood-screen) as a third job, when Lean sources, Lake
+configuration, manifests or the screen configuration change, on every push to `main`, and
+nightly. They are not part of acceptance.
 
 
 ## Implementation and qualification layout

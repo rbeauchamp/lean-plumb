@@ -23,7 +23,7 @@ private def usage : String :=
   "usage: lake exe docFenceAudit -- [--jobs N] [--verbose] [--docs-root PATH] " ++
   "[--project DIR] [--manifest PATH] [--acceptance-link PATH]"
 
-private partial def parseArgs : List String → Options → IO Options
+private def parseArgs : List String → Options → IO Options
   | [], options => return options
   | "--" :: rest, options => parseArgs rest options
   | "--jobs" :: value :: rest, options => do

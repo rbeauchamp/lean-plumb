@@ -22,7 +22,8 @@ probability, and the SHA-256 of the request the model answered. For example:
   (`Plumb.Checker.Screening.Status`) has only `screened` and `escalated` constructors. No
   checked or reviewed state exists to reach.
 - Screening is off by default. The first `scripts/verify.sh` acceptance step type-checks its
-  modules but never runs it; it calls the network only when you run it yourself.
+  modules but never runs it; it calls the network only when you run it yourself, or, in this
+  repository, when the [dogfood screen](#dogfood-screen) runs it.
 
 ## Formal discharge first
 
@@ -72,7 +73,11 @@ screened, and the run then exits with 2 (incomplete). `IntentCorpus.mergeSort_co
 The question text is in `lean/Plumb/Screen/Questions.lean` and is recorded with every answer.
 The state holds the intent clauses plus, depending on the `state` setting, the elaborated
 statement, the §5.2 explanation, or both. The declaration name is never sent: a name such as
-`sort_drops_perm` would give the answer away.
+`sort_drops_perm` would give the answer away. The statement is a theorem's type or the body of a
+`Prop`-valued definition. A parameterless `Prop`-valued structure, such as a bundle of required
+contracts, means exactly the conjunction of its fields. It is therefore sent with every field
+proposition, in the shape of its declaration and under the neutral name `Claim`. A theorem
+whose statement is such a structure is sent with the structure's fields too.
 
 | Judgment | Type | Support probability |
 | --- | --- | --- |
@@ -137,8 +142,11 @@ lake build MyProject.Claims
 TYPESAFE_API_KEY=… lake exe intentScreen screen --config screen.json --module MyProject.Claims [--json out.json]
 ```
 
-With no `--declaration`, the screen covers every public `@[plumb_material]` declaration of the
-listed modules. With `--declaration`, it covers exactly the named declarations. It exits with
+`--library L` adds every module of the root Lean library `L`, as Lake discovers it, to the
+listed modules. With no `--declaration`, the screen covers every public `@[plumb_material]`
+declaration of those modules. `--intent-sections` also covers every other public declaration
+there whose docstring has a nonempty Intent section: exactly the docstrings PL5003 accepts,
+registered or not. With `--declaration`, it covers exactly the named declarations. It exits with
 0 when no error-severity finding is raised, 1 when one is, and 2 when the screen is
 incomplete. A missing key with no cached answer, or a network, service, parse or claim-reading
 failure, stops the run as incomplete. A refused discharge reference does not stop it: that
@@ -210,10 +218,11 @@ linter's severity vocabulary and diagnostic shape.
   fully cached run needs no key and makes no network call. Any change to the model, the
   question wording, the statement or the intent produces a new request.
 - **Trusted, not verified.** The screen's adapter code that reads claims, locates them and
-  checks discharge references; the imported `.olean` environment, including the declarations a
-  discharge proof uses, as admitted by their build (only the discharge theorem's own proof
-  term is re-checked by the kernel; a dependency built with `debug.skipKernelTC` is not caught
-  by the screen, only by Plumb's fresh acceptance of a claimed surface); the
+  checks discharge references; Lake's module discovery for `--library`; the imported `.olean`
+  environment, including the declarations a discharge proof uses, as admitted by their build
+  (only the discharge theorem's own proof term is re-checked by the kernel; a dependency built
+  with `debug.skipKernelTC` is not caught by the screen, only by Plumb's fresh acceptance of a
+  claimed surface); the
   source files read for finding locations; the `curl` and `shasum` processes, the network, the
   service and its answers, the cache files, and Lean's pretty-printer that renders the
   statement.
@@ -251,6 +260,58 @@ Machine-checked, about the definitions the executable runs (each through a
 Not established by any proof: that a probability is correct or calibrated for your claims,
 that the question wording captures the intended judgment, or that the service behaved as
 documented. The calibration below is a measurement on one corpus and one pinned model.
+
+## Dogfood screen
+
+The [dogfood workflow](../../.github/workflows/dogfood.yml) screens this repository's own
+claims. It uses the sample configuration users start from,
+[`screen.json`](../../examples/intent-screening/screen.json), whose cache is the committed
+`examples/intent-screening/cache/`:
+
+```text
+lake exe intentScreen screen --config examples/intent-screening/screen.json --library PlumbPolicy --library PlumbVerification --library PlumbQualification --library PlumbCore --library Audit --library AuditApp --intent-sections
+```
+
+The job is the only CI job that receives the `TYPESAFE_API_KEY` secret, and it has read-only
+repository permissions. Answers already in the cache need no key and send nothing, so a run
+sends requests only for a claim whose request changed. A request changes when the statement,
+intent, explanation, question text or model changes. Lean's pretty-printer renders the
+statement in the loaded environment, so a cache hit also needs the same library set. The job
+fails on an error-severity finding (exit 1) or an incomplete screen (exit 2). The screened
+results are their own evidence class and never complete R-INTENT; the six claims all escalate
+to review.
+
+The first run, on 2026-09-25, selected six declarations, all in `AuditApp`: `RequiredContracts`,
+`requiredContracts`, `checkedExecutable`, `demo_checked_error`,
+`Refinement.prefix_safe` and `Refinement.reachable_safe`. It found one warning:
+`exclusions` p = 0.37 on `RequiredContracts`. The cause was a defect in the screen, not in
+the claim. A structure's type is `Prop`, so the screen had sent the bare statement `Prop` and
+the model judged an empty claim. The fix sends the structure's field propositions, as
+described under [Judgments](#judgments); the same answer is now p = 0.71. With the fields
+visible, `requiredContracts` exposed a mismatch. Its Intent said the application "may run only
+when" the evidence exists, but that is a property of `executeChecked`'s signature, stated by
+`checkedExecutable`, not of this theorem. The Intent now states what the theorem establishes,
+and its strength answer rose from 0.32 to 0.81. A later fix indented the continuation lines of a
+wrapped field type, so the rendered structure reads as its Lean declaration. That changed both
+requests: `RequiredContracts` now has exclusions 0.71, coverage 0.44 and strength 0.43, and
+`requiredContracts` has strength 0.78 and coverage 0.42.
+
+The remaining answers below 0.5 are all for judgments without calibrated thresholds, so they
+raise no finding and escalate to review:
+
+- `checkedExecutable`: coverage 0.32, strength 0.29. Read against the statement, the claim
+  matches its Intent: the registered relation admits exactly positive capacities, starts each
+  admitted limiter idle at that capacity and runs the strict interpreter.
+- `demo_checked_error`: coverage 0.41. The statement is exact for the fixed demonstration
+  script at capacity 2. The model sees `demoScript` and `demoInitial` only by name.
+- `RequiredContracts`: coverage 0.44, strength 0.43. Its statement is the structure's field
+  propositions, which the model judges together against a many-sentence Intent.
+- `requiredContracts`: coverage 0.42. Its statement is the fully rendered `RequiredContracts`
+  bundle.
+
+Spend: four runs sent 10 requests and were billed 19,043 input tokens, about $0.0008 at the
+list price. The last run sent 2 requests and was billed 4,936 input tokens; the other 4 answers
+came from the cache.
 
 ## Calibration protocol
 

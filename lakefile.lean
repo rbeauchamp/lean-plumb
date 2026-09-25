@@ -2,6 +2,7 @@ import Lake
 open Lake DSL
 
 package «plumb» where
+  lintDriver := "plumb/lint"
   srcDir := "lean"
   -- The verification toolset for Plumb for Lean (see docs/).
   -- Code here exists to machine-check claims, patterns, and examples from the standard.
@@ -54,7 +55,7 @@ lean_exe «axiomGate» where
   supportInterpreter := true
 
 lean_exe «lint» where
-  -- Lake lint driver: `lintDriver = "plumb/lint"` in an adopting package.
+  -- Lake lint driver: `lintDriver = "plumb/lint"` in an adopting package and in this one.
   root := `Plumb.Checker.LintMain
   supportInterpreter := true
 

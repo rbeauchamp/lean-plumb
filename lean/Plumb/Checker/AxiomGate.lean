@@ -42,7 +42,7 @@ private def usage : String :=
   "profiles: kernel-only, choice-free, standard-logical, compiler-trusting\n" ++
   "execution modes: report (default), checked"
 
-private partial def parseArgs : List String → Options → IO Options
+private def parseArgs : List String → Options → IO Options
   | [], options => return options
   | "--" :: rest, options => parseArgs rest options
   | "--file" :: value :: rest, options =>

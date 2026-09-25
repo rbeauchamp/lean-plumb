@@ -1,5 +1,9 @@
 import Plumb.Checker.RuleExampleQualification
 
+/-! `ruleExampleQualification`: command-line admission of exported rule-example evidence.
+With a corpus path it runs `RuleExampleQualification.qualifyCorpus`; with `--record` it
+qualifies each in-progress record against unchanged checker sources, with no corpus claim. -/
+
 /-- Validate a whole exported corpus, or one in-progress record without a corpus claim. -/
 def main (args : List String) : IO Unit := do
   let (path, single) ← match args with

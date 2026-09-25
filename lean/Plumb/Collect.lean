@@ -178,10 +178,14 @@ annotation, theorem-name inventory, or proposition matcher supplies evidence:
 the `ExecutableContract` constructor requires the exact proposition in Lean.
 The promised implementation must be a constant, not a partial application or
 an existential proof. Its execution closure is inspected even if it is private.
+The interface's own constructor is not a registration: `mk` is excluded by kind, and its
+definitional twin, the flat constructor Lean generates with the structure
+(`Lean.mkFlatCtorOfStructCtorName`), by exact name.
 -/
 private def executableContract? (env : Environment) (info : ConstantInfo) :
     CommandElabM (Option PlumbPolicy.ExecutableContract) := do
   if !#[DeclarationKind.definition, .theorem, .opaque].contains (kindOf info) then return none
+  if info.name == Lean.mkFlatCtorOfStructCtorName ``Plumb.ExecutableContract.mk then return none
   liftTermElabM <| Meta.withTransparency .all <|
     Meta.forallTelescopeReducing info.type (whnfType := true) fun parameters type => do
     if !type.isAppOfArity ``Plumb.ExecutableContract 3 then return none
