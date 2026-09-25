@@ -206,16 +206,21 @@ private structure ReportWorkerRequest where
   sourceRoots : Array String
   sourceBindings : Array ProducerReport.SourceBinding
   ownedOutput : String
+  /-- Directory the coordinator owns for this audit, where surface workers share
+  replacement-history worker output (`Environment.historyWorkerOutput`). -/
+  historyMemo : String
   deriving ToJson
 
 instance : FromJson ReportWorkerRequest := ⟨fun j => do
-  Plumb.Checker.PolicyCodec.exactFields j ["modules", "searchRoots", "sourceRoots", "sourceBindings", "ownedOutput"]
+  Plumb.Checker.PolicyCodec.exactFields j ["modules", "searchRoots", "sourceRoots", "sourceBindings", "ownedOutput",
+    "historyMemo"]
   return {
     modules := ← j.getObjValAs? _ "modules"
     searchRoots := ← j.getObjValAs? _ "searchRoots"
     sourceRoots := ← j.getObjValAs? _ "sourceRoots"
     sourceBindings := ← j.getObjValAs? _ "sourceBindings"
     ownedOutput := ← j.getObjValAs? _ "ownedOutput"
+    historyMemo := ← j.getObjValAs? _ "historyMemo"
   }⟩
 
 private structure SurfaceInspection where
@@ -369,10 +374,20 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         result
       let configuredModules := libraries.foldl (fun result info => result ++ info.modules) #[]
         ++ inventory.executables.map (·.root)
-      -- At most three surface inspections read the completed common build at once.
-      -- Each owns its report and sequential frontend subprocesses. A report may
-      -- retain its environment while awaiting an existing replacement-history helper.
-      let inspectSurface (surface : Manifest.Surface) : IO (Except ProducerReport.AdmissionFailure SurfaceInspection) := do
+      -- At most three heavy subprocesses (surface report workers and frontend
+      -- attributions) run at once, as before. A surface's frontend attributions share
+      -- those three slots, so they run in parallel on slots other surfaces released
+      -- instead of one after another behind their own report. A report may retain its
+      -- environment while awaiting an existing replacement-history helper.
+      let slots ← Std.Mutex.new (3 : Nat)
+      let withSlot {β : Type} (act : IO β) : IO β := do
+        while !(← slots.atomically do
+            let free ← get
+            if free > 0 then set (free - 1); return true else return false) do
+          IO.sleep 20
+        try act finally slots.atomically (modify (· + 1))
+      let inspectSurface (historyMemo : FilePath) (surface : Manifest.Surface) :
+          IO (Except ProducerReport.AdmissionFailure SurfaceInspection) := do
         let info ← infoFor surfaces surface.library
         let request : ReportWorkerRequest := {
           modules := info.modules
@@ -380,31 +395,40 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           sourceRoots := inventory.leanSrcPath.map (·.toString)
           sourceBindings
           ownedOutput := inventory.leanLibDir.toString
+          historyMemo := historyMemo.toString
         }
         let outcome : ProducerReport.Outcome ← timedPhase s!"declaration inspection {surface.library}" <|
-          runTypedWorker "--declaration-report-worker" request
+          withSlot <| runTypedWorker "--declaration-report-worker" request
         if let .admissionFailed failure := outcome then return .error failure
         let .reported report := outcome
           | throw <| IO.userError "unreachable admission outcome"
         if let .error failure := SourceBinding.validateAgainst sourceBindings report then
           return .error failure
+        -- `mapWorkQueue` returns results in module order, so transcripts and failures
+        -- keep the order of the former sequential loop.
+        let modules := candidateModules report.declarations
+        let attempts ← mapWorkQueue (max 1 modules.size) modules fun moduleName => do
+          let some source := info.sources.find? (·.«module» == moduleName)
+            | return Sum.inl s!"frontend-source-missing: {moduleName}"
+          try
+            return Sum.inr (← withSlot <| timedPhase s!"frontend attribution {moduleName}" <|
+              Frontend.buildIsolated moduleName source.source inventory.leanPath)
+          catch error =>
+            return Sum.inl s!"frontend-transcript-failed: {moduleName}: {error}"
         let mut frontendFailures : Array String := #[]
         let mut transcripts : Array Frontend.Transcript := #[]
-        for moduleName in candidateModules report.declarations do
-          let some source := info.sources.find? (·.«module» == moduleName)
-            | frontendFailures := frontendFailures.push s!"frontend-source-missing: {moduleName}"; continue
-          try
-            transcripts := transcripts.push <|
-              ← timedPhase s!"frontend attribution {moduleName}" <| Frontend.buildIsolated moduleName source.source inventory.leanPath
-          catch error =>
-            frontendFailures := frontendFailures.push s!"frontend-transcript-failed: {moduleName}: {error}"
+        for attempt in attempts do
+          match attempt with
+          | .inl failure => frontendFailures := frontendFailures.push failure
+          | .inr transcript => transcripts := transcripts.push transcript
         if let .error failure := SourceBinding.transcriptsMatch sourceBindings transcripts then
           return .error failure
         return .ok { info, report, transcripts, frontendFailures }
-      let inspections ← mapWorkQueue 3 manifest.surfaces fun surface => do
-        -- Capture failures as values so every started worker is joined, then choose
-        -- fatal errors in manifest order instead of worker-completion order.
-        return (surface, ← (inspectSurface surface).toBaseIO)
+      let inspections ← withScratch (← IO.currentDir) "history-memo" fun historyMemo =>
+        mapWorkQueue 3 manifest.surfaces fun surface => do
+          -- Capture failures as values so every started worker is joined, then choose
+          -- fatal errors in manifest order instead of worker-completion order.
+          return (surface, ← (inspectSurface historyMemo surface).toBaseIO)
       SourceBinding.unchanged sourceBindings
       SourceBinding.configurationUnchanged configuration
 
@@ -1002,7 +1026,8 @@ unsafe def run (args : List String) : IO UInt32 := do
       let outcome ← Environment.loadReportOutcome request.modules
         (request.searchRoots.map FilePath.mk) (request.sourceRoots.map FilePath.mk)
         (request.sourceBindings.map fun source => (source.moduleName, FilePath.mk source.path))
-        (some (FilePath.mk request.ownedOutput))
+        (some (FilePath.mk request.ownedOutput)) (validateReport := false)
+        (historyMemo := some (FilePath.mk request.historyMemo))
       if let .ok report := outcome then
         if let .error failure := SourceBinding.validateAgainst request.sourceBindings report then
           return .error failure
