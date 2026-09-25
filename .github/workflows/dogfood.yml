@@ -1,0 +1,78 @@
+name: Dogfood
+
+# Plumb run on its own code base (docs/guides/lean-qualification.md#dogfooding-plumb-on-itself):
+# the repository's own `lake lint` through `plumb/lint`, the operational self-audit of the
+# excluded `Plumb` library, and the opt-in Jev intent screen of the repository's own claims
+# with Intent sections. None is part of acceptance; each verify.sh partition keeps its own
+# 420-second limit. It runs when Lean sources, Lake configuration, manifests or the screen
+# configuration change, always on main, and nightly.
+on:
+  pull_request:
+    paths:
+      - lean/**
+      - lakefile.lean
+      - lake-manifest.json
+      - lean-toolchain
+      - foundation_manifest.json
+      - scripts/verify.sh
+      - examples/intent-screening/**
+      - .github/workflows/dogfood.yml
+      - .github/actions/provision/**
+  push:
+    branches: [main]
+  schedule:
+    - cron: '47 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dogfood-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  self:
+    name: ${{ matrix.campaign }}
+    runs-on: ubuntu-24.04
+    # Provisioning has its own allowance; verify.sh enforces exactly 420 seconds.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        campaign:
+          - diagnostics self-lint
+          - diagnostics self-audit
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
+      - name: Check (same command and seven-minute limit as local)
+        run: ./scripts/verify.sh ${{ matrix.campaign }}
+
+  intent-screen:
+    name: intent screen (Jev)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
+      - name: Build the claimed libraries and the screen
+        run: lake build PlumbPolicy PlumbVerification PlumbQualification PlumbCore Audit AuditApp intentScreen
+
+      # Answers already in the committed cache need no key and send nothing; only a changed
+      # claim sends a request. Exit 1 on an error-severity finding, 2 when incomplete.
+      - name: Screen every public claim with an Intent section
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: >-
+          lake exe intentScreen screen --config examples/intent-screening/screen.json
+          --library PlumbPolicy --library PlumbVerification --library PlumbQualification
+          --library PlumbCore --library Audit --library AuditApp --intent-sections

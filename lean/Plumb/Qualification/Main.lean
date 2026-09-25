@@ -9,6 +9,7 @@ import Plumb.Qualification.EnvironmentCensus
 import Plumb.Qualification.Acceptance
 import Plumb.Qualification.ReceiptBoundary
 import Plumb.Qualification.Preparation
+import Plumb.Qualification.SelfAudit
 
 /-! One Lake executable for operational qualification, with independently selectable
 campaigns. Each oracle is proved on the positive `PlumbQualification` surface;
@@ -40,6 +41,8 @@ private unsafe def dispatch (args : List String) (attempt : Option String := non
       Plumb.Qualification.Producer.check none
       Plumb.Qualification.History.check
   | ["history"] => Plumb.Qualification.History.check
+  | ["self-audit"] => Plumb.Qualification.SelfAudit.check
+  | ["self-audit-module", m] => Plumb.Qualification.SelfAudit.worker m
   | ["environments", "--evidence", path] => Plumb.Qualification.EnvironmentCensus.check ⟨path⟩ attempt
   | ["acceptance", group, "--evidence", path] => Plumb.Qualification.Acceptance.check group ⟨path⟩ attempt
   | ["acceptance-snapshots", group] => Plumb.Qualification.DependencySnapshot.check group
@@ -53,7 +56,7 @@ private unsafe def dispatch (args : List String) (attempt : Option String := non
   | ["frozen-exits"] => Plumb.Qualification.FrozenExit.check
   | ["documentation-source"] => Plumb.Qualification.DocumentationSource.check false
   | ["documentation-source", "--source-read-only"] => Plumb.Qualification.DocumentationSource.check true
-  | _ => throw <| IO.userError "usage: lake exe qualify registry|native|combined|native-launcher|producers [--evidence PATH]|environments --evidence PATH|acceptance GROUP --evidence PATH|acceptance-snapshots dependencies|history|git-status|all|documentation-dependencies|input-inventory|history|closure-evidence|configuration-capture|fence-evidence|frozen-exits|documentation-source [--source-read-only]|rule-examples --evidence PATH [--rules RULE ... | --shard K/N]"
+  | _ => throw <| IO.userError "usage: lake exe qualify registry|native|combined|native-launcher|producers [--evidence PATH]|environments --evidence PATH|acceptance GROUP --evidence PATH|acceptance-snapshots dependencies|history|self-audit|git-status|all|documentation-dependencies|input-inventory|history|closure-evidence|configuration-capture|fence-evidence|frozen-exits|documentation-source [--source-read-only]|rule-examples --evidence PATH [--rules RULE ... | --shard K/N]"
 
 /-- Standalone commands get one group-wide 420-second bound. The private protocol flag
 is supplied by this wrapper or the already timed acceptance driver, never documented

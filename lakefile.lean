@@ -2,6 +2,7 @@ import Lake
 open Lake DSL
 
 package «plumb» where
+  lintDriver := "plumb/lint"
   srcDir := "lean"
   -- The verification toolset for Plumb for Lean (see docs/).
   -- Code here exists to machine-check claims, patterns, and examples from the standard.

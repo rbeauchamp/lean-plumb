@@ -227,6 +227,53 @@ memory bound was added). That is still over the
 copy because the checker probe's own imports resolve to it in a self-hosted copy; this
 partition is not a CI job.
 
+## Dogfooding Plumb on itself
+
+Acceptance audits the six claimed libraries freshly. Three diagnostics apply Plumb to the rest
+of its own code base. The [dogfood workflow](../../.github/workflows/dogfood.yml) runs them
+when Lean sources, Lake configuration, manifests or the screen configuration change, on every
+push to `main`, and nightly. None is part of acceptance.
+
+- `./scripts/verify.sh diagnostics self-lint` runs `lake lint` in this repository. The root
+  package sets `lintDriver := "plumb/lint"`, so this is the adopter command, run through the
+  `plumb/lint` driver over `foundation_manifest.json` in incremental mode. It checks the same
+  claimed surfaces as acceptance, through the driver's dispatch and exit classes.
+- `./scripts/verify.sh diagnostics self-audit` checks the operational `Plumb` library, which
+  `foundation_manifest.json` excludes because it is not a conforming proof surface. The step
+  `lake build Plumb` builds every module warning-free (PL2003, because the package sets
+  `warningAsError`). Then `qualify self-audit` inspects each module of the library as Lake
+  discovers it, each in its own worker process. Several executable roots of the library define
+  `main`, so its modules cannot share one environment. For every module the audit:
+  - kernel-replays each owned declaration that is not `unsafe` or `partial` (PL2005,
+    `Admission.validate`);
+  - builds its declaration records with the live linter's shared collector
+    (`Plumb.Collect.declaration`) and decides each record with the proved
+    `PlumbPolicy.checkedOperationalFailure` (PL1001–PL1005, PL1007);
+  - checks module docs and material-claim docs with the live linter's predicates
+    (`Plumb.Linter.Documentation`, PL5001–PL5003).
+
+  Operational code is held to Standard-Logical with two facts reported, not failed:
+  authored `unsafe`/`partial` declarations (PL1006), and, in a definition whose type is not a
+  proposition, the pinned toolchain's Lake type-family axioms (for example
+  `Lake.DataType.bool`), which the in-process Lake API reaches. An axiom counts as a toolchain
+  Lake axiom only when a `Lake` module resolving from the toolchain's own library directory
+  declares it. `operationalFailure_none_iff` states the exact success relation.
+  `operationalFailure_ne_escapeHatch` shows an escape hatch never fails a declaration.
+  `operationalFailure_prop` shows a proof gets exactly the conforming decision.
+  `operationalFailure_eq_conforming` shows the decision equals the conforming Standard-Logical
+  decision on every declaration without a reported fact. The run prints both reported lists.
+
+  The self-audit does not claim the library is a proof surface. It makes no execution claim for
+  the library's executables. It does not attach the live linter's editor hooks to Plumb's own
+  modules: the modules below `Plumb.Linter` cannot import it, and the editor request has no
+  operational form. The audit applies the same collector and decisions to completed modules
+  instead. Trusted, not verified: Lean's import and kernel replay, the collector's
+  observations, the toolchain artifact paths, the worker processes and their JSON transport.
+- The dogfood workflow's intent-screen job runs the opt-in
+  [Jev intent screen](intent-screening.md#dogfood-screen) over every public declaration with
+  an Intent section in the claimed libraries. It is the only CI job that receives
+  `TYPESAFE_API_KEY`.
+
 ## Organization
 
 - `lean/PlumbQualification/`: a separate **positive Lake library**, discovered through

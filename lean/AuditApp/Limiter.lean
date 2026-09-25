@@ -454,8 +454,8 @@ assigned proof cannot inhabit its unchanged field proposition. Equivalent
 proofs are welcome; neither theorem names nor declaration counts are the rule.
 
 # Intent
-The application may run only when every required behavior of its limiter is proved
-about the definitions it executes. -/
+Every required behavior of the limiter must be proved about the exact definitions the
+application executes. -/
 theorem requiredContracts : RequiredContracts where
   admission := admit_exact
   grant_success := grant_some

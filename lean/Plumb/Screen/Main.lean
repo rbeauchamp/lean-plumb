@@ -1,15 +1,18 @@
 import Plumb.MaterialClaim
 import Plumb.RegistryCodec
 import Plumb.Screen.Calibrate
+import Plumb.Checker.Lake
 
 /-! `intentScreen`: the opt-in probabilistic intent screen (`docs/guides/intent-screening.md`).
 
-    lake exe intentScreen screen --config FILE --module M [--module M ...]
-      [--declaration NAME ...] [--json FILE]
+    lake exe intentScreen screen --config FILE (--module M | --library L) ...
+      [--intent-sections] [--declaration NAME ...] [--json FILE]
     lake exe intentScreen calibrate --config FILE --split dev|test --report FILE --records FILE
 
-`screen` judges every public `@[plumb_material]` declaration of the listed modules (or exactly
-the listed declarations) and prints screened evidence, findings at the configured severities
+`screen` judges every public `@[plumb_material]` declaration of the listed modules and of the
+Lake-discovered modules of each listed root library (with `--intent-sections`, also every
+public declaration there whose docstring has a nonempty Intent section; or exactly the listed
+declarations) and prints screened evidence, findings at the configured severities
 and escalation routes. It exits 0 when no error-severity finding is raised, 1 when one is, and
 2 when the screen is incomplete (missing key, network or service failure, malformed answer or
 unreadable claim, which stop the run, or a refused discharge reference, which leaves only its
@@ -127,17 +130,21 @@ structure Args where
   command : String := ""
   config : Option String := none
   modules : Array Name := #[]
+  libraries : Array String := #[]
+  intentSections : Bool := false
   declarations : Array Name := #[]
   json : Option String := none
   split : Option String := none
   report : Option String := none
   records : Option String := none
 
-partial def parseArgs (args : List String) (acc : Args := {}) : Except String Args :=
+def parseArgs (args : List String) (acc : Args := {}) : Except String Args :=
   match args with
   | [] => .ok acc
   | "--config" :: v :: rest => parseArgs rest { acc with config := some v }
   | "--module" :: v :: rest => parseArgs rest { acc with modules := acc.modules.push v.toName }
+  | "--library" :: v :: rest => parseArgs rest { acc with libraries := acc.libraries.push v }
+  | "--intent-sections" :: rest => parseArgs rest { acc with intentSections := true }
   | "--declaration" :: v :: rest => parseArgs rest { acc with declarations := acc.declarations.push v.toName }
   | "--json" :: v :: rest => parseArgs rest { acc with json := some v }
   | "--split" :: v :: rest => parseArgs rest { acc with split := some v }
@@ -147,7 +154,7 @@ partial def parseArgs (args : List String) (acc : Args := {}) : Except String Ar
     else .error s!"unexpected argument {cmd}"
 
 def usage : String :=
-  "usage: intentScreen screen --config FILE --module M [--module M ...] [--declaration NAME ...] [--json FILE]\n" ++
+  "usage: intentScreen screen --config FILE (--module M | --library L) ... [--intent-sections] [--declaration NAME ...] [--json FILE]\n" ++
   "       intentScreen calibrate --config FILE --split dev|test --report FILE --records FILE"
 
 def costNote (model : PinnedModel) (u : Usage) : String :=
@@ -188,17 +195,31 @@ def writeUnfinished (path : System.FilePath) (reason : String) : IO Unit :=
   IO.FS.writeFile path (reportJson false 2 (some reason) #[] #[] #[] #[]).pretty
 
 unsafe def screen (args : Args) (cfg : Config) : IO UInt32 := do
-  if args.modules.isEmpty then throw <| IO.userError "screen requires at least one --module"
-  let env ← loadEnvironment args.modules
+  let mut modules := args.modules
+  unless args.libraries.isEmpty do
+    let inventory ← Plumb.Checker.Lake.surfaceInventory (← Plumb.Checker.repoRoot)
+    for library in args.libraries do
+      let some info := inventory.libraries.find? (·.library == library)
+        | throw <| IO.userError s!"--library {library} is not a root Lean library of this workspace"
+      modules := modules ++ info.modules.filter (!modules.contains ·)
+  if modules.isEmpty then throw <| IO.userError "screen requires at least one --module or --library"
+  let env ← loadEnvironment modules
   let selected ← if !args.declarations.isEmpty then pure args.declarations else do
     let mut names := #[]
     for (name, _) in env.constants.toList do
-      if Plumb.materialClaimAttribute.hasTag env name && !isPrivateName name then
-        if let some idx := env.getModuleIdxFor? name then
-          if args.modules.contains env.header.modules[idx.toNat]!.module then names := names.push name
+      if isPrivateName name then continue
+      let some idx := env.getModuleIdxFor? name | continue
+      unless modules.contains env.header.modules[idx.toNat]!.module do continue
+      let registered := Plumb.materialClaimAttribute.hasTag env name
+      -- `--intent-sections` adds exactly the declarations PL5003 would accept if registered.
+      let withIntent ← if args.intentSections && !registered then do
+          let doc ← findDocString? env name
+          pure (PlumbPolicy.materialDocumentationFailure doc).isNone
+        else pure false
+      if registered || withIntent then names := names.push name
     pure (names.qsort (·.toString < ·.toString))
   if selected.isEmpty then
-    IO.println "intent screen: no registered material declarations in the listed modules"
+    IO.println "intent screen: no selected declarations in the listed modules"
     if let some path := args.json then IO.FS.writeFile path (reportJson true 0 none #[] #[] #[] #[]).pretty
     return 0
   let mut usage : Usage := {}

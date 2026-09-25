@@ -122,8 +122,10 @@
   to this repository; `MUT-05` applies to the optional serialized-graph claim. A `FAIL`,
   `INCOMPLETE`, unknown, omission, skip, timeout, or unsupported check blocks the affected claim.
 - `intentScreen` (`docs/guides/intent-screening.md`) calls a paid external model and sends source
-  text; never run it in acceptance or CI. Changing its questions or corpus invalidates the
-  committed calibration in `examples/intent-screening/` until a new, disclosed test run.
+  text; never run it in acceptance. In CI only the dogfood workflow's intent-screen job runs it,
+  the one job given `TYPESAFE_API_KEY`; committed cache hits send nothing. Changing its
+  questions or corpus invalidates the committed calibration in `examples/intent-screening/`
+  until a new, disclosed test run.
 
 Use `lake build` for the Lean development loop. Complete local acceptance is two commands,
 run in this order:
@@ -178,8 +180,11 @@ the producers and history campaigns when the checker, rules, rule examples, Lake
 configuration or manifests change, on `main`, and nightly, and the two rule-example shards
 nightly. The lint-driver workflow runs
 `diagnostics lint-driver` likewise when the `lake lint` driver or anything it imports, or
-the adopter fixtures, change. Merge requires passing CI on the reviewed PR head, applicable
-focused review and diagnostics.
+the adopter fixtures, change. The dogfood workflow runs `diagnostics self-lint` (this
+repository's own `lake lint`), `diagnostics self-audit` (the excluded `Plumb` library under the
+proved operational decision) and the intent screen when Lean sources, Lake configuration,
+manifests or the screen configuration change, on `main`, and nightly. Merge requires passing
+CI on the reviewed PR head, applicable focused review and diagnostics.
 Preserve PR, signature, history, and conversation protections. Finish authorized publication,
 exact-head merge, and owned branch cleanup. Skill/handoff-only edits need proportionate
 checks when Lean inputs and claims are unchanged.
