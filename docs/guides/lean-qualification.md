@@ -294,8 +294,11 @@ by their source-level linkage. The proof is erased at execution.
   `fromJson_admissible` extends soundness to the transport decoder. Producers,
   documentation groups and acceptance call `checkedValidate.run`, so each call site
   requires this `ExecutableContract`. The project report worker skips its own call: the
-  coordinator's decoder runs the same check (`fromJson_admissible`), and
-  `Acceptance.freezeEnvironment` runs it again before any acceptance. These replace the
+  coordinator's decoder runs the same check once and keeps its success as a
+  `ProducerReport.Admitted` proof (`fromJson_admitted` shows it accepts and refuses exactly as
+  the plain decoder). `Acceptance.freezeEnvironment` requires that proof instead of
+  re-running the check, and takes the execution inventory from it
+  (`Admitted.admitExecution_eq`). These replace the
   former 8 producer and 17 history/closure/source transport mutations. They do not
   authenticate the observations.
   They live in the excluded operational `Plumb` library, so acceptance's

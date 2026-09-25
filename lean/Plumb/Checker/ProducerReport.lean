@@ -686,8 +686,8 @@ def TransportContract (run : Environment → Except String Unit) : Prop :=
 
 /-- Producers, transport decoding and acceptance call `checkedValidate.run`, which is
 definitionally `Environment.validate`, so this evidence is required at each call site. The
-project report worker leaves the call to its coordinator, whose decoder (`fromJson_admissible`)
-and `Acceptance.freezeEnvironment` both run it on the decoded report. -/
+project report worker leaves the call to its coordinator, whose decoder runs it once and
+retains the success as an `Admitted` proof; `Acceptance.freezeEnvironment` consumes that proof. -/
 theorem checkedValidate : Plumb.ExecutableContract Environment.validate TransportContract :=
   ⟨validate_sound, validate_nonvacuous⟩
 
@@ -720,6 +720,55 @@ theorem fromJson_admissible (j : Json) (r : Environment)
   obtain ⟨decoded, -, ⟨⟩, hv, rfl⟩ := h
   exact validate_sound decoded hv
 
+/-- A report together with the proof that the executed validator admitted it. Holding
+this value replaces re-running `validate` or `admitExecution` on the same report. -/
+structure Admitted where
+  report : Environment
+  valid : report.validate = .ok ()
+
+/-- Run `checkedValidate` once and retain its success as a proof. -/
+def admit (r : Environment) : Except String Admitted :=
+  match h : checkedValidate.run r with
+  | .ok () => .ok ⟨r, h⟩
+  | .error detail => .error detail
+
+/-- `admit` refuses exactly as the validator does and otherwise keeps the report intact. -/
+theorem admit_eq_ok (r : Environment) (a : Admitted) :
+    admit r = .ok a ↔ a.report = r ∧ r.validate = .ok () := by
+  unfold admit
+  split
+  next h =>
+    constructor
+    · intro e; cases e; exact ⟨rfl, h⟩
+    · rintro ⟨rfl, -⟩; rfl
+  next detail h =>
+    constructor
+    · intro e; cases e
+    · rintro ⟨-, hv⟩; simp_all [Plumb.ExecutableContract.run]
+
+/-- The admitted report's execution inventory, built from the retained proof. -/
+def Admitted.execution (a : Admitted) : ExecutionInventory :=
+  ⟨a.report.execution, (validate_sound _ a.valid).2.2.1⟩
+
+/-- Equal to what `admitExecution` returns on the same roots, for every admitted report:
+consumers may use it instead of deciding `ExecutionValid` again. -/
+theorem Admitted.admitExecution_eq (a : Admitted) :
+    admitExecution a.report.execution = .ok a.execution :=
+  admitExecution_exact _ _
+
+/-- The transport decoder with its admission proof: fields, then one `admit`. -/
+instance : FromJson Admitted := ⟨fun j => do admit (← Environment.decodeFields j)⟩
+
+/-- The proof-retaining decoder accepts and refuses exactly as the plain decoder does. -/
+theorem fromJson_admitted (j : Json) :
+    (fromJson? j : Except String Admitted).map (·.report) = fromJson? j := by
+  simp only [fromJson?]
+  cases Environment.decodeFields j with
+  | error => rfl
+  | ok r =>
+    simp only [bind, Except.bind, admit, Plumb.ExecutableContract.run]
+    split <;> rename_i h <;> simp [h, Except.map, pure, Except.pure]
+
 /-- Successful transport completion is distinct from successful logical admission. -/
 inductive Outcome where
   | reported (report : Environment)
@@ -733,15 +782,23 @@ instance : ToJson Outcome := ⟨fun
   | .reported report => Json.mkObj [("kind", toJson "reported"), ("report", toJson report)]
   | .admissionFailed failure => Json.mkObj [("kind", toJson "admissionFailed"), ("failure", toJson failure)]⟩
 
-instance : FromJson Outcome := ⟨fun j => do
+/-- One outcome grammar for every report decoder `ρ`. -/
+def decodeOutcome (ρ : Type) [FromJson ρ] (j : Json) : Except String (Except AdmissionFailure ρ) := do
   match ← j.getObjValAs? String "kind" with
   | "reported" =>
     exactFields j ["kind", "report"]
-    return .reported (← j.getObjValAs? _ "report")
+    return .ok (← j.getObjValAs? ρ "report")
   | "admissionFailed" =>
     exactFields j ["kind", "failure"]
-    return .admissionFailed (← j.getObjValAs? _ "failure")
-  | _ => throw "unknown environment producer outcome"⟩
+    return .error (← j.getObjValAs? _ "failure")
+  | _ => throw "unknown environment producer outcome"
+
+instance : FromJson Outcome := ⟨fun j => Outcome.ofExcept <$> decodeOutcome Environment j⟩
+
+/-- The same `Outcome` wire format decoded once into an admitted report. -/
+abbrev AdmittedOutcome := Except AdmissionFailure Admitted
+
+instance : FromJson AdmittedOutcome := ⟨decodeOutcome Admitted⟩
 
 end Plumb.Checker.ProducerReport
 
@@ -751,7 +808,10 @@ run_cmd do
       ``Plumb.Checker.ProducerReport.validate_sound,
       ``Plumb.Checker.ProducerReport.validate_nonvacuous,
       ``Plumb.Checker.ProducerReport.checkedValidate,
-      ``Plumb.Checker.ProducerReport.fromJson_admissible] do
+      ``Plumb.Checker.ProducerReport.fromJson_admissible,
+      ``Plumb.Checker.ProducerReport.admit_eq_ok,
+      ``Plumb.Checker.ProducerReport.Admitted.admitExecution_eq,
+      ``Plumb.Checker.ProducerReport.fromJson_admitted] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "transport theorem {name} exceeds Standard-Logical: {axioms}"

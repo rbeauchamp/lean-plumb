@@ -225,7 +225,7 @@ instance : FromJson ReportWorkerRequest := ⟨fun j => do
 
 private structure SurfaceInspection where
   info : LibraryInfo
-  report : Plumb.Checker.ProducerReport.Environment
+  admitted : Plumb.Checker.ProducerReport.Admitted
   transcripts : Array Frontend.Transcript
   frontendFailures : Array String
 
@@ -397,11 +397,13 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           ownedOutput := inventory.leanLibDir.toString
           historyMemo := historyMemo.toString
         }
-        let outcome : ProducerReport.Outcome ← withSlot <| timedPhase s!"declaration inspection {surface.library}" <|
+        -- The decoder validates the report once and keeps that success as a proof.
+        let outcome : ProducerReport.AdmittedOutcome ← withSlot <| timedPhase s!"declaration inspection {surface.library}" <|
           runTypedWorker "--declaration-report-worker" request
-        if let .admissionFailed failure := outcome then return .error failure
-        let .reported report := outcome
+        if let .error failure := outcome then return .error failure
+        let .ok admitted := outcome
           | throw <| IO.userError "unreachable admission outcome"
+        let report := admitted.report
         if let .error failure := SourceBinding.validateAgainst sourceBindings report then
           return .error failure
         -- `mapWorkQueue` returns results in module order, so transcripts and failures
@@ -423,7 +425,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           | .inr transcript => transcripts := transcripts.push transcript
         if let .error failure := SourceBinding.transcriptsMatch sourceBindings transcripts then
           return .error failure
-        return .ok { info, report, transcripts, frontendFailures }
+        return .ok { info, admitted, transcripts, frontendFailures }
       let inspections ← withScratch (← IO.currentDir) "history-memo" fun historyMemo =>
         mapWorkQueue 3 manifest.surfaces fun surface => do
           -- Capture failures as values so every started worker is joined, then choose
@@ -446,7 +448,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         let response ← IO.ofExcept outcome
         let inspected ← IO.ofExcept <| response.mapError (·.detail)
         pure ({
-          expectedModules := info.modules, report := inspected.report,
+          expectedModules := info.modules, admitted := inspected.admitted,
           transcripts := inspected.transcripts } : Acceptance.RequestedInspection)
       let freezeRequest : IO (PlumbPolicy.AdmittedSnapshot ×
           ((c : PlumbPolicy.Claim) × Acceptance.Frozen c)) := do
@@ -476,7 +478,8 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           return 1
         let .ok inspected := inspection
           | throw <| IO.userError "unreachable admission outcome"
-        let { info, report, transcripts, frontendFailures } := inspected
+        let { info, admitted, transcripts, frontendFailures } := inspected
+        let report := admitted.report
         unless report.census.modules == info.modules && report.census.executionRoots.isSome do
           throw <| IO.userError "producer-census: report does not match requested project scope"
         let forcedNameCodec ← Environment.forcedStructuralName report
@@ -572,7 +575,8 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
               classification location
               (if fresh then .freshProject else .incrementalProject) (some surface.claim.toString)
             findings := findings.push finding
-        let executionInventory ← IO.ofExcept <| Policy.admitExecution report.execution
+        -- Equal to `Policy.admitExecution report.execution` (`Admitted.admitExecution_eq`).
+        let executionInventory := admitted.execution
         failures := failures ++ Policy.executionFailures executionInventory surface.execution
         for failure in Policy.executionFailureRecords executionInventory surface.execution do
           let location ← match report.declarations.find? (·.name == failure.root.name) with
@@ -611,9 +615,10 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
           ("frontendTranscripts", Json.arr <| transcripts.map toJson),
           ("report", report)
         ]
-        surfaceReports := surfaceReports.push (surfaceJson (toJson report))
+        -- Each rendering is built only for the output that reads it; neither affects a decision.
+        if jsonOut.isSome then surfaceReports := surfaceReports.push (surfaceJson (toJson report))
         -- Legacy output keeps the full report; the result omits the import closure.
-        resultSurfaces := resultSurfaces.push (surfaceJson report.resultJson)
+        if resultOut.isSome then resultSurfaces := resultSurfaces.push (surfaceJson report.resultJson)
 
       let ownedModules := manifest.surfaces.foldl (fun count surface =>
         match surfaces.find? (·.name == surface.library) with
@@ -921,8 +926,9 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                     SourceBinding.unchanged #[fileSource]
                     SourceBinding.configurationUnchanged configuration
                     Snapshot.inputsUnchanged inventory dependencies
+                    let admitted ← IO.ofExcept <| ProducerReport.admit inspected.report
                     let inspection : Acceptance.RequestedInspection := {
-                      expectedModules := #[moduleName.toName], report := inspected.report,
+                      expectedModules := #[moduleName.toName], admitted,
                       transcripts := inspected.transcripts }
                     let histories ← IO.ofExcept <| Acceptance.historyObservations #[inspection]
                     let requested : PlumbPolicy.SourceSnapshot := ⟨path.toString, source⟩

@@ -63,7 +63,8 @@ private unsafe def checkCore (attempt : String) (path : FilePath) : IO Unit := d
       let some source := sources.find? (·.moduleName == name)
         | throw <| IO.userError s!"missing captured frontend source: {name}"
       transcripts := transcripts.push (← Plumb.Checker.Frontend.buildIsolated name ⟨source.path⟩ inventory.leanPath)
-    let inspected : Acceptance.RequestedInspection := ⟨modules, report, transcripts⟩
+    let inspected : Acceptance.RequestedInspection :=
+      ⟨modules, ← IO.ofExcept (ProducerReport.admit report), transcripts⟩
     reports := reports.push inspected
     atomicWrite packetPath (toJson inspected)
     save attempt path packets records "incomplete"
@@ -102,14 +103,18 @@ private unsafe def checkCore (attempt : String) (path : FilePath) : IO Unit := d
   let _ ← Acceptance.finish frozen buildObservation
   records := records.push <| Json.mkObj [("case", toJson "complete-positive"), ("passed", toJson true)]
   save attempt path packets records "incomplete"
+  -- A mutated report must pass the same `admit` that decoded reports pass, so a malformed
+  -- report is refused before `freeze` exactly as the transport decoder refuses it.
+  let omitted : Unit → IO (Array Acceptance.RequestedInspection) := fun _ => do
+    let admitted ← IO.ofExcept <| ProducerReport.admit { left.report with sourceBindings := #[] }
+    pure (reports.set! leftIndex { left with admitted })
   for (name, mutated, reason) in #[
-      ("omitted-environment", reports.extract 0 (reports.size - 1), "missing, duplicate or unrequested environment inspection"),
-      ("duplicate-environment", reports.push left, "missing, duplicate or unrequested environment inspection"),
-      ("same-count-duplicate-environment", reports.set! rightIndex left, "producer census differs from independently requested environment"),
-      ("rebound-environment", reports.set! leftIndex right, "producer census differs from independently requested environment"),
-      ("source-binding-omission", reports.set! leftIndex
-        { left with report := { left.report with sourceBindings := #[] } }, "producer-source: source coverage or coordinates mismatch")] do
-    let result ← (freeze mutated).toBaseIO
+      ("omitted-environment", fun _ => pure (reports.extract 0 (reports.size - 1)), "missing, duplicate or unrequested environment inspection"),
+      ("duplicate-environment", fun _ => pure (reports.push left), "missing, duplicate or unrequested environment inspection"),
+      ("same-count-duplicate-environment", fun _ => pure (reports.set! rightIndex left), "producer census differs from independently requested environment"),
+      ("rebound-environment", fun _ => pure (reports.set! leftIndex right), "producer census differs from independently requested environment"),
+      ("source-binding-omission", omitted, "producer-source: source coverage or coordinates mismatch")] do
+    let result ← (do freeze (← mutated ())).toBaseIO
     let refusal := match result with | .ok _ => "" | .error error => error.toString
     records := records.push <| Json.mkObj [("case", toJson name), ("refusal", toJson refusal)]
     save attempt path packets records "incomplete"

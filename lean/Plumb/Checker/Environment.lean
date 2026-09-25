@@ -280,8 +280,8 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       }
       SourceBinding.unchanged report.sourceBindings
       if let .error failure := report.validateSourceEvidence then return .error failure
-      -- The project coordinator's decoder runs this exact check (`fromJson_admissible`), and
-      -- `Acceptance.freezeEnvironment` runs it again before acceptance; only that caller opts out.
+      -- The project coordinator's decoder runs this exact check once and keeps its success as a
+      -- `ProducerReport.Admitted` proof for `Acceptance.freezeEnvironment`; only that caller opts out.
       if validateReport then IO.ofExcept (ProducerReport.checkedValidate.run report)
       return .ok report
   ).bind id
