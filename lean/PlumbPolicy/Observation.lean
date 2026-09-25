@@ -114,7 +114,21 @@ def AdmissionOK (i : EnvironmentCensus) (o : AdmissionObservation) : Prop :=
   o.modules = i.admissionModules ∧ o.required = i.admissionDeclarations ∧ o.admitted.toList.Pairwise (· ≠ ·) ∧
   (∀ d ∈ o.required, d ∈ o.admitted) ∧ (∀ d ∈ o.admitted, d ∈ o.required) ∧ o.failures = #[]
 instance (i : EnvironmentCensus) (o : AdmissionObservation) : Decidable (AdmissionOK i o) := by
-  unfold AdmissionOK; infer_instance
+  unfold AdmissionOK
+  -- Index both key arrays once instead of scanning them for every key.
+  let admitted := Std.ExtHashSet.ofList o.admitted.toList
+  let required := Std.ExtHashSet.ofList o.required.toList
+  letI (d : DeclarationKey) : Decidable (d ∈ o.admitted) :=
+    decidable_of_iff (d ∈ admitted) (by simp [admitted, Std.ExtHashSet.mem_ofList])
+  letI (d : DeclarationKey) : Decidable (d ∈ o.required) :=
+    decidable_of_iff (d ∈ required) (by simp [required, Std.ExtHashSet.mem_ofList])
+  letI : Decidable (o.admitted.toList.Pairwise (· ≠ ·)) := distinctDecidable _
+  infer_instance
+
+/-- The indexed implementation decides the same proposition as the prior finite scan. -/
+theorem admissionOK_decide_eq_previous (i : EnvironmentCensus) (o : AdmissionObservation) :
+    decide (AdmissionOK i o) = @decide (AdmissionOK i o) (by unfold AdmissionOK; infer_instance) := by
+  congr
 
 /-- Source coordinates are checked against exact bytes; module/project locations remain
 explicit rather than being converted to a fabricated line number. -/

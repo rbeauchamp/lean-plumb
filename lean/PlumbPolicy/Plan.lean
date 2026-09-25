@@ -205,6 +205,15 @@ def GraphPlanOK (c : Claim) (i : Census) : Prop :=
 instance (c : Claim) (i : Census) : Decidable (GraphPlanOK c i) := by
   unfold GraphPlanOK; infer_instance
 
+/-- Bucket keys by their names only. Hits and collisions are resolved by full structural
+equality, including the admitted snapshot, so membership still compares every field. -/
+instance : Hashable ModuleKey := ⟨fun k => hash k.name.name⟩
+instance : LawfulHashable ModuleKey where
+  hash_eq _ _ h := eq_of_beq h ▸ rfl
+instance : Hashable DeclarationKey := ⟨fun k => mixHash (hash k.moduleKey.name.name) (hash k.name.name)⟩
+instance : LawfulHashable DeclarationKey where
+  hash_eq _ _ h := eq_of_beq h ▸ rfl
+
 /-- Exact admitted key/data reconciliation and claim bindings. These checks cannot establish
 that the external environment traversal or source scan omitted nothing; that is the collector
 boundary. They do prevent a returned policy table from defining its own required census. -/
@@ -244,7 +253,36 @@ def EnvironmentCensusOK (c : Claim) (global : Census) (i : EnvironmentCensus) : 
 set_option synthInstance.maxSize 1024 in
 instance (c : Claim) (global : Census) (i : EnvironmentCensus) : Decidable (EnvironmentCensusOK c global i) := by
   unfold EnvironmentCensusOK
+  -- Index each repeatedly queried array once; membership and distinctness equivalences
+  -- supply decisions for the unchanged predicate, without a second validity definition.
+  let allModules := Std.ExtHashSet.ofList i.allModules.toList
+  let admissionModules := Std.ExtHashSet.ofList i.admissionModules.toList
+  let modules := Std.ExtHashSet.ofList i.modules.toList
+  let declarations := Std.ExtHashSet.ofList i.declarations.toList
+  let allNames := Std.ExtHashSet.ofList (moduleNames i.allModules).toList
+  let admissionNames := Std.ExtHashSet.ofList (declarationNames i.admissionDeclarations).toList
+  letI (m : ModuleKey) : Decidable (m ∈ i.allModules) :=
+    decidable_of_iff (m ∈ allModules) (by simp [allModules, Std.ExtHashSet.mem_ofList])
+  letI (m : ModuleKey) : Decidable (m ∈ i.admissionModules) :=
+    decidable_of_iff (m ∈ admissionModules) (by simp [admissionModules, Std.ExtHashSet.mem_ofList])
+  letI (m : ModuleKey) : Decidable (m ∈ i.modules) :=
+    decidable_of_iff (m ∈ modules) (by simp [modules, Std.ExtHashSet.mem_ofList])
+  letI (d : DeclarationKey) : Decidable (d ∈ i.declarations) :=
+    decidable_of_iff (d ∈ declarations) (by simp [declarations, Std.ExtHashSet.mem_ofList])
+  letI (n : Name) : Decidable (n ∈ moduleNames i.allModules) :=
+    decidable_of_iff (n ∈ allNames) (by simp [allNames, Std.ExtHashSet.mem_ofList])
+  letI (k : Name × Name) : Decidable (k ∈ declarationNames i.admissionDeclarations) :=
+    decidable_of_iff (k ∈ admissionNames) (by simp [admissionNames, Std.ExtHashSet.mem_ofList])
+  letI : Decidable (i.admissionDeclarations.toList.Pairwise (· ≠ ·)) := distinctDecidable _
+  letI : Decidable (i.materialDeclarations.toList.Pairwise (· ≠ ·)) := distinctDecidable _
   cases c.val.scope <;> infer_instance
+
+set_option synthInstance.maxSize 1024 in
+/-- The indexed implementation decides the same proposition as the prior finite scan. -/
+theorem environmentCensusOK_decide_eq_previous (c : Claim) (global : Census) (i : EnvironmentCensus) :
+    decide (EnvironmentCensusOK c global i) = @decide (EnvironmentCensusOK c global i)
+      (by unfold EnvironmentCensusOK; cases c.val.scope <;> infer_instance) := by
+  congr
 
 /-- Exact request occurrences and positive partition precede admission of any results.
 Environment position is identity; no producer may select or deduplicate this domain. -/

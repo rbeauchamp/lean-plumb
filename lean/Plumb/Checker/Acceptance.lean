@@ -15,18 +15,26 @@ open Lean System PlumbPolicy
 open scoped Plumb.Report
 
 /-- One independently requested report and its completed raw observations. The expected
-module array is supplied by the coordinator's discovery, never copied from the response. -/
+module array is supplied by the coordinator's discovery, never copied from the response.
+The report is held with its transport admission proof, so freezing never re-validates it. -/
 structure RequestedInspection where
   expectedModules : Array Name
-  report : ProducerReport.Environment
+  admitted : ProducerReport.Admitted
   transcripts : Array PlumbPolicy.Frontend.Transcript
-  deriving ToJson
+
+/-- The admitted report itself. -/
+abbrev RequestedInspection.report (inspection : RequestedInspection) : ProducerReport.Environment :=
+  inspection.admitted.report
+
+instance : ToJson RequestedInspection := ⟨fun value => Json.mkObj [
+  ("expectedModules", toJson value.expectedModules), ("report", toJson value.report),
+  ("transcripts", toJson value.transcripts)]⟩
 
 instance : FromJson RequestedInspection := ⟨fun value => do
   PolicyCodec.exactFields value ["expectedModules", "report", "transcripts"]
   return {
     expectedModules := ← value.getObjValAs? _ "expectedModules",
-    report := ← value.getObjValAs? _ "report", transcripts := ← value.getObjValAs? _ "transcripts" }⟩
+    admitted := ← value.getObjValAs? _ "report", transcripts := ← value.getObjValAs? _ "transcripts" }⟩
 
 /-- Retain one exact source per URI; repeated identical file observations are shared,
 while conflicting bytes are refused. This normalizes source maps, never job results. -/
@@ -72,9 +80,9 @@ private def freezeEnvironment (claim : Claim) (request : EnvironmentRequest)
   unless inspected.expectedModules == positive && report.census.modules == positive &&
       report.census.executionRoots.isSome do
     throw <| IO.userError "producer census differs from independently requested environment"
+  -- `inspected.admitted.valid` proves `checkedValidate` (which includes the source-evidence
+  -- guard) succeeded on this exact report; only the bindings to `sources` remain to check.
   timedPhase "freeze report validation" do
-    IO.ofExcept (← IO.lazyPure fun _ => ProducerReport.checkedValidate.run report)
-    IO.ofExcept (← IO.lazyPure fun _ => (report.validateSourceEvidence).mapError (·.detail))
     IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.validateAgainst sources report).mapError (·.detail))
     IO.ofExcept (← IO.lazyPure fun _ => (SourceBinding.transcriptsMatch sources inspected.transcripts).mapError (·.detail))
   let some replay := report.admission
@@ -82,7 +90,8 @@ private def freezeEnvironment (claim : Claim) (request : EnvironmentRequest)
   let some documentation := report.documentation
     | throw <| IO.userError "missing completed documentation observation"
   let scope ← IO.ofExcept <| Policy.admitScope report.declarations inspected.transcripts
-  let execution ← IO.ofExcept <| admitExecution report.execution
+  -- Equal to `admitExecution report.execution` (`Admitted.admitExecution_eq`).
+  let execution := inspected.admitted.execution
   let origins := report.moduleOrigins
   let infrastructure ← Environment.infrastructureOrigins snapshot report
   let histories ← IO.ofExcept <| historyObservations #[inspected]
