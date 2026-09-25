@@ -295,8 +295,9 @@ by their source-level linkage. The proof is erased at execution.
   documentation groups and acceptance call `checkedValidate.run`, so each call site
   requires this `ExecutableContract`. The project report worker skips its own call: the
   coordinator's decoder runs the same check (`fromJson_admissible`), and
-  `Acceptance.freezeEnvironment` runs it again before any acceptance. These replace the former 8 producer and 17
-  history/closure/source transport mutations. They do not authenticate the observations.
+  `Acceptance.freezeEnvironment` runs it again before any acceptance. These replace the
+  former 8 producer and 17 history/closure/source transport mutations. They do not
+  authenticate the observations.
   They live in the excluded operational `Plumb` library, so acceptance's
   claimed-surface audit neither re-elaborates nor reports them: the `lake build` kernel-checks
   them under `warningAsError` (which also rejects `sorry`), and the module's `run_cmd`
