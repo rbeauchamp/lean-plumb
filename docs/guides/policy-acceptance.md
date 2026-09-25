@@ -553,7 +553,9 @@ No promise of exact legacy JSON bytes, broader supported inputs or improved runt
 
 **No new acceleration/certificate API is selected.** The existing replacement correspondence
 cache in `Probe.environmentReport` stores checked results by name pair in one fixed environment;
-replacement-history memoization is scoped to one report. Preserve these scopes. A future
+replacement-history worker output is shared within one audit only under the identical-input
+condition of [standard §8.6](../standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly).
+Preserve these scopes. A future
 cross-environment cache would need equality of all relevant inputs plus revalidated evidence
 and a proof that varying candidate data cannot weaken acceptance. None is justified here.
 Generated-role and canonical runtime recognition determine policy authority; they are not

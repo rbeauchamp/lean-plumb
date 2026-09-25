@@ -685,7 +685,9 @@ def TransportContract (run : Environment → Except String Unit) : Prop :=
   (∀ r, run r = .ok () → r.Admissible) ∧ ∃ r, run r = .ok ()
 
 /-- Producers, transport decoding and acceptance call `checkedValidate.run`, which is
-definitionally `Environment.validate`, so this evidence is required at each call site. -/
+definitionally `Environment.validate`, so this evidence is required at each call site. The
+project report worker leaves the call to its coordinator, whose decoder (`fromJson_admissible`)
+and `Acceptance.freezeEnvironment` both run it on the decoded report. -/
 theorem checkedValidate : Plumb.ExecutableContract Environment.validate TransportContract :=
   ⟨validate_sound, validate_nonvacuous⟩
 

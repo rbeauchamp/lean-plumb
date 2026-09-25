@@ -88,11 +88,73 @@ def infrastructureOrigins (snapshot : PlumbPolicy.AdmittedSnapshot)
       PlumbPolicy.admitInfrastructureOrigin key actual.toString expected.toString)
   return receipts
 
+/-- One memoized replacement-history worker run: its complete inputs and the exact bytes
+it wrote. A record is used only when every input is equal to the requester's own. -/
+private structure HistoryMemo where
+  moduleName : String
+  source : String
+  sourceBefore : String
+  searchIdentity : String
+  binary : String
+  output : String
+  deriving ToJson, FromJson, BEq
+
+/-- The history worker's output bytes for exactly these inputs, shared by the surface
+workers of one audit through `memo` (a directory the coordinator owns for the audit).
+Trusted assumption (the §8.5 supported-process boundary): the worker's output is a
+deterministic function of the module source, the effective search path (`searchIdentity`,
+see `loadReportCore`) and the pinned binary, with the audit's inherited environment and
+unchanged imported artifacts. Every field is compared exactly before a record is used, so
+under that assumption a reused record carries the bytes this worker would have produced;
+the requester still validates the packet and its own before/after source comparison. The first worker
+to claim a key (an exclusive-create lock) runs the subprocess; the others wait for its
+record, and run the subprocess themselves if the record does not appear or does not match.
+Without `memo`, or on any memo failure, the worker runs as before; a failure to publish a
+record never changes the returned output. -/
+private def historyWorkerOutput (memo : Option FilePath) (inputs : HistoryMemo)
+    (run : IO String) : IO String := do
+  let some directory := memo | run
+  let key := toString (hash (inputs.moduleName, inputs.source, inputs.sourceBefore,
+    inputs.searchIdentity, inputs.binary))
+  let record := directory / s!"{key}.json"
+  let lock := directory / s!"{key}.lock"
+  let reuse : IO (Option String) := do
+    unless ← record.pathExists do return none
+    let stored : HistoryMemo ← IO.ofExcept <| (Json.parse (← IO.FS.readFile record)).bind fromJson?
+    return if { stored with output := "" } == inputs then some stored.output else none
+  if let some output ← (reuse <|> pure none) then return output
+  let claimed ← (do discard <| IO.FS.Handle.mk lock .writeNew; pure true) <|> pure false
+  if claimed then
+    try
+      -- Another worker may have published while this one claimed the key.
+      if let some output ← (reuse <|> pure none) then return output
+      let output ← run
+      try
+        let staged := directory / s!"{key}.staged"
+        IO.FS.writeFile staged (toJson { inputs with output }).compress
+        IO.FS.rename staged record
+      catch _ => pure ()
+      return output
+    finally
+      try IO.FS.removeFile lock catch _ => pure ()
+  -- Another worker holds the key: wait while it does, for at most ten minutes (beyond the
+  -- audit's own deadline), then compute here.
+  let start ← IO.monoMsNow
+  while (← IO.monoMsNow) - start < 600000 do
+    if let some output ← (reuse <|> pure none) then return output
+    unless ← lock.pathExists do
+      if let some output ← (reuse <|> pure none) then return output
+      break
+    IO.sleep 50
+  run
+
 /-- Re-elaboration recovers overwritten `implemented_by` choices that neither
 the final attribute map nor optimized IR preserves. Isolate the frontend's
-initializers, and memoize once per module in one audit invocation. -/
+initializers, memoize once per module in one worker, and share the worker output across
+the audit's workers through `historyWorkerOutput`. -/
 private def replacementHistory (sourceRoots : Array FilePath)
-    (moduleSources : Array (Name × FilePath)) (moduleName : Name) :
+    (moduleSources : Array (Name × FilePath)) (moduleName : Name)
+    (memo : Option (FilePath × String) := none) :
     IO ProducerReport.HistoryOutcome := do
   try
     let olean ← Lean.findOLean moduleName
@@ -113,14 +175,20 @@ private def replacementHistory (sourceRoots : Array FilePath)
       let sourceBefore ← IO.FS.readFile source
       let request := sourceWorkerRequest "history" moduleName source sourceBefore
       let searchPath := System.SearchPath.toString (← Lean.searchPathRef.get)
-      let result ← IO.Process.output {
-        cmd := (bin / "axiomGate").toString
-        args := #["--replacement-history-worker", (Plumb.RegistryCodec.nameJson moduleName).compress, source.toString,
-          output.toString]
-        env := #[("LEAN_PATH", some searchPath)] }
-      if result.exitCode != 0 then
-        throw <| IO.userError s!"{result.stdout}{result.stderr}"
-      let json ← IO.ofExcept <| Plumb.Checker.PolicyCodec.parse (← IO.FS.readFile output)
+      let inputs : HistoryMemo := {
+        moduleName := (Plumb.RegistryCodec.nameJson moduleName).compress, source := source.toString
+        sourceBefore, searchIdentity := (memo.map (·.2)).getD searchPath
+        binary := (bin / "axiomGate").toString, output := "" }
+      let written ← historyWorkerOutput (memo.map (·.1)) inputs do
+        let result ← IO.Process.output {
+          cmd := (bin / "axiomGate").toString
+          args := #["--replacement-history-worker", (Plumb.RegistryCodec.nameJson moduleName).compress, source.toString,
+            output.toString]
+          env := #[("LEAN_PATH", some searchPath)] }
+        if result.exitCode != 0 then
+          throw <| IO.userError s!"{result.stdout}{result.stderr}"
+        IO.FS.readFile output
+      let json ← IO.ofExcept <| Plumb.Checker.PolicyCodec.parse written
       let payload ← IO.ofExcept <| readWorkerPacket request json
       let sourceAfter ← IO.FS.readFile source
       unless sourceAfter == sourceBefore do
@@ -131,7 +199,8 @@ private def replacementHistory (sourceRoots : Array FilePath)
 
 private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
-    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
+    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true)
+    (validateReport : Bool := true) (historyMemo : Option (FilePath × String) := none) :
     IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   if modules.isEmpty || modules.toList.eraseDups.length != modules.size then
     throw <| IO.userError "environment report requires unique nonempty modules"
@@ -182,7 +251,7 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
     let histories ← IO.mkRef ({} : NameMap ProducerReport.HistoryOutcome)
     let loadHistory (moduleName : Name) := do
       if let some result := (← histories.get).find? moduleName then return result.edges
-      let result ← replacementHistory sourceRoots resolvedSources moduleName
+      let result ← replacementHistory sourceRoots resolvedSources moduleName historyMemo
       histories.modify (·.insert moduleName result)
       return result.edges
     let ctx : Elab.Command.Context := {
@@ -211,7 +280,9 @@ private unsafe def loadReportCoreAtSearchPath (modules : Array Name) (sourceRoot
       }
       SourceBinding.unchanged report.sourceBindings
       if let .error failure := report.validateSourceEvidence then return .error failure
-      IO.ofExcept (ProducerReport.checkedValidate.run report)
+      -- The project coordinator's decoder runs this exact check (`fromJson_admissible`), and
+      -- `Acceptance.freezeEnvironment` runs it again before acceptance; only that caller opts out.
+      if validateReport then IO.ofExcept (ProducerReport.checkedValidate.run report)
       return .ok report
   ).bind id
 
@@ -221,7 +292,8 @@ and putting the entire checker output first would mask fresh audited modules.
 Expose only the checker-owned prefix ahead of the audited search roots. -/
 private unsafe def loadReportCore (modules : Array Name) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
-    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
+    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true)
+    (validateReport : Bool := true) (historyMemo : Option FilePath := none) :
     IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   let some selfLib ← checkerPackageLibDir
     | throw <| IO.userError "trusted checker library directory unavailable"
@@ -233,7 +305,13 @@ private unsafe def loadReportCore (modules : Array Name) (sourceRoots : Array Fi
       throw <| IO.userError s!"could not expose trusted probe prefix: {linked.output}"
     let oldSearchPath ← Lean.searchPathRef.get
     Lean.searchPathRef.set (overlay :: oldSearchPath)
-    try loadReportCoreAtSearchPath modules sourceRoots moduleSources ownedOutput includeExecution includeModuleOrigins
+    -- The overlay holds only the `Plumb` link to `probeDirectory`, so the effective search
+    -- path is determined by that directory and the search path below it. Shared history
+    -- worker output is keyed on this identity, not on the per-worker overlay name.
+    let searchIdentity := s!"probe={probeDirectory};path={System.SearchPath.toString oldSearchPath}"
+    try
+      loadReportCoreAtSearchPath modules sourceRoots moduleSources ownedOutput includeExecution
+        includeModuleOrigins validateReport (historyMemo.map (·, searchIdentity))
     finally Lean.searchPathRef.set oldSearchPath
 
 /-- Load exact modules using the already configured search path. This variant
@@ -250,12 +328,15 @@ declaration report. Extra search roots are temporary and restored afterward. -/
 unsafe def loadReportOutcome (modules : Array Name)
     (extraSearchRoots : Array FilePath := #[]) (sourceRoots : Array FilePath := #[])
     (moduleSources : Array (Name × FilePath) := #[]) (ownedOutput : Option FilePath := none)
-    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true) :
+    (includeExecution : Bool := true) (includeModuleOrigins : Bool := true)
+    (validateReport : Bool := true) (historyMemo : Option FilePath := none) :
     IO (Except ProducerReport.AdmissionFailure ProducerReport.Environment) := do
   let selfLib ← checkerPackageLibDir
   let oldSearchPath ← Lean.searchPathRef.get
   Lean.searchPathRef.set (extraSearchRoots.toList ++ selfLib.toList ++ oldSearchPath)
-  try loadReportCore modules sourceRoots moduleSources ownedOutput includeExecution includeModuleOrigins
+  try
+    loadReportCore modules sourceRoots moduleSources ownedOutput includeExecution
+      includeModuleOrigins validateReport historyMemo
   finally Lean.searchPathRef.set oldSearchPath
 
 /-- Compatibility wrapper for callers that report all incomplete inspection failures
