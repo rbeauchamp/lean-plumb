@@ -79,8 +79,8 @@ No local result has an `Accepted` or project-PASS constructor. Fresh source
 admission, ownership reconciliation, execution closure, mandatory documentation
 jobs and complete result assembly belong to the
 [project acceptance paths](policy-acceptance.md#1-observed-call-flow-and-every-success-boundary).
-#13 retains the complete twenty-one-rule example corpus and #15 the published Verso
-website. The `lake lint` driver and its configuration explanation are in the
+#13 retains the complete twenty-one-rule example corpus and #15 the published
+[rule reference](website.md). The `lake lint` driver and its configuration explanation are in the
 [adoption guide](adoption.md#6-enforce-with-lake-lint-lake-build-and-ci); the observed
 VS Code journeys are in
 [session/evidence/issue-14-editor-journeys.md](../../session/evidence/issue-14-editor-journeys.md).

@@ -9,7 +9,7 @@ against `b43553693f16c061e2e9214116339304c7f93ae0` on 2026-09-15. The
 | Relationship | Actual scope | Treatment |
 | --- | --- | --- |
 | Design inspiration | `PropWhen` illustrates an invariant-bearing canonical representation with laws at its API boundary. `InstalledEnv`/`FullyChecked` illustrates acceptance bound to a specific installed input and all required record checks. | Keep precise citations in registry/policy design documentation and relevant source attribution. |
-| Current code or proof dependency | Root and prototype package manifests contain no con-leche dependency; the linter does not import its modules or invoke its checker. Existing registry attribution explicitly marks copied code false. | Do not describe Plumb as built on con-leche or claim its correctness theorem applies here. |
+| Current code or proof dependency | Root and website package manifests contain no con-leche dependency; the linter does not import its modules or invoke its checker. Existing registry attribution explicitly marks copied code false. | Do not describe Plumb as built on con-leche or claim its correctness theorem applies here. |
 | Rule detection and developer experience | The actual semantic host is Lean; native hooks, Lake, infoview, Std/library facilities and the cross-language UX references have their own roles. | Credit those facilities and examples where used. Con-leche does not supply the linter rules, editor adapter or website UX. |
 | Optional future external checking | #8 investigates export/toolchain fidelity; #9 may implement an adapter only after a supported feasibility decision. Neither is delivered or a core linter prerequisite. | Retain these explicitly optional issues with the `con-leche` topic label. A research no-go is a legitimate result. |
 
@@ -36,6 +36,16 @@ Lake's `lintDriver` package field and `lake lint` dispatch (`Lake.CLI.Main`, `Pa
 builtin widget behind named errors, renders the editor's **View explanation** link with Plumb's
 registry URL. The VS Code Lean 4 extension and infoview (leanprover/vscode-lean4) host
 these messages. These are dependencies, not design influences on Plumb's policy.
+
+## Website
+
+The rule reference is rendered by Verso (Lean FRO and contributors, Apache 2.0) as a
+pinned dependency; its bundled search and table-of-contents scripts carry their own licenses,
+listed on the generated credits page. The documentation/example toolchain separation follows
+David Thrane Christiansen's package-docs template; no template text is copied. Microsoft's
+CA1416 rule page is one illustrative reference for the page structure; no .NET content is used.
+The explanations and site code are original. The site documents the registry, whose canonical
+design credits con-leche above; con-leche did not design the site.
 
 ## Keep attribution proportionate
 

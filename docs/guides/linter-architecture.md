@@ -2,11 +2,11 @@
 
 PRODUCT-01 (#11), design baseline: `f943f41c50876b25c8c5c2285e6ae4315645521e`.
 This document records the implementation contract for Project 8. The registry, native
-editor linter and `lake lint` driver are implemented; the public website remains planned. DESIGN-01 supplements
+editor linter, `lake lint` driver and rule-reference [website](website.md) are implemented. DESIGN-01 supplements
 this contract with [comparative ecosystem research](ecosystem-design.md) and the selected
 [developer experience](developer-experience.md), including command/configuration semantics,
 Mathlib-driver coexistence, presentation, search and the initial no-source-rewriting fix policy.
-The [one-rule probe](../../examples/rule-reference-prototype/README.md) supplies bounded
+The retired one-rule probe (historical commit `e5bc6267fa44d03a174c10ba3711e9c32545dff2`) supplied bounded
 interface evidence. The [coverage map](rule-coverage.md) accounts for the complete standard.
 
 ## Product and authority
@@ -49,7 +49,7 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | `lean/Plumb/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
 | `website/` | Separate pinned Verso Lake package and original explanatory prose. |
 | `examples/rules/<ID>/` | Actual violation/fix source plus typed expected outcome specification; isolated negatives. |
-| Lean modules in the website package | Planned build, validation, assembly, and publish-artifact preparation via Lake; no Python or additional unapproved shell scripts. |
+| `lean/PlumbCore/Site*.lean`, `lean/Plumb/Site/` | Site generation, validation and assembly: proved pure decisions in the claimed core and the operational `site` builder, run through Lake; no Python or additional shell scripts. |
 
 `RuleId` is the closed initial vocabulary in the coverage map, not a natural number or free
 string accepted without validation. `descriptor : (id : RuleId) → RuleDescriptor id` is total by exhaustive
@@ -175,7 +175,7 @@ an external error name does not redirect that widget to a project website.
 
 The original design selected a package-owned JavaScript message widget with a textual
 HTTPS fallback. The repository's Lean-only policy supersedes that implementation choice:
-the prototype retains the textual URL only. The production linter reuses the upstream
+the textual URL remains. The production linter reuses the upstream
 interface instead: `Lean.errorDescriptionWidget`, the builtin widget module behind Lean's
 named errors, instantiated with `code = Plumb.<ID>` and `explanationUrl = helpUrl id`
 from the registry. It renders `Error code` and a **View explanation** anchor
@@ -184,8 +184,8 @@ alternative is empty, so plain renderers show the message text and its URL. Rend
 `MessageData` with name `Plumb.<ID>` through `logMessage`, supplying the actual file/range
 and message context, rather than the `logAt` path that appends the wrong built-in widget.
 The [interactive diagnostic adapter][interactive] derives `code?` from the named message kind.
-The prototype verifies serialized named kind, source location, policy rejection and fallback URL;
-the former package-owned widget has been removed. The supported VS Code infoview interaction
+The retired prototype verified serialized named kind, source location, policy rejection and
+fallback URL; the former package-owned widget has been removed. The supported VS Code infoview interaction
 was observed for opening the URL, the Problems-panel text fallback, code serialization,
 non-BMP and CRLF ranges, stale and cancelled snapshots, and the absence of any Lean-manual
 link ([record](../../session/evidence/issue-14-editor-journeys.md)). An ordinary browser
@@ -194,62 +194,63 @@ language server is selected.
 
 ## Website, versions, and synchronization
 
-Select **Verso**, pinned in the documentation package's
-[Lake configuration](../../examples/rule-reference-prototype/site/lakefile.toml).
-The documentation package and checker/examples all use the same supported Lean release. The separate
-documentation workspace follows the [package-docs template][template] at
+The rule reference is implemented (#15); the [website guide](website.md) is the maintained
+account of its sources, guarantees, commands and publication. **Verso** is pinned in the
+[website package](../../website/lakefile.toml) with its complete
+[lock manifest](../../website/lake-manifest.json); do not resolve moving dependency branches
+in CI. The documentation package and checker/examples use the same supported Lean release.
+The separate documentation workspace follows the [package-docs template][template] at
 `76c9edf5a70f14d272af0f0f354ec833ac22c350`; rendering remains distinct from checking examples.
-Retain the complete [lock manifest](../../examples/rule-reference-prototype/site/lake-manifest.json)
-shipped in the prototype; do not resolve moving dependency branches in CI.
 
-The bounded probe generates Verso source from the Lean-exported descriptor and exact fixture
-files after their real 4.34.0 checker outcomes pass. These source-included blocks render as text;
-no implicit re-elaboration by the documentation compiler is claimed. #15 retains this simple
-checked-source rendering contract initially. Optional SubVerso highlighting may replace presentation only
-with exact source/output correspondence and the matching pin in the example package; it is not
-a prerequisite to checked source inclusion. Narrative source lives in `website/Rules/<ID>.lean`
-or an explicit prose input consumed by a generator; generated descriptors/examples are never
-edited manually. Keep current Markdown authoritative until a reviewed, checked incremental
-migration establishes replacement coverage. Avoid a separate GitHub Wiki source repository.
+The site builder (`lake exe site`, in the root package) generates Verso source from the registry
+(`descriptor`), the typed explanations (`PlumbCore.Guide`, one exhaustive definition over
+`RuleId`, the explicit prose input the design allowed in place of `website/Rules/<ID>.lean`) and
+the admitted rule-example exports of the same commit. Generation runs in the root package
+because the website package cannot import the registry without resolving the root package's
+Mathlib dependency. Checked sources render as escaped text; no re-elaboration by the documentation
+compiler is claimed. Optional SubVerso highlighting may replace presentation only with exact
+source/output correspondence. Generated Verso files are never edited or committed. Current
+Markdown stays authoritative; the site links the standard at the build commit rather than
+republishing it. No GitHub Wiki source repository is used.
 
 Each page contains identity/category/default behavior, applicability and exact cause, normative
-clauses, violation and fixed examples, expected diagnostic identity and real locations, rationale,
+clauses, violation and fixed examples, the checked findings and their real locations, rationale,
 fix guidance, permitted technical exceptions/configuration, limitations/false-positive conditions,
-version availability, and credits. Do not imply that every violating Lean file fails elaboration:
-the PL1001 axiom fixture elaborates and is then rejected by the actual policy.
+version availability, and credits. It does not imply that every violating Lean file fails
+elaboration: the PL1001 axiom fixture elaborates and is then rejected by the actual policy.
 
 Canonical public base: `https://rbeauchamp.github.io/lean-plumb/`.
 Paths: `/lean-plumb/dev/rules/<ID>/` for latest successfully deployed development documentation;
-`/lean-plumb/v/<package-version>/rules/<ID>/` for immutable released-package help;
-`/lean-plumb/rev/<commit>/rules/<ID>/` for published commit snapshots. A package build embeds
-its matching documentation identity. An unpublished worktree uses an explicit dev identity with
-an unreleased-version notice; it cannot claim an immutable page already exists. Publishing a
-release is a separate authorized action, not required by this architecture issue. Retain pages
-for every publicly distributed package version and retire IDs with explanatory tombstones.
-Never redirect an old ID to changed semantics. The root rule index may link to dev; exact
-version/commit links do not silently fall back to latest. Missing versions get an explicit
-unavailable-version page with source reference, never a misleading current-rule explanation.
+`/lean-plumb/v/<package-version>/rules/<ID>/` for immutable released-package help (none exists);
+`/lean-plumb/rev/<commit>/rules/<ID>/` for each published commit's snapshot. Every page states its
+commit; a local preview with uncommitted changes says so and has no snapshot route. Publishing a
+release is a separate authorized action. Each GitHub Pages deployment replaces the whole site, so
+published `rev/` snapshots are retained in the append-only `site-archive` branch and copied
+verbatim into every later artifact ([website guide](website.md#routes-and-versions));
+released-version pages will need the same kind of retention when releases exist. Retire IDs with explanatory tombstones; never redirect an old ID to
+changed semantics. Unpublished routes get the not-available page, which names the GitHub source of
+every revision and never falls back to the latest rules.
 
-#15 supplies Lean/Lake build, check, and assembly entrypoints: export metadata, execute
-fixture assertions, generate/build Verso and assemble versioned routes; validate ID/page/example
-coverage, source/diagnostic equality, internal routes, project base and schema/version identity;
-and retain versions alongside the exact validated output. The former `scripts/site/*` layout
-is superseded by the Lean-only implementation policy. Cache pinned
-dependencies by toolchain and lock digest; never cache an accepted policy verdict. Use relative
-assets within each versioned site. The prototype serves its single-page output directly at the
-canonical rule directory; the full site uses one generated manual with stable rule sections and
-explicit route pages/redirects to those same-version anchors, validating every destination.
+The builder admits the evidence, generates and renders the manual, assembles byte-identical
+`dev/` and `rev/<commit>/` editions and every archived snapshot with `index.html`, `404.html` and
+`build.json`, and checks the tree: size budget, exact layout, archived snapshots unchanged, one page per registered rule, admitted example text in each page, every
+scanned link resolving under the base path, and the registry's `--validate-site`. Pinned
+dependencies are cached by toolchain and lock digest; no accepted verdict is cached. Assets are
+relative to each edition (Verso's `<base href>`).
 
-PR CI runs the ordinary 420-second acceptance job and a separate site-build/check job, saving
-preview artifacts with exact source SHA and pins. On protected main, after required checks for
-that same revision, upload the **already validated** static artifact with `actions/upload-pages-artifact`
-and deploy it with `actions/deploy-pages`; scope `contents: read` to build, `pages: write` and
-`id-token: write` to deployment in the github-pages environment. Pin action SHAs when #15
-implements the workflow, validating current official releases then. Serialize deployments so an
-older run cannot overwrite a newer one; verify the deployed version/manifest. A site lagging
-pending or failed CI is expected: the invariant is same-revision consistency, not instantaneous
-agreement with latest main. No deployment, Pages settings, visibility change, custom domain or
-paid hosting is performed by this design PR.
+CI runs the ordinary 420-second acceptance job, the two rule-example shards and the site
+build/check on every PR and `main`, saving the validated artifact as `site-<commit>`. On `main`,
+after the same revision's acceptance and site jobs pass, it uploads that artifact with
+`actions/upload-pages-artifact` and deploys it with `actions/deploy-pages` in the `github-pages`
+environment, after an unprivileged gate has checked the artifact against the site archive and a
+provisioning-free `archive` job has pushed its snapshot there; only the deploy job has `pages:
+write` and `id-token: write`, and only the `archive` job has `contents: write`. Action SHAs are pinned
+to the current official releases. One run per ref (a newer `main` run cancels an older one), an
+unprivileged gate and a dependency-free re-check in the deploy job that refuse a revision no
+longer at the head of `main`, and a serialized deployment group keep an
+older run from overwriting a newer one; a final job compares the live site with the artifact. A site lagging pending or failed CI is expected: the invariant
+is same-revision consistency, not instantaneous agreement with latest main. No custom domain,
+paid hosting, release or visibility change is involved.
 
 ## Delivery sequence and remaining decisions
 

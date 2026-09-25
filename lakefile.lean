@@ -87,6 +87,11 @@ lean_exe «intentScreen» where
   root := `Plumb.Screen.Main
   supportInterpreter := true
 
+lean_exe «site» where
+  -- Rule-reference site builder: generates, renders, assembles and checks the Pages artifact.
+  root := `Plumb.Site.Main
+  supportInterpreter := true
+
 lean_exe «auditApp» where
   root := `Main
   supportInterpreter := true

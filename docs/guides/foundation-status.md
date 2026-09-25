@@ -296,8 +296,8 @@ were full-record. Now it does none. Per declaration, the project gate removed on
 plus two per violation. The file gate removed two, plus, per violation,
 two scans and one duplicate rule computation; its self-test mirror removed two. `assessPositive` removed two per unit
 declaration, the rule-example audit removed one plus one per violation, and the editor
-snapshot removed one. The prototype `examples/rule-reference-prototype/Probe.lean` still uses
-`reasonFor`. For proofs, the saving is reuse, not size: one pair of traversal
+snapshot removed one. The rule-reference prototype, since removed, still used
+`reasonFor` at the time. For proofs, the saving is reuse, not size: one pair of traversal
 inductions now serves the evaluator and scope admission, where two separate ones did
 before. Source lines grew, since `forM_eq_error` proves both directions and
 `forM_first` proved one. No artifact size, elaboration time or kernel time was measured,

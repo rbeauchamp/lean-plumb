@@ -3,6 +3,8 @@ name: Diagnostics
 # Capability-triggered qualification campaigns (docs/standard/8 §8.8): they run when
 # the checker, rules, rule examples, Lake configuration or manifests change, always on
 # main, and nightly. They are diagnostics, not a partition of ordinary acceptance.
+# The two rule-example shards run in CI on every change, where they feed the site build;
+# they run here only nightly.
 on:
   pull_request:
     paths:
@@ -45,8 +47,6 @@ jobs:
         campaign:
           - diagnostics producers
           - diagnostics history
-          - diagnostics rule-examples 1/2
-          - diagnostics rule-examples 2/2
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,3 +56,23 @@ jobs:
 
       - name: Qualify (same command and seven-minute limit as local)
         run: ./scripts/verify.sh ${{ matrix.campaign }}
+
+  # CI runs the two rule-example shards on every change; this keeps their nightly run on main.
+  rule-examples-nightly:
+    name: nightly diagnostics rule-examples ${{ matrix.shard }}
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ['1/2', '2/2']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/provision
+
+      - name: Qualify (same command and seven-minute limit as local)
+        run: ./scripts/verify.sh diagnostics rule-examples ${{ matrix.shard }}

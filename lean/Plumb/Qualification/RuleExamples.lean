@@ -366,6 +366,14 @@ private def admitRecord (ctx : Context) (record : Json) (refusal : Option String
     | none => checked.exitCode == 0
     | some reason => checked.exitCode != 0 && (checked.stdout ++ checked.stderr).contains reason⟩]
 
+/-- The checker, corpus and configuration sources whose exact bytes a campaign records before
+and after production (`checkerBefore`, `checkerAfter`): the Lake-discovered root-package module
+sources, the toolchain, Lake configuration and manifest, and every corpus file. The site builder
+recomputes this set to require that exported evidence belongs to the current sources. -/
+def sourcePaths (root : FilePath) (modulePaths : Array FilePath) : IO (Array FilePath) := do
+  let corpusPaths ← (← (root / "examples/rules").walkDir).filterM fun path => return !(← path.isDir)
+  return (modulePaths ++ #[root / "lean-toolchain", root / "lakefile.lean", root / "lake-manifest.json"] ++ corpusPaths).toList.eraseDups.toArray
+
 /-- The rule pair validated together by the fresh-project producer oracle, which requires
 one shared elaborated theorem type; the pair must therefore share a shard. -/
 def sharedTheoremTypeRules : String × String := ("PL5001", "PL5002")
@@ -461,8 +469,7 @@ def check (evidence : FilePath) (selection : Option (Array String))
   requireChecks [⟨"nonempty known unique selected rules", !selected.isEmpty && selected.all keys.contains && decide selected.toList.Nodup⟩]
   let inventory ← Plumb.Checker.Lake.surfaceInventory root
   let modulePaths := inventory.moduleSources.map Prod.snd
-  let corpusPaths ← (← (root / "examples/rules").walkDir).filterM fun path => return !(← path.isDir)
-  let checkerPaths := (modulePaths ++ #[root / "lean-toolchain", root / "lakefile.lean", root / "lake-manifest.json"] ++ corpusPaths).toList.eraseDups.toArray
+  let checkerPaths ← sourcePaths root modulePaths
   let cache ← IO.mkRef SnapshotCache.empty
   let checkerBefore ← snapshotCached cache checkerPaths
   let complete := selection.isNone && shard.isNone

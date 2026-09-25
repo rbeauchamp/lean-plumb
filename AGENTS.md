@@ -165,9 +165,17 @@ Do not partition either acceptance step further to evade its limit. A requested 
 claim still needs its actual evidence.
 
 CI runs `./scripts/verify.sh` then `./scripts/verify.sh docs` in one job after provisioning
-pinned toolchain and dependency caches. The diagnostics workflow runs the producers, history
-and two rule-example shards as parallel jobs when the checker, rules, rule examples, Lake
-configuration or manifests change, on `main`, and nightly. The lint-driver workflow runs
+pinned toolchain and dependency caches. On every PR and `main`, CI also runs the two
+rule-example shards and then `./scripts/verify.sh site`, which builds and checks the
+rule-reference site from those exports (its own 420-second limit; never part of acceptance).
+On `main` only, after both and a gate refusing a dirty artifact, a revision that is no
+longer the head of `main` or an artifact whose snapshots differ from the append-only
+`site-archive` branch plus its own, a provisioning-free job pushes the new snapshot to that
+branch without force; then it deploys that exact artifact to GitHub Pages and compares the
+live site with it ([website guide](docs/guides/website.md#retention)). The diagnostics workflow runs
+the producers and history campaigns when the checker, rules, rule examples, Lake
+configuration or manifests change, on `main`, and nightly, and the two rule-example shards
+nightly. The lint-driver workflow runs
 `diagnostics lint-driver` likewise when the `lake lint` driver or anything it imports, or
 the adopter fixtures, change. Merge requires passing CI on the reviewed PR head, applicable
 focused review and diagnostics.

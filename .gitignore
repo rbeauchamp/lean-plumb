@@ -20,3 +20,6 @@
 
 # Local probe scratch space
 /tmp/
+
+# Rule-reference site artifact (`./scripts/verify.sh site`)
+/_site/

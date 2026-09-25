@@ -288,9 +288,9 @@ change only local feedback. `lake lint` still rejects the same declaration.
 Local findings are ordinary compiler warnings in the editor and in a plain `lake build`.
 `lake lint` turns the linter off for its own build and reports the same rules itself, so
 it exits `VIOLATION` (1), not `INCOMPLETE`, while one remains.
-Rule links currently point to the development route
-`https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/`; the published site is delivered
-separately, and until it is deployed that route may not resolve.
+Rule links point to the development route
+`https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/` of the [rule reference](#rule-reference-website),
+which describes the latest deployed revision of `main`.
 
 ## 8. Complete semantic review
 
@@ -313,11 +313,13 @@ not the gate alone.
 
 ## Rule reference website
 
-The [registry](rule-registry.md), `lake lint` driver and editor links above are implemented.
-The GitHub Pages rule-reference site specified in the [product architecture](linter-architecture.md)
-is still under development. The [one-rule prototype](../../examples/rule-reference-prototype/README.md)
-is interface evidence, not a published site. Canonical metadata and accepted-result design
-credit con-leche as detailed in the architecture.
+Every diagnostic's help URL opens its page in the [rule reference](https://rbeauchamp.github.io/lean-plumb/dev/rules/):
+what triggers the rule, why it matters, how to fix it, a checked violating and corrected
+example produced by the real checker, the exact configuration and exception boundaries, and
+what a passing result does and does not establish. The site is generated from the
+[registry](rule-registry.md) and the checked [rule examples](rule-examples.md) and published
+from `main` by CI; see the [website guide](website.md) for its guarantees and version routes.
+Canonical metadata and accepted-result design credit con-leche as detailed in the architecture.
 
 ## Accepted results and modes
 

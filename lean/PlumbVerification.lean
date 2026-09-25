@@ -10,7 +10,7 @@ namespace PlumbVerification
 /-- Closed vocabulary of supported verification invocations. -/
 inductive Mode where
   | ordinary | docs | graph | diagnostics | fixtures | structural | cli | environments | buildPolicy | lintDriver | producers | history
-  | ruleExamples | ruleExamplesFirst | ruleExamplesSecond
+  | ruleExamples | ruleExamplesFirst | ruleExamplesSecond | site
   deriving DecidableEq
 
 /-- Exactly the documented arguments for each mode, with no ignored trailing arguments. -/
@@ -30,11 +30,12 @@ def arguments : Mode → List String
   | .ruleExamples => ["diagnostics", "rule-examples"]
   | .ruleExamplesFirst => ["diagnostics", "rule-examples", "1/2"]
   | .ruleExamplesSecond => ["diagnostics", "rule-examples", "2/2"]
+  | .site => ["site"]
 
 /-- Every supported mode occurs once; the parser searches only this closed vocabulary. -/
 def modes : List Mode := [.ordinary, .docs, .graph, .diagnostics, .fixtures, .structural,
   .cli, .environments, .buildPolicy, .lintDriver, .producers, .history, .ruleExamples, .ruleExamplesFirst,
-  .ruleExamplesSecond]
+  .ruleExamplesSecond, .site]
 
 /-- Argument parsing never accepts a prefix of a supported invocation. -/
 def parseMode (args : List String) : Option Mode :=
@@ -75,6 +76,9 @@ def linkPath : String := "tmp/acceptance-link.json"
 /-- Evidence receipt of one rule-example shard. -/
 def shardEvidence (index : Nat) : String := s!"tmp/rule-examples-{index}of2.json"
 
+/-- Rule-reference site artifact directory (the GitHub Pages upload). -/
+def siteOutput : String := "_site"
+
 /-- One of two disjoint corpus shards, selected by rule position in the corpus. -/
 private def ruleExampleShard (index : Nat) : List Command := [
   lake #["build", "axiomGate", "ruleExamples", "ruleExampleQualification", "qualify"],
@@ -110,6 +114,9 @@ def commands : Mode → List Command
       lake #["exe", "qualify", "--under-deadline", "rule-examples", "--evidence", "tmp/rule-examples.json"]]
   | .ruleExamplesFirst => ruleExampleShard 1
   | .ruleExamplesSecond => ruleExampleShard 2
+  | .site => [
+      lake #["build", "axiomGate", "ruleExampleQualification", "site"],
+      lake (#["exe", "site", "build", "--out", siteOutput, "--evidence"] ++ #[shardEvidence 1, shardEvidence 2])]
   | mode => [lake (#["exe", "checkerSelftest", "--build-bound", "--partition"] ++
       ((arguments mode).drop 1).toArray ++ #["--jobs", "4"])]
 
@@ -129,7 +136,7 @@ def execute (command : Command) : IO Unit := do
 /-- Cold-start driver; all builds and checks stay within the inherited outer deadline. -/
 def run (args : List String) : IO Unit := do
   let some selection := select args
-    | throw <| IO.userError "usage: scripts/verify.sh [docs | serialized-graph | diagnostics [fixtures|structural|cli|environments|build-policy|lint-driver|producers|history|rule-examples [1/2|2/2]]]"
+    | throw <| IO.userError "usage: scripts/verify.sh [docs | serialized-graph | site | diagnostics [fixtures|structural|cli|environments|build-policy|lint-driver|producers|history|rule-examples [1/2|2/2]]]"
   -- This toolchain-only driver runs before building any checker. Invalidate an earlier
   -- PASS or accepted link even if build/setup fails before its owner can start.
   let invalidated := match selection.val with
@@ -141,6 +148,9 @@ def run (args : List String) : IO Unit := do
   if let some (path, text) := invalidated then
     IO.FS.createDirAll "tmp"
     IO.FS.writeFile path text
+  -- A site artifact from an earlier run must not survive a failed build.
+  if selection.val == .site then
+    if ← System.FilePath.pathExists siteOutput then IO.FS.removeDirAll siteOutput
   for command in [Command.mk "git" #["diff", "--check"],
       Command.mk "git" #["diff", "--cached", "--check"],
       Command.mk "shellcheck" #["scripts/verify.sh"]] ++ commands selection.val do
@@ -149,6 +159,7 @@ def run (args : List String) : IO Unit := do
     | .ordinary => "local verification: PASS (ordinary mechanical acceptance commands completed; semantic review is separate; run `scripts/verify.sh docs` for documentation)"
     | .docs => "documentation verification: PASS (every docs/ Lean fence; inputs equal the accepted ordinary inputs)"
     | .graph => "serialized-graph diagnostic: PASS (not ordinary verification)"
+    | .site => "site build and check: PASS (rule-reference artifact in _site; separate from acceptance; publication is verified after deployment)"
     | _ => "diagnostic qualification: PASS (selected scope only; not ordinary verification)")
 
 end PlumbVerification

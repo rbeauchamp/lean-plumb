@@ -190,6 +190,12 @@ reference, without silently redirecting to changed semantics. Search is an enhan
 complete static catalog. The site remains generated from one registry and actual checked
 examples, with the builder-observation trust boundary explicit.
 
+#15 implements this in the [rule reference](website.md): a no-JavaScript catalogue whose
+category, evidence-mode and availability filters are CSS radio groups with a form reset and an
+exact no-match notice; search by ID, title and page text through Verso's search box, with
+find-in-page on the complete catalogue as the no-JavaScript path; and pages that start with the
+problem and action. Its bounded browser observations are recorded with that delivery.
+
 Ruff's index and fix labels, ESLint's metadata/suggestions, Microsoft’s rule explanations,
 Pyrefly's scope clarity and HLS's integrated hints inform this design. They do not dictate its
 visual styling or Lean semantics. See the [comparison and attribution](ecosystem-design.md).
@@ -206,8 +212,8 @@ visual styling or Lean semantics. See the [comparison and attribution](ecosystem
 | #15 | Generated static/searchable catalog, purposeful pages, keyboard/no-JS behavior and actual source-linked examples. Keep Verso/pins/versioned artifacts. | Complete rule/page/example coverage, metadata identity, links and the bounded usability checks on the actual build, then authorized Pages publication. |
 | #10 | Qualify Core-only application and Mathlib library workflows with explicit supported scope. Reconcile all residual accounts and release-facing feature claims. | Real end-to-end correction flows, supported-version matrix, no claimed user study/latency guarantee without evidence. |
 
-No broad implementation rewrite is a prerequisite for the next unit. The shipped registry and
-prototype remain useful. New requirements must be copied into the full live successor bodies
+No broad implementation rewrite is a prerequisite for the next unit. The shipped registry remains
+useful; #15 retired the one-rule prototype. New requirements must be copied into the full live successor bodies
 before #20 is marked Done; the links here do not substitute for missing settled decisions.
 The source-dependent findings in this design were inspected on Lean 4.33.1; the links
 below retain that historical snapshot, not evidence for the current
