@@ -146,7 +146,11 @@ def factsHtml (id : RuleId) (clauses : List Clause) (checklist : List String) : 
   row "Category" (escape d.category.label) ++
   row "Scope" (escape d.scope.label) ++
   row "Subreason" (code d.applicability) ++
-  row "Strict impact" "Error in every project and documentation audit where the rule applies. An established violation makes the result FAIL; missing or unsupported evidence makes it INCOMPLETE. Neither is accepted. The editor shows local findings as warnings; they are not project results." ++
+  row "Strict impact" ("Error in every project and documentation audit where the rule applies. An established violation makes the result FAIL; missing or unsupported evidence makes it INCOMPLETE. Neither is accepted." ++
+    (if .documentationExample ∈ d.evidenceModes && d.evidenceModes.length == 1 then "" else
+      " Under " ++ code "lake lint" ++ " a FAIL exits 1 and an INCOMPLETE exits 3" ++
+      (if id == .configuration then "; a FAIL whose findings are all this rule exits 2 (INVALID CONFIGURATION)" else "") ++ ".") ++
+    (if .editorSnapshot ∈ d.evidenceModes then " The editor shows its local findings as warnings (errors under " ++ code "warningAsError" ++ "); they are not project results." else " The editor does not report this rule.")) ++
   row "Evidence modes" (escape (joinComma (d.evidenceModes.map modeLabel))) ++
   row "Availability" (escape d.availability.label) ++
   row "Lifecycle" (escape (lifecycleText d.lifecycle)) ++

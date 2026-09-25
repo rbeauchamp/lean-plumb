@@ -2,8 +2,7 @@ import Lean.Data.Json
 import PlumbPolicy.Codec
 
 /-! Public structural-name transport. The policy decoder is the pure wire decoder;
-JSON scalar admission is the operational bridge. Names retain every constructor.
-Canonical representation was informed by con-leche; see Plumb.RuleId. -/
+JSON scalar admission is the operational bridge. Names retain every constructor. -/
 namespace Plumb.RegistryCodec
 open Lean
 

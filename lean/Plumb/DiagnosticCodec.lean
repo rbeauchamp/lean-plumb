@@ -2,7 +2,7 @@ import Plumb.RegistryCodec
 
 /-! Fail-closed diagnostic transport. Decode to the indexed domain, then compare with
 canonical re-encoding to reject unknown fields and redundant-coordinate disagreement.
-This adopts con-leche's canonical representation idea; see Plumb.RuleId. -/
+Payloads are indexed by the registry's closed `RuleId` (design credit in Plumb.RuleId). -/
 namespace Plumb.DiagnosticCodec
 open Lean RegistryCodec
 

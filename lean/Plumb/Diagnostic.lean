@@ -6,8 +6,8 @@ public import Lean.Data.Lsp.Utf16
 
 @[expose] public section
 
-/-! Canonical diagnostic values and source conversion. The indexed representation credits
-con-leche (see RuleId); source conversion uses pinned Lean FileMap/LSP APIs. -/
+/-! Canonical diagnostic values and source conversion. Payloads are indexed by the closed
+`RuleId` (design credit in RuleId); source conversion uses pinned Lean FileMap/LSP APIs. -/
 namespace Plumb
 open Lean
 
@@ -89,14 +89,15 @@ abbrev Finding := (id : RuleId) × Diagnostic id
 def helpUrl (id : RuleId) : String :=
   "https://rbeauchamp.github.io/lean-plumb/dev/" ++ id.route
 
-def argumentText : (id : RuleId) → Payload id → String
+/-- The subject and detail of a payload, rendered by `messageLine`. -/
+def argumentParts : (id : RuleId) → Payload id → String × String
   | .projectAxiom, a | .proofHole, a | .unknownAxiom, a | .compilerTrusting, a
   | .profileExceeded, a | .escapeHatch, a | .executableContract, a
-  | .materialDocumentation, a | .materialIntent, a => s!"{a.declaration}: {a.detail}"
-  | .executionUnresolved, a | .executionBoundary, a => s!"{a.root}: {a.detail}"
+  | .materialDocumentation, a | .materialIntent, a => (toString a.declaration, a.detail)
+  | .executionUnresolved, a | .executionBoundary, a => (toString a.root, a.detail)
   | .environment, a | .configuration, a | .sourceBuild, a | .coverage, a
   | .admission, a | .fenceStructure, a | .positiveExample, a | .negativeExample, a
-  | .trustedExample, a | .moduleDocumentation, a => s!"{a.subject}: {a.detail}"
+  | .trustedExample, a | .moduleDocumentation, a => (toString a.subject, a.detail)
 
 def Diagnostic.text {id : RuleId} (d : Diagnostic id) : String :=
   let impact := if d.impact == .violation then "violation" else "incomplete"
@@ -104,8 +105,9 @@ def Diagnostic.text {id : RuleId} (d : Diagnostic id) : String :=
     | .source s => s.val.snapshot.uri
     | .module n => s!"module {n}"
     | .project p => s!"project/configuration {p}"
-  s!"{id} [{impact}; {d.mode.spelling}; claim={d.claim.getD "classification-only"}; {scope}]: " ++
-    s!"{argumentText id d.arguments}\n{helpUrl id}"
+  let (subject, detail) := argumentParts id d.arguments
+  messageLine id impact d.mode.spelling (d.claim.getD "classification-only") scope subject detail ++
+    "\n" ++ helpUrl id
 
 /-- Native logging consumes the same typed diagnostic and genuine selection span. -/
 def Diagnostic.nativeMessage {id : RuleId} (d : Diagnostic id) : Except String Message := do

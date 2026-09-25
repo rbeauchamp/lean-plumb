@@ -684,7 +684,10 @@ with the obligations preserved for Project 8 below.
 
 Preserved for Project 8. The twenty rules PL1001–PL1007, PL2001–PL2005, PL3001–PL3002,
 PL4001–PL4004 and PL5001–PL5002 keep the #38 baseline identifiers and descriptors; the registry
-moved to `PlumbCore.RuleId`/`PlumbCore.Rule` (#41) and gained only proofs. Since the
+moved to `PlumbCore.RuleId`/`PlumbCore.Rule` (#41) and gained only proofs. (Later, #71 added PL5003,
+and #10 narrowed several descriptors' evidence modes to the modes that emit them, corrected
+PL1007's clauses and derived the message form; see the
+[product qualification](product-qualification.md).) Since the
 baseline, stable diagnostics keep their rule, payload, location, mode, claim and impact.
 
 - **Invocation.** Since the #38 baseline, #7 (PR #33) added `axiomGate --acceptance-link`,

@@ -1,20 +1,21 @@
 # Design influences and attribution scope
 
-Plumb for Lean is a Lean-native linter and rule-reference website. This account was checked
-against `b43553693f16c061e2e9214116339304c7f93ae0` on 2026-09-15. The
+Plumb for Lean is a Lean-native linter and rule-reference website. This account was last
+re-checked for issue #10 against `a52bf1f0e2c7854c45ab6694b35b697b5e900fc8` on 2026-09-24. The
 [ecosystem study](ecosystem-design.md) explains the broader selection of tools and APIs.
 
 ## What con-leche contributes
 
 | Relationship | Actual scope | Treatment |
 | --- | --- | --- |
-| Design inspiration | `PropWhen` illustrates an invariant-bearing canonical representation with laws at its API boundary. `InstalledEnv`/`FullyChecked` illustrates acceptance bound to a specific installed input and all required record checks. | Keep precise citations in registry/policy design documentation and relevant source attribution. |
+| Design inspiration | `PropWhen` illustrates an invariant-bearing canonical representation with laws at its API boundary. `InstalledEnv`/`FullyChecked` illustrates acceptance bound to a specific installed input and all required record checks. The scanner equivalence proof (`Frontend/Scan/Equiv.lean`) illustrates proving a fast executed form equal to its reference definition, the pattern of `ruleForMember_eq` and the editor-policy theorems (`editor_request_sound`, `editor_decision_rule`). | Keep precise citations in registry/policy design documentation and relevant source attribution. |
 | Current code or proof dependency | Root and website package manifests contain no con-leche dependency; the linter does not import its modules or invoke its checker. Existing registry attribution explicitly marks copied code false. | Do not describe Plumb as built on con-leche or claim its correctness theorem applies here. |
 | Rule detection and developer experience | The actual semantic host is Lean; native hooks, Lake, infoview, Std/library facilities and the cross-language UX references have their own roles. | Credit those facilities and examples where used. Con-leche does not supply the linter rules, editor adapter or website UX. |
 | Optional future external checking | #8 investigates export/toolchain fidelity; #9 may implement an adapter only after a supported feasibility decision. Neither is delivered or a core linter prerequisite. | Retain these explicitly optional issues with the `con-leche` topic label. A research no-go is a legitimate result. |
 
-The concrete precedents are [PropWhen][propwhen] and [Installed][installed], pinned at
-`c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0`. Their universe-zero representation and
+The concrete precedents are [PropWhen][propwhen], [Installed][installed] and [scanner
+equivalence][equiv], pinned at `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0`; con-leche's
+[README][conleche-readme] gives its Lean FRO context. Their universe-zero representation and
 checker-specific environment are specialized implementations, not generic linter components
 to import. Plumb's existing closed `RuleId`/indexed descriptors and [policy
 assembly](policy-acceptance.md) apply related ideas to different predicates. Ordinary
@@ -30,20 +31,34 @@ proof was found in the inspected linter surfaces.
 ## Lean and Lake interfaces used by adoption
 
 The adoption adapters are built on interfaces by the Lean 4 and Lake authors (Lean FRO and
-contributors), used through the pinned `v4.34.0` toolchain as dependencies. No code is copied.
+contributors), used through the pinned `v4.34.0` toolchain as dependencies. Except for the adapted parser below,
+no code is copied.
 Lake's `lintDriver` package field and `lake lint` dispatch (`Lake.CLI.Main`, `Package.lint` in
 `Lake.CLI.Actions`) run `lint`. Lean's `errorDescriptionWidget` in `Lean.Log`, the
 builtin widget behind named errors, renders the editor's **View explanation** link with Plumb's
 registry URL. The VS Code Lean 4 extension and infoview (leanprover/vscode-lean4) host
 these messages. These are dependencies, not design influences on Plumb's policy.
 
+## Adapted code and licenses
+
+| Code | Origin and license | Treatment |
+| --- | --- | --- |
+| Container recursion of the strict JSON parser in [`PolicyCodec.lean`](../../lean/Plumb/Checker/PolicyCodec.lean) | Lean 4's `src/lean/Lean/Data/Json/Parser.lean`, Copyright (c) 2019 Gabriel Ebner, authors Gabriel Ebner and Marc Huisinga, Apache 2.0 | Modified to reject duplicate keys. The upstream notice is retained in the source, the [Apache 2.0 text](../../LICENSES/Apache-2.0.txt) is in the repository, and the site's credits page names it. |
+
+No other third-party code is copied or adapted in the linter, the site builder or the Verso
+extension. The rest of Plumb is MIT licensed ([LICENSE](../../LICENSE)).
+
 ## Website
 
 The rule reference is rendered by Verso (Lean FRO and contributors, Apache 2.0) as a
-pinned dependency; its bundled search and table-of-contents scripts carry their own licenses,
-listed on the generated credits page. The documentation/example toolchain separation follows
+pinned dependency ([license](https://github.com/leanprover/verso/blob/cad4b633e75ea769b851f12f9ca3b4f0dfcc625f/LICENSE)); the search and
+table-of-contents scripts and stylesheets are Verso's, and the third-party components it bundles
+(elasticlunr, fuzzysort, KaTeX, the W3C APG combobox) are listed with their licenses on the
+generated credits page, together with the marked library that pages load from the jsDelivr CDN. The documentation/example toolchain separation follows
 David Thrane Christiansen's package-docs template; no template text is copied. Microsoft's
-CA1416 rule page is one illustrative reference for the page structure; no .NET content is used.
+CA1416 rule page is one illustrative reference for the page structure; no .NET content is used
+and no affiliation with or endorsement by Microsoft is implied. Crediting any project here
+implies no endorsement of Plumb by it.
 The explanations and site code are original. The site documents the registry, whose canonical
 design credits con-leche above; con-leche did not design the site.
 
@@ -67,3 +82,5 @@ Con-ron adoption remains outside scope. Project 8 and the current issue contract
 
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean
+[equiv]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Frontend/Scan/Equiv.lean
+[conleche-readme]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/README.md

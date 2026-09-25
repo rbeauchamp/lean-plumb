@@ -23,10 +23,10 @@ fixtures remain separately classified. No new rule bans Float, IO, local mutatio
 classical erased proofs, noncomputable mathematical definitions, or arbitrary naming styles.
 
 Con-ron is excluded. Optional con-leche export checking (#8/#9) is supplementary and does not
-block the core linter/site delivery. Preserve the user-selected hard **420-second** ordinary
-`scripts/verify.sh` acceptance run, including cold root-package builds after dependency setup.
-Website dependency provisioning and the bounded architecture experiment are separate operations,
-not subdivisions or substitutes for that acceptance command.
+block the core linter/site delivery. Preserve the user-selected acceptance: exactly `./scripts/verify.sh` (including cold root-package
+builds after dependency setup) then `./scripts/verify.sh docs`, each under its own hard
+**420-second** deadline. Website dependency provisioning, the site build and the diagnostic
+campaigns are separate operations, not subdivisions or substitutes for that acceptance.
 
 The [policy acceptance contract](policy-acceptance.md) refines the pure-core module
 boundary, adds the explicit `freshFile` evidence mode, and owns complete-result semantics.
@@ -41,13 +41,13 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | `lean/PlumbCore/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
 | `lean/PlumbCore/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
 | `lean/Plumb/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
-| `lean/Plumb/Checker/PolicyDomain.lean` | Canonical decoded inputs and typed failures; POLICY-02 (#5). |
+| `lean/Plumb/Checker/PolicyDomain.lean` | Compatibility re-export of the pure `PlumbPolicy` domain (canonical decoded inputs and typed failures, POLICY-02 #5); it holds no policy of its own. |
 | `lean/Plumb/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
 | `lean/Plumb/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
 | `lean/Plumb/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps; request and declaration decisions run the claimed `PlumbCore/EditorPolicy.lean` contracts, proved equal to the project checker's on the editor domain. |
 | `lean/Plumb/Checker/Lint.lean` | Whole-project `lint` driver: the `axiomGate` project audit, not another checker; its exit classification is the claimed `PlumbCore/Lint.lean` contract. |
 | `lean/Plumb/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
-| `website/` | Separate pinned Verso Lake package and original explanatory prose. |
+| `website/` | Separate pinned Verso Lake package: the `PlumbSite` extension and site entry point. The original explanatory prose is `lean/PlumbCore/Guide.lean`; generated pages are never committed. |
 | `examples/rules/<ID>/` | Actual violation/fix source plus typed expected outcome specification; isolated negatives. |
 | `lean/PlumbCore/Site*.lean`, `lean/Plumb/Site/` | Site generation, validation and assembly: proved pure decisions in the claimed core and the operational `site` builder, run through Lake; no Python or additional shell scripts. |
 
@@ -273,8 +273,8 @@ prove natural-language adequacy, or report unexecuted checks as PASS.
 
 ## Sources and credit
 
-Canonical semantics, accepted values carrying evidence, and optimized/executable linkage are
-informed by **Lean FRO's con-leche** at `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0`:
+Canonical semantics, accepted values carrying evidence, and proved equality between an executed
+form and its reference definition are informed by **Lean FRO's con-leche** at `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0`:
 [Installed.lean][installed] (`CheckedRecord`, `FullyChecked`),
 [PropWhen.lean][propwhen] and [scanner equivalence][equiv]. These are design precedents, not a
 proof of Plumb or an adoption of con-leche's kernel/model. The

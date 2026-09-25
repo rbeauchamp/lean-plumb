@@ -214,7 +214,9 @@ fresh-source audit"; only `--fresh` reads as fresh whole-project acceptance.
 `lake lint` builds the claimed targets with your package's `linter.plumb` off, so a live
 Plumb finding is not a build warning there: the audit's own policy stages report it, as a
 `VIOLATION`. Any other warning or build failure stops the audit before policy inspection
-and is `INCOMPLETE`, with the original compiler message printed as evidence. The option is
+and is `INCOMPLETE`, with the original compiler message printed as evidence. That includes
+Lean's `declaration uses 'sorry'` warning: an owned `sorry` is reported as PL2003, not PL1002.
+The option is
 part of Lake's module trace, and Lake scopes it to the whole package rather than to the
 modules that import `Plumb.Linter` (elsewhere it changes nothing), so modules last built
 with ordinary options (for example by `lake build` or the editor) are rebuilt for the
@@ -272,7 +274,7 @@ supported editor is VS Code with the Lean 4 extension on the
 commands and modules show:
 
 - Warnings with codes `Plumb.PL1001`–`PL1007`, `PL2002` and `PL2005`, at the actual declaration
-  range, plus `PL5001`/`PL5002` when the module finishes elaborating.
+  range, plus `PL5001`–`PL5003` when the module finishes elaborating.
 - In the infoview, Lean's own error-code widget with a **View explanation** link to the rule
   page. The message text always ends with the same URL, which the Problems panel and
   command-line output show when no widget renders.
@@ -287,7 +289,10 @@ change only local feedback. `lake lint` still rejects the same declaration.
 
 Local findings are ordinary compiler warnings in the editor and in a plain `lake build`.
 `lake lint` turns the linter off for its own build and reports the same rules itself, so
-it exits `VIOLATION` (1), not `INCOMPLETE`, while one remains.
+it exits `VIOLATION` (1), not `INCOMPLETE`, while one remains. Lean's own warnings are
+unaffected: a `sorry` also makes Lean warn `declaration uses 'sorry'`, so under `lake lint` an
+owned hole stops the audit at its warning-free build check (PL2003, `INCOMPLETE`, exit 3) before
+the PL1002 stage; the editor shows both messages.
 Rule links point to the development route
 `https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/` of the [rule reference](#rule-reference-website),
 which describes the latest deployed revision of `main`.
@@ -336,8 +341,9 @@ with incrementally built dependencies. No-profile and compiler-trusting file req
 report `CLASSIFIED`, not conforming success. Documentation accepts each configured
 positive, rejection or teaching expectation without promoting negatives/teaching to
 positive conformance. Help, worker and optional graph planning exits have no audit certificate.
-The complete cold-root `./scripts/verify.sh` remains the ordinary420 acceptance command;
-external-adopter/build-integration diagnostics and serialized-graph checking remain separate.
+In this repository, acceptance is `./scripts/verify.sh` (with cold root builds) and then
+`./scripts/verify.sh docs`, each under its own hard 420-second deadline; external-adopter and
+build-integration diagnostics and serialized-graph checking remain separate.
 
 This boundary is informed by con-leche's complete indexed result assembly, without
 importing its code or asserting its kernel/model guarantees for Lean/Lake, the filesystem,

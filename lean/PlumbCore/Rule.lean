@@ -86,13 +86,23 @@ def evidenceFor : RuleId → EvidenceKind
   | .positiveExample | .negativeExample | .trustedExample => .checkedExample
   | .moduleDocumentation | .materialDocumentation | .materialIntent => .metadataPresence
 
+/-- The first line of every rendered diagnostic of `id` (`Plumb.Diagnostic.text`); the rule's
+help URL follows on the next line. -/
+def messageLine (id : RuleId) (impact mode claim location subject detail : String) : String :=
+  id.spelling ++ " [" ++ impact ++ "; " ++ mode ++ "; claim=" ++ claim ++ "; " ++ location ++ "]: " ++
+    subject ++ ": " ++ detail
+
+/-- The published message form: `messageLine` applied to placeholder names, so the registry
+and site show the same definition the checker renders. -/
+def messageForm (id : RuleId) : String :=
+  messageLine id "{impact}" "{mode}" "{claim}" "{location}" "{subject}" "{detail}"
+
 /-- Identity and route are projections of the index, never independent fields. -/
 structure RuleDescriptor (id : RuleId) where
   title : String
   category : RuleCategory
   normativeClauses : List String
   applicability : String
-  messageTemplate : String
   availability : Availability
   evidenceModes : List EvidenceMode
   lifecycle : Lifecycle id := .active "unreleased"
@@ -104,10 +114,16 @@ structure RuleDescriptor (id : RuleId) where
 namespace RuleDescriptor
 def identity {id : RuleId} (_ : RuleDescriptor id) : RuleId := id
 def helpRoute {id : RuleId} (_ : RuleDescriptor id) : String := id.route
+/-- The message form is derived from the index, never an independent field. -/
+def messageTemplate {id : RuleId} (_ : RuleDescriptor id) : String := messageForm id
 end RuleDescriptor
 
 def declarationModes : List EvidenceMode :=
   [.incrementalProject, .freshProject, .freshFile, .documentationExample]
+
+/-- The modes of the completed-module documentation rules: the editor and whole-project audits.
+Single-file and documentation-example audits have no documentation-presence stage. -/
+def projectModes : List EvidenceMode := [.editorSnapshot, .incrementalProject, .freshProject]
 
 /-- Total bridge from the executed policy decision to the single rule registry. -/
 def ruleForFailure : PlumbPolicy.DeclarationFailure → RuleId
@@ -142,128 +158,128 @@ def descriptor : (id : RuleId) → RuleDescriptor id
   | .projectAxiom => {
       title := "Project logical axioms are forbidden", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
-      applicability := "project-axiom", messageTemplate := "PL1001:{subject}:{detail}"
+      applicability := "project-axiom"
       availability := .existingChecker
       evidenceModes := .editorSnapshot :: declarationModes }
   | .proofHole => {
       title := "Proof holes are forbidden", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
-      applicability := "hole", messageTemplate := "PL1002:{subject}:{detail}"
+      applicability := "hole"
       availability := .existingChecker
       evidenceModes := .editorSnapshot :: declarationModes }
   | .unknownAxiom => {
       title := "Unknown transitive axioms are forbidden", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
-      applicability := "unknown-axiom", messageTemplate := "PL1003:{subject}:{detail}"
+      applicability := "unknown-axiom"
       availability := .existingChecker
       evidenceModes := .editorSnapshot :: declarationModes }
   | .compilerTrusting => {
       title := "Compiler-trusting proofs require separate classification", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
-      applicability := "compiler-trusting", messageTemplate := "PL1004:{subject}:{detail}"
+      applicability := "compiler-trusting"
       availability := .existingChecker
       evidenceModes := .editorSnapshot :: declarationModes }
   | .profileExceeded => {
       title := "Transitive axioms must fit the selected profile", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
-      applicability := "label-exceeds-claim", messageTemplate := "PL1005:{subject}:{detail}"
+      applicability := "label-exceeds-claim"
       availability := .existingChecker
-      evidenceModes := .editorSnapshot :: declarationModes }
+      evidenceModes := [.editorSnapshot, .incrementalProject, .freshProject, .freshFile] }
   | .escapeHatch => {
       title := "Unsafe and partial declarations require exact helper authentication", category := .declaration
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.4"]
-      applicability := "escape-hatch", messageTemplate := "PL1006:{subject}:{detail}"
+      applicability := "escape-hatch"
       availability := .existingChecker
       evidenceModes := .editorSnapshot :: declarationModes }
   | .executableContract => {
       title := "Executable contracts require supported closed evidence", category := .execution
-      normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.6"]
-      applicability := "executable-contract", messageTemplate := "PL1007:{subject}:{detail}"
+      normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.12", "docs/standard/8-tooling-and-machine-audit.md §8.5"]
+      applicability := "executable-contract"
       availability := .existingChecker
       evidenceModes := .editorSnapshot :: declarationModes }
   | .environment => {
       title := "The declared Lean environment must be available", category := .environment
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.1"]
-      applicability := "environment", messageTemplate := "PL2001:{subject}:{detail}"
+      applicability := "environment"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := [.incrementalProject, .freshProject, .freshFile] }
   | .configuration => {
       title := "Configuration must classify the complete Lake surface", category := .configuration
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.2"]
-      applicability := "configuration", messageTemplate := "PL2002:{subject}:{detail}"
+      applicability := "configuration"
       availability := .existingChecker
-      evidenceModes := .editorSnapshot :: declarationModes }
+      evidenceModes := [.editorSnapshot, .incrementalProject, .freshProject, .freshFile] }
   | .sourceBuild => {
       title := "Claimed source must elaborate warning-free", category := .elaboration
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.3"]
-      applicability := "source-build", messageTemplate := "PL2003:{subject}:{detail}"
+      applicability := "source-build"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := [.incrementalProject, .freshProject, .freshFile] }
   | .coverage => {
       title := "Owned coverage must match the exact Lake inventory", category := .coverage
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.2"]
-      applicability := "coverage", messageTemplate := "PL2004:{subject}:{detail}"
+      applicability := "coverage"
       availability := .existingChecker
-      evidenceModes := declarationModes }
+      evidenceModes := [.incrementalProject, .freshProject] }
   | .admission => {
       title := "Required admission and source evidence must be complete", category := .admission
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.3"]
-      applicability := "admission", messageTemplate := "PL2005:{subject}:{detail}"
+      applicability := "admission"
       availability := .existingChecker
       evidenceModes := .editorSnapshot :: declarationModes }
   | .executionUnresolved => {
       title := "Execution closure must have no unresolved paths", category := .execution
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.6"]
-      applicability := "execution-unresolved", messageTemplate := "PL3001:{subject}:{detail}"
+      applicability := "execution-unresolved"
       availability := .existingChecker
       evidenceModes := [.incrementalProject, .freshProject, .freshFile] }
   | .executionBoundary => {
       title := "Checked execution requires admitted correspondence", category := .execution
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.6"]
-      applicability := "execution-trusted-boundary", messageTemplate := "PL3002:{subject}:{detail}"
+      applicability := "execution-trusted-boundary"
       availability := .existingChecker
       evidenceModes := [.incrementalProject, .freshProject, .freshFile] }
   | .fenceStructure => {
       title := "Documentation fences must have a valid classification", category := .documentation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.7"]
-      applicability := "fence-structure", messageTemplate := "PL4001:{subject}:{detail}"
+      applicability := "fence-structure"
       availability := .existingChecker
       evidenceModes := [.documentationExample] }
   | .positiveExample => {
       title := "Positive examples require warning-free elaboration and admission", category := .documentation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.7"]
-      applicability := "positive-example", messageTemplate := "PL4002:{subject}:{detail}"
+      applicability := "positive-example"
       availability := .existingChecker
       evidenceModes := [.documentationExample] }
   | .negativeExample => {
       title := "Negative examples require completed intended rejection", category := .documentation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.7"]
-      applicability := "negative-example", messageTemplate := "PL4003:{subject}:{detail}"
+      applicability := "negative-example"
       availability := .existingChecker
       evidenceModes := [.documentationExample] }
   | .trustedExample => {
       title := "Teaching examples require authenticated compiler classification", category := .documentation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.7"]
-      applicability := "trusted-example", messageTemplate := "PL4004:{subject}:{detail}"
+      applicability := "trusted-example"
       availability := .existingChecker
       evidenceModes := [.documentationExample] }
   | .moduleDocumentation => {
       title := "Claimed modules require module documentation", category := .documentation
       normativeClauses := ["docs/standard/5-documentation-standards.md §5.3"]
-      applicability := "module-documentation", messageTemplate := "PL5001:{subject}:{detail}"
+      applicability := "module-documentation"
       availability := .existingChecker
-      evidenceModes := .editorSnapshot :: declarationModes }
+      evidenceModes := projectModes }
   | .materialDocumentation => {
       title := "Registered public material declarations require docstrings", category := .documentation
       normativeClauses := ["docs/standard/5-documentation-standards.md §5.1"]
-      applicability := "material-documentation", messageTemplate := "PL5002:{subject}:{detail}"
+      applicability := "material-documentation"
       availability := .existingChecker
-      evidenceModes := .editorSnapshot :: declarationModes }
+      evidenceModes := projectModes }
   | .materialIntent => {
       title := "Registered public material declarations require an Intent section", category := .documentation
       normativeClauses := ["docs/standard/5-documentation-standards.md §5.2"]
-      applicability := "material-intent", messageTemplate := "PL5003:{subject}:{detail}"
+      applicability := "material-intent"
       availability := .existingChecker
-      evidenceModes := .editorSnapshot :: declarationModes }
+      evidenceModes := projectModes }
 
 end Plumb

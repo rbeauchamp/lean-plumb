@@ -19,7 +19,8 @@
   domain-specific material in examples or named Lean-domain profiles.
 
 - Follow `docs/guides/linter-architecture.md` and `docs/guides/rule-coverage.md` for the
-  Project 8 product contract. Keep typed rule metadata, diagnostics and checked website
+  Project 8 product contract; `docs/guides/product-qualification.md` records its integrated
+  per-rule evidence, routes and remaining limits. Keep typed rule metadata, diagnostics and checked website
   examples synchronized. Follow `docs/guides/design-influences.md` for contribution-specific
   attribution; no single research reference brands every issue or deliverable. Distinguish planned work
   from currently supported enforcement and published pages.
