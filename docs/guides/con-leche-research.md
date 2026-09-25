@@ -264,8 +264,9 @@ This option was never taken; Plumb stays on `v4.34.0`.
 ## Reproduction
 
 ```sh
-# Plumb inventory (ordinary gate, ~110 s); owned declarations are under
-# scope.surfaces[].report.declarations of the JSON output.
+# Plumb inventory at the recorded revision (ordinary gate, ~110 s); owned
+# declarations are under scope.surfaces[].report.declarations of the JSON output.
+git checkout 56c53c2bb3ab5c2a7ddbbcb45759e65502b24c0d
 lake exe axiomGate -- --json-out /path/to/gate.json
 
 # Exporter and checker at the recorded pins (setup only; this study built them
@@ -285,7 +286,8 @@ declaration records.
 
 The temporary inventory and closure probes, the upstream clones and their builds lived in the
 ignored `tmp/` directory and were removed after these results were recorded. The gate command
-above reproduces the inventory counts. The closure count is a derived observation from that
+above reproduces the inventory counts at the recorded Plumb revision; later revisions add
+owned declarations. The closure count is a derived observation from that
 removed probe.
 
 ## When to revisit
