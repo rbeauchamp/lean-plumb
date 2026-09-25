@@ -103,17 +103,22 @@ and Plumb does not depend on either. No upstream endorsement is implied.
 ## Checker protocol at the pin
 
 Source: [`Main.lean`](https://github.com/leanprover/con-leche/blob/ae0c0c4e4ce6a0081648aff03fe9c39d002c4526/Main.lean)
-and the binary's own `--help` output. The binary was built locally, but its help is the only
-thing that was run.
+and the binary's own `--help` output. The binary was built locally. It was run only for `--help`
+and for one missing input file; no stream was checked.
 
 - **Invocation:** `con-leche [--verified|--trusted] [--jobs=<n>] [--progress[=<stride>]] FILE.ndjson`.
   `--verified` is the default and the only mode the theorems cover. A `--trusted` accept is
   outside the proved result.
-- **Exit codes:** `0` accepted; `1` rejected, or out of memory, which the Lean runtime reports
-  as `INTERNAL PANIC: out of memory` on stderr and which must be told apart from a reject; `2`
+- **Exit codes:** `0` accepted; `1` rejected, out of memory, or an uncaught I/O exception; `2`
   declined (an unsupported feature, or a census-only diagnostic run); `3` usage error, malformed
   input or internal failure. Upstream documents `134`, a generic abort code, for a run whose
   runtime could not create a worker thread.
+  Exit `1` is a reject only when stderr carries the driver's `con-leche: <error> [at ...] (<mode>)`
+  verdict line. The Lean runtime also exits `1` for out of memory, printing
+  `INTERNAL PANIC: out of memory` on stderr, and for any I/O exception that escapes `main`,
+  printing `uncaught exception:` on stderr. A missing input file at the pin exits `1` with
+  `uncaught exception: no such file or directory`, so an unreadable input is a process error,
+  not a reject.
 - **Help:** `--help` anywhere prints usage on stdout and exits `0` without reading input. Exit
   `0` alone is therefore not acceptance.
 - **Evidence of an intended accept:** all of the following, together.
