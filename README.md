@@ -17,7 +17,8 @@ installed package, with no website or other tool:
 - `lake exe regula agent-guide` prints a compact briefing of every rule, ordered for writing
   code, to place in `AGENTS.md` or an agent skill (`lake exe regula skill`).
 - Every finding states what is wrong, where, and the fix. The first finding of each rule in a
-  run adds why it matters, the common compliant rewrites and a checked compliant example.
+  run adds why it matters, the common compliant rewrites and a checked compliant example (or,
+  where the checked files are qualification inputs, the correction they demonstrate).
 - `lake exe regula explain <RULE-ID>` prints the full rule; `lake exe regula rules` lists them.
 - `lake lint -- --json-out PATH` writes one versioned JSON document with every finding, its
   remedy and each fired rule's guidance; exit codes are documented and stable.

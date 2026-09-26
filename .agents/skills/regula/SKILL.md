@@ -8,8 +8,8 @@ description: Regula, the strict standard that this project's Lean code and proof
 This project's Lean code and proofs must meet the Regula standard. Apply these rules while writing Lean, not only after the linter runs. This is the complete mechanical rule set of the installed Regula version, ordered for writing code.
 
 - Check with `lake lint` (`lake lint -- --fresh` for a fresh-source audit). Exit codes: 0 ACCEPTED, 1 VIOLATION, 2 INVALID CONFIGURATION, 3 INCOMPLETE.
-- `lake lint -- --json-out tmp/regula.json` also writes every finding with its location, remedy and rule guidance (result schema 3). When a stage did not run, `complete` is false and `stagesNotRun` names the stages, so fixing these findings can reveal more.
-- A finding names its rule ID, what is wrong and where, and the fix. The first finding of each rule adds why, common rewrites and a compliant example. `lake exe regula explain <ID>` prints the full rule offline; `lake exe regula rules` lists all rules.
+- `lake lint -- --json-out tmp/regula.json` also writes every finding with its location, remedy and rule guidance (result schema 3). When a stage did not complete, `complete` is false and `stagesNotRun` names the stages, so fixing these findings can reveal more.
+- A finding names its rule ID, what is wrong and where, and the fix. The first finding of each rule adds why, common rewrites and a compliant example (or, where the checked files are qualification inputs, the correction). `lake exe regula explain <ID>` prints the full rule offline; `lake exe regula rules` lists all rules.
 - No option, attribute or flag waives a rule on a claimed surface. Do not disable a warning or linter, weaken a statement, or drop a registration to pass.
 - Passing is mechanical: a theorem must still state the intended claim, with its hypotheses and limits, which review checks.
 

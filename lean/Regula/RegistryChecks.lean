@@ -15,7 +15,9 @@ run_cmd do
       ``RuleId.all_nodup, ``RuleId.route_injective, ``mode_roundtrip, ``rule_roundtrip,
       ``nameParts_roundtrip, ``name_roundtrip, ``mem_firedRules, ``firedRules_nodup,
       ``Regula.sortFindings_entries, ``Regula.sortFindings_perm,
-      ``Regula.Checker.ResultProtocol.stagesOf_required, ``Regula.Checker.ResultProtocol.notRun_eq_nil_iff] do
+      ``Regula.Checker.ResultProtocol.stagesOf_required, ``Regula.Checker.ResultProtocol.notRun_eq_nil_iff,
+      ``Regula.Checker.ResultProtocol.stagesOf_ordered, ``Regula.Checker.ResultProtocol.withDocs_ordered,
+      ``Regula.Checker.ResultProtocol.blockedIn_subset_notRun] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "registry theorem {name} exceeds Standard-Logical: {axioms}"
@@ -74,13 +76,28 @@ def main : IO Unit := do
   let d ← IO.ofExcept <| makeDiagnostic .projectAxiom ⟨name, "project-axiom"⟩
     (.source source) .freshFile (some "standard-logical") .violation
   let json := diagnosticJson ⟨.projectAxiom, d⟩
+  let fileStages := Regula.Checker.ResultProtocol.stagesOf .freshFile
   let envelope := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshFile .rejected
-    #[⟨.projectAxiom, d⟩, ⟨.projectAxiom, d⟩] [] #[]
+    #[⟨.projectAxiom, d⟩, ⟨.projectAxiom, d⟩] fileStages fileStages #[]
   let partialRun := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshFile .rejected
-    #[⟨.projectAxiom, d⟩] [.execution, .origin] #[]
+    #[⟨.projectAxiom, d⟩] fileStages (fileStages.filter (· ∉ [.execution, .origin])) #[]
+  let projectStages := Regula.Checker.ResultProtocol.stagesOf .freshProject
+  let omission ← IO.ofExcept <| Regula.Findings.contextFinding .coverage "control"
+    "surface-omission: Lake module M was not elaborated" .freshProject .incomplete
+  let blockedRun := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject .incomplete
+    #[omission] projectStages projectStages #[]
   let admit := Regula.Checker.ResultProtocol.admitGuidance
   require (succeeded (admit envelope)) "result guidance admission"
   require (succeeded (admit partialRun)) "partial result guidance admission"
+  require (succeeded (admit blockedRun)) "blocked result guidance admission"
+  require ((blockedRun.getObjVal? "stagesNotRun").toOption ==
+      some (toJson ["admission", "declarationPolicy", "execution", "transcript", "history", "origin",
+        "documentationPresence"]))
+    "an incomplete finding blocks its stage and every later stage"
+  require (!succeeded (admit ((blockedRun.setObjVal! "stagesNotRun" (toJson ([] : List Json))).setObjVal!
+    "complete" (.bool true)))) "blocked stages reported as run"
+  require (!succeeded (admit (blockedRun.setObjVal! "stagesNotRun" (toJson ["history"]))))
+    "blocked stage reported as run"
   require (!succeeded (admit (envelope.setObjVal! "rules" (toJson ([] : List Json))))) "missing rule guidance"
   require (!succeeded (admit (envelope.setObjVal! "complete" (.bool false)))) "wrong completeness"
   require (!succeeded (admit (partialRun.setObjVal! "complete" (.bool true)))) "partial run claimed complete"

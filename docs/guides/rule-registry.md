@@ -165,15 +165,21 @@ Registry (schema 2, which adds each rule's guidance and example pair to schema 1
 (schema 3) envelopes contain `schemaVersion`, `producerVersion`,
 `toolchain` and `sourceRevision`. Registry output contains the canonical `rules`.
 Result output contains `scope`, `mode`, `status`, `complete`, `stagesNotRun`, `diagnostics`,
-`rules` and `unresolved`. A writer records the stages its run completed; `stagesNotRun` is
-every expected stage missing from them (`ResultProtocol.notRun`), and `complete` holds exactly
-when there is none (`notRun_eq_nil_iff`). The expected stages are those
-`RegulaPolicy.requiredStages` requires in the run's mode (`stagesOf_required`), plus the
-documentation stages of a `--with-docs` run. A `completed` status reports none, because its
-accepted account executed every required stage; a context finding credits only the stages
-that always precede it (`contextCompleted`). `ResultProtocol.admitGuidance` admits a result's
-agent members in the same style as a registry: every diagnostic decodes canonically, every
-listed stage exists, and `complete`, `stagesNotRun` and `rules` equal their derivation; the rule-example campaign applies it to every result it admits.
+`rules` and `unresolved`. A writer records the stages its run completed: a context failure the
+stages its call site finished, and a finished audit every stage. `stagesNotRun`
+(`ResultProtocol.notRun`) is every expected stage missing from them, together with every stage
+that an incomplete finding blocks: the stage `blockedStage` assigns to its rule, which it left
+unfinished, and every later stage (`stageRank`, which orders each mode's stages,
+`stagesOf_ordered`, `withDocs_ordered`). RG3001 blocks none, because its verdict comes from the
+execution stage, which completed. An empty documentation scan leaves the documentation stages
+unrecorded. `complete` holds exactly when no stage is missing or blocked (`notRun_eq_nil_iff`).
+The expected stages are those `RegulaPolicy.requiredStages` requires in the run's mode
+(`stagesOf_required`), plus the documentation stages of a `--with-docs` run. A `completed`
+status reports none, because its accepted account executed every required stage.
+`ResultProtocol.admitGuidance` admits a result's agent members in the same style as a
+registry: every diagnostic decodes canonically, every listed stage exists, every stage an
+incomplete finding blocks in its own mode is listed (`blockedIn`, which every writer satisfies,
+`blockedIn_subset_notRun`), and `complete`, `stagesNotRun` and `rules` equal their derivation; the rule-example campaign applies it to every result it admits.
 The producer revision is captured when `ResultProtocol` is elaborated, with Git
 anchored to that source file's checker package directory, rather than reading an
 adopter's Git checkout. Unreleased working builds are explicitly

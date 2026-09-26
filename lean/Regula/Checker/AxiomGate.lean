@@ -263,8 +263,8 @@ private def withRetainedSources (resultOut : Option FilePath)
   finally retainSourceAccount resultOut composed (← captured.get)
 
 private def reportContextFailure (id : Regula.RuleId) (scope : String)
-    (mode : Regula.EvidenceMode) (impact : Regula.Impact) (detail : String)
-    (composed : IO.Ref (Option Json)) (resultOut : Option FilePath)
+    (mode : Regula.EvidenceMode) (impact : Regula.Impact) (completed : List ResultProtocol.Stage)
+    (detail : String) (composed : IO.Ref (Option Json)) (resultOut : Option FilePath)
     (sources : Array ProducerReport.SourceBinding := #[]) : IO Unit := do
   composed.set none
   let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding id scope detail mode impact
@@ -272,9 +272,9 @@ private def reportContextFailure (id : Regula.RuleId) (scope : String)
   recordStatus (if impact == .violation then .rejected else .incomplete) #[finding]
   if let some output := resultOut then
     let captured ← capturedSourceAccount resultOut sources
-    let notRun := ResultProtocol.notRun (← expectedStages.get) (ResultProtocol.contextCompleted id)
     writeJson output <| (ResultProtocol.resultJson (Json.str scope) mode
-      (if impact == .violation then .rejected else .incomplete) #[finding] notRun #[]).setObjVal!
+      (if impact == .violation then .rejected else .incomplete) #[finding] (← expectedStages.get)
+      completed #[]).setObjVal!
       "sourceAccount" captured
 
 private def withSourceEvidenceOr (refused : α) (sources : Array ProducerReport.SourceBinding)
@@ -283,7 +283,7 @@ private def withSourceEvidenceOr (refused : α) (sources : Array ProducerReport.
   match ← SourceBinding.withUnchanged sources configuration action with
   | .ok result => return result
   | .error failure =>
-      reportContextFailure .admission scope mode .incomplete failure.detail composed resultOut sources
+      reportContextFailure .admission scope mode .incomplete [] failure.detail composed resultOut sources
       return refused
 
 private def withSourceEvidence (sources : Array ProducerReport.SourceBinding)
@@ -363,7 +363,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
       SourceBinding.configurationUnchanged configuration
       if let some lines := buildResult then
         reportContextFailure .sourceBuild reportRoot.toString
-          (if fresh then .freshProject else .incrementalProject) .incomplete
+          (if fresh then .freshProject else .incrementalProject) .incomplete [.configuration, .discovery]
           ("\n".intercalate lines.toList) composed resultOut sourceBindings
         return 1
 
@@ -447,7 +447,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         let response ← IO.ofExcept outcome
         if let .error failure := response then
           reportContextFailure .admission reportRoot.toString
-            (if fresh then .freshProject else .incrementalProject) .incomplete
+            (if fresh then .freshProject else .incrementalProject) .incomplete [.configuration, .discovery, .build]
             failure.detail composed resultOut sourceBindings
           return 1
       let rawInspections ← inspections.mapM fun (surface, outcome) => do
@@ -480,7 +480,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         let inspection ← IO.ofExcept outcome
         if let .error failure := inspection then
           reportContextFailure .admission reportRoot.toString
-            (if fresh then .freshProject else .incrementalProject) .incomplete
+            (if fresh then .freshProject else .incrementalProject) .incomplete [.configuration, .discovery, .build]
             failure.detail composed resultOut sourceBindings
           return 1
         let .ok inspected := inspection
@@ -692,14 +692,15 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
             ("libraries", toJson (libraries.map libraryInfoJson)),
             ("completedStages", toJson #["claimedSourceBuild", "ownedAdmission", "declarationPolicy", "executionInspection"])]
         let mode : Regula.EvidenceMode := if fresh then .freshProject else .incrementalProject
-        let notRun := ResultProtocol.notRun (← expectedStages.get) (ResultProtocol.stagesOf mode)
+        let expected ← expectedStages.get
         if let some (_, ⟨_, accepted⟩) := accepted then
           if documentationPending then
-            ResultProtocol.write output resultScope mode .incomplete #[] notRun
-              #["documentation audit has not completed"]
+            ResultProtocol.write output resultScope mode .incomplete #[] expected
+              (ResultProtocol.stagesOf mode) #["documentation audit has not completed"]
           else ResultProtocol.writeAccepted output accepted resultScope
         else
-          ResultProtocol.write output resultScope mode status findings notRun unresolved
+          ResultProtocol.write output resultScope mode status findings expected
+            (ResultProtocol.stagesOf mode) unresolved
       RunFeedback.emitAll IO.println findings
       if !failures.isEmpty then
         IO.println s!"\nFAIL: {failures.size} violation(s)"
@@ -793,8 +794,10 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       let all := Regula.sortFindings (previous ++ docs).toList
       let value := value.setObjVal! "diagnostics" (toJson (all.map Regula.RegistryCodec.diagnosticJson))
       let value := value.setObjVal! "status" (.str status.spelling)
-      let notRun := ResultProtocol.stagesNotRun status (ResultProtocol.notRun (← expectedStages.get)
-        (ResultProtocol.stagesOf .freshProject ++ ResultProtocol.documentationStages))
+      let scanned := combined.isSome || !docs.isEmpty
+      let notRun := ResultProtocol.stagesNotRun status (← expectedStages.get)
+        (ResultProtocol.stagesOf .freshProject ++
+          (if scanned then ResultProtocol.documentationStages else [])) all
       let value := ResultProtocol.guidanceFields notRun (all.map (·.1))
         |>.foldl (fun value (key, field) => value.setObjVal! key field) value
       let value := value.setObjVal! "scope" (scope.setObjVal! "documentation" (.str (repo / "docs").toString))
@@ -822,7 +825,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
   let configuration ← SourceBinding.configuration repo manifestPath
   observeConfiguration repo configuration
   if !(← path.pathExists) then
-    reportContextFailure .environment path.toString .freshFile .incomplete
+    reportContextFailure .environment path.toString .freshFile .incomplete []
       s!"missing source file {path}" composed resultOut
     return 1
   withSourceEvidence #[] configuration path.toString .freshFile composed resultOut do
@@ -843,7 +846,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
         SourceBinding.unchanged sources
         SourceBinding.configurationUnchanged configuration
         if let some lines := buildResult then
-          reportContextFailure .sourceBuild repo.toString .freshFile .incomplete
+          reportContextFailure .sourceBuild repo.toString .freshFile .incomplete [.discovery]
             ("\n".intercalate lines.toList) composed resultOut sources
           return 1
       SourceBinding.unchanged dependencySources
@@ -851,7 +854,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
       withScratch repo "file-audit" fun scratch => do
         let compilationOutcome ← SourceAudit.compile repo scratch { «module» := moduleName, source, rejectWarnings := claim.isSome }
         if let .error failure := compilationOutcome then
-          reportContextFailure .admission path.toString .freshFile .incomplete failure.detail composed resultOut sources
+          reportContextFailure .admission path.toString .freshFile .incomplete [.discovery] failure.detail composed resultOut sources
           return 1
         let .ok compilation := compilationOutcome
           | throw <| IO.userError "unreachable compilation outcome"
@@ -872,11 +875,11 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
             let diagnostics := if !(errorLines output).isEmpty then errorLines output
               else takeLast 10 (outputLines output)
             reportContextFailure .sourceBuild path.toString .freshFile
-              (if sourceRejected then .violation else .incomplete)
+              (if sourceRejected then .violation else .incomplete) [.discovery]
               ("\n".intercalate diagnostics.toList) composed resultOut sources
             return 1
         | .ok (.error failure) =>
-            reportContextFailure .admission path.toString .freshFile .incomplete failure.detail composed resultOut sources
+            reportContextFailure .admission path.toString .freshFile .incomplete [.discovery, .build] failure.detail composed resultOut sources
             return 1
         | .ok (.ok inspected) =>
             let declarations := inspected.report.declarations.qsort fun left right =>
@@ -979,12 +982,12 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
               if let some ⟨_, accepted⟩ := accepted then
                 composed.set (some (ResultProtocol.acceptedValue accepted resultScope))
               else
-                let notRun := ResultProtocol.notRun (← expectedStages.get) (ResultProtocol.stagesOf .freshFile)
+                let expected ← expectedStages.get
                 ResultProtocol.write output resultScope .freshFile
                   (if findings.any (·.2.impact == .incomplete) then .incomplete
                     else if !reasons.isEmpty then .rejected else if claim.isNone || claim == some .compilerTrusting
                     then .classified else .incomplete)
-                  findings notRun #[]
+                  findings expected (ResultProtocol.stagesOf .freshFile) #[]
             if !reasons.isEmpty then
               IO.println <| s!"\nfile audit: FAIL ({reasons.size} violation(s))" ++
                 (claim.map (fun profile => s!" against claim '{profile}'")).getD ""
@@ -1118,7 +1121,7 @@ unsafe def run (args : List String) : IO UInt32 := do
   expectedStages.set (ResultProtocol.stagesOf mode ++
     (if options.withDocs then ResultProtocol.documentationStages else []))
   if let some output := resultOut then
-    ResultProtocol.write output (Json.str repo.toString) mode .incomplete #[] (← expectedStages.get)
+    ResultProtocol.write output (Json.str repo.toString) mode .incomplete #[] (← expectedStages.get) []
       #["audit has not completed"]
   let capturedSources ← IO.mkRef (#[] : Array ProducerReport.SourceBinding)
   let observeSources := fun sources => capturedSources.set sources
@@ -1136,9 +1139,9 @@ unsafe def run (args : List String) : IO UInt32 := do
     recordStatus (if configError then .rejected else .incomplete) #[finding]
     if let some output := resultOut then
       let captured ← capturedSourceAccount resultOut (← capturedSources.get)
-      let notRun := ResultProtocol.notRun (← expectedStages.get) (ResultProtocol.contextCompleted finding.1)
       writeJson output <| (ResultProtocol.resultJson (Json.str repo.toString) mode
-        (if configError then .rejected else .incomplete) #[finding] notRun #[error.toString]).setObjVal!
+        (if configError then .rejected else .incomplete) #[finding] (← expectedStages.get) []
+        #[error.toString]).setObjVal!
         "sourceAccount" captured
     return 1
   let action : IO (UInt32 × Option AcceptanceLink.Pending) := do

@@ -315,7 +315,7 @@ include:
 | --- | --- |
 | `schemaVersion` | `3`. Also `producerVersion`, `toolchain` and `sourceRevision` of the Regula build. |
 | `status` | `completed` (accepted), `rejected` (a violation was established), `incomplete` (evidence was missing) or `classified` (a file inspection with no conforming claim). |
-| `complete` | `true` exactly when every stage of the run completed. `false` when the run stopped early, for example at an RG2002 configuration refusal or a failed build: fixing the reported findings can then reveal more. |
+| `complete` | `true` exactly when every stage of the run completed. `false` when the run stopped early (for example at an RG2002 configuration refusal or a failed build) or an incomplete finding left a stage unfinished (for example an unelaborated module, RG2004): fixing the reported findings can then reveal more. An incomplete RG3001 does not, because its stage completed. |
 | `stagesNotRun` | The stages that did not complete, in run order (for example `build`, `admission`, `declarationPolicy`); empty exactly when `complete` is `true`. |
 | `diagnostics` | Every finding; for a project or file audit, in the printed run order. Each has `id` (rule ID), `impact` (`violation` or `incomplete`), `severity`, `mode`, `claim`, `location` (for source: `uri`, byte `range` and `selectionRange`, and zero-based LSP `lspRange` and `lspSelectionRange`; otherwise a module or project scope), `related` locations, `arguments` (subject and detail), `text` (the printed finding without the once-per-run guidance), `remedy` and `helpUrl`. |
 | `rules` | Once per rule that fired, in registry order: `id`, `title`, `requirement`, `rationale`, `remedy`, `rewrites`, `compliantExample` (`path`, `language`, `text`; `null` where the checked files are qualification inputs), `correction`, `helpUrl` and `explain` (the offline command). |
@@ -325,7 +325,7 @@ The exit status is the stable contract for pass or fail (table above); the `stat
 `complete` members say why. Regula checks the report form the way it checks registry exports:
 every diagnostic must decode to the canonical indexed finding (unknown fields, stale text or
 remedies are refused), every `stagesNotRun` entry must name a stage (none for a `completed`
-result), and `complete`, `stagesNotRun` and `rules` must equal their derivation from those
+result), every stage an incomplete finding blocks must be listed, and `complete`, `stagesNotRun` and `rules` must equal their derivation from those
 stages and the diagnostics (`Regula.Checker.ResultProtocol.admitGuidance`). Treat the report as
 observations, never as a Lean proof.
 

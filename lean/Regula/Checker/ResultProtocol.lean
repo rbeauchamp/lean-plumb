@@ -69,29 +69,81 @@ theorem stagesOf_required (c : RegulaPolicy.Claim) :
 /-- The stages a `--with-docs` project audit adds after the project stages. -/
 def documentationStages : List Stage := [.documentScan, .example]
 
-/-- The stages of `expected` that are not among `completed`, in run order. -/
-def notRun (expected completed : List Stage) : List Stage :=
-  expected.filter (· ∉ completed)
+/-- The position of a stage in every run: each mode's stages, and the documentation stages
+after the project stages, occur in this order (`stagesOf_ordered`, `withDocs_ordered`). -/
+def stageRank : Stage → Nat
+  | .configuration => 0 | .discovery => 1 | .build => 2 | .admission => 3
+  | .declarationPolicy => 4 | .execution => 5 | .transcript => 6 | .history => 7
+  | .origin => 8 | .documentationPresence => 9 | .documentScan => 10 | .example => 11
+  | .graph => 12
 
-/-- No stage is reported as not run exactly when every expected stage completed. -/
-theorem notRun_eq_nil_iff (expected completed : List Stage) :
-    notRun expected completed = [] ↔ ∀ s ∈ expected, s ∈ completed := by
+theorem stagesOf_ordered (mode : EvidenceMode) :
+    (stagesOf mode).Pairwise (fun a b => stageRank a < stageRank b) := by
+  cases mode <;> decide
+
+theorem withDocs_ordered :
+    (stagesOf .freshProject ++ documentationStages).Pairwise
+      (fun a b => stageRank a < stageRank b) := by
+  decide
+
+/-- The stage an incomplete finding of `id` in `mode` leaves unfinished for the evidence it
+concerns; that stage and every later one cannot have completed. RG3001 has none: its verdict
+comes from the execution stage, which completed. -/
+def blockedStage (mode : EvidenceMode) : RuleId → Option Stage
+  | .environment => some .discovery
+  | .configuration => some .configuration
+  | .sourceBuild => some .build
+  | .coverage => some .admission
+  | .admission => some (match mode with | .documentationExample => .example | _ => .admission)
+  | .projectAxiom | .proofHole | .unknownAxiom | .compilerTrusting | .profileExceeded
+  | .escapeHatch | .executableContract => some .declarationPolicy
+  | .executionBoundary => some .execution
+  | .executionUnresolved => none
+  | .fenceStructure | .positiveExample | .negativeExample | .trustedExample => some .example
+  | .moduleDocumentation | .materialDocumentation | .materialIntent => some .documentationPresence
+
+/-- Stage `s` is blocked: an incomplete finding among `findings` leaves `s` or an earlier stage
+unfinished. -/
+def blocked (findings : List Finding) (s : Stage) : Bool :=
+  findings.any fun f => f.2.impact == .incomplete &&
+    match blockedStage f.2.mode f.1 with
+    | some b => stageRank b ≤ stageRank s
+    | none => false
+
+/-- The stages of `expected` that did not complete, in run order: those the writer did not
+record as `completed`, and those an incomplete finding blocks. -/
+def notRun (expected completed : List Stage) (findings : List Finding) : List Stage :=
+  expected.filter fun s => s ∉ completed || blocked findings s
+
+/-- No stage is reported as not run exactly when every expected stage completed and no
+incomplete finding blocks one. -/
+theorem notRun_eq_nil_iff (expected completed : List Stage) (findings : List Finding) :
+    notRun expected completed findings = [] ↔
+      ∀ s ∈ expected, s ∈ completed ∧ blocked findings s = false := by
   simp [notRun, List.filter_eq_nil_iff]
 
-/-- The stages completed before a context finding of `id` stopped a run: configuration and
-discovery precede every failed build (RG2003). Any other context finding, such as an RG2001
-environment, RG2002 configuration or RG2005 admission failure, can arise before any stage
-completes, so none is credited. -/
-def contextCompleted : RuleId → List Stage
-  | .sourceBuild => [.configuration, .discovery]
-  | _ => []
+/-- The stages of a run in the mode of `f` that `f` blocks; `admitGuidance` requires each in
+`stagesNotRun`. -/
+def blockedIn (f : Finding) : List Stage := (stagesOf f.2.mode).filter (blocked [f])
+
+/-- Every result written by `notRun` passes that check: each stage a finding blocks in its own
+mode is reported as not run, whatever the writer recorded as completed. -/
+theorem blockedIn_subset_notRun {expected completed : List Stage} {findings : List Finding}
+    {f : Finding} (hf : f ∈ findings) (hmode : ∀ s ∈ stagesOf f.2.mode, s ∈ expected)
+    {s : Stage} (hs : s ∈ blockedIn f) : s ∈ notRun expected completed findings := by
+  simp only [blockedIn, List.mem_filter] at hs
+  simp only [notRun, List.mem_filter, Bool.or_eq_true, decide_eq_true_eq]
+  refine ⟨hmode s hs.1, .inr ?_⟩
+  simp only [blocked, List.any_eq_true, List.mem_singleton, exists_eq_left] at hs ⊢
+  exact ⟨f, hf, hs.2⟩
 
 /-- The stages a result reports as not run: none for a completed status, whose accepted
 account executed every stage its claim requires (`stagesOf_required`), otherwise `notRun`. -/
-def stagesNotRun (status : Status) (notRun : List Stage) : List Stage :=
+def stagesNotRun (status : Status) (expected completed : List Stage) (findings : List Finding) :
+    List Stage :=
   match status with
   | .completed _ => []
-  | _ => notRun
+  | _ => notRun expected completed findings
 
 /-- The agent guidance members of every result envelope: `complete` (every stage of the run
 completed, `notRun_eq_nil_iff`), `stagesNotRun` (the stages that did not, so fixing the
@@ -101,9 +153,11 @@ def guidanceFields (notRun : List Stage) (rules : List RuleId) : List (String ×
    ("rules", RegistryCodec.rulesJson rules)]
 
 /-- Completed is scoped observation, never a synonym for whole-standard conformance. A
-completed envelope takes its mode from the status's account, not from `mode`. -/
+completed envelope takes its mode from the status's account, not from `mode`. `expected` are
+the run's stages and `completed` those its writer recorded as completed. -/
 def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
-    (findings : Array Finding) (notRun : List Stage) (unresolved : Array String) : Json :=
+    (findings : Array Finding) (expected completed : List Stage) (unresolved : Array String) :
+    Json :=
   let mode := match status with
     | .completed account => account.val.mode
     | _ => mode
@@ -112,7 +166,8 @@ def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
     ("status", .str (statusText status)),
     ("diagnostics", toJson ((sortFindings findings.toList).map RegistryCodec.diagnosticJson)),
     ("unresolved", toJson unresolved)] ++
-    guidanceFields (stagesNotRun status notRun) (findings.toList.map (·.1)))
+    guidanceFields (stagesNotRun status expected completed findings.toList)
+      (findings.toList.map (·.1)))
 
 /-- The stage named `name`. -/
 def parseStage (name : String) : Except String Stage :=
@@ -122,9 +177,10 @@ def parseStage (name : String) : Except String Stage :=
 
 /-- Admit a result envelope's agent members in the registry-export style: it has this schema
 version, every diagnostic decodes to its canonical indexed form (`DiagnosticCodec.parseDiagnostic`,
-which includes the finding's `remedy` and `text`), every entry of `stagesNotRun` is a stage
-and a `completed` result has none, and `complete`, `stagesNotRun` and `rules` equal their
-derivation from those stages and diagnostics. -/
+which includes the finding's `remedy` and `text`), every entry of `stagesNotRun` is a stage, a
+`completed` result has none, every stage an incomplete finding blocks in its mode is among
+them (`blockedIn`, `blockedIn_subset_notRun`), and `complete`, `stagesNotRun` and `rules` equal
+their derivation from those stages and diagnostics. -/
 def admitGuidance (j : Json) : Except String Unit := do
   unless (j.getObjVal? "schemaVersion").toOption == some (toJson schemaVersion) do
     throw "unsupported result schema"
@@ -133,6 +189,10 @@ def admitGuidance (j : Json) : Except String Unit := do
     parseStage (← name.getStr?)
   if (← (← j.getObjVal? "status").getStr?) == "completed" && !notRun.isEmpty then
     throw "completed result with stages not run"
+  for f in findings do
+    for s in blockedIn f do
+      unless notRun.contains s do
+        throw s!"stage {stageName s} blocked by an incomplete {f.1.spelling} finding is reported as run"
   for (key, value) in guidanceFields notRun (findings.toList.map (·.1)) do
     unless (← j.getObjVal? key) == value do throw s!"noncanonical result {key}"
 
@@ -142,10 +202,11 @@ def requestJson (kind project subject : String) (claim execution : Option String
     configuration.map fun (path, source) => (path.toString, source)⟩ : Website.ExampleRequest)
 
 def write (path : System.FilePath) (scope : Json) (mode : EvidenceMode) (status : Status)
-    (findings : Array Finding) (notRun : List Stage) (unresolved : Array String := #[]) : IO Unit := do
+    (findings : Array Finding) (expected completed : List Stage) (unresolved : Array String := #[]) :
+    IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
   let spanStart ← IO.monoMsNow
-  let encoded := Json.compress (resultJson scope mode status findings notRun unresolved) ++ "\n"
+  let encoded := Json.compress (resultJson scope mode status findings expected completed unresolved) ++ "\n"
   IO.println s!"diagnostic span: ResultProtocol.write encode: {(← IO.monoMsNow) - spanStart}ms"
   let writeStart ← IO.monoMsNow
   IO.FS.writeFile path encoded
@@ -298,7 +359,7 @@ worker exits. The composed accepted result value (pure): the historical
 def acceptedValue {claim : RegulaPolicy.Claim}
     (accepted : RegulaPolicy.AcceptedRun claim) (scope : Json) : Json :=
   (resultJson scope accepted.report.claim.val.mode
-    (.completed (Regula.Checker.Account.account accepted)) #[] [] #[]).setObjVal!
+    (.completed (Regula.Checker.Account.account accepted)) #[] [] [] #[]).setObjVal!
     "acceptance" (acceptedJson accepted)
 
 def writeAccepted {claim : RegulaPolicy.Claim} (path : System.FilePath)
