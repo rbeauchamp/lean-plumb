@@ -1,6 +1,6 @@
-import Plumb.Linter
+import Regula.Linter
 
-/-! Doubling with its specification. The `Plumb.Linter` import enables Plumb's
+/-! Doubling with its specification. The `Regula.Linter` import enables Regula's
 live feedback in this module and in every module that imports it. -/
 
 namespace Gadget

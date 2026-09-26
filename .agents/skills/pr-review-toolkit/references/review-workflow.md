@@ -51,8 +51,8 @@ client; a link string or browser check alone does not qualify an editor interact
 
 ## Rule and site changes
 
-A change to a rule reviews its registry descriptor (`PlumbCore/Rule.lean`), its explanation
-(`guide` in `PlumbCore/Guide.lean`), its fixtures and `corpus.json` entry, and its detector together.
+A change to a rule reviews its registry descriptor (`RegulaCore/Rule.lean`), its explanation
+(`guide` in `RegulaCore/Guide.lean`), its fixtures and `corpus.json` entry, and its detector together.
 Check that the explanation states exactly what the detector rejects, which impact it reports,
 what a pass establishes and which `Residual` obligations stay open, with no suppression advice
 that implies conformance; that the correction preserves the violation's intended proposition or

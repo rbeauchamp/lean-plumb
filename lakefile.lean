@@ -1,10 +1,10 @@
 import Lake
 open Lake DSL
 
-package «plumb» where
-  lintDriver := "plumb/lint"
+package «regula» where
+  lintDriver := "regula/lint"
   srcDir := "lean"
-  -- The verification toolset for Plumb for Lean (see docs/).
+  -- The verification toolset for Regula (see docs/).
   -- Code here exists to machine-check claims, patterns, and examples from the standard.
   leanOptions := #[⟨`warningAsError, true⟩]  -- Build warnings are failures
 
@@ -28,69 +28,69 @@ lean_lib «Fixtures» where
   globs := #[.submodules `Fixtures]
 
 @[default_target]
-lean_lib «PlumbPolicy» where
-  globs := #[.andSubmodules `PlumbPolicy]
+lean_lib «RegulaPolicy» where
+  globs := #[.andSubmodules `RegulaPolicy]
 
 @[default_target]
-lean_lib «PlumbVerification»
+lean_lib «RegulaVerification»
 
 @[default_target]
-lean_lib «PlumbQualification» where
+lean_lib «RegulaQualification» where
   -- Pure, proof-backed observation contracts; no process or filesystem drivers.
-  globs := #[.submodules `PlumbQualification]
+  globs := #[.submodules `RegulaQualification]
 
 @[default_target]
-lean_lib «PlumbCore» where
+lean_lib «RegulaCore» where
   -- The rule registry and the pure checker projections of policy decisions that the
   -- operational checker executes; claimed, so the gate audits their declarations.
-  globs := #[.submodules `PlumbCore]
+  globs := #[.submodules `RegulaCore]
 
-lean_lib «Plumb» where
+lean_lib «Regula» where
   -- Lean-only checker implementation. Operational checker modules are
   -- separately qualified; they are not part of the conforming proof surface.
-  globs := #[.submodules `Plumb]
+  globs := #[.submodules `Regula]
 
 lean_exe «axiomGate» where
-  root := `Plumb.Checker.AxiomGateMain
+  root := `Regula.Checker.AxiomGateMain
   supportInterpreter := true
 
 lean_exe «lint» where
-  -- Lake lint driver: `lintDriver = "plumb/lint"` in an adopting package and in this one.
-  root := `Plumb.Checker.LintMain
+  -- Lake lint driver: `lintDriver = "regula/lint"` in an adopting package and in this one.
+  root := `Regula.Checker.LintMain
   supportInterpreter := true
 
 lean_exe «docFenceAudit» where
-  root := `Plumb.Checker.DocFenceAudit
+  root := `Regula.Checker.DocFenceAudit
   supportInterpreter := true
 
 lean_exe «freshChecker» where
-  root := `Plumb.Checker.FreshChecker
+  root := `Regula.Checker.FreshChecker
   supportInterpreter := true
 
 lean_exe «checkerSelftest» where
-  root := `Plumb.Checker.CheckerSelftest
+  root := `Regula.Checker.CheckerSelftest
   supportInterpreter := true
 
 lean_exe «qualify» where
-  root := `Plumb.Qualification.Main
+  root := `Regula.Qualification.Main
   supportInterpreter := true
 
 lean_exe «ruleExamples» where
-  root := `Plumb.Checker.RuleExamples
+  root := `Regula.Checker.RuleExamples
   supportInterpreter := true
 
 lean_exe «ruleExampleQualification» where
-  root := `Plumb.Checker.RuleExampleQualificationMain
+  root := `Regula.Checker.RuleExampleQualificationMain
 
 lean_exe «intentScreen» where
   -- Opt-in probabilistic intent screen (docs/guides/intent-screening.md). Never part of
   -- offline acceptance; it calls a network service only when explicitly run.
-  root := `Plumb.Screen.Main
+  root := `Regula.Screen.Main
   supportInterpreter := true
 
 lean_exe «site» where
   -- Rule-reference site builder: generates, renders, assembles and checks the Pages artifact.
-  root := `Plumb.Site.Main
+  root := `Regula.Site.Main
   supportInterpreter := true
 
 lean_exe «auditApp» where

@@ -11,7 +11,7 @@ of `runChecked`, including refusal. It observes only capacity and occupancy,
 not operation labels, error outputs, timing, or native execution. Natural
 counts have exact unbounded Lean semantics; compiler/runtime execution remains
 trusted. No fairness, progress, or liveness result is claimed. `reachable_safe` and `prefix_safe`
-are material claims registered with `@[plumb_material]`, so PL5002/PL5003 require their Intent
+are material claims registered with `@[regula_material]`, so RG5002/RG5003 require their Intent
 sections.
 -/
 
@@ -136,7 +136,7 @@ abstract witness and respects the original admitted capacity.
 However many operations run after admission, the limiter keeps its admitted capacity
 and never has more slots in use than that capacity. Only finite runs are covered;
 progress and liveness are not required. -/
-@[plumb_material]
+@[regula_material]
 theorem reachable_safe {cap : Nat} {c₀ c : Limiter} (admission : admit cap = some c₀)
     (path : Relation.ReflTransGen StepC c₀ c) :
     ∃ a, Relation.ReflTransGen (StepA cap) cap a ∧ R cap c a ∧ Inv cap a ∧
@@ -173,7 +173,7 @@ its returned refusal state. Lengths beyond the script select the whole script.
 Every state the strict runner can return, after any prefix of any script and whether
 it completes or stops at a refused grant, must keep the admitted capacity unchanged and
 stay within it. -/
-@[plumb_material]
+@[regula_material]
 theorem prefix_safe {cap : Nat} {c : Limiter} (admission : admit cap = some c)
     (ops : List Op) (n : Nat) :
     ∃ a, Relation.ReflTransGen (StepA cap) cap a ∧

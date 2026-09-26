@@ -2,10 +2,10 @@ import Lake
 open Lake DSL
 
 package build_lint_adopter where
-  -- `lake lint` runs the Plumb driver over every manifested surface.
-  lintDriver := "plumb/lint"
+  -- `lake lint` runs the Regula driver over every manifested surface.
+  lintDriver := "regula/lint"
 
-require plumb from "../.."
+require regula from "../.."
 
 lean_lib Widget where
   globs := #[.andSubmodules `Widget]
@@ -14,8 +14,8 @@ lean_lib Widget where
 manifested surface. The job deliberately has no cached success artifact. -/
 @[default_target]
 target policy pkg : Unit := do
-  let some checkerPackage ← findPackageByName? `plumb
-    | error "build policy: missing plumb dependency"
+  let some checkerPackage ← findPackageByName? `regula
+    | error "build policy: missing regula dependency"
   let some checker := checkerPackage.findLeanExe? `axiomGate
     | error "build policy: missing axiomGate executable"
   let binary ← checker.fetch

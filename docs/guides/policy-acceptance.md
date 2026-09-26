@@ -1,6 +1,6 @@
 # Policy acceptance and implementation linkage
 
-The POLICY-01 design is implemented by the pure `PlumbPolicy` contracts and
+The POLICY-01 design is implemented by the pure `RegulaPolicy` contracts and
 operational adapters described below. The [domain guide](policy-domain.md) identifies
 admitted data; the [proof guide](policy-proofs.md) gives theorem hypotheses and caller
 linkage. [Issue 7 evidence](../../session/evidence/issue-7-verification.md) distinguishes
@@ -13,12 +13,12 @@ and the [chapter 9 checklist](../standard/9-compliance-audit.md).
 Con-leche and its authors/contributors, maintained by Joachim Breitner at Lean FRO,
 are credited for [complete indexed result assembly][installed] and
 [canonical representations with semantic equality][propwhen]. These are design
-influences, not imported proofs or copied code. The Plumb guarantee
+influences, not imported proofs or copied code. The Regula guarantee
 is conditional on observations; it is not con-leche's kernel/model theorem.
 
 ## 1. Observed call flow and every success boundary
 
-Paths below start at `lean/Plumb/`. This source inventory covers actual audit
+Paths below start at `lean/Regula/`. This source inventory covers actual audit
 successes and the intentional non-audit routes. It is not a proof that external
 acquisition or the compiled executable is correct. `Checker/Acceptance` is now the
 operational bridge, re-exporting the pure API without duplicating policy decisions.
@@ -125,12 +125,12 @@ capture; it rechecks the supplied dependency observation before finalization.
 
 Project census construction retains failures until the existing policy diagnostic pass
 has completed. Unavailable history still prevents acceptance, while its producer-linked
-execution findings retain PL3001, `execution-unresolved` and root locations in fresh,
+execution findings retain RG3001, `execution-unresolved` and root locations in fresh,
 incremental and build-lint modes. A stored census error is raised if no typed policy
 failure already refuses the run; it is never replaced by an empty census.
 
 The focused `lake exe qualify acceptance-snapshots all` diagnostic exercises ignored
-Git-backed dependency source/configuration mutations with restoration, and the PL3001
+Git-backed dependency source/configuration mutations with restoration, and the RG3001
 project control through fresh, incremental and build-lint invocations. It checks typed
 root/source attribution and absence of acceptance on unavailable history. Its
 `git-status` group compares the dirty decision with the retired pathspec status for a
@@ -207,7 +207,7 @@ an ergonomic boundary, not hostile in-process unforgeability. `acceptance` JSON 
 rendered metadata only: a parent decodes raw production and recomputes evidence.
 
 Every checker verdict line and every `completed` status is rendered from one report account,
-`Account.account run` in claimed `PlumbCore.Account`. `Account` is the subtype of
+`Account.account run` in claimed `RegulaCore.Account`. `Account` is the subtype of
 account data that is the projection of some `AcceptedRun`, and `Status.completed`
 takes an `Account`; the refusal statuses carry none. `Status.completed_accepted`
 therefore proves that a `completed` status has an accepted run, complete for its plan
@@ -277,7 +277,7 @@ Project policy, documentation results and semantic review are separate component
 A completed mechanically accepted project report keeps R-INTENT, R-INVARIANT,
 R-LAWS, R-BOUNDARY, R-NONVACUITY, R-DOC, R-COST and R-QUALIFY explicitly unresolved
 where applicable; it is not full standard conformance. R-GRAPH is requested separately.
-The report account (`PlumbCore.Account`, below) renders exactly this: every
+The report account (`RegulaCore.Account`, below) renders exactly this: every
 accepted account lists these identifiers as unresolved, adding R-GRAPH only for a
 `serializedGraph` claim. An identifier is an open obligation, not a completed review.
 Editor mode admits only its declared completed snapshot checks and lists pending
@@ -380,7 +380,7 @@ search, source discovery or detection of arbitrary intended specifications.
 | `ContractOK` (§8.5, §8.12) | Every registered obligation targets the exact supported implementation/predicate, with completed admission and no recorded contract failure. Registration adequacy remains review. | `Probe.executableContract?` → domain adapter; no weakened predicate synthesized in policy. |
 | `ExecutionOK` (§8.6) | Every required root's closure is accounted for, no unresolved paths/states; report mode permits reported trusted boundaries, checked mode permits only checked evidence or authenticated native-runtime substrate. | `executionWalk`/origin/correspondence adapters → pure execution decision. |
 | `DocumentOK` (§8.7) | Complete structural scan; positives warning-free with logical admission/Standard-Logical policy; negative source rejection has one effective-error match; trusted teaching has compiler evidence and is not positive conformance. | `Documentation.auditTasks` and final aggregation. Execution is not implied. |
-| `DocumentationPresenceOK`, `MaterialDocumentationOK` (§5.1–§5.3; PL5001–PL5003) | Every claimed completed module has module-doc metadata; each public declaration explicitly registered as material-claim evidence has a docstring carrying a nonempty labelled Intent section (`materialDocumentationFailure_eq_none_iff` links the executed classification). Registration completeness and prose fidelity remain R-DOC; intent adequacy remains R-INTENT. | #13 collects module-doc metadata and `findDocString?` for the independently frozen module/registration census; #7 requires those jobs for project and applicable completed-editor scope. |
+| `DocumentationPresenceOK`, `MaterialDocumentationOK` (§5.1–§5.3; RG5001–RG5003) | Every claimed completed module has module-doc metadata; each public declaration explicitly registered as material-claim evidence has a docstring carrying a nonempty labelled Intent section (`materialDocumentationFailure_eq_none_iff` links the executed classification). Registration completeness and prose fidelity remain R-DOC; intent adequacy remains R-INTENT. | #13 collects module-doc metadata and `findDocString?` for the independently frozen module/registration census; #7 requires those jobs for project and applicable completed-editor scope. |
 | `ExampleExpectationOK` (website checked examples) | Exactly the configured positive, compiler-rejection, policy-diagnostic or trusted-teaching expectation holds for the exact source snapshot; see below. | #12 typed expectations → #13 checker → #15 example aggregation; same #7 keyed acceptance contract. |
 | `StageOK` (§8.2–8.3, §8.8–8.12) | Required producers completed for this exact mode; absence, crash, unknown or unsupported state is incomplete. | All worker returns and audit/render/exit adapters in §1. Optional graph stages only when requested. |
 
@@ -400,7 +400,7 @@ Serialized graph requires every selected graph root checked, never mere planning
 For website fixtures, `ExampleExpectation` is a tagged sum: positive acceptance;
 compiler rejection with a nonempty effective-error pattern; policy rejection with a
 nonempty typed expected-diagnostic specification; or authenticated trusted teaching.
-A policy-negative source may elaborate successfully (for example PL1001). Its job
+A policy-negative source may elaborate successfully (for example RG1001). Its job
 requires completed real checker rejection for the exact source/configuration/mode,
 an exact match to expected stable rule ID, subreason where specified, and the expected
 primary/related source ranges or explicit module/project location. Reject additional
@@ -476,9 +476,9 @@ role evidence bound to the whole declaration/transcript inventory, not caller wh
 
 ## 5. Pure module boundary and migration
 
-The root namespace and Lake library **`PlumbPolicy`** use the umbrella
-`lean/PlumbPolicy.lean`. Imports are acyclic and remain within Init/Std, the pure
-library and the import-free `Plumb.Contract` registration type. Foundation and
+The root namespace and Lake library **`RegulaPolicy`** use the umbrella
+`lean/RegulaPolicy.lean`. Imports are acyclic and remain within Init/Std, the pure
+library and the import-free `Regula.Contract` registration type. Foundation and
 role specifications support declaration decisions; Plan derives required jobs,
 Observation defines stage predicates, and Acceptance assembles complete results. Codec defines a pure tagged wire tree.
 JSON parsing/printing stays in `Checker/PolicyCodec.lean`; prove decoded-tree codec laws
@@ -489,10 +489,10 @@ Mathlib import belongs in the pure policy library.
 
 `Checker/PolicyDomain.lean` remains a compatibility import. `Checker/Acceptance.lean`
 re-exports the pure definitions and assembles observations through them; it defines no
-duplicate policy. The claimed `PlumbCore.Policy` holds the checker's pure claim,
-scope-admission, rule and execution-rule projections, `PlumbCore.Coordinates` and
-`PlumbCore.Source` the transcript-coordinate and source-range admission, and
-`PlumbCore.Assembly` the pure census assembly; operational `Checker/Policy.lean`
+duplicate policy. The claimed `RegulaCore.Policy` holds the checker's pure claim,
+scope-admission, rule and execution-rule projections, `RegulaCore.Coordinates` and
+`RegulaCore.Source` the transcript-coordinate and source-range admission, and
+`RegulaCore.Assembly` the pure census assembly; operational `Checker/Policy.lean`
 only binds scope admission to the frontend coordinate check and renders text;
 `Checker/PolicyCodec.lean` handles worker/report JSON. Move transcript **data** shapes
 into the pure domain (including source/range/evaluator keys); `Frontend` imports them,
@@ -500,21 +500,21 @@ never vice versa. `Report` can serialize typed domain observations; pretty strin
 non-authoritative. Registry ID/payload/rendering stays owned by #12; it maps typed policy
 failures to the existing twenty-one IDs and preserves subreasons. The pure core does not
 import the registry, so no cycle forms when diagnostics import policy types. The claimed
-`PlumbCore` library holds that registry (`RuleId`, `Rule`) and imports the policy
+`RegulaCore` library holds that registry (`RuleId`, `Rule`) and imports the policy
 library, never the reverse; it shares this section's import restrictions except the
 registry itself and Lean's pure `Lean.Data.Position` (`FileMap`), whose import closure has
 no `Lean.Environment`, `Lean.Meta` or `Lean.Elab` module. It does not import
 `Lean.Data.Lsp.Utf16`, whose closure contains `Lean.Environment`; the operational
-`Plumb.Diagnostic` supplies that UTF-16 column function.
+`Regula.Diagnostic` supplies that UTF-16 column function.
 
-The `lean_lib PlumbPolicy` has `.andSubmodules` discovery, a positive
+The `lean_lib RegulaPolicy` has `.andSubmodules` discovery, a positive
 Standard-Logical manifest entry as an initial upper bound, and explicit ordinary
 acceptance build coverage. Report every declaration's **actual** least label and exact
 axioms; reduce the upper bound only after checking the complete import/proof closure.
-This root, like `PlumbCore`'s `.submodules` root, is separate from the excluded
-`Plumb` glob. The narrow operational infrastructure partition and its
+This root, like `RegulaCore`'s `.submodules` root, is separate from the excluded
+`Regula` glob. The narrow operational infrastructure partition and its
 authentication obligations are described in §1.
-Audit, AuditApp/Main and the operational Plumb exclusion remain. Teach tooling and
+Audit, AuditApp/Main and the operational Regula exclusion remain. Teach tooling and
 guides the new library via Lake discovery, not hardcoded declaration/file lists.
 
 | Owner | Deliverable and gate |
@@ -523,7 +523,7 @@ guides the new library via Lake discovery, not hardcoded declaration/file lists.
 | #6 POLICY-03 | Remaining Specification/Decision/Acceptance theorems: least-label proof, decision iff predicates, exact role evidence, insertion/frame laws, accepted soundness/completeness and report identity. Check actual functions used by #5; no duplicate reference evaluator assumed equivalent. |
 | #7 POLICY-04 | Freeze census/plan, validate all worker packets and every success boundary in §1, consume Accepted values in renderers/exit adapters, compose project+docs under one snapshot. Refuse empty/missing/duplicate/mismatched responses through public paths. Remove obsolete raw success APIs only after accounting for all callers. |
 | #12 CATALOG | Keep one registry; add `freshFile`, share scope/status identities with core; accepted diagnostics export is read-only projection, never certificate input. |
-| #13 ENGINE | Shared semantic collectors for current-document and imported modules; complete census/roots/role extraction and typed outcomes for all twenty initial rules (PL5003 was added later by #71); two scoped doc-presence checks retained. |
+| #13 ENGINE | Shared semantic collectors for current-document and imported modules; complete census/roots/role extraction and typed outcomes for all twenty initial rules (RG5003 was added later by #71); two scoped doc-presence checks retained. |
 | #14 ADOPTION | All actual Lake lint/build/editor adapters consume the same outcome; cached policy re-evaluation and source-located links retained; freshFile and snapshot modes honestly labeled. Delivered: `lint` driver and exit classes, upstream-widget editor links, adopter fixtures in both lakefile formats. |
 | #10 DELIVERY / #15 WEBSITE | Reconcile residual semantic accounts and same-revision rule/example/status exports. No accepted data report is full conformance; site consumes status, not exit code alone. |
 | #8/#9 optional | Separate requested graph/export jobs and result type; absence cannot block core policy/site delivery. #8 ended in a [no-go](con-leche-research.md) and #9 is not planned, so no export format or adapter is selected. |

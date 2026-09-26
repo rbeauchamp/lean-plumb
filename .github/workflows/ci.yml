@@ -12,7 +12,7 @@ permissions:
 # One run per ref: a newer push to main cancels an older run, including its deployment.
 # The deploy-gate job and the deploy job's dependency-free re-check additionally refuse a
 # re-run of an older revision (docs/guides/website.md). Published revision snapshots are kept
-# in the append-only site-archive branch (docs/guides/website.md#retention).
+# in the append-only site-archive-regula branch (docs/guides/website.md#retention).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -29,7 +29,7 @@ jobs:
 
       - uses: ./.github/actions/provision
 
-      # Includes PlumbPolicy collection/finalization proofs and all acceptance
+      # Includes RegulaPolicy collection/finalization proofs and all acceptance
       # adapters through the existing executable and diagnostic-owner build targets.
       # Records the accepted input identity for the documentation step below.
       - name: Verify (same command and seven-minute limit as local)
@@ -159,7 +159,7 @@ jobs:
 
       - name: Refuse a dirty artifact, a revision that is no longer the head of main, or changed archived snapshots
         id: gate
-        run: lean --run lean/Plumb/Site/Deployment.lean gate _site
+        run: lean --run lean/Regula/Site/Deployment.lean gate _site
 
       - name: Keep the next archive commit
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -190,13 +190,13 @@ jobs:
 
       - name: Fetch the archive head the bundle extends
         if: needs.deploy-gate.outputs.archive-parent != ''
-        run: git fetch --depth=1 --no-tags origin refs/heads/site-archive:refs/heads/site-archive
+        run: git fetch --depth=1 --no-tags origin refs/heads/site-archive-regula:refs/heads/site-archive-regula
 
       - name: Apply the bundle (a fast-forward of the fetched head)
-        run: git fetch --no-tags tmp/site-archive.bundle refs/heads/site-archive:refs/heads/site-archive
+        run: git fetch --no-tags tmp/site-archive.bundle refs/heads/site-archive-regula:refs/heads/site-archive-regula
 
       - name: Push the archive without force
-        run: git push origin refs/heads/site-archive:refs/heads/site-archive
+        run: git push origin refs/heads/site-archive-regula:refs/heads/site-archive-regula
 
   # Privileged publication of exactly the artifact validated above. This job holds the
   # deployment token, so it runs no checkout, provisioning or project code: only
@@ -224,7 +224,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           ARCHIVED: ${{ needs.deploy-gate.outputs.archive-commit }}
-        run: gh api "repos/{owner}/{repo}/git/ref/heads/site-archive" --jq 'if .object.sha == env.ARCHIVED then "site-archive is at \(env.ARCHIVED)" else error("site-archive moved to \(.object.sha); this artifact retains \(env.ARCHIVED)") end'
+        run: gh api "repos/{owner}/{repo}/git/ref/heads/site-archive-regula" --jq 'if .object.sha == env.ARCHIVED then "site-archive-regula is at \(env.ARCHIVED)" else error("site-archive-regula moved to \(.object.sha); this artifact retains \(env.ARCHIVED)") end'
 
       - name: Refuse a revision that is no longer the head of main
         env:
@@ -259,5 +259,5 @@ jobs:
 
       - name: Compare the live site with the artifact
         env:
-          PLUMB_PAGE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: lean --run lean/Plumb/Site/Deployment.lean verify _site
+          REGULA_PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: lean --run lean/Regula/Site/Deployment.lean verify _site

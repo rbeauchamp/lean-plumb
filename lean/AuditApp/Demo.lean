@@ -7,7 +7,7 @@ contracts for both interpretations. `demo_final` describes the retained total
 the strict `runChecked` interpreter called by the shell: at the default capacity 2, it
 stops at the third grant and retains the first two grants' state. Admission facts describe the
 scripted initial capacity. Nothing here claims a property of the IO boundary.
-`demo_checked_error` is a material claim registered with `@[plumb_material]`, so PL5002/PL5003
+`demo_checked_error` is a material claim registered with `@[regula_material]`, so RG5002/RG5003
 require its Intent section.
 -/
 
@@ -48,7 +48,7 @@ universal error contract identifies the retained successful prefix; unlike
 At the default capacity 2, the demonstration script the executable runs must stop at
 its third grant, keeping the two slots already granted, rather than continuing past the
 refusal. Other command-line capacities are outside this claim. -/
-@[plumb_material]
+@[regula_material]
 theorem demo_checked_error :
     runChecked demoScript demoInitial =
       (.error (), run [.grant, .grant] demoInitial) := by

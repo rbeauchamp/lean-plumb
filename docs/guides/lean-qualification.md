@@ -32,7 +32,7 @@ the external process, compiler or filesystem boundary they observe.
 | --- | --- | --- |
 | `registry_cli_checks.py` | `lake exe qualify registry` | Seven malformed CLI invocations must invalidate seeded stale output. |
 | `native_linter_checks.py` | `lake exe qualify native` | 37 real compiler controls: identity, multiplicity, severity, source ranges, documentation, Intent-section and metadata ownership. |
-| `producer_checks.py` | `lake exe qualify producers` | Twelve source-owned documentation controls: for incremental and build-lint and each of PL5001/PL5002, one workspace runs Fixed, then Violation over that Fixed build (stale-artifact detection), then Fixed again from a cleared build. Also two standalone-executable controls, each in its own fresh workspace. The fresh-project PL5001/PL5002 observations are the rule-example corpus records, validated there by the same producer oracle. |
+| `producer_checks.py` | `lake exe qualify producers` | Twelve source-owned documentation controls: for incremental and build-lint and each of RG5001/RG5002, one workspace runs Fixed, then Violation over that Fixed build (stale-artifact detection), then Fixed again from a cleared build. Also two standalone-executable controls, each in its own fresh workspace. The fresh-project RG5001/RG5002 observations are the rule-example corpus records, validated there by the same producer oracle. |
 | `history_checks.py` | `lake exe qualify history` | Ten project/file invocations, each in its own fresh workspace: private/imported roots, reached-closure/source accounts, unsupported-evaluator refusal and source-snapshot changes. |
 | `closure_evidence_checks.py` | `lake exe qualify closure-evidence` | Reflexive candidate versus active cycle, retained recursive IR edges, and range refusals through four invocation paths. |
 | `configuration_capture_checks.py` | `lake exe qualify configuration-capture` | Initial configuration IO failure through project/file result protocols. |
@@ -40,10 +40,10 @@ the external process, compiler or filesystem boundary they observe.
 | `fence_evidence_checks.py` | `lake exe qualify fence-evidence` | Independent range, admission, policy and compiler failures inside positive fences, plus restoration. |
 | `frozen_exit_checks.py` | `lake exe qualify frozen-exits` | Frozen-input rechecks after imports and failed build/compilation operations. |
 | `native_launcher_diagnostic.py` | `lake exe qualify native-launcher` | 37 paired baseline/cached-environment controls; exact source, argv, outputs and in-memory environment/executable equality. |
-| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty-two source-owned phases for twenty-one rules (Fixed and Violation, each in its own fresh workspace), plus authentic wrong-claim/classification refusal controls: 45 productions and 3 individual control admissions, then one corpus admission of every record. What admission concludes from any record is proved (`RuleExampleQualification.qualify_sound`), not sampled by mutation. `--shard K/N` selects every Nth rule by corpus position, keeping PL5001 and PL5002 in one shard. |
+| `rule_example_checks.py` | `lake exe qualify rule-examples --evidence PATH` | Forty-two source-owned phases for twenty-one rules (Fixed and Violation, each in its own fresh workspace), plus authentic wrong-claim/classification refusal controls: 45 productions and 3 individual control admissions, then one corpus admission of every record. What admission concludes from any record is proved (`RuleExampleQualification.qualify_sound`), not sampled by mutation. `--shard K/N` selects every Nth rule by corpus position, keeping RG5001 and RG5002 in one shard. |
 | prototype `run.py` | Retired with the one-rule prototype: `./scripts/verify.sh site` ([website guide](website.md)) replaces its Verso integration and page checks; `diagnostics lint-driver` and `qualify native` replace its Lake dispatch and native-message checks. | — |
 | `acceptance_checks.py` | `lake exe qualify acceptance GROUP --evidence PATH` | Fence-compilation packet mutations with positive restoration. Group: `fences`. The former `surface`, `evidence`, `sources` and `process` groups mutated the removed surface-worker packet; project and documentation acceptance now run in one process with nothing serialized between them. |
-| `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies`, `lake exe qualify acceptance-snapshots history` and `lake exe qualify acceptance-snapshots git-status` | Ignored Git/non-Git dependency input coverage and mutation; PL3001 fresh/incremental/build-lint history refusal and restoration; dependency dirty decision against the retired pathspec status across Git collapse, rename, nested-repository, symlinked-root and outside-root cases. `all` runs all three under one deadline. |
+| `acceptance_snapshot_checks.py` | `lake exe qualify acceptance-snapshots dependencies`, `lake exe qualify acceptance-snapshots history` and `lake exe qualify acceptance-snapshots git-status` | Ignored Git/non-Git dependency input coverage and mutation; RG3001 fresh/incremental/build-lint history refusal and restoration; dependency dirty decision against the retired pathspec status across Git collapse, rename, nested-repository, symlinked-root and outside-root cases. `all` runs all three under one deadline. |
 | `documentation_dependency_checks.py` | `lake exe qualify documentation-dependencies` | Both documentation commands retain pre-build dependency observations; combined project/documentation positive remains distinct. |
 | `input_inventory_checks.py` | `lake exe qualify input-inventory` | Root additions and Markdown edit/removal during prerequisite build; actual new-module build and restored fresh controls. |
 
@@ -60,7 +60,7 @@ upstream corpus selection; optional `--rules RULE ...` or `--shard K/N` follows
 CI shards together select every rule once. The corpus runner retains at most five
 concurrent producer detector invocations, each in its own fresh workspace. Each invocation
 may launch subprocesses. Every launch and the consumption order come from the pure
-`PlumbQualification.CorpusWindow` definitions the runner calls: `launched_le` bounds
+`RegulaQualification.CorpusWindow` definitions the runner calls: `launched_le` bounds
 the launched but unconsumed Tasks by the width, `launch_order` shows that the launches of
 a complete run name every job once in index order, `launched_eq_total` shows that every
 launched Task has been awaited once every record is taken, and `productions_nodup` gives
@@ -88,7 +88,7 @@ retained path. Producers run through the internal
 `ruleExamples --injected-git-facts FACTS [axiomGate] ARGS` entry. It runs the same
 `axiomGate` or `ruleExamples` body, reads every source and configuration byte itself, and
 uses an injected pair only for a request that matches exactly. The private
-`plumb` copy and fixture dependencies are always observed fresh.
+`regula` copy and fixture dependencies are always observed fresh.
 `Snapshot.assemble_facts_eq` shows that equal Git facts give an identical capture, and so
 (`stateOfCore_congruence`) identical request and report bytes. The no-writer premise is that
 the facts stay equal throughout the producer window; the terminal checks establish only
@@ -175,7 +175,7 @@ manifest from `parse`. No theorem covers the lib-only, claimed-exe and app-omitt
 variants that rewrite the `AuditApp` surface after derivation. Those variants exclude every
 actual `AuditApp` executable they stop claiming, except app-omitted-exe, which leaves them
 unclassified on purpose. Before this, every copy failed early because the libraries
-`PlumbPolicy`, `PlumbVerification`, `PlumbQualification` and `PlumbCore` and the executables
+`RegulaPolicy`, `RegulaVerification`, `RegulaQualification` and `RegulaCore` and the executables
 `qualify`, `ruleExamples` and `ruleExampleQualification` were unclassified, which masked a
 checker defect.
 `checkCorrespondenceProof` gave the kernel 200000 raw heartbeats, 1/1000 of Lean's default,
@@ -223,37 +223,37 @@ incomplete search cannot use. With the manifest and heartbeat fixes, and before 
 classification change,
 `diagnostics structural` passed locally in 806 s, down from 1015 s (observed before the
 memory bound was added). That is still over the
-420-second budget, which remains follow-up work. `PlumbPolicy` stays claimed in each
+420-second budget, which remains follow-up work. `RegulaPolicy` stays claimed in each
 copy because the checker probe's own imports resolve to it in a self-hosted copy; this
 partition is not a CI job.
 
-## Dogfooding Plumb on itself
+## Dogfooding Regula on itself
 
-Acceptance audits the six claimed libraries freshly. Three diagnostics apply Plumb to the rest
+Acceptance audits the six claimed libraries freshly. Three diagnostics apply Regula to the rest
 of its own code base. The [dogfood workflow](../../.github/workflows/dogfood.yml) runs them
 when Lean sources, Lake configuration, manifests or the screen configuration change, on every
 push to `main`, and nightly. None is part of acceptance.
 
 - `./scripts/verify.sh diagnostics self-lint` runs `lake lint` in this repository. The root
-  package sets `lintDriver := "plumb/lint"`, so this is the adopter command, run through the
-  `plumb/lint` driver over `foundation_manifest.json` in incremental mode. It checks the same
+  package sets `lintDriver := "regula/lint"`, so this is the adopter command, run through the
+  `regula/lint` driver over `foundation_manifest.json` in incremental mode. It checks the same
   claimed surfaces as acceptance, through the driver's dispatch and exit classes.
-- `./scripts/verify.sh diagnostics self-audit` checks the operational `Plumb` library, which
+- `./scripts/verify.sh diagnostics self-audit` checks the operational `Regula` library, which
   `foundation_manifest.json` excludes because it is not a conforming proof surface. The step
-  `lake build Plumb` builds every module warning-free (PL2003, because the package sets
+  `lake build Regula` builds every module warning-free (RG2003, because the package sets
   `warningAsError`). Then `qualify self-audit` inspects each module of the library as Lake
   discovers it, each in its own worker process. Several executable roots of the library define
   `main`, so its modules cannot share one environment. For every module the audit:
-  - kernel-replays each owned declaration that is not `unsafe` or `partial` (PL2005,
+  - kernel-replays each owned declaration that is not `unsafe` or `partial` (RG2005,
     `Admission.validate`);
   - builds its declaration records with the live linter's shared collector
-    (`Plumb.Collect.declaration`) and decides each record with the proved
-    `PlumbPolicy.checkedOperationalFailure` (PL1001–PL1005, PL1007);
+    (`Regula.Collect.declaration`) and decides each record with the proved
+    `RegulaPolicy.checkedOperationalFailure` (RG1001–RG1005, RG1007);
   - checks module docs and material-claim docs with the live linter's predicates
-    (`Plumb.Linter.Documentation`, PL5001–PL5003).
+    (`Regula.Linter.Documentation`, RG5001–RG5003).
 
   Operational code is held to Standard-Logical with two facts reported, not failed:
-  authored `unsafe`/`partial` declarations (PL1006), and, in a definition whose type is not a
+  authored `unsafe`/`partial` declarations (RG1006), and, in a definition whose type is not a
   proposition, the pinned toolchain's Lake type-family axioms (for example
   `Lake.DataType.bool`), which the in-process Lake API reaches. An axiom counts as a toolchain
   Lake axiom only when a `Lake` module resolving from the toolchain's own library directory
@@ -264,33 +264,33 @@ push to `main`, and nightly. None is part of acceptance.
   decision on every declaration without a reported fact. The run prints both reported lists.
 
   The self-audit does not claim the library is a proof surface. It makes no execution claim for
-  the library's executables. It does not attach the live linter's editor hooks to Plumb's own
-  modules: the modules below `Plumb.Linter` cannot import it, and the editor request has no
+  the library's executables. It does not attach the live linter's editor hooks to Regula's own
+  modules: the modules below `Regula.Linter` cannot import it, and the editor request has no
   operational form. The audit applies the same collector and decisions to completed modules
   instead. Trusted, not verified: Lean's import and kernel replay, the collector's
   observations, the toolchain artifact paths, the worker processes and their JSON transport.
 - The dogfood workflow's intent-screen job runs the opt-in
-  [Jev intent screen](intent-screening.md#dogfood-screen) over every public `@[plumb_material]`
+  [Jev intent screen](intent-screening.md#dogfood-screen) over every public `@[regula_material]`
   declaration in the claimed libraries. It is the only CI job that receives
   `TYPESAFE_API_KEY`.
 
 ## Organization
 
-- `lean/PlumbQualification/`: a separate **positive Lake library**, discovered through
+- `lean/RegulaQualification/`: a separate **positive Lake library**, discovered through
   its all-submodules glob. It contains pure observation requirements and checked contracts,
   not process launchers. Testing requirements are not production policy, so this library
-  does not belong in `PlumbPolicy`, nor in the mathematical `Audit` examples.
-- `lean/Plumb/Qualification/`: operational drivers, the single `qualify` Lake executable,
+  does not belong in `RegulaPolicy`, nor in the mathematical `Audit` examples.
+- `lean/Regula/Qualification/`: operational drivers, the single `qualify` Lake executable,
   and shared process/scratch/adopter support. These remain in the existing operational
-  `Plumb` library, explicitly excluded from the positive proof surface. Calling a
+  `Regula` library, explicitly excluded from the positive proof surface. Calling a
   proved oracle does not prove the entire driver or its IO effects.
-- `lean/PlumbVerification.lean`: a separately claimed cold-start runner importing only
+- `lean/RegulaVerification.lean`: a separately claimed cold-start runner importing only
   the pinned toolchain. It owns argument selection, command recipes, sequential execution
   and success reporting. `scripts/verify.sh` only selects the root/GNU timeout and starts
   this runner under the external deadline, including all root-package builds.
-- `lean/Plumb/Site/`: the rule-reference site builder (`lake exe site`) and the
+- `lean/Regula/Site/`: the rule-reference site builder (`lake exe site`) and the
   toolchain-only deployment check. Their pure decisions are proved in the claimed
-  `PlumbCore.Site*` modules; see the [website guide](website.md).
+  `RegulaCore.Site*` modules; see the [website guide](website.md).
 
 This uses normal Lean module factoring and Lake targets. It does not impose a universal
 `tests/` directory convention or rename scripts while hiding another interpreter inside Lean.
@@ -348,7 +348,7 @@ by their source-level linkage. The proof is erased at execution.
   (`Admitted.admitExecution_eq`). These replace the
   former 8 producer and 17 history/closure/source transport mutations. They do not
   authenticate the observations.
-  They live in the excluded operational `Plumb` library, so acceptance's
+  They live in the excluded operational `Regula` library, so acceptance's
   claimed-surface audit neither re-elaborates nor reports them: the `lake build` kernel-checks
   them under `warningAsError` (which also rejects `sorry`), and the module's `run_cmd`
   `collectAxioms` ceiling bounds their transitive axioms to Standard-Logical.
@@ -391,7 +391,7 @@ by their source-level linkage. The proof is erased at execution.
   (`parseAll parseSurface` succeeds), with exactly those surfaces. This completeness
   statement replaces the in-process excluded-empty case; it does not prove that any
   particular surface is accepted. Axioms of these theorems are bounded by the module's
-  `collectAxioms` command; the module is in the excluded `Plumb` library.
+  `collectAxioms` command; the module is in the excluded `Regula` library.
 - Manifest completeness and round trip. `parse_ok`: `parse` accepts `m` exactly when
   `PolicyCodec.parse` returns a value that `parseValue` accepts with `m`. `parseValue_ok`:
   `parseValue` accepts a value with `m` exactly when `m` satisfies `Manifest.Valid` and the value
@@ -408,16 +408,16 @@ by their source-level linkage. The proof is erased at execution.
   no theorem can evaluate. The check has the same runtime meaning, and the proofs now state the
   version as `getObjVal? "schema-version" = .ok (Json.num 2)`. Axioms are Standard-Logical
   (`propext`, `Classical.choice`, `Quot.sound`) under the same `collectAxioms` ceiling.
-- `PlumbPolicy.boundaryFailures_ids` and `rootFailures_ids`: the failure kind of
+- `RegulaPolicy.boundaryFailures_ids` and `rootFailures_ids`: the failure kind of
   every boundary and unresolved path for every claim. With
   `executionFailureRecords_empty_iff` they replace the 11 in-memory execution-policy
-  cases. They are on the claimed `PlumbPolicy` surface.
-- `PlumbPolicy.DefeqComparison.classify_trusted_iff`, `classify_checked_iff` and
+  cases. They are on the claimed `RegulaPolicy` surface.
+- `RegulaPolicy.DefeqComparison.classify_trusted_iff`, `classify_checked_iff` and
   `classify_unresolved_iff`: the correspondence of the kernel-definitional comparison is
   checked exactly for a completed comparison with admitted evidence, trusted exactly for a
   completed comparison without it, and unresolved exactly for a comparison that did not
   complete, so no incomplete comparison is trusted (standard §8.6). They are on the claimed
-  `PlumbPolicy` surface, and `Probe.replacementCorrespondence` returns `classify` of the
+  `RegulaPolicy` surface, and `Probe.replacementCorrespondence` returns `classify` of the
   outcome it observed. Mapping the kernel result to that outcome (`kernelExhausted` for an
   incomplete comparison, a rejection or a proof beyond Standard-Logical for a completed
   negative one) is checked by inspection, not by theorem, and the kernel decision itself is
@@ -436,7 +436,7 @@ by their source-level linkage. The proof is erased at execution.
   `DemonstrationOK` for the record's parsed `rule` and those findings. The terminal corpus admission and every individual
   admission run this `qualify`. It replaces the former 7 in-process mutations of each
   record and the 7 derived admission subprocesses. Its axiom ceiling is checked by the
-  module's `collectAxioms` command; the module is in the excluded `Plumb` library,
+  module's `collectAxioms` command; the module is in the excluded `Regula` library,
   so acceptance's claimed-surface audit does not re-report it. It proves nothing about
   the producer that wrote the record.
 - `Evidence.checkedValidation` and `checkedDocumentation`: exact conjunctions of decoded
@@ -463,11 +463,11 @@ by their source-level linkage. The proof is erased at execution.
   first refusals. Structural raw-tree laws avoid assuming parser well-formedness. These
   separately checked operational-module proofs do not authenticate parsing,
   duplicate-key handling, serialization, hashes, filesystem custody or subprocesses.
-- The former prototype's `PlumbQualification.Website` page and artifact contracts were
+- The former prototype's `RegulaQualification.Website` page and artifact contracts were
   retired with it. The production site's page, escaping, filter, diff and link-check
-  guarantees are in `PlumbCore.Site*` ([website guide](website.md)). They do not establish
+  guarantees are in `RegulaCore.Site*` ([website guide](website.md)). They do not establish
   Verso or browser correctness.
-- `PlumbVerification.parseMode_sound`, `parseMode_roundtrip`, and `select_exact`
+- `RegulaVerification.parseMode_sound`, `parseMode_roundtrip`, and `select_exact`
   prove exact argument binding and acceptance of every documented invocation. The caller
   consumes the proof-bearing selection; recipes name the intended commands explicitly.
   `commands_nonempty` rules out a selected empty campaign. Process execution remains IO.

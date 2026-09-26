@@ -18,4 +18,4 @@ The cached answers let anyone reproduce the reports without a key or a network c
 lake exe intentScreen calibrate --config examples/intent-screening/calibration.json --split test --report out.md --records out.json
 ```
 
-The corpus and its labels are in [`lean/Plumb/Screen/Corpus.lean`](../../lean/Plumb/Screen/Corpus.lean).
+The corpus and its labels are in [`lean/Regula/Screen/Corpus.lean`](../../lean/Regula/Screen/Corpus.lean).

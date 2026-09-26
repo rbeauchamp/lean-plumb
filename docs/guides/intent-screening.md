@@ -1,7 +1,7 @@
 # Opt-in probabilistic intent screening
 
-Issue [#58](https://github.com/rbeauchamp/lean-plumb/issues/58). This guide describes an
-optional tool, not a conformance rule. Rule PL5003 requires every registered material claim
+Issue [#58](https://github.com/rbeauchamp/regula/issues/58). This guide describes an
+optional tool, not a conformance rule. Rule RG5003 requires every registered material claim
 to carry a written `# Intent` section (standard §5.2). R-INTENT review then asks whether the
 elaborated proposition is the one the intent describes. The `intentScreen` executable asks a
 pinned judgment model narrow questions about that comparison. Its answers can raise findings
@@ -10,7 +10,7 @@ at severities you choose. They cannot check a claim, and they cannot complete th
 ## What a screen reports
 
 A judged answer has its own evidence class, **screened**. It sits beside the classes an
-accepted run reports ([#42](https://github.com/rbeauchamp/lean-plumb/issues/42)): the relation
+accepted run reports ([#42](https://github.com/rbeauchamp/regula/issues/42)): the relation
 Lean checked, the mechanisms trusted without verification, and open semantic review. Each
 screened record carries the pinned model identifier, the exact question text, the support
 probability, and the SHA-256 of the request the model answered. For example:
@@ -19,7 +19,7 @@ probability, and the SHA-256 of the request the model answered. For example:
 - A low probability raises a finding at the severity your thresholds assign.
 - A high probability raises nothing. The claim is at most `screened`. It is never
   recorded as checked, and R-INTENT and R-DOC remain open. The report type
-  (`Plumb.Checker.Screening.Status`) has only `screened` and `escalated` constructors. No
+  (`Regula.Checker.Screening.Status`) has only `screened` and `escalated` constructors. No
   checked or reviewed state exists to reach.
 - Screening is off by default. The first `scripts/verify.sh` acceptance step type-checks its
   modules but never runs it; it calls the network only when you run it yourself, or, in this
@@ -49,7 +49,7 @@ The screen accepts the reference only when these conditions hold:
   The declarations that proof uses are not re-checked by the screen: they are trusted as
   admitted by the build that produced their `.olean` files. A lemma built under
   `debug.skipKernelTC` with an ill-typed proof is therefore not caught by the screen itself;
-  such dependencies are kernel re-admitted only when the project passes Plumb's fresh
+  such dependencies are kernel re-admitted only when the project passes Regula's fresh
   acceptance (fresh source elaboration and kernel admission of its claimed surfaces).
 - Its transitive axioms lie within the Standard-Logical foundation: `propext`, `Quot.sound`
   and `Classical.choice`. A project axiom, `sorryAx`, `Lean.ofReduceBool` (`native_decide`) or
@@ -66,11 +66,11 @@ reported as a refused discharge with the reason, in the `open semantic review` c
 neither checked nor judged (no coverage question is asked for it), it never falls back to a
 judged clause, and its claim is escalated to review. Every other clause and claim is still
 screened, and the run then exits with 2 (incomplete). `IntentCorpus.mergeSort_correct` in
-`lean/Plumb/Screen/Corpus.lean` is a worked example.
+`lean/Regula/Screen/Corpus.lean` is a worked example.
 
 ## Judgments
 
-The question text is in `lean/Plumb/Screen/Questions.lean` and is recorded with every answer.
+The question text is in `lean/Regula/Screen/Questions.lean` and is recorded with every answer.
 The state holds the intent clauses plus, depending on the `state` setting, the elaborated
 statement, the §5.2 explanation, or both. The declaration name is never sent: a name such as
 `sort_drops_perm` would give the answer away. The statement is a theorem's type or the body of a
@@ -110,10 +110,10 @@ probability is therefore the warning sign for every judgment.
 This matches `examples/intent-screening/screen.json`: the calibrated `full` state and thresholds
 only for the judgments the calibration below supports.
 
-Plumb has no user-editable rule-severity configuration today. Each registry rule has a fixed
+Regula has no user-editable rule-severity configuration today. Each registry rule has a fixed
 `defaultStrictSeverity`; the native linter shows its findings as Lean warnings, which Lean's
-`warningAsError` promotes uniformly, and `linter.plumb` only turns local feedback on or off.
-The screen therefore reuses the rule-severity vocabulary exactly (`Plumb.Severity`: `error`,
+`warningAsError` promotes uniformly, and `linter.regula` only turns local feedback on or off.
+The screen therefore reuses the rule-severity vocabulary exactly (`Regula.Severity`: `error`,
 `warning`, `information`; `ScreenSeverity.toSeverity_bijective`) and the JSON conventions of
 the project manifest `foundation_manifest.json` (`schema-version`, kebab-case keys, unknown
 fields refused).
@@ -143,9 +143,9 @@ TYPESAFE_API_KEY=… lake exe intentScreen screen --config screen.json --module 
 ```
 
 `--library L` adds every module of the root Lean library `L`, as Lake discovers it, to the
-listed modules. With no `--declaration`, the screen covers every public `@[plumb_material]`
+listed modules. With no `--declaration`, the screen covers every public `@[regula_material]`
 declaration of those modules. `--intent-sections` also covers every other public declaration
-there whose docstring has a nonempty Intent section: exactly the docstrings PL5003 accepts,
+there whose docstring has a nonempty Intent section: exactly the docstrings RG5003 accepts,
 registered or not. With `--declaration`, it covers exactly the named declarations. It exits with
 0 when no error-severity finding is raised, 1 when one is, and 2 when the screen is
 incomplete. A missing key with no cached answer, or a network, service, parse or claim-reading
@@ -153,7 +153,7 @@ failure, stops the run as incomplete. A refused discharge reference does not sto
 clause is reported unresolved, every other clause and claim is screened, and the run exits
 with 2. An incomplete screen is never reported as a pass.
 
-Findings have the linter's diagnostic shape (`Plumb.RegistryCodec.diagnosticJson`): `id`,
+Findings have the linter's diagnostic shape (`Regula.RegistryCodec.diagnosticJson`): `id`,
 `arguments` (`declaration`, `detail`), `location`, `related`, `severity` and `text`, plus
 `class`, which is always `screened`. The `id` is stable per judgment, `intentScreen/<judgment>`
 (for example `intentScreen/totalization`). It is not a registry rule ID, and screen findings
@@ -221,7 +221,7 @@ linter's severity vocabulary and diagnostic shape.
   checks discharge references; Lake's module discovery for `--library`; the imported `.olean`
   environment, including the declarations a discharge proof uses, as admitted by their build
   (only the discharge theorem's own proof term is re-checked by the kernel; a dependency built
-  with `debug.skipKernelTC` is not caught by the screen, only by Plumb's fresh acceptance of a
+  with `debug.skipKernelTC` is not caught by the screen, only by Regula's fresh acceptance of a
   claimed surface); the
   source files read for finding locations; the `curl` and `shasum` processes, the network, the
   service and its answers, the cache files, and Lean's pretty-printer that renders the
@@ -230,9 +230,9 @@ linter's severity vocabulary and diagnostic shape.
 ## What is proved and what is not
 
 Machine-checked, about the definitions the executable runs (each through a
-`Plumb.ExecutableContract` registration):
+`Regula.ExecutableContract` registration):
 
-- The exact decimal order is reflexive, transitive and total (`PlumbPolicy.Screening.Decimal`).
+- The exact decimal order is reflexive, transitive and total (`RegulaPolicy.Screening.Decimal`).
 - Probability admission accepts exactly the values in `[0, 1]` and changes none
   (`probability?_eq_some_iff`).
 - The severity mapping is exact: error below `error`, warning and information in their bands,
@@ -250,7 +250,7 @@ Machine-checked, about the definitions the executable runs (each through a
   escalated (`ClaimScreen.escalated_of_finding`), and so is a claim with a refused discharge
   (`ClaimScreen.escalated_of_refused`) or an incomplete screen
   (`ClaimScreen.escalated_of_incomplete`).
-- Clause extraction finds clauses only in docstrings that PL5003 accepts and never returns a
+- Clause extraction finds clauses only in docstrings that RG5003 accepts and never returns a
   blank clause (`checkedClauses`, `intentBody?_isSome_iff`). Every clause `discharge?` reads
   contains the text `(discharged by` that `dischargeMarked?` detects
   (`dischargeMarked?_of_discharge?`).
@@ -264,12 +264,12 @@ documented. The calibration below is a measurement on one corpus and one pinned 
 ## Dogfood screen
 
 The [dogfood workflow](../../.github/workflows/dogfood.yml) screens this repository's own
-`@[plumb_material]` claims, selected by registration. It uses the sample configuration users start from,
+`@[regula_material]` claims, selected by registration. It uses the sample configuration users start from,
 [`screen.json`](../../examples/intent-screening/screen.json), whose cache is the committed
 `examples/intent-screening/cache/`:
 
 ```text
-lake exe intentScreen screen --config examples/intent-screening/screen.json --library PlumbPolicy --library PlumbVerification --library PlumbQualification --library PlumbCore --library Audit --library AuditApp
+lake exe intentScreen screen --config examples/intent-screening/screen.json --library RegulaPolicy --library RegulaVerification --library RegulaQualification --library RegulaCore --library Audit --library AuditApp
 ```
 
 The job is the only CI job that receives the `TYPESAFE_API_KEY` secret, and it has read-only
@@ -297,9 +297,9 @@ requests: `RequiredContracts` now has exclusions 0.71, coverage 0.44 and strengt
 `requiredContracts` has strength 0.78 and coverage 0.42.
 
 Those runs selected the claims with `--intent-sections`, because the claimed libraries could not
-import `Plumb.MaterialClaim`. Issue #83 admitted it as a published interface (standard §8.10)
-and registered the six claims with `@[plumb_material]`, so the screen now selects them by
-registration and acceptance checks their Intent sections (PL5002/PL5003). The same change
+import `Regula.MaterialClaim`. Issue #83 admitted it as a published interface (standard §8.10)
+and registered the six claims with `@[regula_material]`, so the screen now selects them by
+registration and acceptance checks their Intent sections (RG5002/RG5003). The same change
 reviewed the low `RequiredContracts` answers against its statement. The claim was not too weak,
 and the Intent did not overstate it. Its first sentence, that the limiter never hands out more
 slots than it was created with, is enforced by the `Limiter` type, whose bound field the
@@ -336,7 +336,7 @@ came from the cache.
 
 The corpus, criteria and budget below were fixed and committed before the test split ran.
 
-**Corpus** (`lean/Plumb/Screen/Corpus.lean`, labels in `Plumb.Screen.Corpus.items`):
+**Corpus** (`lean/Regula/Screen/Corpus.lean`, labels in `Regula.Screen.Corpus.items`):
 
 - *Base* items are correct intent/claim pairs.
 - *Rewrites* state the same requirement differently. They are false-positive controls; one

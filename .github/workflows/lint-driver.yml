@@ -10,12 +10,12 @@ on:
     paths:
       - examples/lake-lint-toml/**
       - examples/build-lint/**
-      - lean/Plumb/**
-      - lean/PlumbPolicy/**
-      - lean/PlumbPolicy.lean
-      - lean/PlumbCore/**
-      - lean/PlumbQualification/**
-      - lean/PlumbVerification.lean
+      - lean/Regula/**
+      - lean/RegulaPolicy/**
+      - lean/RegulaPolicy.lean
+      - lean/RegulaCore/**
+      - lean/RegulaQualification/**
+      - lean/RegulaVerification.lean
       - lakefile.lean
       - lake-manifest.json
       - lean-toolchain

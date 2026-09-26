@@ -1,17 +1,19 @@
-# Plumb for Lean
+# Regula
 
 A strict linter and correctness standard for Lean.
 
-Plumb pairs a Lean linter and linked rule-reference website with a standard requiring precise types, propositions, and kernel-checked evidence.
+*Regula* is Latin for a straightedge and for a rule or standard: this project is a standard plus a linter of rules. It was formerly named Plumb for Lean, in the repository `rbeauchamp/lean-plumb`.
 
-The [standard](docs/standard/README.md) defines normative meaning. The current checker enforces declaration, foundation, execution-boundary, and checked-example requirements; the [product architecture](docs/guides/linter-architecture.md) specifies the typed rule catalogue, editor integration, and GitHub Pages website. Adopters run it with `lake lint` and receive linked editor diagnostics from `import Plumb.Linter` ([adoption guide](docs/guides/adoption.md)). Every diagnostic links to its explanation in the [rule reference](https://rbeauchamp.github.io/lean-plumb/dev/rules/), generated from the rule registry and checked examples and published by CI from `main` ([website guide](docs/guides/website.md)). Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
+Regula pairs a Lean linter and linked rule-reference website with a standard requiring precise types, propositions, and kernel-checked evidence.
+
+The [standard](docs/standard/README.md) defines normative meaning. The current checker enforces declaration, foundation, execution-boundary, and checked-example requirements; the [product architecture](docs/guides/linter-architecture.md) specifies the typed rule catalogue, editor integration, and GitHub Pages website. Adopters run it with `lake lint` and receive linked editor diagnostics from `import Regula.Linter` ([adoption guide](docs/guides/adoption.md)). Every diagnostic links to its explanation in the [rule reference](https://rbeauchamp.github.io/regula/dev/rules/), generated from the rule registry and checked examples and published by CI from `main` ([website guide](docs/guides/website.md)). Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
 
 ## Community review
 
 **Public review draft.** We invite the Lean community to challenge the rules, examples,
 and checker behavior.
 
-Please [open an issue](https://github.com/rbeauchamp/lean-plumb/issues) with
+Please [open an issue](https://github.com/rbeauchamp/regula/issues) with
 unclear or unnecessarily restrictive requirements, incorrect Lean claims, checker false
 positives or omissions, or adoption difficulties. Cite the relevant section and include
 a small Lean example and toolchain version where useful. Feedback should help establish
@@ -58,5 +60,5 @@ the integrated linter and website establish.
 ## License
 
 [MIT](LICENSE), except the adapted container recursion of Lean's JSON parser in
-`lean/Plumb/Checker/PolicyCodec.lean`, which keeps its upstream Apache 2.0 notice
+`lean/Regula/Checker/PolicyCodec.lean`, which keeps its upstream Apache 2.0 notice
 ([license text](LICENSES/Apache-2.0.txt); see [design influences](docs/guides/design-influences.md#adapted-code-and-licenses)).

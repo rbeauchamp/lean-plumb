@@ -3,7 +3,7 @@
 The corpus in [`examples/rules/`](../../examples/rules/) supplies page inputs for all twenty-one
 registry IDs. `corpus.json` fixes invocation, evidence mode, expected IDs, legacy subreasons,
 message patterns, subjects and full primary locations before execution. Sources are copied
-verbatim into disjoint Core-only adopters. `Plumb.Qualification.RuleExamples`
+verbatim into disjoint Core-only adopters. `Regula.Qualification.RuleExamples`
 orchestrates processes and files in Lean; the
 existing Lean detectors produce the findings and `Checker.RuleExampleQualification` admits
 the canonical evidence. This is scoped qualification, not a universal detector proof or
@@ -18,7 +18,7 @@ list every expected finding, including generated declarations and underlying dia
 No extra finding may disappear. A source-free detector keeps its module/project location;
 an example adapter must not manufacture a source range.
 
-PL2001, PL2005 and PL3001 have **diagnostic demonstrations** for unavailable analysis. They
+RG2001, RG2005 and RG3001 have **diagnostic demonstrations** for unavailable analysis. They
 require completed, authentic diagnostic production and exact source/configuration/mode,
 registry ID, reason, primary/related location evidence. The checker result remains
 `incomplete`. A crash, missing response, stale source or unrelated error is not a demonstration.
@@ -37,7 +37,7 @@ this example qualifier does not authorize configuration relocation transformatio
 `--with-docs` requests. After initial configuration capture succeeds, early terminal failures
 retain the producer request and any effective configuration captured before failure. If the
 initial configuration read itself fails, the terminal result retains the original IO diagnostic
-as PL2001/incomplete with an empty source account and no request/effective account; it cannot
+as RG2001/incomplete with an empty source account and no request/effective account; it cannot
 qualify as an example or demonstration. The [producer transport contract](engine-producers.md#transport-and-consumer-boundary)
 owns source retention on terminal exits; absent source evidence refuses qualification. The shared
 `admitExampleSources` guard requires every observed source to belong to the frozen snapshot
@@ -49,7 +49,7 @@ binding/completion and the exact diagnostic list before applying the four-kind p
 completed production, nonempty expected findings, a selected-rule incomplete finding, exact mode and
 canonical diagnostic equality. The observed list itself must contain an incomplete finding for the selected rule,
 without assuming injectivity of JSON rendering. Its soundness/completeness theorems concern these data, not
-process authenticity. `PlumbPolicy.incomplete_example_refused` proves that an incomplete
+process authenticity. `RegulaPolicy.incomplete_example_refused` proves that an incomplete
 outcome satisfies none of the existing fence expectations. The executed validator additionally proves `demonstration_not_accepted`: every admitted
 demonstration fails each accepted-example classification, for any expected finding list.
 All six named new guarantees
@@ -70,9 +70,9 @@ run is not full-standard conformance.
 ## Source and remediation map
 
 Each rule's fixtures are the files in `examples/rules/<ID>/`: a `Violation` and a `Fixed`
-source, or an unchanged `Example.lean` with a changed dependency (PL1003) or configuration
-(PL2001, PL2002) pair. What each correction preserves and changes is the `correction` field of
-the rule's explanation in [`PlumbCore.Guide`](../../lean/PlumbCore/Guide.lean), rendered with the
+source, or an unchanged `Example.lean` with a changed dependency (RG1003) or configuration
+(RG2001, RG2002) pair. What each correction preserves and changes is the `correction` field of
+the rule's explanation in [`RegulaCore.Guide`](../../lean/RegulaCore/Guide.lean), rendered with the
 exact inputs, findings and diff on the rule's [reference page](website.md). Keep that field and
 the fixtures in the same change.
 
@@ -101,7 +101,7 @@ mode and checker build identity, plus exact checker source bytes before and afte
 The campaign additionally exercises authentic Standard-Logical output against a Kernel-only
 request and actual successful negative/trusted documentation against a positive correction
 expectation; the fixed phases are the fresh positives. Relabelling a demonstration's selected rule is
-refused while retaining its complete findings. Authentic early PL2003/PL2005 results are also
+refused while retaining its complete findings. Authentic early RG2003/RG2005 results are also
 refused against corrected caller snapshots or after removal of producer source evidence.
 These controls qualify the adapters; the
 universal data predicates and their proofs remain distinct from observed process behavior.
@@ -124,11 +124,11 @@ repository's diagnostic deadline and includes its housekeeping checks.
 
 The `ruleExamples` and `ruleExampleQualification` executables are excluded in the root manifest solely as operational
 qualification tooling, alongside the existing checker executables. Their modules belong to the
-already-excluded `Plumb` tooling library; no product module or detector is newly exempted
+already-excluded `Regula` tooling library; no product module or detector is newly exempted
 from its applicable qualification.
 
-For development, append `--rules PL1001 PL1002` after `--evidence PATH` to produce
-explicitly scoped evidence. `--shard K/N` selects every rule whose corpus position is K − 1 modulo N, except that PL5002 follows PL5001 into its shard so the shared fresh-project theorem-type check still runs (`mem_selectRules_shard`, `mem_selectRules_some_shard`, `pl5001_pl5002_same_shard`);
+For development, append `--rules RG1001 RG1002` after `--evidence PATH` to produce
+explicitly scoped evidence. `--shard K/N` selects every rule whose corpus position is K − 1 modulo N, except that RG5002 follows RG5001 into its shard so the shared fresh-project theorem-type check still runs (`mem_selectRules_shard`, `mem_selectRules_some_shard`, `rg5001_rg5002_same_shard`);
 `./scripts/verify.sh diagnostics rule-examples 1/2` and `2/2` run the two CI shards. [Lean qualification](lean-qualification.md) specifies the
 proved template transformation, Lake-discovered source snapshot and trusted IO boundary. Ordinary
 acceptance (`./scripts/verify.sh`, then `./scripts/verify.sh docs`) remains separate.

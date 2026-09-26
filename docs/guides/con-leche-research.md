@@ -1,5 +1,7 @@
 # Optional con-leche export research: decision record
 
+*Plumb, named in this record, is the project now called Regula.*
+
 This is the maintained research record for [#8](https://github.com/rbeauchamp/lean-plumb/issues/8),
 the optional con-leche export study. It is supplementary to the linter and website and does not
 gate core delivery ([#10](https://github.com/rbeauchamp/lean-plumb/issues/10)). Recorded on

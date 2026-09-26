@@ -1,4 +1,4 @@
-# Plumb for Lean
+# Regula
 
 This standard specifies requirements for mathematical proofs and verified functional programs in Lean.
 

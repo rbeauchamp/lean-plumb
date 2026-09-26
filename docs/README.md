@@ -1,6 +1,6 @@
 # Documentation
 
-The [Plumb for Lean standard](standard/README.md) defines the rules for mathematical proofs
+The [Regula standard](standard/README.md) defines the rules for mathematical proofs
 and verified functional programs in Lean. The [guides](#practical-guides)
 explain how to use and maintain this repository without adding conformance rules.
 

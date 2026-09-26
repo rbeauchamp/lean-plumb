@@ -1,12 +1,12 @@
 # `lakefile.toml` lint and editor example
 
 A minimal Core-only adopter in `lakefile.toml` format. It shows the two ordinary entry
-points of Plumb:
+points of Regula:
 
-- **`lake lint`**: `lintDriver = "plumb/lint"` runs the project audit over every
+- **`lake lint`**: `lintDriver = "regula/lint"` runs the project audit over every
   manifested surface (here the `Gadget` library, choice-free, `report` execution).
-- **Editor feedback**: `Gadget/Double.lean` imports `Plumb.Linter`, so VS Code with the
-  Lean 4 extension shows `Plumb.PL…` warnings at their declaration ranges, with a
+- **Editor feedback**: `Gadget/Double.lean` imports `Regula.Linter`, so VS Code with the
+  Lean 4 extension shows `Regula.RG…` warnings at their declaration ranges, with a
   **View explanation** link in the infoview and the rule URL in the message text.
 
 From this directory:
@@ -23,10 +23,10 @@ To use it elsewhere, replace `path = "../.."` with the git form in the
 enforcement. Use `lake lint` locally and in CI.
 
 A live finding is a compiler warning in the editor and in a plain `lake build`. `lake lint`
-builds with live feedback off, whatever the source sets `linter.plumb` to, and reports the
+builds with live feedback off, whatever the source sets `linter.regula` to, and reports the
 same rule as a policy violation (`VIOLATION`, exit 1), also after a plain `lake build` cached
 the module with the warning and when the source re-enables it with
-`set_option linter.plumb true`. Disabling live feedback with `set_option linter.plumb false`
+`set_option linter.regula true`. Disabling live feedback with `set_option linter.regula false`
 does not waive the project check: `lake lint` still reports the violation (exit 1).
 `lake exe checkerSelftest --build-bound --partition lint-driver` qualifies these behaviors.
 The editor journeys are recorded in

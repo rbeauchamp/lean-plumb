@@ -2,25 +2,25 @@
   "schema-version": 2,
   "surfaces": [
     {
-      "library": "PlumbPolicy",
+      "library": "RegulaPolicy",
       "claim": "standard-logical",
       "execution": "report",
       "rationale": "Pure policy categories, structural identities, admitted observations, and invariant-preserving collections used by the checker. Every declaration is checked under its exact transitive axiom set. The library proves finite-observation classification, declaration/execution decisions and concrete acceptance. The operational adapters collect complete request-indexed jobs through these definitions. Their proofs do not authenticate compiler or filesystem observations, compiled machine code, or semantic adequacy."
     },
     {
-      "library": "PlumbVerification",
+      "library": "RegulaVerification",
       "claim": "standard-logical",
       "execution": "report",
       "rationale": "Cold-start verification driver with exact proof-bearing argument selection. Recipes are interpreted through a trusted process IO boundary under verify.sh's single external deadline; the proof does not authenticate subprocess execution."
     },
     {
-      "library": "PlumbQualification",
+      "library": "RegulaQualification",
       "claim": "standard-logical",
       "execution": "report",
       "rationale": "Pure observation-validation contracts used by Lean qualification drivers. Soundness, completeness, first-refusal and composition concern the supplied Lean data, not authenticity of process/filesystem/compiler observations. Runtime and library boundaries are reported separately."
     },
     {
-      "library": "PlumbCore",
+      "library": "RegulaCore",
       "claim": "standard-logical",
       "execution": "report",
       "rationale": "The rule registry and the pure checker projections the operational checker executes: claim request, scope admission for every supplied coordinate check, transcript-coordinate and source-range admission for every UTF-16 column function, declaration rules and reasons, foundation labels, execution rules and failure text, census assembly from decoded manifest and Lake records, and the report account every rendered success and completed status projects from one accepted run. Their contracts concern the supplied declarations, transcripts and records; Lean's UTF-16 column function, manifest parsing, Lake loading, environment extraction, compiler and filesystem observations stay in the excluded adapters."
@@ -46,30 +46,30 @@
       "rationale": "Positive controls and intentionally invalid mutations are queryable for exact contamination checks but are not part of the conforming Audit surface."
     },
     {
-      "library": "Plumb",
-      "rationale": "Operational Lean checker code is not a conforming proof surface; acceptance does not re-elaborate or report its declarations. It holds the adapters around the claimed PlumbPolicy and PlumbCore decisions: Lake and environment observation, frontend transcripts, Lean's LSP UTF-16 column conversion, compiler and worker processes, JSON transport, filesystem provenance and text rendering. Its external observation paths are mutation-qualified separately; its proved transport-admission theorems are kernel-checked by the warning-as-error lake build and bounded to Standard-Logical by an in-module collectAxioms ceiling. Outside acceptance, the self-audit diagnostic (./scripts/verify.sh diagnostics self-audit) kernel-admits every module and decides every declaration with the proved operational decision PlumbPolicy.operationalFailure: the Standard-Logical declaration rules, with authored unsafe/partial declarations and the pinned toolchain's Lake axioms in non-proposition definitions reported rather than failed, and module documentation required."
+      "library": "Regula",
+      "rationale": "Operational Lean checker code is not a conforming proof surface; acceptance does not re-elaborate or report its declarations. It holds the adapters around the claimed RegulaPolicy and RegulaCore decisions: Lake and environment observation, frontend transcripts, Lean's LSP UTF-16 column conversion, compiler and worker processes, JSON transport, filesystem provenance and text rendering. Its external observation paths are mutation-qualified separately; its proved transport-admission theorems are kernel-checked by the warning-as-error lake build and bounded to Standard-Logical by an in-module collectAxioms ceiling. Outside acceptance, the self-audit diagnostic (./scripts/verify.sh diagnostics self-audit) kernel-admits every module and decides every declaration with the proved operational decision RegulaPolicy.operationalFailure: the Standard-Logical declaration rules, with authored unsafe/partial declarations and the pinned toolchain's Lake axioms in non-proposition definitions reported rather than failed, and module documentation required."
     }
   ],
   "excluded-executables": [
     {
       "executable": "qualify",
-      "rationale": "Operational qualification dispatcher and IO adapters in the excluded Plumb library. It invokes proved observation oracles from the positive PlumbQualification library; filesystem, process and compiler observations are not authenticated by those proofs."
+      "rationale": "Operational qualification dispatcher and IO adapters in the excluded Regula library. It invokes proved observation oracles from the positive RegulaQualification library; filesystem, process and compiler observations are not authenticated by those proofs."
     },
     {
       "executable": "axiomGate",
-      "rationale": "Checker tooling executable; its root module belongs to the excluded Plumb library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
+      "rationale": "Checker tooling executable; its root module belongs to the excluded Regula library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
     },
     {
       "executable": "docFenceAudit",
-      "rationale": "Checker tooling executable; its root module belongs to the excluded Plumb library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
+      "rationale": "Checker tooling executable; its root module belongs to the excluded Regula library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
     },
     {
       "executable": "freshChecker",
-      "rationale": "Checker tooling executable; its root module belongs to the excluded Plumb library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
+      "rationale": "Checker tooling executable; its root module belongs to the excluded Regula library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
     },
     {
       "executable": "checkerSelftest",
-      "rationale": "Checker tooling executable; its root module belongs to the excluded Plumb library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
+      "rationale": "Checker tooling executable; its root module belongs to the excluded Regula library and is qualified by the \u00a78.8 mutation suite, not claimed as a conforming proof surface."
     },
     {
       "executable": "ruleExamples",
@@ -81,15 +81,15 @@
     },
     {
       "executable": "site",
-      "rationale": "Rule-reference site builder; its root module belongs to the excluded Plumb library. It generates the website from the registry, the rule explanations and admitted rule-example evidence, renders it with the pinned Verso package and checks the artifact through the claimed PlumbCore.Site decisions; its process, filesystem and Verso observations are not a conforming proof surface."
+      "rationale": "Rule-reference site builder; its root module belongs to the excluded Regula library. It generates the website from the registry, the rule explanations and admitted rule-example evidence, renders it with the pinned Verso package and checks the artifact through the claimed RegulaCore.Site decisions; its process, filesystem and Verso observations are not a conforming proof surface."
     },
     {
       "executable": "lint",
-      "rationale": "Lake lint driver; its root module belongs to the excluded Plumb library. It dispatches to the axiomGate project audit and classifies its exit; its exit classification is the claimed PlumbCore.Lint contract; qualified by the \u00a78.8 lint-driver campaign, not claimed as a conforming proof surface."
+      "rationale": "Lake lint driver; its root module belongs to the excluded Regula library. It dispatches to the axiomGate project audit and classifies its exit; its exit classification is the claimed RegulaCore.Lint contract; qualified by the \u00a78.8 lint-driver campaign, not claimed as a conforming proof surface."
     },
     {
       "executable": "intentScreen",
-      "rationale": "Opt-in probabilistic intent screen (docs/guides/intent-screening.md). Its root module belongs to the excluded Plumb library; it calls an external judgment service only when explicitly run, is never part of offline acceptance, and its screened results are not conforming evidence. Its pure decisions are proved in the claimed PlumbPolicy.Screening and PlumbCore.Screening modules."
+      "rationale": "Opt-in probabilistic intent screen (docs/guides/intent-screening.md). Its root module belongs to the excluded Regula library; it calls an external judgment service only when explicitly run, is never part of offline acceptance, and its screened results are not conforming evidence. Its pure decisions are proved in the claimed RegulaPolicy.Screening and RegulaCore.Screening modules."
     }
   ]
 }

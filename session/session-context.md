@@ -1,5 +1,7 @@
 # Session context: Plumb for Lean
 
+*Renamed Regula on 2026-09-26 (repository `rbeauchamp/regula`, package `regula`, namespace `Regula`, rule IDs `RG####`, site `/regula/`); the dated notes below keep the former names.*
+
 **Updated:** 2026-09-24, issue #10 (integrated qualification), from main
 `a52bf1f0e2c7854c45ab6694b35b697b5e900fc8`. Refresh live state before resuming; this file is a
 pointer, not an authority.

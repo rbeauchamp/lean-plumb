@@ -61,6 +61,6 @@
    "inputRev": "main",
    "inherited": true,
    "configFile": "lakefile.lean"}],
- "name": "plumb_website",
+ "name": "regula_website",
  "lakeDir": ".lake",
  "fixedToolchain": false}

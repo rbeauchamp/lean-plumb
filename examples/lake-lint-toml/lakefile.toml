@@ -1,10 +1,10 @@
 name = "lake_lint_adopter"
 defaultTargets = ["Gadget"]
-# `lake lint` runs the Plumb driver over every manifested surface.
-lintDriver = "plumb/lint"
+# `lake lint` runs the Regula driver over every manifested surface.
+lintDriver = "regula/lint"
 
 [[require]]
-name = "plumb"
+name = "regula"
 path = "../.."
 
 [[lean_lib]]

@@ -9,5 +9,5 @@ The [rule-example guide](../../docs/guides/rule-examples.md) gives each source p
 remediation, accepted-example and diagnostic-demonstration distinctions, qualification
 commands, and export and trust contracts for the future website.
 
-The existing PL5001/PL5002 [producer campaign](../../docs/guides/engine-producers.md#source-owned-examples-and-qualification)
+The existing RG5001/RG5002 [producer campaign](../../docs/guides/engine-producers.md#source-owned-examples-and-qualification)
 remains available through `lake exe qualify producers`.

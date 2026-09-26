@@ -11,13 +11,13 @@ interface evidence. The [coverage map](rule-coverage.md) accounts for the comple
 
 ## Product and authority
 
-Plumb for Lean delivers an enforcing Lean linter and a linked rule-reference website, backed
+Regula delivers an enforcing Lean linter and a linked rule-reference website, backed
 by a precise standard. `docs/standard/` remains authoritative for normative meaning.
 The Lean registry supplies machine metadata and diagnostic identity; checked source supplies
 website examples. Neither a prose-only repository nor a green lint command establishes full
 conformance. Every applicable chapter 9 row still needs its stated evidence.
 
-Reuse the existing `Plumb.Checker` implementation incrementally. Keep `Audit`, `AuditApp`
+Reuse the existing `Regula.Checker` implementation incrementally. Keep `Audit`, `AuditApp`
 and standalone `Main` as dogfood surfaces. Operational tooling and intentionally invalid
 fixtures remain separately classified. No new rule bans Float, IO, local mutation syntax,
 classical erased proofs, noncomputable mathematical definitions, or arbitrary naming styles.
@@ -39,22 +39,22 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 
 | Path | Owner and contract |
 | --- | --- |
-| `lean/PlumbCore/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
-| `lean/PlumbCore/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
-| `lean/Plumb/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
-| `lean/Plumb/Checker/PolicyDomain.lean` | Compatibility re-export of the pure `PlumbPolicy` domain (canonical decoded inputs and typed failures, POLICY-02 #5); it holds no policy of its own. |
-| `lean/Plumb/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
-| `lean/Plumb/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
-| `lean/Plumb/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps; request and declaration decisions run the claimed `PlumbCore/EditorPolicy.lean` contracts, proved equal to the project checker's on the editor domain. |
-| `lean/Plumb/Checker/Lint.lean` | Whole-project `lint` driver: the `axiomGate` project audit, not another checker; its exit classification is the claimed `PlumbCore/Lint.lean` contract. |
-| `lean/Plumb/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
-| `website/` | Separate pinned Verso Lake package: the `PlumbSite` extension and site entry point. The original explanatory prose is `lean/PlumbCore/Guide.lean`; generated pages are never committed. |
+| `lean/RegulaCore/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
+| `lean/RegulaCore/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
+| `lean/Regula/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
+| `lean/Regula/Checker/PolicyDomain.lean` | Compatibility re-export of the pure `RegulaPolicy` domain (canonical decoded inputs and typed failures, POLICY-02 #5); it holds no policy of its own. |
+| `lean/Regula/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
+| `lean/Regula/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
+| `lean/Regula/Linter/Rules.lean` | Adapters to existing detection, plus selected documentation-presence gaps; request and declaration decisions run the claimed `RegulaCore/EditorPolicy.lean` contracts, proved equal to the project checker's on the editor domain. |
+| `lean/Regula/Checker/Lint.lean` | Whole-project `lint` driver: the `axiomGate` project audit, not another checker; its exit classification is the claimed `RegulaCore/Lint.lean` contract. |
+| `lean/Regula/Contract.lean` | Preserve existing executable-proof API and admission meaning. |
+| `website/` | Separate pinned Verso Lake package: the `RegulaSite` extension and site entry point. The original explanatory prose is `lean/RegulaCore/Guide.lean`; generated pages are never committed. |
 | `examples/rules/<ID>/` | Actual violation/fix source plus typed expected outcome specification; isolated negatives. |
-| `lean/PlumbCore/Site*.lean`, `lean/Plumb/Site/` | Site generation, validation and assembly: proved pure decisions in the claimed core and the operational `site` builder, run through Lake; no Python or additional shell scripts. |
+| `lean/RegulaCore/Site*.lean`, `lean/Regula/Site/` | Site generation, validation and assembly: proved pure decisions in the claimed core and the operational `site` builder, run through Lake; no Python or additional shell scripts. |
 
 `RuleId` is the closed initial vocabulary in the coverage map, not a natural number or free
 string accepted without validation. `descriptor : (id : RuleId) → RuleDescriptor id` is total by exhaustive
-matching. External strings are serialized spellings (`PL1001`, etc.), not policy authority.
+matching. External strings are serialized spellings (`RG1001`, etc.), not policy authority.
 Never reuse an ID after changing its semantic predicate. Preserve retired descriptors as
 tombstones; create a new ID for incompatible meaning. Compatible clarifications retain identity
 and record the applicable implementation version. Chapter 9 IDs remain checklist rows, not
@@ -97,7 +97,7 @@ functions. JSON is transport; proof-bearing validated values are the in-process 
 
 The coverage map fixes **21 rule IDs**, including existing declaration, execution, workspace,
 warning and fence capabilities and three narrowly scoped documentation-presence additions
-(PL5001–PL5003; PL5003 was added for #57).
+(RG5001–RG5003; RG5003 was added for #57).
 #12 introduces identity and rendering without silently changing detection. #13 connects all
 existing conditions to typed IDs and implements the first two documentation gaps. Each rule page
 states whether a condition is an established violation or missing evidence, what passes, and
@@ -135,7 +135,7 @@ transitive package resolution does not require compiling its mathematical module
 - Environment hooks: `Lean.Linter.EnvLinter.EnvLinter`, with `test : Name → MetaM (Option
   MessageData)`, and `@[builtin_env_linter optionName]` on public meta definitions. Registration
   requires a Boolean option. [The native framework][env-lint] supports local omission/options;
-  therefore its filtered default scan alone cannot establish Plumb's mandatory coverage.
+  therefore its filtered default scan alone cannot establish Regula's mandatory coverage.
   Reuse compatible tests, not its suppression semantics as authority.
 - Source/semantic evidence: `ConstantInfo`, `Lean.collectAxioms`, environment module indices,
   `Lean.findDeclarationRangesCore?`, file-map positions, elaboration info, and Lake's elaborated
@@ -150,7 +150,7 @@ transitive package resolution does not require compiling its mathematical module
   plus `findDocString?` and module-doc metadata for the scoped presence checks. Text adequacy
   remains review. Reuse Batteries/Mathlib linter tests only after demonstrating their predicate
   and scope match; do not turn upstream optional style rules into universal strict rules.
-- Lake [PackageConfig.lintDriver][lake-config] accepts `"plumb/lint"` in either
+- Lake [PackageConfig.lintDriver][lake-config] accepts `"regula/lint"` in either
   lakefile format. The `lint` executable is qualified end to end by the `lint-driver`
   campaign in both formats. The driver builds only explicit manifest-derived targets, never
   recursively the default policy target.
@@ -178,11 +178,11 @@ The original design selected a package-owned JavaScript message widget with a te
 HTTPS fallback. The repository's Lean-only policy supersedes that implementation choice:
 the textual URL remains. The production linter reuses the upstream
 interface instead: `Lean.errorDescriptionWidget`, the builtin widget module behind Lean's
-named errors, instantiated with `code = Plumb.<ID>` and `explanationUrl = helpUrl id`
+named errors, instantiated with `code = Regula.<ID>` and `explanationUrl = helpUrl id`
 from the registry. It renders `Error code` and a **View explanation** anchor
 (`target=_blank`, `rel=noreferrer noopener`) with no project JavaScript. Its text
 alternative is empty, so plain renderers show the message text and its URL. Render tagged
-`MessageData` with name `Plumb.<ID>` through `logMessage`, supplying the actual file/range
+`MessageData` with name `Regula.<ID>` through `logMessage`, supplying the actual file/range
 and message context, rather than the `logAt` path that appends the wrong built-in widget.
 The [interactive diagnostic adapter][interactive] derives `code?` from the named message kind.
 The retired prototype verified serialized named kind, source location, policy rejection and
@@ -204,7 +204,7 @@ The separate documentation workspace follows the [package-docs template][templat
 `76c9edf5a70f14d272af0f0f354ec833ac22c350`; rendering remains distinct from checking examples.
 
 The site builder (`lake exe site`, in the root package) generates Verso source from the registry
-(`descriptor`), the typed explanations (`PlumbCore.Guide`, one exhaustive definition over
+(`descriptor`), the typed explanations (`RegulaCore.Guide`, one exhaustive definition over
 `RuleId`, the explicit prose input the design allowed in place of `website/Rules/<ID>.lean`) and
 the admitted rule-example exports of the same commit. Generation runs in the root package
 because the website package cannot import the registry without resolving the root package's
@@ -218,15 +218,15 @@ Each page contains identity/category/default behavior, applicability and exact c
 clauses, violation and fixed examples, the checked findings and their real locations, rationale,
 fix guidance, permitted technical exceptions/configuration, limitations/false-positive conditions,
 version availability, and credits. It does not imply that every violating Lean file fails
-elaboration: the PL1001 axiom fixture elaborates and is then rejected by the actual policy.
+elaboration: the RG1001 axiom fixture elaborates and is then rejected by the actual policy.
 
-Canonical public base: `https://rbeauchamp.github.io/lean-plumb/`.
-Paths: `/lean-plumb/dev/rules/<ID>/` for latest successfully deployed development documentation;
-`/lean-plumb/v/<package-version>/rules/<ID>/` for immutable released-package help (none exists);
-`/lean-plumb/rev/<commit>/rules/<ID>/` for each published commit's snapshot. Every page states its
+Canonical public base: `https://rbeauchamp.github.io/regula/`.
+Paths: `/regula/dev/rules/<ID>/` for latest successfully deployed development documentation;
+`/regula/v/<package-version>/rules/<ID>/` for immutable released-package help (none exists);
+`/regula/rev/<commit>/rules/<ID>/` for each published commit's snapshot. Every page states its
 commit; a local preview with uncommitted changes says so and has no snapshot route. Publishing a
 release is a separate authorized action. Each GitHub Pages deployment replaces the whole site, so
-published `rev/` snapshots are retained in the append-only `site-archive` branch and copied
+published `rev/` snapshots are retained in the append-only `site-archive-regula` branch and copied
 verbatim into every later artifact ([website guide](website.md#routes-and-versions));
 released-version pages will need the same kind of retention when releases exist. Retire IDs with explanatory tombstones; never redirect an old ID to
 changed semantics. Unpublished routes get the not-available page, which names the GitHub source of
@@ -279,7 +279,7 @@ Canonical semantics, accepted values carrying evidence, and proved equality betw
 form and its reference definition are informed by **Lean FRO's con-leche** at `c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0`:
 [Installed.lean][installed] (`CheckedRecord`, `FullyChecked`),
 [PropWhen.lean][propwhen] and [scanner equivalence][equiv]. These are design precedents, not a
-proof of Plumb or an adoption of con-leche's kernel/model. The
+proof of Regula or an adoption of con-leche's kernel/model. The
 [attribution account](design-influences.md) distinguishes these specific precedents from actual
 code dependencies and optional exports. Cite influences at the relevant component boundary;
 copied code preserves its actual license notices. Lean authors supply the linter, elaboration and message APIs; Verso authors
@@ -287,7 +287,7 @@ supply rendering and the template. [Microsoft CA1416][ca1416], Ruff and Pyrefly 
 references, not exclusive templates. The [comparative study](ecosystem-design.md) records
 Lean, Clippy, ESLint and HLint/HLS influences and their exact limits; no external tool defines
 Lean policy or permits suppressing mandatory requirements. The archived comparative reference
-is [issue #3](https://github.com/rbeauchamp/lean-plumb/issues/3); its con-ron discussion is historical.
+is [issue #3](https://github.com/rbeauchamp/regula/issues/3); its con-ron discussion is historical.
 
 [installed]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Cached/Installed.lean
 [propwhen]: https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean

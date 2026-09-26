@@ -1,5 +1,5 @@
 import VersoManual
-import PlumbSite
+import RegulaSite
 import Generated
 
 /-! Renders the generated rule reference as multi-page HTML. Run through
@@ -9,5 +9,5 @@ open Verso.Genre Manual
 
 def main := manualMain (%doc Generated) (config := {
   emitTeX := false, emitHtmlSingle := .no, emitHtmlMulti := .immediately, htmlDepth := 2,
-  sourceLink := some "https://github.com/rbeauchamp/lean-plumb",
-  issueLink := some "https://github.com/rbeauchamp/lean-plumb/issues" })
+  sourceLink := some "https://github.com/rbeauchamp/regula",
+  issueLink := some "https://github.com/rbeauchamp/regula/issues" })
