@@ -15,6 +15,46 @@ your project's own layout, module names, and lakefile format; nothing named `Aud
 `Fixtures`, or `tmp` from this repository is required. The normative definitions behind
 each step are in [docs/standard/8 §8.11](../standard/8-tooling-and-machine-audit.md#811-adopting-the-checker-in-another-project).
 
+## 0. Brief your agent
+
+Regula is designed first for agents. Adopting it tells your agent that your Lean code and
+proofs must meet a strict standard that may not be in its training data. Once the package is
+required (step 1), give the agent that standard before it writes Lean:
+
+```sh
+lake exe regula agent-guide      # compact briefing of every rule, ordered for writing code
+lake exe regula skill            # the same briefing as an Agent Skills SKILL.md
+lake exe regula explain RG1001   # one rule in full: requirement, rationale, remedy, examples
+lake exe regula rules            # the index of every rule
+```
+
+Each command prints Markdown generated from the installed package's rule registry, so it
+needs no network and matches the pinned revision. It exits 0, or 2 for an invalid invocation
+or an unknown rule ID. The briefing has a 14 KiB budget (`Regula.Guidance.agentGuideBudget`),
+checked when the package builds.
+
+Then either install the skill, for example
+`lake exe regula skill > .agents/skills/regula/SKILL.md` (or your agent's own skills
+directory, such as `.claude/skills/regula/SKILL.md`), regenerating it when you move the pin;
+or paste the briefing into `AGENTS.md`; or add this snippet, which keeps `AGENTS.md` short and
+always matches the installed version:
+
+```markdown
+## Lean standard: Regula
+
+This project's Lean code and proofs must meet the Regula strict standard, which may not be in
+your training data. Before writing or changing Lean, run `lake exe regula agent-guide` and
+follow it. `lake lint` enforces the rules and exits 0 accepted, 1 violation, 2 invalid
+configuration, 3 incomplete. Each finding states what is wrong, where, and the fix; for any
+rule ID, `lake exe regula explain <ID>` prints the full rule offline. For machine-readable
+findings run `lake lint -- --json-out tmp/regula.json`. Never disable a warning or linter,
+weaken a statement or remove a registration to make a check pass.
+```
+
+This repository dogfoods the skill in
+[`.agents/skills/regula/SKILL.md`](../../.agents/skills/regula/SKILL.md); its acceptance
+check fails when the committed file differs from the generated briefing.
+
 ## 1. Require the checker package
 
 The repository and the Lake package are both named `regula`, and imports use `Regula.*`.
@@ -137,6 +177,31 @@ lake exe docFenceAudit --jobs 4                            # elaborate every doc
 
 ## 5. Read a failure
 
+Every finding is printed with everything needed to fix it, in a deterministic order (project
+and configuration findings, then module findings, then source findings by file and position):
+
+```text
+RG1001 [violation; freshFile; claim=kernel-only; Widget/Basic.lean:2:6]: reflexive: …
+  fix: Turn the assumption into a hypothesis (…) of the results that need it, or replace the axiom with a proof.
+  rule: https://rbeauchamp.github.io/regula/dev/rules/RG1001/ (offline: lake exe regula explain RG1001)
+  requirement: A claimed module declares no logical `axiom`: …
+  why: An axiom extends Lean's logic for everything that imports it. …
+  common rewrites:
+  - If the statement is provable, prove it: replace `axiom name : P` by `theorem name : P := proof`.
+  …
+  compliant example (examples/rules/RG1001/Fixed.lean):
+    /-! Reflexivity for every natural number. -/
+    theorem reflexive (n : Nat) : n = n := rfl
+RG1001 [violation; freshFile; claim=kernel-only; Widget/Basic.lean:3:6]: symmetric: …
+  fix: Turn the assumption into a hypothesis (…) (full guidance: first RG1001 finding above)
+```
+
+The first line states what is wrong and where (`FILE:LINE:COLUMN` in Lean's own coordinates).
+The first finding of each rule in a run adds the rule's requirement, rationale, common
+rewrites and checked compliant example; later findings of that rule keep their own message and
+fix and point back to it, so a run with hundreds of findings prints each rule's guidance once.
+The rule page is a pointer for humans, never the only source of the fix.
+
 Each failing declaration or root carries one reason. The reason names the Lean fact, not a
 style preference:
 
@@ -173,7 +238,7 @@ Then, from the project root:
 ```sh
 lake lint                                  # incremental elaboration + current policy
 lake lint -- --fresh                       # isolated copy built from empty output
-lake lint -- --json-out tmp/regula.json     # also write the schema-2 result
+lake lint -- --json-out tmp/regula.json     # also write the schema-3 JSON report
 lake lint -- --explain-config              # read-only: manifest, scope, profiles, stages
 ```
 
@@ -228,6 +293,29 @@ for machines. `--help` and `--explain-config` run no audit, establish nothing an
 putting either in `lintDriverArgs` cannot make `lake lint` succeed; neither accepts
 `--json-out` or `--verbose`.
 
+### Machine-readable report
+
+`lake lint -- --json-out PATH` (and `axiomGate --json-out PATH`) writes one JSON document,
+result schema 3, whatever the outcome. The path is written before the audit starts, as an
+incomplete result, so a stale report is never mistaken for this run's. Its top-level members
+include:
+
+| Member | Meaning |
+| --- | --- |
+| `schemaVersion` | `3`. Also `producerVersion`, `toolchain` and `sourceRevision` of the Regula build. |
+| `status` | `completed` (accepted), `rejected` (a violation was established), `incomplete` (evidence was missing) or `classified` (a file inspection with no conforming claim). |
+| `complete` | `true` exactly when `status` is not `incomplete`: the run reached a decision. A rejection lists every finding of the stages it ran; stages after an RG2002 configuration refusal or a failed build did not run. |
+| `diagnostics` | Every finding, in the printed run order. Each has `id` (rule ID), `impact` (`violation` or `incomplete`), `severity`, `mode`, `claim`, `location` (for source: `uri`, byte `range` and `selectionRange`, and zero-based LSP `lspRange` and `lspSelectionRange`; otherwise a module or project scope), `related` locations, `arguments` (subject and detail), `text` (the printed finding without the once-per-run guidance), `remedy` and `helpUrl`. |
+| `rules` | Once per rule that fired, in registry order: `id`, `title`, `requirement`, `rationale`, `remedy`, `rewrites`, `compliantExample` (`path`, `language`, `text`), `helpUrl` and `explain` (the offline command). |
+| `unresolved` | Unresolved evidence, when the run is incomplete. |
+
+The exit status is the stable contract for pass or fail (table above); the `status` and
+`complete` members say why. Regula checks the report form the way it checks registry exports:
+every diagnostic must decode to the canonical indexed finding (unknown fields, stale text or
+remedies are refused), and `complete` and `rules` must equal their derivation from `status`
+and the diagnostics (`Regula.Checker.ResultProtocol.admitGuidance`). Treat the report as
+observations, never as a Lean proof.
+
 Lake details that affect what ran:
 
 - Arguments for the driver follow `--`; Lake prepends `lintDriverArgs`. Positional module
@@ -276,9 +364,10 @@ commands and modules show:
 - Warnings with codes `Regula.RG1001`–`RG1007`, `RG2002` and `RG2005`, at the actual declaration
   range, plus `RG5001`–`RG5003` when the module finishes elaborating without errors (with errors,
   `RG2005`).
-- In the infoview, Lean's own error-code widget with a **View explanation** link to the rule
-  page. The message text always ends with the same URL, which the Problems panel and
-  command-line output show when no widget renders.
+- Message text that states the finding and its fix, then the same rule page URL and the
+  offline `lake exe regula explain <ID>` command. Each editor message stands alone (the
+  once-per-run guidance applies to command-line runs). In the infoview, Lean's own error-code
+  widget adds a **View explanation** link to the rule page.
 - `RG2005` when a finding needs fresh evidence that only the project command collects.
   The message says to run `lake lint`.
 
@@ -319,7 +408,8 @@ not the gate alone.
 
 ## Rule reference website
 
-Every diagnostic's help URL opens its page in the [rule reference](https://rbeauchamp.github.io/regula/dev/rules/):
+Every diagnostic's help URL opens its page in the [rule reference](https://rbeauchamp.github.io/regula/dev/rules/),
+a human view of the same registry that `lake exe regula explain` prints offline:
 what triggers the rule, why it matters, how to fix it, a checked violating and corrected
 example produced by the real checker, the exact configuration and exception boundaries, and
 what a passing result does and does not establish. The site is generated from the

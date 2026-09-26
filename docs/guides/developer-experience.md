@@ -91,11 +91,13 @@ matching human text alone or discard distinct policy subreasons. A source build 
 prevent subsequent checks: report those as unavailable rather than inventing more violations.
 Existing schema-1 records remain lossless; presentation grouping does not change acceptance.
 
-The current `Diagnostic.text` deliberately exposes detailed mode/claim/arguments. #14 adds a
-concise human renderer over the same value, retaining a detailed text view and complete JSON.
-Because the canonical codec currently includes rendered text, treat any canonical rendering
-change as a reviewed producer/schema compatibility change; do not silently invalidate existing
-transport consumers. Prefer a separate human renderer so schema-1 canonical text remains stable.
+The current `Diagnostic.text` deliberately exposes detailed mode/claim/arguments, the
+`FILE:LINE:COLUMN` of a source selection and the rule's remedy (`RegulaCore.Feedback`); a
+command-line run adds each rule's guidance once, under its first finding. #14 adds a concise
+human renderer over the same value, retaining a detailed text view and complete JSON. Because
+the canonical codec includes rendered text, treat any canonical rendering change as a reviewed
+producer/schema compatibility change; do not silently invalidate existing transport consumers
+(the agent-first text and fields moved results to schema 3).
 
 ### Snapshot lifecycle
 

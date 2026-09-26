@@ -100,7 +100,7 @@ def proseLinks (text : String) : List String :=
 
 /-- Every repository path a guide links or cites. -/
 def Guide.repositoryPaths (g : Guide) : List String :=
-  g.sources ++ ([g.problem, g.action, g.correction] ++ g.trigger ++ g.rationale ++ g.fixes ++
+  g.sources ++ ([g.problem] ++ g.trigger ++ g.rationaleDetail ++
     g.proofShape ++ g.established ++ g.notEstablished ++ g.configuration ++ g.limitations).flatMap proseLinks
 
 /-! ## HTML fragments (all data escaped) -/
@@ -284,9 +284,9 @@ def residualText : Residual → String
 def ruleSections (ident : Identity) (id : RuleId) (g : Guide) (ex : String)
     (clauses : List Clause) : List (String × String × String) := [
   ("What triggers it", "trigger", paragraphs ident g.trigger),
-  ("Why it matters", "rationale", paragraphs ident g.rationale),
-  ("How to fix it", "fix", numbered ident g.fixes),
-  ("Checked example", "example", ex ++ "\n" ++ resolveProse ident g.correction ++ "\n\n"),
+  ("Why it matters", "rationale", paragraphs ident ((descriptor id).rationale :: g.rationaleDetail)),
+  ("How to fix it", "fix", numbered ident (descriptor id).rewrites),
+  ("Checked example", "example", ex ++ "\n" ++ resolveProse ident (descriptor id).examples.correction ++ "\n\n"),
   ("Required proof shape", "proof-shape", paragraphs ident g.proofShape),
   ("What a passing result establishes", "established",
     paragraphs ident g.established ++ "It does not establish:\n\n" ++ bullets ident g.notEstablished ++
@@ -335,7 +335,8 @@ def rulePage (ident : Identity) (id : RuleId) (clauses : List Clause) (ex : Exam
   return "import VersoManual\nimport RegulaSite\nopen Verso.Genre Manual RegulaSite\n\n#doc (Manual) \"" ++ title ++
     "\" =>\n%%%\ntag := \"" ++ id.spelling ++ "\"\nfile := \"" ++ id.spelling ++ "\"\nshortTitle := \"" ++ id.spelling ++
     "\"\nnumber := false\n%%%\n\n" ++ notice ++ "\n" ++
-    "**Problem.** " ++ resolveProse ident g.problem ++ "\n\n**Action.** " ++ resolveProse ident g.action ++ "\n\n" ++
+    "**Requirement.** " ++ resolveProse ident d.requirement ++ "\n\n**Problem.** " ++ resolveProse ident g.problem ++
+    "\n\n**Action.** " ++ resolveProse ident d.remedy ++ "\n\n" ++
     facts ++ "\n" ++
     String.join (sections.map fun (heading, suffix, body) => sectionHead id suffix heading ++ body)
 

@@ -1,6 +1,7 @@
 module
 
 public import RegulaCore.Rule
+public import RegulaCore.Feedback
 public import RegulaCore.Source
 public import Lean.Data.Lsp.Utf16
 
@@ -85,10 +86,6 @@ def makeDiagnostic (id : RuleId) (arguments : Payload id) (location : Location)
 
 abbrev Finding := (id : RuleId) × Diagnostic id
 
-/-- Development routes are explicit; this does not claim that a page is deployed. -/
-def helpUrl (id : RuleId) : String :=
-  "https://rbeauchamp.github.io/regula/dev/" ++ id.route
-
 /-- The subject and detail of a payload, rendered by `messageLine`. -/
 def argumentParts : (id : RuleId) → Payload id → String × String
   | .projectAxiom, a | .proofHole, a | .unknownAxiom, a | .compilerTrusting, a
@@ -99,15 +96,49 @@ def argumentParts : (id : RuleId) → Payload id → String × String
   | .admission, a | .fenceStructure, a | .positiveExample, a | .negativeExample, a
   | .trustedExample, a | .moduleDocumentation, a => (toString a.subject, a.detail)
 
-def Diagnostic.text {id : RuleId} (d : Diagnostic id) : String :=
+/-- Lean's position (one-based line, codepoint column) of the start of a source selection. -/
+def SourceLocation.startPosition (s : SourceLocation) : Position :=
+  s.val.snapshot.source.toFileMap.toPosition ⟨s.val.selection.start⟩
+
+/-- Where a finding is, as its message states it: `FILE:LINE:COLUMN` of the selection start
+for source (Lean's own message coordinates), otherwise the module or project scope. -/
+def Location.text : Location → String
+  | .source s => s!"{s.val.snapshot.uri}:{s.startPosition.line}:{s.startPosition.column}"
+  | .module n => s!"module {n}"
+  | .project p => s!"project/configuration {p}"
+
+/-- The ordering place of a location (`Feedback.Place`). -/
+def Location.place : Location → Feedback.Place
+  | .source s => .source s.val.snapshot.uri s.val.selection.start
+  | .module n => .module n.toString
+  | .project p => .project p
+
+/-- What is wrong and where: the finding's `messageLine`. -/
+def Diagnostic.message {id : RuleId} (d : Diagnostic id) : String :=
   let impact := if d.impact == .violation then "violation" else "incomplete"
-  let scope := match d.location with
-    | .source s => s.val.snapshot.uri
-    | .module n => s!"module {n}"
-    | .project p => s!"project/configuration {p}"
   let (subject, detail) := argumentParts id d.arguments
-  messageLine id impact d.mode.spelling (d.claim.getD "classification-only") scope subject detail ++
-    "\n" ++ helpUrl id
+  messageLine id impact d.mode.spelling (d.claim.getD "classification-only") d.location.text subject detail
+
+/-- A finding's complete text on its own (`Feedback.standalone`): what and where, the rule's
+remedy, and the rule page and offline `lake exe regula explain` command. -/
+def Diagnostic.text {id : RuleId} (d : Diagnostic id) : String :=
+  Feedback.standalone id d.message
+
+/-- The finding as an entry of a run's rendering (`Feedback.render`). -/
+def Finding.entry (f : Finding) : Feedback.Entry := ⟨f.1, f.2.location.place, f.2.message⟩
+
+/-- A run's findings in run order: the order `Feedback.sortEntries` gives their entries. -/
+def sortFindings (fs : List Finding) : List Finding :=
+  fs.mergeSort fun a b => Feedback.Entry.le a.entry b.entry
+
+/-- Findings are reported in exactly the order their text is printed. -/
+theorem sortFindings_entries (fs : List Finding) :
+    (sortFindings fs).map Finding.entry = Feedback.sortEntries (fs.map Finding.entry) :=
+  List.map_mergeSort (fun _ _ _ _ => rfl)
+
+/-- Every finding is reported exactly once. -/
+theorem sortFindings_perm (fs : List Finding) : List.Perm (sortFindings fs) fs :=
+  List.mergeSort_perm _ _
 
 /-- Native logging consumes the same typed diagnostic and genuine selection span. -/
 def Diagnostic.nativeMessage {id : RuleId} (d : Diagnostic id) : Except String Message := do

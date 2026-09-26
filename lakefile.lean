@@ -39,11 +39,18 @@ lean_lib «RegulaQualification» where
   -- Pure, proof-backed observation contracts; no process or filesystem drivers.
   globs := #[.submodules `RegulaQualification]
 
+-- The checked rule-example corpus. `RegulaCore.Rule` embeds each rule's compliant and
+-- noncompliant example files, so `RegulaCore` needs this directory as a traced input.
+input_dir ruleExampleSources where
+  path := "examples/rules"
+  text := true
+
 @[default_target]
 lean_lib «RegulaCore» where
   -- The rule registry and the pure checker projections of policy decisions that the
   -- operational checker executes; claimed, so the gate audits their declarations.
   globs := #[.submodules `RegulaCore]
+  needs := #[`@/ruleExampleSources]
 
 lean_lib «Regula» where
   -- Lean-only checker implementation. Operational checker modules are
@@ -87,6 +94,10 @@ lean_exe «intentScreen» where
   -- offline acceptance; it calls a network service only when explicitly run.
   root := `Regula.Screen.Main
   supportInterpreter := true
+
+lean_exe «regula» where
+  -- Offline rule guidance: `explain <RULE-ID>`, `rules`, `agent-guide`, `skill`.
+  root := `Regula.Cli.Main
 
 lean_exe «site» where
   -- Rule-reference site builder: generates, renders, assembles and checks the Pages artifact.

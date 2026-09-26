@@ -13,8 +13,8 @@ Nothing on a rule page is a hand-maintained copy of the linter. Each part has on
 
 | Content | Owner | How it reaches the page |
 | --- | --- | --- |
-| Rule identity, title, category, scope, subreason, modes, availability, lifecycle, message form, clauses, route, help URL | [`RegulaCore.Rule`](../../lean/RegulaCore/Rule.lean) (`descriptor`, closed `RuleId`) | Projected by the page constructors; the index iterates `RuleId.all`. |
-| Explanation sections (problem, action, trigger, rationale, fixes, proof shape, established and not established, configuration, limitations, correction, residual obligations, checklist rows, sources) | [`RegulaCore.Guide`](../../lean/RegulaCore/Guide.lean) (`guide`, one exhaustive definition over `RuleId`) | Rendered in a fixed section order. A new rule without an explanation does not compile. |
+| Rule identity, title, category, scope, subreason, modes, availability, lifecycle, message form, clauses, route, help URL, and the agent-facing requirement, rationale, remedy (action), rewrites (how to fix it) and example correction that every finding and `lake exe regula` also print | [`RegulaCore.Rule`](../../lean/RegulaCore/Rule.lean) (`descriptor`, closed `RuleId`) | Projected by the page constructors; the index iterates `RuleId.all`. |
+| Explanation sections (problem, trigger, further rationale, proof shape, established and not established, configuration, limitations, residual obligations, checklist rows, sources) | [`RegulaCore.Guide`](../../lean/RegulaCore/Guide.lean) (`guide`, one exhaustive definition over `RuleId`) | Rendered in a fixed section order. A new rule without an explanation does not compile. |
 | Violating and corrected inputs, findings, statuses | [`examples/rules/<ID>/`](../../examples/rules/) and [`corpus.json`](../../examples/rules/corpus.json), run by the rule-example campaign | The builder reads the campaign's exports for the same commit and renders the recorded bytes and findings. |
 | Open review obligations and trusted mechanisms | Each rule's `residuals` in `Guide` (the obligations [rule-coverage.md](rule-coverage.md) associates with it), typed as the checker's `Residual`; `Residual.all` and `Trusted` from [`RegulaCore.Account`](../../lean/RegulaCore/Account.lean) | Every page also states that each accepted result lists all residual obligations as open. The per-rule selection is reviewed, not derived. |
 | Page construction, escaping, filters, diffs, link checking | [`RegulaCore.Site`](../../lean/RegulaCore/Site.lean), [`SitePage`](../../lean/RegulaCore/SitePage.lean), [`SiteDocs`](../../lean/RegulaCore/SiteDocs.lean) (claimed, proved) | Pure functions the builder executes. |
@@ -234,8 +234,10 @@ delivery evidence of the change that measured them; they are observations, not g
 
 A rule change touches its semantics, metadata, examples and explanation together, in one PR:
 
-1. Registry: `descriptor` in `RegulaCore/Rule.lean`. Never change an ID's meaning; add an ID and
-   retire the old one.
+1. Registry: `descriptor` in `RegulaCore/Rule.lean`, including its requirement, rationale,
+   remedy, rewrites and example pair. Never change an ID's meaning; add an ID and retire the
+   old one. Regenerate the dogfooded skill with
+   `lake exe regula skill > .agents/skills/regula/SKILL.md`; acceptance refuses a stale one.
 2. Explanation: the rule's case of `guide` in `RegulaCore/Guide.lean`. Keep every statement no
    stronger than the detector and the standard; `@repo/PATH` links name repository files.
 3. Examples: `examples/rules/<ID>/` and its `corpus.json` entry ([rule examples](rule-examples.md)).

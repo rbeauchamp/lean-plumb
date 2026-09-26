@@ -3,6 +3,7 @@ import RegulaPolicy.Pattern
 import Regula.Checker.SourceAudit
 import Regula.Checker.Lake
 import Regula.Checker.RuleDiagnostics
+import Regula.Checker.RunFeedback
 import RegulaCore.Account
 
 /-!
@@ -685,7 +686,7 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
         IO.println s!"[X] {problem}"
         let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .fenceStructure docsRoot.toString
           problem .documentationExample .violation
-        IO.println finding.2.text
+        RunFeedback.emit IO.println finding
         emit finding
       for result in results.qsort fun left right => left.task.origin < right.task.origin do
         let mark := match result.status with
@@ -702,12 +703,12 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
             | .positive => .positiveExample | .negative => .negativeExample | .trusted => .trustedExample
           let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding id result.task.origin
             result.detail .documentationExample (if result.incomplete then .incomplete else .violation)
-          IO.println finding.2.text
+          RunFeedback.emit IO.println finding
           emit finding
           if let some failure := result.admissionFailure then
             let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .admission result.task.origin
               failure.detail .documentationExample .incomplete
-            IO.println finding.2.text
+            RunFeedback.emit IO.println finding
             emit finding
           for (rule, decl) in result.policyProblems do
             -- Ranges are relative to the exact verbatim snippet, explicitly a virtual source.
@@ -718,7 +719,7 @@ unsafe def auditBuiltProject (repo docsRoot : FilePath) (inventory : Lake.Surfac
             let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding rule
               (← IO.ofExcept <| RuleDiagnostics.declarationName decl) result.detail location
               .documentationExample (some (if result.task.kind == .trusted then "compiler-trusting" else "standard-logical"))
-            IO.println finding.2.text
+            RunFeedback.emit IO.println finding
             emit finding
       let positivePass := (results.filter (·.status == .pass)).size
       let negativePass := (results.filter (·.status == .passNegative)).size

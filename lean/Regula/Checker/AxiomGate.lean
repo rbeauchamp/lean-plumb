@@ -6,6 +6,8 @@ import Regula.Checker.SourceAudit
 import Regula.Checker.Diagnostics
 import Regula.Checker.Documentation
 import Regula.Checker.ResultProtocol
+import Regula.Checker.RunFeedback
+import Regula.DiagnosticCodec
 import RegulaCore.Lint
 import Regula.Website
 
@@ -262,7 +264,7 @@ private def reportContextFailure (id : Regula.RuleId) (scope : String)
     (sources : Array ProducerReport.SourceBinding := #[]) : IO Unit := do
   composed.set none
   let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding id scope detail mode impact
-  IO.println finding.2.text
+  RunFeedback.emit IO.println finding
   recordStatus (if impact == .violation then .rejected else .incomplete) #[finding]
   if let some output := resultOut then
     let captured ← capturedSourceAccount resultOut sources
@@ -692,7 +694,7 @@ private unsafe def auditSurfaceAt (repo manifestPath : FilePath)
         else
           ResultProtocol.write output resultScope (if fresh then .freshProject else .incrementalProject)
             status findings unresolved
-      for finding in findings do IO.println finding.2.text
+      RunFeedback.emitAll IO.println findings
       if !failures.isEmpty then
         IO.println s!"\nFAIL: {failures.size} violation(s)"
         for failure in failures do
@@ -781,8 +783,12 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       let value ← IO.ofExcept <| Regula.Checker.PolicyCodec.parse (← IO.FS.readFile output)
       let scope ← IO.ofExcept (value.getObjVal? "scope")
       let previous ← IO.ofExcept <| (← IO.ofExcept (value.getObjVal? "diagnostics")).getArr?
-      let value := value.setObjVal! "diagnostics" (toJson (previous ++ docs.map Regula.RegistryCodec.diagnosticJson))
+      let previous ← IO.ofExcept <| previous.mapM Regula.DiagnosticCodec.parseDiagnostic
+      let all := Regula.sortFindings (previous ++ docs).toList
+      let value := value.setObjVal! "diagnostics" (toJson (all.map Regula.RegistryCodec.diagnosticJson))
       let value := value.setObjVal! "status" (.str status.spelling)
+      let value := ResultProtocol.guidanceFields status.spelling (all.map (·.1))
+        |>.foldl (fun value (key, field) => value.setObjVal! key field) value
       let value := value.setObjVal! "scope" (scope.setObjVal! "documentation" (.str (repo / "docs").toString))
       let value := value.setObjVal! "unresolved" (toJson (if combined.isSome then (#[] : Array String)
         else #["documentation requirements failed; see emitted diagnostics"]))
@@ -888,7 +894,6 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                 let finding ← IO.ofExcept <| RuleDiagnostics.declarationFinding id (← IO.ofExcept (RuleDiagnostics.declarationName decl))
                   classification location .freshFile (claim.map Profile.toString)
                 findings := findings.push finding
-                IO.println finding.2.text
             let executionInventory ← IO.ofExcept <| Policy.admitExecution inspected.report.execution
             let executionViolations := Policy.executionFailures executionInventory execution
             for failure in Policy.executionFailureRecords executionInventory execution do
@@ -897,7 +902,7 @@ private unsafe def auditFile (repo path : FilePath) (claim : Option Profile)
                 | none => pure (Regula.Location.module failure.root.module)
               let finding ← IO.ofExcept <| RuleDiagnostics.executionFinding failure location .freshFile execution
               findings := findings.push finding
-              IO.println finding.2.text
+            RunFeedback.emitAll IO.println findings
             let summary := Policy.executionSummary executionInventory
             IO.println <| s!"execution coverage [claim: {execution}]: {summary.roots} root(s), " ++
               s!"{summary.boundaries} boundary(ies) ({summary.checked} checked, {summary.trusted} trusted), " ++
@@ -999,7 +1004,8 @@ def invalidateResults (args : List String) : IO Unit := do
     writeJson path (Json.mkObj (ResultProtocol.identityFields ++ [
       ("scope", Json.null), ("mode", Json.null), ("status", .str "incomplete"),
       ("diagnostics", toJson (#[] : Array Json)),
-      ("unresolved", toJson #["configuration has not been validated"])]))
+      ("unresolved", toJson #["configuration has not been validated"])] ++
+      ResultProtocol.guidanceFields "incomplete" []))
   -- Absolute destinations do not depend on project configuration being valid.
   for path in destinations.filter (·.isAbsolute) do invalidate path
   let relative := destinations.filter (!·.isAbsolute)
@@ -1012,6 +1018,7 @@ def invalidateResults (args : List String) : IO Unit := do
 
 unsafe def run (args : List String) : IO UInt32 := do
   terminalObservation.set none
+  RunFeedback.reset
   invalidateResults args
   if let ["--validate-site", registryPath, artifactPath] := args then
     let registry ← IO.ofExcept <| Regula.Checker.PolicyCodec.parse (← IO.FS.readFile registryPath)
@@ -1114,7 +1121,7 @@ unsafe def run (args : List String) : IO UInt32 := do
     let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding
       (if configError then .configuration else .environment) repo.toString
       error.toString mode (if configError then .violation else .incomplete)
-    IO.eprintln finding.2.text
+    RunFeedback.emit IO.eprintln finding
     recordStatus (if configError then .rejected else .incomplete) #[finding]
     if let some output := resultOut then
       let captured ← capturedSourceAccount resultOut (← capturedSources.get)

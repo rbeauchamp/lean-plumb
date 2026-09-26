@@ -2,6 +2,7 @@ import Regula.DiagnosticCodec
 import Regula.Checker.ResultProtocol
 import Regula.Checker.SourceAudit
 import Regula.Website
+import RegulaCore.Guidance
 
 /-! Focused transport and source-boundary qualification for CATALOG-01.
 Universal identity/name laws are theorems, not inferred from these controls.
@@ -12,7 +13,8 @@ open Lean Regula Regula.RegistryCodec
 run_cmd do
   for name in #[``RuleId.parse_spelling, ``RuleId.spelling_injective, ``RuleId.mem_all,
       ``RuleId.all_nodup, ``RuleId.route_injective, ``mode_roundtrip, ``rule_roundtrip,
-      ``nameParts_roundtrip, ``name_roundtrip] do
+      ``nameParts_roundtrip, ``name_roundtrip, ``mem_firedRules, ``firedRules_nodup,
+      ``Regula.sortFindings_entries, ``Regula.sortFindings_perm] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "registry theorem {name} exceeds Standard-Logical: {axioms}"
@@ -35,8 +37,18 @@ def main : IO Unit := do
       s!"unknown field {id}"
   require (!succeeded (parseRule (.str "RG9999"))) "unknown rule"
   require (!succeeded (parseMode "fresh")) "unknown mode"
-  require (!succeeded (validateRegistry producer (manifest.setObjVal! "schemaVersion" (toJson (2 : Nat)))))
-    "unsupported registry version"
+  require (!succeeded (validateRegistry producer (manifest.setObjVal! "schemaVersion" (toJson (1 : Nat)))))
+    "superseded registry version"
+  -- The embedded example pairs are exactly the corpus files the rule-example campaign runs:
+  -- this rejects a stale build and an `include_str` of the wrong file.
+  for id in RuleId.all do
+    let e := (descriptor id).examples
+    require ((← IO.FS.readFile (e.compliantPath id)) == e.compliant) s!"{id} compliant example is {e.compliantPath id}"
+    require ((← IO.FS.readFile (e.noncompliantPath id)) == e.noncompliant)
+      s!"{id} noncompliant example is {e.noncompliantPath id}"
+  -- The committed agent skill is the generated briefing of this build.
+  require ((← IO.FS.readFile ".agents/skills/regula/SKILL.md") == Regula.Guidance.skill)
+    "committed .agents/skills/regula/SKILL.md is current (regenerate with `lake exe regula skill`)"
   require (!succeeded (validateRegistry producer (manifest.setObjVal! "sourceRevision" (.str "stale"))))
     "stale revision"
   require (!succeeded (validateRegistry producer (manifest.setObjVal! "rules" (toJson [descriptorJson .projectAxiom, descriptorJson .projectAxiom]))))
@@ -61,6 +73,14 @@ def main : IO Unit := do
   let d ← IO.ofExcept <| makeDiagnostic .projectAxiom ⟨name, "project-axiom"⟩
     (.source source) .freshFile (some "standard-logical") .violation
   let json := diagnosticJson ⟨.projectAxiom, d⟩
+  let envelope := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshFile .rejected
+    #[⟨.projectAxiom, d⟩, ⟨.projectAxiom, d⟩] #[]
+  let admit := Regula.Checker.ResultProtocol.admitGuidance
+  require (succeeded (admit envelope)) "result guidance admission"
+  require (!succeeded (admit (envelope.setObjVal! "rules" (toJson ([] : List Json))))) "missing rule guidance"
+  require (!succeeded (admit (envelope.setObjVal! "complete" (.bool false)))) "wrong completeness"
+  require (!succeeded (admit (envelope.setObjVal! "schemaVersion" (toJson (2 : Nat))))) "superseded result schema"
+  require (!succeeded (DiagnosticCodec.parseDiagnostic (json.setObjVal! "remedy" (.str "stale")))) "stale remedy"
   let parsed ← IO.ofExcept <| DiagnosticCodec.parseDiagnostic json
   require (diagnosticJson parsed == json) "diagnostic transport control"
   require (!succeeded (DiagnosticCodec.parseDiagnostic (json.setObjVal! "extra" .null))) "unknown diagnostic field"

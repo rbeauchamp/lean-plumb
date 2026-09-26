@@ -51,10 +51,24 @@ private def evidenceText : EvidenceKind → String
   | .fenceGrammar => "fenceGrammar" | .checkedExample => "checkedExample"
   | .metadataPresence => "metadataPresence"
 
+private def languageText : ExampleLanguage → String
+  | .lean => "lean" | .json => "json" | .markdown => "markdown"
+
+/-- A rule's checked example pair with its derived repository paths. -/
+def examplesJson (id : RuleId) : Json :=
+  let e := (descriptor id).examples
+  Json.mkObj [
+    ("language", toJson (languageText e.language)),
+    ("compliant", Json.mkObj [("path", toJson (e.compliantPath id)), ("text", toJson e.compliant)]),
+    ("noncompliant", Json.mkObj [("path", toJson (e.noncompliantPath id)), ("text", toJson e.noncompliant)]),
+    ("correction", toJson e.correction)]
+
 def descriptorJson (id : RuleId) : Json :=
   let d := descriptor id
   Json.mkObj [
     ("id", ruleJson id), ("title", toJson d.title),
+    ("requirement", toJson d.requirement), ("rationale", toJson d.rationale),
+    ("remedy", toJson d.remedy), ("rewrites", toJson d.rewrites), ("examples", examplesJson id),
     ("category", toJson (categoryText d.category)),
     ("scope", toJson (scopeText d.scope)), ("evidenceKind", toJson (evidenceText d.evidenceKind)),
     ("normativeClauses", toJson d.normativeClauses),
@@ -95,8 +109,12 @@ def identityFields (p : ProducerIdentity) (schemaVersion : Nat := 1) : List (Str
   ("schemaVersion", toJson schemaVersion), ("producerVersion", toJson p.producerVersion),
   ("toolchain", toJson p.toolchain), ("sourceRevision", toJson p.sourceRevision)]
 
+/-- Registry schema 2 adds each rule's requirement, rationale, remedy, rewrites and checked
+example pair to schema 1. -/
+def registrySchemaVersion : Nat := 2
+
 def registryJson (p : ProducerIdentity) : Json :=
-  Json.mkObj (identityFields p ++ [("rules", toJson (RuleId.all.map descriptorJson))])
+  Json.mkObj (identityFields p registrySchemaVersion ++ [("rules", toJson (RuleId.all.map descriptorJson))])
 
 /-- A manifest is accepted only if it is exactly the current closed registry and identity.
 Array ordering is canonical; duplicate, omitted, extra and stale records all fail. -/
@@ -137,7 +155,31 @@ def diagnosticJson (f : Finding) : Json :=
     ("mode", toJson (modeText d.mode)), ("claim", toJson d.claim),
     ("impact", .str (if d.impact == .violation then "violation" else "incomplete")),
     ("severity", toJson d.severity.spelling),
-    ("text", toJson d.text), ("helpUrl", toJson (helpUrl id))]
+    ("text", toJson d.text), ("remedy", toJson (descriptor id).remedy), ("helpUrl", toJson (helpUrl id))]
+
+/-- The guidance of one rule that fired in a run: what a consumer needs to comply without the
+website. -/
+def guidanceJson (id : RuleId) : Json :=
+  let d := descriptor id
+  Json.mkObj [
+    ("id", ruleJson id), ("title", toJson d.title), ("requirement", toJson d.requirement),
+    ("rationale", toJson d.rationale), ("remedy", toJson d.remedy), ("rewrites", toJson d.rewrites),
+    ("compliantExample", Json.mkObj [("path", toJson (d.examples.compliantPath id)),
+      ("language", toJson (languageText d.examples.language)), ("text", toJson d.examples.compliant)]),
+    ("helpUrl", toJson (helpUrl id)), ("explain", toJson (Feedback.explainCommand id))]
+
+/-- The rules among `ids`, each once, in registry order. -/
+def firedRules (ids : List RuleId) : List RuleId := RuleId.all.filter (· ∈ ids)
+
+/-- Every rule that fired receives exactly one entry. -/
+theorem mem_firedRules (ids : List RuleId) (id : RuleId) : id ∈ firedRules ids ↔ id ∈ ids := by
+  simp [firedRules, RuleId.mem_all]
+
+theorem firedRules_nodup (ids : List RuleId) : (firedRules ids).Nodup :=
+  RuleId.all_nodup.filter _
+
+/-- The `rules` member of a result: the guidance of every rule that fired, once each. -/
+def rulesJson (ids : List RuleId) : Json := toJson ((firedRules ids).map guidanceJson)
 
 /-- Website artifact admission uses actual produced pages, not descriptors pretending to be pages. -/
 structure Page where

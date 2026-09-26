@@ -71,10 +71,14 @@ run is not full-standard conformance.
 
 Each rule's fixtures are the files in `examples/rules/<ID>/`: a `Violation` and a `Fixed`
 source, or an unchanged `Example.lean` with a changed dependency (RG1003) or configuration
-(RG2001, RG2002) pair. What each correction preserves and changes is the `correction` field of
-the rule's explanation in [`RegulaCore.Guide`](../../lean/RegulaCore/Guide.lean), rendered with the
-exact inputs, findings and diff on the rule's [reference page](website.md). Keep that field and
-the fixtures in the same change.
+(RG2001, RG2002) pair. The registry embeds each rule's `Fixed` and `Violation` bytes as its
+checked compliant and noncompliant examples (`examples` of `descriptor` in
+[`RegulaCore.Rule`](../../lean/RegulaCore/Rule.lean), by `include_str`; the `RegulaCore` library
+`needs` this directory, and `RegistryChecks` refuses any mismatch), so the first finding of a
+rule, `lake exe regula`, the agent briefing and the rule page all show exactly these files.
+What each correction preserves and changes is the pair's `correction` sentence, rendered with
+the exact inputs, findings and diff on the rule's [reference page](website.md). Keep that
+sentence and the fixtures in the same change.
 
 ## Authoring and export contract
 

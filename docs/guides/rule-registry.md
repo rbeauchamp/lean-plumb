@@ -19,7 +19,21 @@ missing entries silently disappear.
 A descriptor supplies title, category, scope, evidence kind, normative clauses, applicability
 identifier, strict default, supported evidence modes,
 implementation availability, lifecycle and attribution. The message form is not a field: it is
-`messageForm id`, the same `messageLine` the checker renders. `existingChecker`
+`messageForm id`, the same `messageLine` the checker renders.
+
+Every descriptor also carries the agent-facing guidance, with no defaults, so a rule without
+it does not compile: a one-line `requirement`, a short `rationale`, a one-line imperative
+`remedy`, the common compliant `rewrites` (at least one, `descriptor_rewrites_nonempty`) and
+the checked `examples` pair. The pair is the exact bytes of the corpus files
+`examples/rules/<ID>/Fixed.<ext>` and `Violation.<ext>`, embedded with `include_str`, with
+the `correction` sentence; the `RegulaCore` library `needs` the corpus directory as a Lake
+input, so editing an example rebuilds the registry, and `RegistryChecks` rereads every file
+and refuses a mismatch. `RuleDescriptor.wellFormed` (nonempty fields within byte budgets,
+one-line requirement and remedy, distinct examples) is checked for every rule when
+`RegulaCore.Guidance` builds, by compiled evaluation over the complete `RuleId.all`: kernel
+reduction of the long string literals costs seconds per field. Every finding
+(`RegulaCore.Feedback`), the `regula` command, the agent briefing, the registry and result
+exports and the website render these fields; none keeps its own copy. `existingChecker`
 means the named existing predicate has a checker implementation; it does not
 mean that every planned live editor adapter is complete.
 RG5001–RG5003 now have native metadata-presence observers. RG1001–RG1007
@@ -76,7 +90,8 @@ The report's `startUtf16` and `endUtf16` fields are zero-based **columns within 
 respective lines**, not absolute offsets. JSON source locations retain byte ranges
 and derived zero-based LSP ranges. Native messages use Lean codepoint positions.
 The same validated selection supplies both conversions. Text/native output also
-retains ID, impact, mode, claim, scope and help URL.
+retains ID, impact, mode, claim, scope, `FILE:LINE:COLUMN` of a source selection, the remedy
+and the help URL with the offline `lake exe regula explain` command.
 
 Filesystem paths remain native diagnostic filenames. Fence declaration diagnostics
 use explicitly labelled virtual snippet locations, with the exact verbatim snippet
@@ -105,7 +120,11 @@ lake exe axiomGate --with-docs --json-out tmp/result.json
 lake exe axiomGate --with-docs --legacy-json-out tmp/legacy-report.json
 ```
 
-`--json-out` now writes **result schema 2**. `--legacy-json-out` preserves the
+`--json-out` now writes **result schema 3**; schema 3 adds each diagnostic's `remedy`, the
+top-level `rules` (the guidance of every rule that fired, once each, in registry order) and
+`complete` (`status` is not `incomplete`), and lists diagnostics in run order
+(`Regula.sortFindings`). The [adoption guide](adoption.md#machine-readable-report) documents the
+fields for adopters. `--legacy-json-out` preserves the
 previous file/project report format, including its path-remapping behavior. The
 two options are mutually exclusive. Internal worker transport remains separately
 versioned by its existing protocol; the new structural-name field is internal
@@ -113,8 +132,8 @@ collection data and is removed from the legacy export. Manifest schema 2 is
 unchanged. No repository check or CI step consumes legacy output; registry CLI
 qualification exercises only its mutual exclusion with `--json-out`.
 
-Result schema 2 keeps result size proportional to the audited project rather than to
-its dependencies. Schema 1 serialized, inside `acceptance.snapshot.configuration.source`,
+Since schema 2, a result keeps its size proportional to the audited project rather than to
+its dependencies (schema 3's `rules` member adds at most one entry per registered rule). Schema 1 serialized, inside `acceptance.snapshot.configuration.source`,
 the captured text of every Lake dependency (for a one-theorem project requiring this
 package: all of Mathlib, about 110 MB of a 116 MB file) and listed every module of each
 imported environment. Schema 2 renders the snapshot with `ResultProtocol.snapshotJson`:
@@ -139,9 +158,13 @@ declarations, execution inventory from its owned roots, jobs and diagnostics, pl
 constant-size record per dependency; this is an argument from construction, not a
 theorem about serialized byte counts.
 
-Registry (schema 1) and result (schema 2) envelopes contain `schemaVersion`, `producerVersion`,
+Registry (schema 2, which adds each rule's guidance and example pair to schema 1) and result
+(schema 3) envelopes contain `schemaVersion`, `producerVersion`,
 `toolchain` and `sourceRevision`. Registry output contains the canonical `rules`.
-Result output contains `scope`, `mode`, `status`, `diagnostics` and `unresolved`.
+Result output contains `scope`, `mode`, `status`, `complete`, `diagnostics`, `rules` and
+`unresolved`. `ResultProtocol.admitGuidance` admits a result's agent members in the same
+style as a registry: every diagnostic decodes canonically, and `complete` and `rules` equal
+their derivation; the rule-example campaign applies it to every result it admits.
 The producer revision is captured when `ResultProtocol` is elaborated, with Git
 anchored to that source file's checker package directory, rather than reading an
 adopter's Git checkout. Unreleased working builds are explicitly
@@ -236,7 +259,27 @@ Standard-Logical. The empty-foundation results are `parse_spelling` and `all_nod
 listed results use `propext`, `Quot.sound` and `Classical.choice`. None uses a
 project axiom, hole or compiler-trusting proof axiom.
 
-`RegistryChecks` exhaustively checks the twenty-one canonical descriptors and exercises
+The run text is proved about the executed renderer `RegulaCore.Feedback`: every supplied
+finding is printed exactly once (`sortEntries_perm`, `render_length`), in run order
+(`sortEntries_sorted`), independently of detection order (`sortEntries_eq_of_perm`); a finding
+carries its rule's guidance exactly when no earlier finding has that rule (`tag_of_prefix`),
+so the rules with guidance are exactly the rules that fired, each once (`mem_firsts`,
+`firsts_nodup`), at most one block per registered rule whatever the number of findings
+(`firsts_length_le`). The checker's streaming emitter executes `Feedback.step`
+(`renderFrom_cons`), and the JSON lists diagnostics in the same order (`sortFindings_entries`).
+`RegulaCore.Guidance` proves that the agent briefing lists every rule exactly once
+(`writingSections_perm`) and that the `regula` command parser admits exactly its documented
+commands (`parseCommand_arguments`, `parseCommand_sound`). `descriptor_rewrites_nonempty` and
+`RuleId.spelling_of_parse` are empty-foundation; `Place.ext_key`, `tagFirst_fst`,
+`tagFirst_append`, `parseCommand_arguments`, `mem_firedRules` and `firedRules_nodup` use
+`propext`; `tag_of_prefix` uses `propext` and `Quot.sound`; the others use `propext`,
+`Quot.sound` and `Classical.choice`. These theorems concern the text as a function of the
+supplied findings: that the checker supplies every finding it established, and that the
+process writes the lines, are operational.
+
+`RegistryChecks` exhaustively checks the twenty-one canonical descriptors, that each embedded
+example equals its corpus file and that the committed `.agents/skills/regula/SKILL.md` is the
+generated briefing, and exercises
 malformed transport, missing/duplicate routes, unsupported modes, Unicode/CRLF
 coordinate boundaries, native/text agreement and incomplete negative outcomes.
 Those controls qualify operational boundaries; they are not sampled evidence for

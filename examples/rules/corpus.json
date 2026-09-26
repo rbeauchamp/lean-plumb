@@ -179,6 +179,54 @@
           "uri": "$SOURCE",
           "source": "$SOURCE_TEXT",
           "selectionRange": {
+            "startByte": 79,
+            "endByte": 84
+          },
+          "range": {
+            "startByte": 71,
+            "endByte": 120
+          },
+          "lspSelectionRange": {
+            "start": {
+              "line": 2,
+              "character": 8
+            },
+            "end": {
+              "line": 2,
+              "character": 13
+            }
+          },
+          "lspRange": {
+            "start": {
+              "line": 2,
+              "character": 0
+            },
+            "end": {
+              "line": 2,
+              "character": 49
+            }
+          },
+          "kind": "source"
+        },
+        "subject": {
+          "declaration": [
+            [
+              "str",
+              "equal"
+            ]
+          ]
+        },
+        "impact": "violation",
+        "claim": "kernel-only"
+      },
+      {
+        "id": "RG1004",
+        "subreason": "compiler-trusting",
+        "detailPattern": "compiler-trusting",
+        "location": {
+          "uri": "$SOURCE",
+          "source": "$SOURCE_TEXT",
+          "selectionRange": {
             "startByte": 107,
             "endByte": 120
           },
@@ -222,54 +270,6 @@
               "str",
               "_native"
             ],
-            [
-              "str",
-              "equal"
-            ]
-          ]
-        },
-        "impact": "violation",
-        "claim": "kernel-only"
-      },
-      {
-        "id": "RG1004",
-        "subreason": "compiler-trusting",
-        "detailPattern": "compiler-trusting",
-        "location": {
-          "uri": "$SOURCE",
-          "source": "$SOURCE_TEXT",
-          "selectionRange": {
-            "startByte": 79,
-            "endByte": 84
-          },
-          "range": {
-            "startByte": 71,
-            "endByte": 120
-          },
-          "lspSelectionRange": {
-            "start": {
-              "line": 2,
-              "character": 8
-            },
-            "end": {
-              "line": 2,
-              "character": 13
-            }
-          },
-          "lspRange": {
-            "start": {
-              "line": 2,
-              "character": 0
-            },
-            "end": {
-              "line": 2,
-              "character": 49
-            }
-          },
-          "kind": "source"
-        },
-        "subject": {
-          "declaration": [
             [
               "str",
               "equal"

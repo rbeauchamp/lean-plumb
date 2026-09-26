@@ -86,7 +86,7 @@ unsafe def run (args : List String) : IO UInt32 := do
     | .error failure =>
         let finding ← IO.ofExcept <| RuleDiagnostics.contextFinding .admission docsRoot.toString
           failure.detail .documentationExample .incomplete
-        IO.println finding.2.text
+        RunFeedback.emit IO.println finding
         return 1
 
 end Regula.Checker.DocFenceAudit

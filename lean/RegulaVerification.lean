@@ -96,6 +96,7 @@ def commands : Mode → List Command
         "+Regula.Checker.CheckerSelftest:olean", "+Regula.Checker.FreshChecker:olean",
         "+Regula.RegistryChecks:olean", "+Regula.Linter:olean", "+Regula.Checker.LintMain:olean",
         "+Regula.Checker.RuleExamples:olean", "+Regula.Checker.RuleExampleQualificationMain:olean",
+        "+Regula.Cli.Main:olean",
         -- Type-check, never run, the opt-in network intent screen (docs/guides/intent-screening.md).
         "+Regula.Screen.Main:olean"],
       lake #["env", "lean", "--run", "lean/Regula/RegistryChecks.lean"],

@@ -3,6 +3,7 @@ import RegulaCore.Account
 import Regula.Website
 import Regula.Checker.Producer
 import Regula.Checker.RuleDiagnostics
+import Regula.DiagnosticCodec
 
 /-! Versioned observation output and accepted-report rendering. JSON is display/transport
 of scoped evidence, never a deserializable proof or whole-standard conformance certificate.
@@ -12,11 +13,13 @@ open Lean
 
 abbrev producer := Regula.Checker.Producer.identity
 
-/-- Result schema 2 omits the frozen configuration and dependency text from the snapshot
-(`snapshotJson`: a clean dependency is identified by its pinned revision, a dirty one only
-by package and `dirty` status) and omits imported-environment module lists (`acceptedJson`,
-`ProducerReport.Environment.resultJson`). Schema 1 embedded them. -/
-def schemaVersion : Nat := 2
+/-- Result schema 3 adds, for agents, each diagnostic's `remedy`, the top-level `rules` (the
+guidance of every rule that fired, once each) and `complete` (the run reached a decision, that
+is its status is not `incomplete`). Schema 2 omitted the frozen configuration and dependency
+text from the snapshot (`snapshotJson`: a clean dependency is identified by its pinned
+revision, a dirty one only by package and `dirty` status) and imported-environment module
+lists (`acceptedJson`, `ProducerReport.Environment.resultJson`); schema 1 embedded them. -/
+def schemaVersion : Nat := 3
 
 /-- Envelope identity of every result file. -/
 def identityFields : List (String × Json) := RegistryCodec.identityFields producer schemaVersion
@@ -26,6 +29,16 @@ missing or incomplete evidence (`Account.Status.completed_accepted`). -/
 abbrev Status := Regula.Checker.Account.Status
 
 def statusText (status : Status) : String := status.spelling
+
+/-- The run reached a decision (accepted, rejected or classified) rather than stopping on
+missing evidence: its status is not `incomplete`. A rejection reports every finding of the
+stages it ran; stages after a configuration (RG2002) or failed-build refusal did not run. -/
+def complete (status : String) : Bool := status != "incomplete"
+
+/-- The agent guidance members of every result envelope, from its status and the rules of its
+diagnostics. -/
+def guidanceFields (status : String) (rules : List RuleId) : List (String × Json) :=
+  [("complete", .bool (complete status)), ("rules", RegistryCodec.rulesJson rules)]
 
 /-- Completed is scoped observation, never a synonym for whole-standard conformance. A
 completed envelope takes its mode from the status's account, not from `mode`. -/
@@ -37,8 +50,21 @@ def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
   Json.mkObj (identityFields ++ [
     ("scope", scope), ("mode", .str (RegistryCodec.modeText mode)),
     ("status", .str (statusText status)),
-    ("diagnostics", toJson (findings.map RegistryCodec.diagnosticJson)),
-    ("unresolved", toJson unresolved)])
+    ("diagnostics", toJson ((sortFindings findings.toList).map RegistryCodec.diagnosticJson)),
+    ("unresolved", toJson unresolved)] ++
+    guidanceFields (statusText status) (findings.toList.map (·.1)))
+
+/-- Admit a result envelope's agent members in the registry-export style: it has this schema
+version, every diagnostic decodes to its canonical indexed form (`DiagnosticCodec.parseDiagnostic`,
+which includes the finding's `remedy` and `text`), and `complete` and `rules` equal their
+derivation from the envelope's `status` and those diagnostics. -/
+def admitGuidance (j : Json) : Except String Unit := do
+  unless (j.getObjVal? "schemaVersion").toOption == some (toJson schemaVersion) do
+    throw "unsupported result schema"
+  let findings ← (← (← j.getObjVal? "diagnostics").getArr?).mapM DiagnosticCodec.parseDiagnostic
+  let status ← (← j.getObjVal? "status").getStr?
+  for (key, value) in guidanceFields status (findings.toList.map (·.1)) do
+    unless (← j.getObjVal? key) == value do throw s!"noncanonical result {key}"
 
 def requestJson (kind project subject : String) (claim execution : Option String)
     (configuration : Array (System.FilePath × Option String)) : Json :=

@@ -88,6 +88,10 @@
       "rationale": "Lake lint driver; its root module belongs to the excluded Regula library. It dispatches to the axiomGate project audit and classifies its exit; its exit classification is the claimed RegulaCore.Lint contract; qualified by the \u00a78.8 lint-driver campaign, not claimed as a conforming proof surface."
     },
     {
+      "executable": "regula",
+      "rationale": "Offline rule guidance printer (explain, rules, agent-guide, skill); its root module belongs to the excluded Regula library. Every text it prints, its command parser and their proofs are the claimed RegulaCore.Guidance and RegulaCore.Feedback definitions; the root only prints them and sets the exit code."
+    },
+    {
       "executable": "intentScreen",
       "rationale": "Opt-in probabilistic intent screen (docs/guides/intent-screening.md). Its root module belongs to the excluded Regula library; it calls an external judgment service only when explicitly run, is never part of offline acceptance, and its screened results are not conforming evidence. Its pure decisions are proved in the claimed RegulaPolicy.Screening and RegulaCore.Screening modules."
     }
