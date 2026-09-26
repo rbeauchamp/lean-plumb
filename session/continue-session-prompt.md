@@ -1,6 +1,6 @@
 Read `session/session-context.md` from your own verified worktree. Refresh current
 `origin/main`, the live GitHub Project 8 board and the issue you are working on
-(https://github.com/rbeauchamp/lean-plumb/issues), including its comments and native blockers.
+(https://github.com/rbeauchamp/regula/issues), including its comments and native blockers.
 
 The core Project 8 deliveries (#11–#15, #25) and the foundation work behind #43 are merged; issue
 #10's integrated qualification is recorded in

@@ -1,16 +1,16 @@
 # Lean CI precedents and limits
 
 These records explain why a technique was useful, not a latency promise for another
-project. Plumb's current policy is owned by [AGENTS.md](../../../../AGENTS.md)
+project. Regula's current policy is owned by [AGENTS.md](../../../../AGENTS.md)
 and [verify.sh](../../../../scripts/verify.sh). Consult their current contents rather
 than copying a historical budget from this file.
 
-## Plumb: distinguish decisions, scheduling and orchestration
+## Regula: distinguish decisions, scheduling and orchestration
 
 The [issue-13 CI and responsiveness record](../../../../session/evidence/issue-13-corpus-ci-responsiveness.md)
 binds the following observations to their exact revisions and commands.
 
-1. **Equivalent canonical-set decisions.** `PlumbPolicy/Collections.lean` proves
+1. **Equivalent canonical-set decisions.** `RegulaPolicy/Collections.lean` proves
    adjacent strict ordering equivalent to the existing normalization equality under its
    comparator hypotheses. `Domain.lean` installs those decisions for actual name/edge
    admission conditions. This removes sorting/deduplication from that decision without
@@ -40,12 +40,12 @@ binds the following observations to their exact revisions and commands.
 The corpus's displayed `detectorSeconds` brackets the fresh checker subprocess, including
 nested builds, fence compilation/import/admission and result serialization as applicable.
 Fixture setup, Python export and the subsequent qualifier are outside that timer.
-For example, PL4001's orphan-marker fixture also has a valid Lean fence: the documentation
+For example, RG4001's orphan-marker fixture also has a valid Lean fence: the documentation
 driver checks that fence before emitting its structural finding. Seconds for that complete
 invocation do not measure the scanner alone. The separate native-editor observations
 use already-live snapshots and provisioned imports, not fresh project admission.
 
-## Plumb: invocation-local Lake environment capture
+## Regula: invocation-local Lake environment capture
 
 The [launcher repair record](../../../../session/evidence/main-ci-launcher-repair.md)
 separates a post-merge 420s failure from an observed local overhead reduction. Repeated
@@ -60,7 +60,7 @@ functional results. Consult the repair record for platform qualification and rem
 delivery gates. Follow the actual post-merge main workflow:
 identical trees and green synthetic-merge checks did not establish main CI success.
 
-## Plumb: sequential diagnostic budgets and shared writes
+## Regula: sequential diagnostic budgets and shared writes
 
 The [issue7 diagnostic budget record](../../../../session/evidence/issue-7-diagnostic-budget.md)
 records the changed resource contract. At `0d2d6142192967f4873305cbf1ec5d8227607a36`,
@@ -82,17 +82,17 @@ A Python timeout that kills/waits its direct checker child alone does not establ
 that nested Lake/compiler descendants have stopped before scratch cleanup; an outer
 SIGKILL cannot execute user-space cleanup. The OS remains a trusted boundary.
 
-## Plumb: Veil scout for the corpus harness (2026-09-23)
+## Regula: Veil scout for the corpus harness (2026-09-23)
 
 On 2026-09-23, Veil ([verse-lab/veil](https://github.com/verse-lab/veil), main `517f2ba`)
 was evaluated for the rule-example corpus harness: producer window, joins, cleanup,
 final export and deadline kill. It found no protocol bug. It was not adopted: it pins
-Lean v4.32.0 against Plumb's v4.34.0 and is a pre-release (Veil 2.0). By default
+Lean v4.32.0 against Regula's v4.34.0 and is a pre-release (Veil 2.0). By default
 it closes SMT goals with `sorry` (`veil.smt.trust := true`; set it to `false` for kernel
 reconstruction). Its explicit-state model checker deduplicates states by a 64-bit hash
 and emits no certificate, so a clean run is testing, not proof. Its model has no checked
 link to the executed code. Direct theorems about the executed step function
-(`PlumbQualification.CorpusWindow`) took about 45 lines and 0.25s to check.
+(`RegulaQualification.CorpusWindow`) took about 45 lines and 0.25s to check.
 This is dated evidence for that harness, not a general verdict on Veil.
 
 ## Public Acorn: reusable work still needs exact ownership
@@ -115,7 +115,7 @@ These are observations of the combined delivered change, not isolated causal est
   reused compiler-loaded dependency regions across isolated executable environments and
   combined related audits in one environment. Each executable retained its own main;
   IR owners had to belong to that entry's serialized import closure, and shared regions
-  had to outlive their consumers. This is not permission to merge Plumb fence
+  had to outlive their consumers. This is not permission to merge Regula fence
   environments or weaken their ownership checks.
 - [4a727ace](https://github.com/rbeauchamp/acorn/commit/4a727ace81496a1acb417f6355e78de9760a1168)
   used standard Ubuntu x64 and separated pinned dependency provisioning from the cold

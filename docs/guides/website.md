@@ -1,8 +1,8 @@
 # Rule-reference website
 
-The rule reference at <https://rbeauchamp.github.io/lean-plumb/> explains every diagnostic the
-linter can emit. Each Plumb diagnostic ends with its rule's development URL
-`https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/` (the registry's `helpUrl`), and the
+The rule reference at <https://rbeauchamp.github.io/regula/> explains every diagnostic the
+linter can emit. Each Regula diagnostic ends with its rule's development URL
+`https://rbeauchamp.github.io/regula/dev/rules/<ID>/` (the registry's `helpUrl`), and the
 editor's **View explanation** link opens the same page. This guide covers where the site's
 content comes from, what its build establishes, how it is published, and how to change a rule.
 It is repository practice, not part of the normative standard.
@@ -13,14 +13,14 @@ Nothing on a rule page is a hand-maintained copy of the linter. Each part has on
 
 | Content | Owner | How it reaches the page |
 | --- | --- | --- |
-| Rule identity, title, category, scope, subreason, modes, availability, lifecycle, message form, clauses, route, help URL | [`PlumbCore.Rule`](../../lean/PlumbCore/Rule.lean) (`descriptor`, closed `RuleId`) | Projected by the page constructors; the index iterates `RuleId.all`. |
-| Explanation sections (problem, action, trigger, rationale, fixes, proof shape, established and not established, configuration, limitations, correction, residual obligations, checklist rows, sources) | [`PlumbCore.Guide`](../../lean/PlumbCore/Guide.lean) (`guide`, one exhaustive definition over `RuleId`) | Rendered in a fixed section order. A new rule without an explanation does not compile. |
+| Rule identity, title, category, scope, subreason, modes, availability, lifecycle, message form, clauses, route, help URL | [`RegulaCore.Rule`](../../lean/RegulaCore/Rule.lean) (`descriptor`, closed `RuleId`) | Projected by the page constructors; the index iterates `RuleId.all`. |
+| Explanation sections (problem, action, trigger, rationale, fixes, proof shape, established and not established, configuration, limitations, correction, residual obligations, checklist rows, sources) | [`RegulaCore.Guide`](../../lean/RegulaCore/Guide.lean) (`guide`, one exhaustive definition over `RuleId`) | Rendered in a fixed section order. A new rule without an explanation does not compile. |
 | Violating and corrected inputs, findings, statuses | [`examples/rules/<ID>/`](../../examples/rules/) and [`corpus.json`](../../examples/rules/corpus.json), run by the rule-example campaign | The builder reads the campaign's exports for the same commit and renders the recorded bytes and findings. |
-| Open review obligations and trusted mechanisms | Each rule's `residuals` in `Guide` (the obligations [rule-coverage.md](rule-coverage.md) associates with it), typed as the checker's `Residual`; `Residual.all` and `Trusted` from [`PlumbCore.Account`](../../lean/PlumbCore/Account.lean) | Every page also states that each accepted result lists all residual obligations as open. The per-rule selection is reviewed, not derived. |
-| Page construction, escaping, filters, diffs, link checking | [`PlumbCore.Site`](../../lean/PlumbCore/Site.lean), [`SitePage`](../../lean/PlumbCore/SitePage.lean), [`SiteDocs`](../../lean/PlumbCore/SiteDocs.lean) (claimed, proved) | Pure functions the builder executes. |
-| Evidence admission, generation, rendering, assembly, artifact check | [`Plumb.Site`](../../lean/Plumb/Site/) (`lake exe site`, operational) | Writes `website/Generated/`, runs Verso, writes `_site/`. |
-| Rendering and styles | [`website/`](../../website/): pinned Verso package, `PlumbSite` extension (raw-HTML block and CSS) | `website/Generated/` is generated and ignored by Git. |
-| Published revision snapshots | The append-only `site-archive` branch (`rev/<commit>/` directories only), read by [`Plumb.Site.Deployment`](../../lean/Plumb/Site/Deployment.lean) | Copied verbatim into every artifact. |
+| Open review obligations and trusted mechanisms | Each rule's `residuals` in `Guide` (the obligations [rule-coverage.md](rule-coverage.md) associates with it), typed as the checker's `Residual`; `Residual.all` and `Trusted` from [`RegulaCore.Account`](../../lean/RegulaCore/Account.lean) | Every page also states that each accepted result lists all residual obligations as open. The per-rule selection is reviewed, not derived. |
+| Page construction, escaping, filters, diffs, link checking | [`RegulaCore.Site`](../../lean/RegulaCore/Site.lean), [`SitePage`](../../lean/RegulaCore/SitePage.lean), [`SiteDocs`](../../lean/RegulaCore/SiteDocs.lean) (claimed, proved) | Pure functions the builder executes. |
+| Evidence admission, generation, rendering, assembly, artifact check | [`Regula.Site`](../../lean/Regula/Site/) (`lake exe site`, operational) | Writes `website/Generated/`, runs Verso, writes `_site/`. |
+| Rendering and styles | [`website/`](../../website/): pinned Verso package, `RegulaSite` extension (raw-HTML block and CSS) | `website/Generated/` is generated and ignored by Git. |
+| Published revision snapshots | The append-only `site-archive-regula` branch (`rev/<commit>/` directories only), read by [`Regula.Site.Deployment`](../../lean/Regula/Site/Deployment.lean) | Copied verbatim into every artifact. |
 | Publication | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `site`, `deploy-gate`, `archive`, `deploy` and `verify-deployment` jobs. |
 
 The normative standard stays in `docs/standard/`. Rule pages link each rule's registry clauses
@@ -43,7 +43,7 @@ fails and removes `_site/`:
   `pageFiles_nodup` and `mem_pageFiles` prove every rule has exactly one page route per edition
   and no two rules share one; `ruleModules_nodup` does the same for the generated Verso modules.
   The artifact check requires exactly the registry's rule directories, no more.
-- **Diagnostic links.** `Plumb.Site.Build.helpUrl_dev` proves the linter's emitted
+- **Diagnostic links.** `Regula.Site.Build.helpUrl_dev` proves the linter's emitted
   `helpUrl id` is the site's development route of `id` (kernel-checked when `lake exe site` is
   built; it lives in the excluded operational library), and the artifact check requires that
   page to exist for every rule, so every emitted help link names a page of the artifact.
@@ -58,7 +58,7 @@ fails and removes `_site/`:
 - **Links and base path.** Every `href` and `src` attribute the tokenizer finds in each
   HTML file of the artifact, archived snapshots included, is resolved against its page and `<base href>`, following RFC 3986 for
   schemes; `linkErrors_nil_iff` proves an empty result means each of those links reaches an
-  existing artifact file (and fragment) under `/lean-plumb/`. CSS and JavaScript files,
+  existing artifact file (and fragment) under `/regula/`. CSS and JavaScript files,
   `srcset` and `meta refresh` targets are not scanned. External links are not fetched.
 - **Registry validation.** The registry's own `axiomGate --validate-site` accepts the page
   inventory, the pages whose example content the check verified, each rule's advertised
@@ -97,14 +97,14 @@ lake exe cache get                                   # root setup (Mathlib artif
 
 Any change to a module source, the corpus or the Lake configuration makes earlier shard
 exports stale; the site build refuses them, so rerun both shards. The checker embeds its commit when
-`lean/Plumb/Checker/Producer.lean` is compiled, and Lake reuses that build after a new commit;
+`lean/Regula/Checker/Producer.lean` is compiled, and Lake reuses that build after a new commit;
 the site build then refuses the evidence as another commit's. Delete
-`.lake/build/lib/lean/Plumb/Checker/Producer.*` before rerunning the shards. CI builds fresh. A worktree with uncommitted
+`.lake/build/lib/lean/Regula/Checker/Producer.*` before rerunning the shards. CI builds fresh. A worktree with uncommitted
 changes produces a labelled local preview without its own `rev/` snapshot. Every build reads the
-site archive from `https://github.com/rbeauchamp/lean-plumb`, so it needs network access and
+site archive from `https://github.com/rbeauchamp/regula`, so it needs network access and
 includes every published snapshot. The artifact expects to be
-served at `/lean-plumb/`; any static file server works if `_site/` is mounted at that path
-(for example a directory containing only a `lean-plumb` link to `_site`).
+served at `/regula/`; any static file server works if `_site/` is mounted at that path
+(for example a directory containing only a `regula` link to `_site`).
 
 ## Publication
 
@@ -117,7 +117,7 @@ CI runs on every pull request and on `main`:
    the current site archive, and uploads the checked `_site/` as `site-<commit>` (preview) and,
    on `main`, as the Pages artifact. Pull requests never publish.
 4. `deploy-gate` (`main` only, after `verify` and `site`, unprivileged):
-   [`Plumb.Site.Deployment`](../../lean/Plumb/Site/Deployment.lean) `gate` refuses an artifact
+   [`Regula.Site.Deployment`](../../lean/Regula/Site/Deployment.lean) `gate` refuses an artifact
    built from uncommitted changes or from another commit, and a commit that is no longer the
    head of `main` (`git ls-remote`). It fetches the archive again and refuses unless the
    artifact's `rev/` snapshots are exactly the archived ones, byte for byte, plus this commit's,
@@ -125,10 +125,10 @@ CI runs on every pull request and on `main`:
    this commit's snapshot; an orphan commit for the first snapshot) as a Git bundle and reports
    the parent and the new commit as job outputs.
 5. `archive` (`contents: write`): applies the bundle to the fetched archive head and pushes
-   `site-archive` without force. It runs no provisioning or project code, only checkout,
+   `site-archive-regula` without force. It runs no provisioning or project code, only checkout,
    artifact download and `git`.
 6. `deploy`: dependency-free steps ask the GitHub API (default token, `contents: read`)
-   whether `site-archive` is the commit the gate wrote and whether this commit is still the head
+   whether `site-archive-regula` is the commit the gate wrote and whether this commit is still the head
    of `main`, and refuse otherwise; then `actions/deploy-pages` publishes exactly the validated
    artifact to the `github-pages` environment (which allows `main` only). Only this job has
    `pages: write` and `id-token: write`; only `archive` can write repository contents; the
@@ -154,7 +154,7 @@ fetch and execute (the Elan installer, Lake, the Mathlib cache tool, the checker
 the deploy job's OIDC token and deploy arbitrary content, or use the archive job's write token,
 so the Lean gate runs in the unprivileged `deploy-gate` job. The deploy job keeps only the
 runner's `gh` client and the pinned `deploy-pages` action; the archive job keeps checkout,
-artifact download and `git`, and can only fast-forward `site-archive`. Re-running an older run
+artifact download and `git`, and can only fast-forward `site-archive-regula`. Re-running an older run
 while a newer one is in progress cancels the newer run and then refuses the older revision, so
 nothing is published and the site stays on its previous deployment until the next push to
 `main`. The `site` job and the corpus shards are not yet required status checks (only `verify`
@@ -167,7 +167,7 @@ Actions are pinned by commit SHA.
 ## Retention
 
 Each deployment replaces the whole Pages site, so published `rev/<commit>/` snapshots are kept
-in the `site-archive` branch and copied into every later artifact. Invariant: **a published
+in the `site-archive-regula` branch and copied into every later artifact. Invariant: **a published
 snapshot is never dropped by a later deployment.** The argument:
 
 1. The archive is append-only: its only writer, the `archive` job, pushes without force, so a
@@ -189,9 +189,15 @@ residual window is the time between the deploy job's archive check and `deploy-p
 completing; within it only another run's `archive` job could write, and that run's own
 deployment waits for this one and then contains every snapshot. Rules 1 and 4 rest on GitHub
 (the workflow's non-force push and the concurrency group); a repository rule forbidding force
-pushes and deletion of `site-archive` would enforce rule 1 against every writer and is an
+pushes and deletion of `site-archive-regula` would enforce rule 1 against every writer and is an
 operator setting that is not yet configured. An unreachable archive fails the build and the
 gate; an absent branch is the empty archive.
+
+The invariant is per base path. As Plumb for Lean, the project published its snapshots under
+`/lean-plumb/`. Those snapshots stay unchanged in the `site-archive` branch, but nothing reads
+that branch: their absolute links name `/lean-plumb/` and the former `PL` rule IDs, so the link
+check would reject them under `/regula/`. After the repository rename, GitHub Pages answered the
+former path with HTTP 404 (observed once, 2026-09-26).
 
 The archive grows linearly with deployments to `main`: one snapshot is about 190 files and
 about 1.9 MB (an estimate for the current build, not a measurement of the archive), so
@@ -206,9 +212,9 @@ the documented meaning of their routes and needs a separate decision.
 
 | Route | Meaning |
 | --- | --- |
-| `/lean-plumb/dev/rules/<ID>/` | Latest successfully deployed `main`; the linter's help links. |
-| `/lean-plumb/rev/<commit>/rules/<ID>/` | Snapshot of a published commit, kept byte for byte by every later deployment (see [retention](#retention)). |
-| `/lean-plumb/v/<version>/rules/<ID>/` | Reserved for released packages. None exist. |
+| `/regula/dev/rules/<ID>/` | Latest successfully deployed `main`; the linter's help links. |
+| `/regula/rev/<commit>/rules/<ID>/` | Snapshot of a published commit, kept byte for byte by every later deployment (see [retention](#retention)). |
+| `/regula/v/<version>/rules/<ID>/` | Reserved for released packages. None exist. |
 | any other path | The not-available page (HTTP 404): it names the GitHub source of every revision and never redirects to the latest rules. |
 
 Rule IDs are never reused for a changed rule. A retired rule keeps a page (its `Lifecycle` says
@@ -228,9 +234,9 @@ delivery evidence of the change that measured them; they are observations, not g
 
 A rule change touches its semantics, metadata, examples and explanation together, in one PR:
 
-1. Registry: `descriptor` in `PlumbCore/Rule.lean`. Never change an ID's meaning; add an ID and
+1. Registry: `descriptor` in `RegulaCore/Rule.lean`. Never change an ID's meaning; add an ID and
    retire the old one.
-2. Explanation: the rule's case of `guide` in `PlumbCore/Guide.lean`. Keep every statement no
+2. Explanation: the rule's case of `guide` in `RegulaCore/Guide.lean`. Keep every statement no
    stronger than the detector and the standard; `@repo/PATH` links name repository files.
 3. Examples: `examples/rules/<ID>/` and its `corpus.json` entry ([rule examples](rule-examples.md)).
 4. Run both shards and `./scripts/verify.sh site`; open the affected pages in a browser at a
@@ -258,6 +264,6 @@ accounts or analytics.
 ## Credits and licenses
 
 The credits page is generated from `creditsPage` in
-[`PlumbCore.SiteDocs`](../../lean/PlumbCore/SiteDocs.lean); that definition owns the page's
+[`RegulaCore.SiteDocs`](../../lean/RegulaCore/SiteDocs.lean); that definition owns the page's
 text. The attribution and license account it summarizes is
 [design influences](design-influences.md).

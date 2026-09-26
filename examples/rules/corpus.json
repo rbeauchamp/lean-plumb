@@ -1,11 +1,11 @@
 {
-  "PL1001": {
+  "RG1001": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL1001",
+        "id": "RG1001",
         "subreason": "project-axiom",
         "detailPattern": "unknown-axiom",
         "location": {
@@ -54,13 +54,13 @@
       }
     ]
   },
-  "PL1002": {
+  "RG1002": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL1002",
+        "id": "RG1002",
         "subreason": "hole",
         "detailPattern": "hole",
         "location": {
@@ -110,13 +110,13 @@
     ],
     "claim": "standard-logical"
   },
-  "PL1003": {
+  "RG1003": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL1003",
+        "id": "RG1003",
         "subreason": "unknown-axiom",
         "detailPattern": "unknown-axiom",
         "location": {
@@ -166,13 +166,13 @@
     ],
     "source": "Example.lean"
   },
-  "PL1004": {
+  "RG1004": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL1004",
+        "id": "RG1004",
         "subreason": "compiler-trusting",
         "detailPattern": "compiler-trusting",
         "location": {
@@ -232,7 +232,7 @@
         "claim": "kernel-only"
       },
       {
-        "id": "PL1004",
+        "id": "RG1004",
         "subreason": "compiler-trusting",
         "detailPattern": "compiler-trusting",
         "location": {
@@ -281,13 +281,13 @@
       }
     ]
   },
-  "PL1005": {
+  "RG1005": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL1005",
+        "id": "RG1005",
         "subreason": "label-exceeds-claim",
         "detailPattern": "choice-free",
         "location": {
@@ -336,13 +336,13 @@
       }
     ]
   },
-  "PL1006": {
+  "RG1006": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL1006",
+        "id": "RG1006",
         "subreason": "escape-hatch",
         "detailPattern": "unsafe",
         "location": {
@@ -391,25 +391,25 @@
       }
     ]
   },
-  "PL1007": {
+  "RG1007": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL1007",
+        "id": "RG1007",
         "subreason": "executable-contract",
         "detailPattern": "registration must be closed",
         "location": {
           "uri": "$SOURCE",
           "source": "$SOURCE_TEXT",
           "selectionRange": {
-            "startByte": 131,
-            "endByte": 139
+            "startByte": 132,
+            "endByte": 140
           },
           "range": {
-            "startByte": 123,
-            "endByte": 227
+            "startByte": 124,
+            "endByte": 229
           },
           "lspSelectionRange": {
             "start": {
@@ -428,7 +428,7 @@
             },
             "end": {
               "line": 3,
-              "character": 100
+              "character": 101
             }
           },
           "kind": "source"
@@ -446,13 +446,13 @@
       }
     ]
   },
-  "PL2001": {
+  "RG2001": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "diagnosticDemonstration",
     "diagnostics": [
       {
-        "id": "PL2001",
+        "id": "RG2001",
         "subreason": "environment",
         "detailPattern": "lake-workspace-load-failed",
         "location": {
@@ -471,13 +471,13 @@
       "lake-workspace-load-failed"
     ]
   },
-  "PL2002": {
+  "RG2002": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL2002",
+        "id": "RG2002",
         "subreason": "configuration",
         "detailPattern": "manifest-schema:.*unknown key",
         "location": {
@@ -496,13 +496,13 @@
       "manifest-schema:.*unknown key"
     ]
   },
-  "PL2003": {
+  "RG2003": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL2003",
+        "id": "RG2003",
         "subreason": "source-build",
         "detailPattern": "Variable name `unused` is not explicitly referenced",
         "location": {
@@ -517,15 +517,15 @@
       }
     ]
   },
-  "PL2004": {
+  "RG2004": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL2004",
+        "id": "RG2004",
         "subreason": "coverage",
-        "detailPattern": "unexpected-project-module.*Plumb.Report",
+        "detailPattern": "unexpected-project-module.*Regula.Report",
         "location": {
           "kind": "project",
           "identity": "$PROJECT"
@@ -538,13 +538,13 @@
       }
     ]
   },
-  "PL2005": {
+  "RG2005": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "diagnosticDemonstration",
     "diagnostics": [
       {
-        "id": "PL2005",
+        "id": "RG2005",
         "subreason": "admission",
         "detailPattern": "kernel-admission",
         "location": {
@@ -559,13 +559,13 @@
       }
     ]
   },
-  "PL3001": {
+  "RG3001": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "diagnosticDemonstration",
     "diagnostics": [
       {
-        "id": "PL3001",
+        "id": "RG3001",
         "subreason": "execution-unresolved",
         "detailPattern": "replacement history unavailable.*unsupported replacement-history evaluators",
         "location": {
@@ -614,13 +614,13 @@
       }
     ]
   },
-  "PL3002": {
+  "RG3002": {
     "invocation": "file",
     "mode": "freshFile",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL3002",
+        "id": "RG3002",
         "subreason": "execution-trusted-boundary",
         "detailPattern": "identity reaches identity",
         "location": {
@@ -669,13 +669,13 @@
       }
     ]
   },
-  "PL4001": {
+  "RG4001": {
     "invocation": "documentation",
     "mode": "documentationExample",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL4001",
+        "id": "RG4001",
         "subreason": "fence-structure",
         "detailPattern": "marker is not immediately adjacent",
         "location": {
@@ -691,13 +691,13 @@
     ],
     "source": "{case}.md"
   },
-  "PL4002": {
+  "RG4002": {
     "invocation": "documentation",
     "mode": "documentationExample",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL4002",
+        "id": "RG4002",
         "subreason": "positive-example",
         "detailPattern": "project-axiom: reflexive",
         "location": {
@@ -711,7 +711,7 @@
         "claim": null
       },
       {
-        "id": "PL1001",
+        "id": "RG1001",
         "subreason": "project-axiom",
         "detailPattern": "project-axiom: reflexive",
         "location": {
@@ -766,13 +766,13 @@
       "Example.md:1"
     ]
   },
-  "PL4003": {
+  "RG4003": {
     "invocation": "documentation",
     "mode": "documentationExample",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL4003",
+        "id": "RG4003",
         "subreason": "negative-example",
         "detailPattern": "negative example elaborated successfully",
         "location": {
@@ -788,13 +788,13 @@
     ],
     "source": "{case}.md"
   },
-  "PL4004": {
+  "RG4004": {
     "invocation": "documentation",
     "mode": "documentationExample",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL4004",
+        "id": "RG4004",
         "subreason": "trusted-example",
         "detailPattern": "trusted marker found no compiler-trusting declaration",
         "location": {
@@ -810,13 +810,13 @@
     ],
     "source": "{case}.md"
   },
-  "PL5001": {
+  "RG5001": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL5001",
+        "id": "RG5001",
         "subreason": "module-documentation",
         "detailPattern": "module-documentation",
         "location": {
@@ -836,13 +836,13 @@
       }
     ]
   },
-  "PL5002": {
+  "RG5002": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL5002",
+        "id": "RG5002",
         "subreason": "material-documentation",
         "detailPattern": "material-documentation",
         "location": {
@@ -850,12 +850,12 @@
           "uri": "$SOURCE",
           "source": "$SOURCE_TEXT",
           "range": {
-            "startByte": 107,
-            "endByte": 167
+            "startByte": 108,
+            "endByte": 169
           },
           "selectionRange": {
-            "startByte": 133,
-            "endByte": 142
+            "startByte": 135,
+            "endByte": 144
           },
           "lspRange": {
             "start": {
@@ -864,17 +864,17 @@
             },
             "end": {
               "line": 2,
-              "character": 60
+              "character": 61
             }
           },
           "lspSelectionRange": {
             "start": {
               "line": 2,
-              "character": 26
+              "character": 27
             },
             "end": {
               "line": 2,
-              "character": 35
+              "character": 36
             }
           }
         },
@@ -891,13 +891,13 @@
       }
     ]
   },
-  "PL5003": {
+  "RG5003": {
     "invocation": "project",
     "mode": "freshProject",
     "kind": "policyRejection",
     "diagnostics": [
       {
-        "id": "PL5003",
+        "id": "RG5003",
         "subreason": "material-intent",
         "detailPattern": "material-intent",
         "location": {
@@ -905,12 +905,12 @@
           "uri": "$SOURCE",
           "source": "$SOURCE_TEXT",
           "range": {
-            "startByte": 107,
-            "endByte": 241
+            "startByte": 108,
+            "endByte": 243
           },
           "selectionRange": {
-            "startByte": 207,
-            "endByte": 216
+            "startByte": 209,
+            "endByte": 218
           },
           "lspRange": {
             "start": {
@@ -919,17 +919,17 @@
             },
             "end": {
               "line": 3,
-              "character": 60
+              "character": 61
             }
           },
           "lspSelectionRange": {
             "start": {
               "line": 3,
-              "character": 26
+              "character": 27
             },
             "end": {
               "line": 3,
-              "character": 35
+              "character": 36
             }
           }
         },

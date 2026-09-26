@@ -17,8 +17,7 @@ each step are in [docs/standard/8 §8.11](../standard/8-tooling-and-machine-audi
 
 ## 1. Require the checker package
 
-The repository is named `lean-plumb`, the Lake package is `plumb`, and
-imports use `Plumb.*`.
+The repository and the Lake package are both named `regula`, and imports use `Regula.*`.
 Use the repository URL below with those package and module identifiers.
 
 Pin the package to an exact revision. A git dependency and a local path resolve through the
@@ -27,16 +26,16 @@ same Lake workspace discovery; use whichever your project already uses for depen
 `lakefile.lean`:
 
 ```text
-require «plumb» from git
-  "https://github.com/rbeauchamp/lean-plumb" @ "<exact commit>"
+require «regula» from git
+  "https://github.com/rbeauchamp/regula" @ "<exact commit>"
 ```
 
 `lakefile.toml`:
 
 ```toml
 [[require]]
-name = "plumb"
-git = "https://github.com/rbeauchamp/lean-plumb"
+name = "regula"
+git = "https://github.com/rbeauchamp/regula"
 rev = "<exact commit>"
 ```
 
@@ -164,17 +163,17 @@ excluded module or owns a module outside every manifested library.
 
 ## 6. Enforce with `lake lint`, `lake build` and CI
 
-Configure the Plumb lint driver in your package. Both lakefile formats are qualified:
+Configure the Regula lint driver in your package. Both lakefile formats are qualified:
 
-- `lakefile.lean`: `package «my_project» where lintDriver := "plumb/lint"`
-- `lakefile.toml`: `lintDriver = "plumb/lint"` at the top level
+- `lakefile.lean`: `package «my_project» where lintDriver := "regula/lint"`
+- `lakefile.toml`: `lintDriver = "regula/lint"` at the top level
 
 Then, from the project root:
 
 ```sh
 lake lint                                  # incremental elaboration + current policy
 lake lint -- --fresh                       # isolated copy built from empty output
-lake lint -- --json-out tmp/plumb.json     # also write the schema-2 result
+lake lint -- --json-out tmp/regula.json     # also write the schema-2 result
 lake lint -- --explain-config              # read-only: manifest, scope, profiles, stages
 ```
 
@@ -182,9 +181,9 @@ The driver builds every manifested library and executable by its explicit Lake t
 inspects the completed environment. It re-evaluates current policy even when every module
 is cached, and it never invokes your default target. It runs the same audit body as
 `axiomGate`; it adds no second policy. Lake's lint dispatch builds only the driver, so the
-driver first builds the `plumb/axiomGate` executable that the audit runs as its worker, in
+driver first builds the `regula/axiomGate` executable that the audit runs as its worker, in
 the workspace where you ran `lake lint` (never the `--project` directory). That workspace
-built the driver itself, whether Plumb is a git dependency under `.lake/packages`, a path
+built the driver itself, whether Regula is a git dependency under `.lake/packages`, a path
 dependency or a custom `packagesDir`, so the worker uses the same dependencies and toolchain
 and needs no second dependency download. If that build fails, the run is `INCOMPLETE`.
 Run `lake lint` from the project root, without `-d`/`--dir`: Lake does not change the
@@ -194,33 +193,33 @@ working directory is outside any Lean project or its workspace fails to load. La
 passes the dispatching workspace's package library directories, then its own
 `LEAN_SYSROOT/lib/lean`, then any inherited `LEAN_PATH`, as the driver's `LEAN_PATH`; the
 driver requires the working-directory workspace's library directories and that directory to
-begin it (`Plumb.Checker.Lint.dispatchedFrom_iff`). A driver started outside Lake, or by a
+begin it (`Regula.Checker.Lint.dispatchedFrom_iff`). A driver started outside Lake, or by a
 Lake not collocated with the toolchain, is refused.
 Its exit status separates the outcome:
 
 | Exit | Outcome |
 | --- | --- |
 | 0 | `ACCEPTED`: the audit constructed its accepted result for the selected mode. |
-| 1 | `VIOLATION`: completed policy rejections, for example PL1001–PL1007 or PL3002. |
-| 2 | `INVALID CONFIGURATION`: only PL2002 manifest/scope rejections, an invalid driver argument, a working directory that is not the dispatching workspace, or `--help`/`--explain-config`, which run no audit. |
-| 3 | `INCOMPLETE`: an incomplete finding, for example PL2001, PL2003, PL2005 or PL3001, a failed audit-worker build, a working directory outside any Lean project or whose workspace fails to load, or an error that escaped the audit. It takes precedence over violations reported in the same run. |
+| 1 | `VIOLATION`: completed policy rejections, for example RG1001–RG1007 or RG3002. |
+| 2 | `INVALID CONFIGURATION`: only RG2002 manifest/scope rejections, an invalid driver argument, a working directory that is not the dispatching workspace, or `--help`/`--explain-config`, which run no audit. |
+| 3 | `INCOMPLETE`: an incomplete finding, for example RG2001, RG2003, RG2005 or RG3001, a failed audit-worker build, a working directory outside any Lean project or whose workspace fails to load, or an error that escaped the audit. It takes precedence over violations reported in the same run. |
 
 Exit 0 requires a zero audit exit and the audit's recorded `completed` status, which carries
-the accepted account of the requested mode (`Plumb.Checker.Lint.accepted_sound`: an accepted
+the accepted account of the requested mode (`Regula.Checker.Lint.accepted_sound`: an accepted
 run complete for its plan that meets every stage policy); any disagreement is `INCOMPLETE`.
-The success line is the account's `plumb lint: PASS — …` text, and it names the coverage: an
+The success line is the account's `regula lint: PASS — …` text, and it names the coverage: an
 incremental run reads "incremental project acceptance over existing build state, not a
 fresh-source audit"; only `--fresh` reads as fresh whole-project acceptance.
-`lake lint` builds the claimed targets with Plumb's audit-build marker
-(`weak.plumb.auditBuild`), which turns the local linter off whatever your sources set
-`linter.plumb` to, `set_option linter.plumb true` included, so a live Plumb finding is not a
+`lake lint` builds the claimed targets with Regula's audit-build marker
+(`weak.regula.auditBuild`), which turns the local linter off whatever your sources set
+`linter.regula` to, `set_option linter.regula true` included, so a live Regula finding is not a
 build warning there: the audit's own policy stages report it, as a `VIOLATION`. Any other
 warning or build failure stops the audit before policy inspection and is `INCOMPLETE`, with
 the original compiler message printed as evidence. That includes Lean's default
-`declaration uses 'sorry'` warning: an owned `sorry` is reported as PL2003, not PL1002 (with
-`set_option warn.sorry false` it reaches the PL1002 stage instead). The marker is part of
+`declaration uses 'sorry'` warning: an owned `sorry` is reported as RG2003, not RG1002 (with
+`set_option warn.sorry false` it reaches the RG1002 stage instead). The marker is part of
 Lake's module trace, and Lake scopes it to the whole package rather than to the modules that
-import `Plumb.Linter` (elsewhere it changes nothing; no source command can name or change
+import `Regula.Linter` (elsewhere it changes nothing; no source command can name or change
 it), so modules last built with ordinary options (for example by `lake build` or the editor)
 are rebuilt for the audit, and their replayed logs never enter its warning check.
 `axiomGate` and the build-lint `policy` target keep ordinary options, so there a live finding
@@ -233,8 +232,8 @@ Lake details that affect what ran:
 
 - Arguments for the driver follow `--`; Lake prepends `lintDriverArgs`. Positional module
   arguments before `--` affect only Lake's builtin linters.
-- `lake lint --builtin-only` skips the driver and is **not** Plumb enforcement: it
-  exits 0 with a Plumb violation present. `lake lint --builtin-lint` runs builtin
+- `lake lint --builtin-only` skips the driver and is **not** Regula enforcement: it
+  exits 0 with a Regula violation present. `lake lint --builtin-lint` runs builtin
   linters and then the driver; a failing driver determines the exit code. Builtin linting
   needs module arguments (for example `lake lint --builtin-lint Widget`) when the default
   target is not a library, such as the `policy` target below. `lake check-lint` only reports whether a lint command is configured.
@@ -257,46 +256,46 @@ For CI, provision the pinned toolchain and dependencies, then run the driver as 
 step so its exit status fails the job:
 
 ```yaml
-- name: Plumb
-  run: lake lint -- --json-out tmp/lean-plumb.json
+- name: Regula
+  run: lake lint -- --json-out tmp/regula.json
 ```
 
 Use `lake lint -- --fresh` where the CI claim is fresh-source conformance. Incremental
-evidence trusts Lake's build cache. Upload `tmp/lean-plumb.json` if another step consumes
+evidence trusts Lake's build cache. Upload `tmp/regula.json` if another step consumes
 the machine result. Its `status` is `completed` only when the accepted result was
 constructed.
 
 ## 7. Receive diagnostics while editing
 
-Import `Plumb.Linter` from a module your project already imports widely. The
+Import `Regula.Linter` from a module your project already imports widely. The
 [TOML example](../../examples/lake-lint-toml/) imports it in `Gadget/Double.lean`. The
 supported editor is VS Code with the Lean 4 extension on the
 [supported toolchain](../../README.md#supported-toolchain). While you edit, completed
 commands and modules show:
 
-- Warnings with codes `Plumb.PL1001`–`PL1007`, `PL2002` and `PL2005`, at the actual declaration
-  range, plus `PL5001`–`PL5003` when the module finishes elaborating without errors (with errors,
-  `PL2005`).
+- Warnings with codes `Regula.RG1001`–`RG1007`, `RG2002` and `RG2005`, at the actual declaration
+  range, plus `RG5001`–`RG5003` when the module finishes elaborating without errors (with errors,
+  `RG2005`).
 - In the infoview, Lean's own error-code widget with a **View explanation** link to the rule
   page. The message text always ends with the same URL, which the Problems panel and
   command-line output show when no widget renders.
-- `PL2005` when a finding needs fresh evidence that only the project command collects.
+- `RG2005` when a finding needs fresh evidence that only the project command collects.
   The message says to run `lake lint`.
 
-Execution closure (PL3001/PL3002), coverage (PL2004), build and warning checks (PL2003),
+Execution closure (RG3001/RG3002), coverage (RG2004), build and warning checks (RG2003),
 fresh admission and complete result assembly run only in `lake lint`, `lake build` with the
 policy target, or `axiomGate`. A clean editor buffer means no current local findings, not a
-project result. `set_option linter.plumb false` and `plumb.localFoundation`
+project result. `set_option linter.regula false` and `regula.localFoundation`
 change only local feedback. `lake lint` still rejects the same declaration.
 
 Local findings are ordinary compiler warnings in the editor and in a plain `lake build`.
 `lake lint` turns the linter off for its own build and reports the same rules itself, so
 it exits `VIOLATION` (1), not `INCOMPLETE`, while one remains. Lean's own warnings are
 unaffected: by default a `sorry` also makes Lean warn `declaration uses 'sorry'`, so under
-`lake lint` an owned hole stops the audit at its warning-free build check (PL2003, `INCOMPLETE`, exit 3) before
-the PL1002 stage; the editor shows both messages.
+`lake lint` an owned hole stops the audit at its warning-free build check (RG2003, `INCOMPLETE`, exit 3) before
+the RG1002 stage; the editor shows both messages.
 Rule links point to the development route
-`https://rbeauchamp.github.io/lean-plumb/dev/rules/<ID>/` of the [rule reference](#rule-reference-website),
+`https://rbeauchamp.github.io/regula/dev/rules/<ID>/` of the [rule reference](#rule-reference-website),
 which describes the latest deployed revision of `main`.
 
 ## 8. Complete semantic review
@@ -320,7 +319,7 @@ not the gate alone.
 
 ## Rule reference website
 
-Every diagnostic's help URL opens its page in the [rule reference](https://rbeauchamp.github.io/lean-plumb/dev/rules/):
+Every diagnostic's help URL opens its page in the [rule reference](https://rbeauchamp.github.io/regula/dev/rules/):
 what triggers the rule, why it matters, how to fix it, a checked violating and corrected
 example produced by the real checker, the exact configuration and exception boundaries, and
 what a passing result does and does not establish. The site is generated from the

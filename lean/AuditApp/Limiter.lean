@@ -1,5 +1,5 @@
-import Plumb.Contract
-import Plumb.MaterialClaim
+import Regula.Contract
+import Regula.MaterialClaim
 
 /-!
 Proof-bearing core of the `AuditApp` complete-application dogfooding surface:
@@ -16,10 +16,10 @@ the total fold used to specify successful prefixes. No declaration is promoted
 to a native-runtime or external-system claim, and no hypothesis is hidden:
 assumptions appear as binders or proof fields. This module directly imports only the two
 published checker interfaces: the proof-requiring executable-contract type and the
-`@[plumb_material]` registration attribute, whose import closure brings in Lean's attribute
+`@[regula_material]` registration attribute, whose import closure brings in Lean's attribute
 framework; no definition or proof here uses it. Its material
 claims `RequiredContracts`, `requiredContracts` and `checkedExecutable` are registered with
-`@[plumb_material]`, so PL5002/PL5003 require each to carry a docstring with a nonempty Intent
+`@[regula_material]`, so RG5002/RG5003 require each to carry a docstring with a nonempty Intent
 section (docs/standard/5 §5.2); whether each Intent states the right requirement remains
 semantic review.
 
@@ -29,7 +29,7 @@ prelude. The bespoke types are `Limiter` (the proof-bearing state), `Op`,
 `Fits` (this application's per-prefix precondition, which no Core/Std/Mathlib
 declaration states), `CheckedRun` (an abbreviation for the checked run type),
 and `RequiredContracts` (the `Prop`-valued bundle of this application's
-required contract propositions, consumed through `Plumb.Contract`);
+required contract propositions, consumed through `Regula.Contract`);
 the operations and their theorems are this application's own semantics.
 Mathlib is deliberately not imported by this module: its pure limiter operations
 and proofs use the prelude and the contract interface, with arithmetic discharged
@@ -419,7 +419,7 @@ it bounds every script's end state by the created capacity (`within_capacity`).
   before it.
 - The command-line capacity is the first argument read as a natural number, defaulting to 2.
 - Timing, fairness and the IO shell are deliberately out of scope. -/
-@[plumb_material]
+@[regula_material]
 structure RequiredContracts : Prop where
   admission : ∀ capacity, admit capacity = if 0 < capacity then
     some ⟨capacity, 0, Nat.zero_le capacity⟩ else none
@@ -485,7 +485,7 @@ proofs are welcome; neither theorem names nor declaration counts are the rule.
 # Intent
 Every required behavior of the limiter must be proved about the exact definitions the
 application executes. -/
-@[plumb_material]
+@[regula_material]
 theorem requiredContracts : RequiredContracts where
   admission := admit_exact
   grant_success := grant_some
@@ -546,8 +546,8 @@ The build linter also checks executability and compiler/runtime boundaries.
 # Intent
 The function the executable calls must admit exactly the positive capacities, start
 each admitted limiter idle at that capacity, and then run the script strictly. -/
-@[plumb_material]
-theorem checkedExecutable : Plumb.ExecutableContract executeChecked
+@[regula_material]
+theorem checkedExecutable : Regula.ExecutableContract executeChecked
     (fun execute => ∀ (contracts : RequiredContracts) capacity ops,
       execute contracts capacity ops = if 0 < capacity then
         some (runChecked ops ⟨capacity, 0, Nat.zero_le capacity⟩) else none) :=

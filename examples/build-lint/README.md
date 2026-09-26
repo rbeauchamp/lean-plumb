@@ -2,7 +2,7 @@
 
 This package is the reference `lakefile.lean` integration for `lake lint` and the enforcing
 ordinary `lake build`. It demonstrates how an adopting project uses the existing linter; the implementation
-lives in [`lean/Plumb/Checker/`](../../lean/Plumb/Checker/).
+lives in [`lean/Regula/Checker/`](../../lean/Regula/Checker/).
 
 It requires the checker by local path. From this directory:
 
@@ -12,11 +12,11 @@ lake build   # enforcing default target
 lake lint    # the same audit through the configured lint driver
 ```
 
-The package sets `lintDriver := "plumb/lint"`. `lake lint` exits 0 (accepted),
+The package sets `lintDriver := "regula/lint"`. `lake lint` exits 0 (accepted),
 1 (violation), 2 (invalid configuration) or 3 (incomplete); see the
 [adoption guide](../../docs/guides/adoption.md#6-enforce-with-lake-lint-lake-build-and-ci).
 
-To use it elsewhere, copy this directory and change `require plumb from
+To use it elsewhere, copy this directory and change `require regula from
 "../.."` in `lakefile.lean` to the checker's path or an exact git revision. Lake resolves
 the dependency manifest; no files named `Audit` or `Fixtures` are required. The checker
 has transitive Mathlib dependencies, but this Core-only example does not compile Mathlib.
@@ -90,7 +90,7 @@ Lean metaprogramming. A separately distributed policy package can reuse that inf
 [Lake supports lint drivers from dependencies](https://lean-lang.org/doc/reference/latest/Build-Tools-and-Distribution/Lake/),
 and [Batteries supports custom linters](https://leanprover-community.github.io/mathlib4_docs/Batteries/Tactic/Lint/Frontend.html).
 
-Plumb uses that infrastructure: a Lake lint driver, this build target, and native
+Regula uses that infrastructure: a Lake lint driver, this build target, and native
 command/module linters for editor feedback. Before adding rules, map the compliance checklist
 to existing checks and reuse those that establish the required property.
 

@@ -18,8 +18,8 @@ Production entry points selected for #14:
 
 | Entry point | Contract |
 | --- | --- |
-| `import Plumb.Linter` in the project's chosen common import | Enable available local command/module feedback using the existing Lean server. Importing it does not enable whole-project enforcement. |
-| `lake lint` with `lintDriver = "plumb/lint"` | Incremental inspection of the exact declared manifest scope, including current policy on cached modules. The driver runs the `axiomGate` project audit. |
+| `import Regula.Linter` in the project's chosen common import | Enable available local command/module feedback using the existing Lean server. Importing it does not enable whole-project enforcement. |
+| `lake lint` with `lintDriver = "regula/lint"` | Incremental inspection of the exact declared manifest scope, including current policy on cached modules. The driver runs the `axiomGate` project audit. |
 | `lake lint -- --fresh` | Driver option selecting fresh project evidence through the existing producers and complete-result assembler. |
 | Enabled plain `lake build` | Keep the current explicit enforcing default target. Qualify the documented adapter; explain which Lake formats support this enforcing target. |
 | Existing file inspection | Retain `axiomGate --file ... --claim ...` and the distinct `freshFile` identity. Do not describe a file result as project coverage. |
@@ -29,7 +29,7 @@ Production entry points selected for #14:
 target adapter and editor links; the [adoption guide](adoption.md) documents the shipped
 commands. The driver does not take `--with-docs`: the combined documentation audit remains
 `lake exe axiomGate --with-docs`. The concise human renderer below is not yet implemented.
-The `plumb/lint` driver dispatches into the current checker and #7's accepted-result path; it is not
+The `regula/lint` driver dispatches into the current checker and #7's accepted-result path; it is not
 another policy implementation. Preserve existing `axiomGate`, schema-1 and legacy JSON
 migration interfaces until callers are deliberately migrated.
 
@@ -38,7 +38,7 @@ migration interfaces until callers are deliberately migrated.
 At the supported pin, positional module arguments to `lake lint` affect **builtin** linting,
 not the configured driver. Driver arguments follow `--`; Lake prepends `lintDriverArgs`.
 The driver itself must build its claimed targets. `--builtin-only` skips it, and
-`lake check-lint` only detects configuration. Neither establishes a Plumb result.
+`lake check-lint` only detects configuration. Neither establishes a Regula result.
 The detailed evidence is [pinned Lake help][lake-help], [dispatch][lake-main] and
 [driver execution][lake-actions]. #14 must qualify these actual paths, including combined
 builtin/driver mode, rather than assume all invocations of the word “lint” are equivalent.
@@ -55,8 +55,8 @@ Mathlib already uses its own lint driver. Since Lake has one configured driver, 
 must retain the existing workflow explicitly: document separate commands, or a small
 user-owned composing script whose success requires both configured drivers to succeed.
 Do not overwrite another driver's configuration silently or recursively call `lake lint`
-from the Plumb driver. #14 qualifies the recipe; upstream lint results remain
-attributed to their producer and do not substitute for Plumb's scope. See the
+from the Regula driver. #14 qualifies the recipe; upstream lint results remain
+attributed to their producer and do not substitute for Regula's scope. See the
 [pinned Mathlib configuration][mathlib-lake].
 
 ### Public import boundary
@@ -119,27 +119,27 @@ is invented. #13/#14/#15 must use actual fixtures and recorded evidence for qual
 
 ### A. A theorem depends on an unfinished proof
 
-- **Trigger:** the collected declaration depends on `sorryAx` (PL1002). The declaration may
+- **Trigger:** the collected declaration depends on `sorryAx` (RG1002). The declaration may
   elaborate with a warning while the user is still developing its proof.
 - **Editor:** show the actual declaration/source location and “Proof depends on an unfinished
   proof.” If a precise hole/dependency origin is available, show it as related evidence;
   otherwise give the structural declaration/module identity without guessing a span.
 - **Helper:** “Inspect the remaining goal and complete the proof.” Preserve ordinary Lean
-  goals, tactics and suggestions; Plumb does not invent a proof or rewrite the theorem
+  goals, tactics and suggestions; Regula does not invent a proof or rewrite the theorem
   to make the problem disappear.
 - **Explanation page:** explain dependency-based detection, direct versus transitive holes,
   why compilation alone is insufficient for the chosen strict policy, and a checked corrected
   example with the same intended proposition. Link to the applicable normative clause.
 - **CLI/build:** retain the compiler warning as evidence and the exact policy diagnostic when
   collection completed. A build that stops before collection reports that stage as incomplete,
-  not a fabricated PL1002 result. The enabled strict build rejects either condition.
+  not a fabricated RG1002 result. The enabled strict build rejects either condition.
 - **After correction:** recheck the new snapshot and complete applicable admission/policy stages.
   Removal of this one finding is not proof that every project requirement passed.
 
 ### B. Executable code crosses an unchecked boundary
 
 - **Trigger:** a reached non-native-runtime boundary has only trusted correspondence under a
-  surface selecting checked execution (PL3002), with completed boundary collection.
+  surface selecting checked execution (RG3002), with completed boundary collection.
 - **Editor:** emit a local finding only when the supported collector has the relevant evidence;
   otherwise identify that execution analysis requires the project command. Do not pretend a
   command callback reconstructed a whole-program closure.
@@ -158,7 +158,7 @@ is invented. #13/#14/#15 must use actual fixtures and recorded evidence for qual
 - **Trigger:** missing toolchain/dependency, malformed manifest, crashed worker or stale source.
   Distinguish configuration rejection from incomplete execution using the real typed outcome.
 - **Editor:** retain Lean's original import/elaboration message, and one scoped explanation
-  of unavailable Plumb analysis. No invented line 1 and no repeated error on every name.
+  of unavailable Regula analysis. No invented line 1 and no repeated error on every name.
 - **CLI:** show what prevented checking, manifest/project origin when known, the action needed
   to retry, and completed versus uncompleted stages. Preserve recognisable-output invalidation
   so an old completed result cannot be mistaken for this attempt.
@@ -204,10 +204,10 @@ visual styling or Lean semantics. See the [comparison and attribution](ecosystem
 
 | Owner | Required change / preserved work | Evidence before claiming completion |
 | --- | --- | --- |
-| #5 | Preserve pure `PlumbPolicy` domain, one RuleId vocabulary and exact legacy policy predicates. Carry typed outcome/scope/configuration origins needed by explanation without making presentation authoritative. No renderer/server imports into pure core; arrange the neutral public-import boundary above without duplicating existing records/codecs. | Domain admission/codec/type guarantees over actual inputs; unsupported query states cannot construct a conforming claim. |
+| #5 | Preserve pure `RegulaPolicy` domain, one RuleId vocabulary and exact legacy policy predicates. Carry typed outcome/scope/configuration origins needed by explanation without making presentation authoritative. No renderer/server imports into pure core; arrange the neutral public-import boundary above without duplicating existing records/codecs. | Domain admission/codec/type guarantees over actual inputs; unsupported query states cannot construct a conforming claim. |
 | #6 | Keep independent predicates and proofs about actual decisions. Preserve exact report identity, failed-insertion frames and observation assumptions. | Machine-checked promised laws; no theorem about UX, extraction fidelity or native effects inferred from those laws. |
 | #7 | Same required-job census and Accepted assembly across all audit paths. Represent incomplete/cancelled/stale work distinctly; configuration explanation/help is non-audit completion. | Actual parent/worker/render/exit paths refuse missing or stale accepted evidence; preserve all subreasons. |
-| #13 | Reuse matching Lean tests with independent mandatory scope; implement all twenty mapped conditions including two doc-presence rules (PL5003 later added a third, #71). Shared live/imported declaration construction and Lean snapshot scheduling; public adapter imports must satisfy the unchanged probe-contamination boundary. | Predicate/source/API review plus focused controls for private/generated/module boundaries, stale/cancelled data and exact rule/subreason. |
+| #13 | Reuse matching Lean tests with independent mandatory scope; implement all twenty mapped conditions including two doc-presence rules (RG5003 later added a third, #71). Shared live/imported declaration construction and Lean snapshot scheduling; public adapter imports must satisfy the unchanged probe-contamination boundary. | Predicate/source/API review plus focused controls for private/generated/module boundaries, stale/cancelled data and exact rule/subreason. |
 | #14 | Native import, driver/build/config-explanation contracts, concise renderer and detailed evidence, coexistence with Mathlib driver, three journeys and no automatic source edits. | Actual pinned supported editor interaction, both documented lakefile formats where claimed, dispatch matrix, Unicode and fallback/failed-help paths. No browser-only substitute for editor evidence. |
 | #15 | Generated static/searchable catalog, purposeful pages, keyboard/no-JS behavior and actual source-linked examples. Keep Verso/pins/versioned artifacts. | Complete rule/page/example coverage, metadata identity, links and the bounded usability checks on the actual build, then authorized Pages publication. |
 | #10 | Qualify Core-only application and Mathlib library workflows with explicit supported scope. Reconcile all residual accounts and release-facing feature claims. | Real end-to-end correction flows, supported-version matrix, no claimed user study/latency guarantee without evidence. |

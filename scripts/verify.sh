@@ -23,4 +23,4 @@ if [[ $("$timeout_command" --version) != *"GNU coreutils"* ]]; then
   exit 127
 fi
 exec "$timeout_command" --signal=KILL 420s \
-  lean --run lean/PlumbVerification.lean "$@"
+  lean --run lean/RegulaVerification.lean "$@"

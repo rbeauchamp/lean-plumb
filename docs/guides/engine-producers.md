@@ -26,20 +26,20 @@ modules remain trusted. The receipt records this completed operation; serializat
 not authenticate replay and carries no proof of the Lean implementation.
 
 `Environment.loadReportCoreAtSearchPath` loads imported server/private extension data,
-freezes the public `@[plumb_material]` selector from the completed owned environment,
+freezes the public `@[regula_material]` selector from the completed owned environment,
 and calls the existing `Linter.Documentation` observer and `Lean.findDocString?`.
 Module observations include declaration-free modules. Markdown and Verso module metadata,
 Verso declaration docs and inherited docs follow the same Lean lookup semantics as native
-feedback. Private declarations and unregistered public declarations do not acquire PL5002
-or PL5003 obligations. Registration completeness and text fidelity remain **R-DOC** review.
+feedback. Private declarations and unregistered public declarations do not acquire RG5002
+or RG5003 obligations. Registration completeness and text fidelity remain **R-DOC** review.
 
-The project gate now emits PL5001 for a missing claimed module doc, PL5002 for a missing
-docstring on a selected declaration, and PL5003 for a selected declaration's docstring
+The project gate now emits RG5001 for a missing claimed module doc, RG5002 for a missing
+docstring on a selected declaration, and RG5003 for a selected declaration's docstring
 without a nonempty `# Intent` section, in both fresh and incremental project modes. The
-recorded docstring is classified by the proved `PlumbPolicy.materialDocumentationFailure`. It does
-not depend on whether native feedback was imported or enabled. PL5001 uses module attribution;
-PL5002 and PL5003 use authenticated declaration ranges when available, otherwise module
-attribution. Only PL5003 requires a heading, the labelled Intent section; no detector imposes
+recorded docstring is classified by the proved `RegulaPolicy.materialDocumentationFailure`. It does
+not depend on whether native feedback was imported or enabled. RG5001 uses module attribution;
+RG5002 and RG5003 use authenticated declaration ranges when available, otherwise module
+attribution. Only RG5003 requires a heading, the labelled Intent section; no detector imposes
 lengths or a universal all-public-declarations rule.
 File/fence results retain their scoped enforcement; the [acceptance guide](policy-acceptance.md)
 owns global mode/job composition.
@@ -106,7 +106,7 @@ temporarily changed source restored between observations remains outside what be
 byte equality establishes. Global claim/job composition is described in the
 [acceptance guide](policy-acceptance.md).
 
-The separate `history` diagnostic runs `Plumb.Qualification.History`: real fresh/incremental
+The separate `history` diagnostic runs `Regula.Qualification.History`: real fresh/incremental
 project and file invocations check overwritten history, an unsupported source evaluator, and
 fresh restoration. Refusal of missing requests/receipts/edges, changed bytes, missing paths
 and concealed unavailability is proved for every report by `ProducerReport.validate_sound`
@@ -117,8 +117,8 @@ The existing structural campaign remains separately scoped; this does not report
 
 ## Source-owned examples and qualification
 
-The module/documentation source pairs are [PL5001](../../examples/rules/PL5001/),
-[PL5002](../../examples/rules/PL5002/) and [PL5003](../../examples/rules/PL5003/). Each correction preserves exactly
+The module/documentation source pairs are [RG5001](../../examples/rules/RG5001/),
+[RG5002](../../examples/rules/RG5002/) and [RG5003](../../examples/rules/RG5003/). Each correction preserves exactly
 `∀ n : Nat, n = n`, with the same proof and no new assumptions. Only documentation is added.
 They are isolated from positive libraries and copied byte-for-byte into a disposable
 Core-only adopter as `Example.lean`. The complete twenty-one-rule corpus and its separate
@@ -126,11 +126,11 @@ unavailable-analysis demonstrations are described in [rule examples](rule-exampl
 
 Run `./scripts/verify.sh diagnostics producers` for the bounded operational campaign.
 It runs twelve source-owned controls: for the incremental and build-lint entrypoints and each
-of PL5001/PL5002, one workspace runs Fixed, then Violation over that Fixed build (so a stale
-build must not hide the violation), then Fixed again from a cleared build. PL5003 is not in
+of RG5001/RG5002, one workspace runs Fixed, then Violation over that Fixed build (so a stale
+build must not hide the violation), then Fixed again from a cleared build. RG5003 is not in
 this campaign: it shares the same gate documentation loop, whose evidence mode is a parameter,
-but its observed evidence is the fresh-project [PL5003](../../examples/rules/PL5003/) corpus
-pair and the native `MissingIntent` control. No incremental or build-lint PL5003 run is
+but its observed evidence is the fresh-project [RG5003](../../examples/rules/RG5003/) corpus
+pair and the native `MissingIntent` control. No incremental or build-lint RG5003 run is
 claimed. Each invocation
 checks exact stable ID, detail, primary location, related locations and result status,
 and requires unique output and exact embedded source/selector/type/axiom evidence.
@@ -138,7 +138,7 @@ Transport admission of every report is proved rather than sampled by mutation; s
 `ProducerReport.validate_sound` in [Lean qualification](lean-qualification.md#exact-proved-boundary).
 A standalone executable additionally has
 positive/owned-axiom controls, each in its own fresh workspace; each carries module
-documentation so the intended axiom violation is isolated. The fresh-project PL5001/PL5002
+documentation so the intended axiom violation is isolated. The fresh-project RG5001/RG5002
 observations are the [rule-example](rule-examples.md) corpus records, validated there by the
 same producer oracle. Optional raw export:
 
@@ -152,7 +152,7 @@ consumers render the embedded source and its repository path, not a now-removed 
 This supplies scoped source/evidence inputs, not the site's complete typed expectation
 validator ([website guide](website.md)). CI runs this named campaign separately from the unchanged unpartitioned ordinary
 420-second acceptance. No unrun broader campaign is claimed PASS. Older structural-campaign
-manifests still need reconciliation with the `PlumbPolicy` root before that campaign
+manifests still need reconciliation with the `RegulaPolicy` root before that campaign
 can establish its broader claims; the small adopter qualifies the changed standalone path.
 
 The collectors and documentation lookups reuse Lean 4.34.0 APIs. No con-leche code is imported;
@@ -193,7 +193,7 @@ pinned compiler API, not a promised stable extension interface; upgrades must re
 its semantics. No upstream code is copied. Existing source/boundary/IR obligations and
 replacement-cycle refusal remain in force.
 
-`PlumbPolicy.ExecutionClosure.Valid` checks the supplied census, discovery witnesses,
+`RegulaPolicy.ExecutionClosure.Valid` checks the supplied census, discovery witnesses,
 canonical edge channels, endpoints, code obligations and unresolved requirement.
 `ExecutionRoot.Valid` additionally reconciles boundary names, replacement targets and
 compiler callers. `ProducerReport.Environment.validate` calls `admitExecution` at producer
@@ -205,7 +205,7 @@ becomes a clean result.
 ### Exact proof scope
 
 All three theorems below compile over the executed admission definitions in
-`PlumbPolicy/Admission.lean`. They quantify over arbitrary supplied records, not a
+`RegulaPolicy/Admission.lean`. They quantify over arbitrary supplied records, not a
 separate graph model:
 
 - `ExecutionClosure.discovery_induction`: if every visit has the checked root/earlier-parent
@@ -223,7 +223,7 @@ results establish connectedness and structural admission of supplied observation
 candidate edge executes, machine-code correspondence, or intended-specification adequacy.
 Reflexive constant equalities remain in the candidate set. An active `csimp` self-edge
 therefore satisfies the active-edge subset invariant while its replacement-only cycle
-remains unresolved (PL3001); an inactive reflexive candidate does not create an active
+remains unresolved (RG3001); an inactive reflexive candidate does not create an active
 cycle. Ordinary recursive IR self-edges remain a separate channel.
 
 The existing pure execution/Plan/Observation interfaces consume this strengthened admitted
@@ -249,8 +249,8 @@ project source map and configuration frozen before dependency building through f
 compilation, grouped inspection and the final result. Worker requests use `sourceBindings`
 as their sole source map; loader module/path pairs are projections of those bindings.
 A detected source/configuration mismatch prevents success; the project adapter reports
-PL2005/incomplete, including missing or unreadable previously frozen source/configuration.
-Read failures preserve the underlying IO reason. Initial environment/setup failures remain PL2001;
+RG2005/incomplete, including missing or unreadable previously frozen source/configuration.
+Read failures preserve the underlying IO reason. Initial environment/setup failures remain RG2001;
 only re-reading existing frozen evidence receives this normalization. The original file
 path uses the shared guard, and combined mode checks its parent snapshots on declaration
 worker failure as well as success.
@@ -271,12 +271,12 @@ Owned logical replay failures and source coverage/range admission failures cross
 `ProducerReport.Outcome.admissionFailed`, carrying `AdmissionFailure.detail`. The shared
 `Environment.validateSourceEvidence` guard supplies typed source-evidence refusal directly;
 the producer and decoder use the same predicate, without classifying exception text. Public project,
-file and documentation adapters emit PL2005/incomplete with that original reason and scope.
-Documentation retains its PL4002/PL4004 finding alongside the typed refusal, using fence
+file and documentation adapters emit RG2005/incomplete with that original reason and scope.
+Documentation retains its RG4002/RG4004 finding alongside the typed refusal, using fence
 context without manufacturing a valid declaration range. `SourceBinding.withUnchanged`
 owns the before/after comparison around each frozen-input
 operation. It retains the operation's result or IO exception, rechecks exact sources and
-configuration, then returns a typed snapshot failure (rendered as PL2005/incomplete) or preserves the original
+configuration, then returns a typed snapshot failure (rendered as RG2005/incomplete) or preserves the original
 outcome when snapshots are unchanged. Initial capture still has setup semantics.
 Environment imports, report workers, grouped decoding, file compilation/inspection,
 project/file dependency builds and documentation use that same owner. The original
@@ -296,5 +296,5 @@ the full corpus and its matching/export adapter are documented in
 The [closure verification record](../../session/evidence/issue-13-closure-verification.md)
 records the proved domain, exact axiom sets and focused qualification at its pre-integration
 snapshot. Its "pending" delivery gates are historical: ENGINE-01 was integrated through
-[#30](https://github.com/rbeauchamp/lean-plumb/pull/30) and
-[#31](https://github.com/rbeauchamp/lean-plumb/pull/31), and issue #13 closed on 2026-09-16.
+[#30](https://github.com/rbeauchamp/regula/pull/30) and
+[#31](https://github.com/rbeauchamp/regula/pull/31), and issue #13 closed on 2026-09-16.

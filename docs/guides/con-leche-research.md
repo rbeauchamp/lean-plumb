@@ -1,24 +1,26 @@
 # Optional con-leche export research: decision record
 
-This is the maintained research record for [#8](https://github.com/rbeauchamp/lean-plumb/issues/8),
+*Plumb, named in the evidence recorded at `56c53c2`, is the project now called Regula.*
+
+This is the maintained research record for [#8](https://github.com/rbeauchamp/regula/issues/8),
 the optional con-leche export study. It is supplementary to the linter and website and does not
-gate core delivery ([#10](https://github.com/rbeauchamp/lean-plumb/issues/10)). Recorded on
+gate core delivery ([#10](https://github.com/rbeauchamp/regula/issues/10)). Recorded on
 2026-09-25 against Plumb `56c53c2bb3ab5c2a7ddbbcb45759e65502b24c0d` (Lean `v4.34.0`, Mathlib
 `5ed2965256430c3649e86755f9576b54eca72435`).
 
 ## Decision: no-go
 
-**No-go.** Plumb will not add an optional con-leche adapter, and
-[#9](https://github.com/rbeauchamp/lean-plumb/issues/9) is closed as not planned. This is a research
-result. Plumb has no con-leche checking integration, successful or otherwise.
+**No-go.** Regula will not add an optional con-leche adapter, and
+[#9](https://github.com/rbeauchamp/regula/issues/9) is closed as not planned. This is a research
+result. Regula has no con-leche checking integration, successful or otherwise.
 
 The reasons, in the order the study took them:
 
 1. **Value.** The only claim con-leche could add is about an export artifact, not the source. An
    independently implemented checker, proved consistent, would have accepted a lean4export stream
-   of the claimed declarations. That result is conditional on set-theory assumptions. No Plumb
+   of the claimed declarations. That result is conditional on set-theory assumptions. No Regula
    rule, diagnostic, editor message or rule page would use it. An adopter who wants this kernel
-   diversity can already run con-leche on a lean4export stream without Plumb. Plumb would add
+   diversity can already run con-leche on a lean4export stream without Regula. Regula would add
    only the binding of export roots to its owned inventory. That value does not justify the cost
    in item 3.
 2. **Correspondence.** A statement-preserving claim cannot be justified.
@@ -36,23 +38,23 @@ The reasons, in the order the study took them:
    - it has a `v4.34.0-rc2` pin variant but no `v4.34.0` one;
    - any adapter would have to be written in Lean, with a process protocol, qualification
      controls, proofs of its pure parts and a manual CI job;
-   - every future Plumb toolchain bump would wait on upstream pin support.
+   - every future Regula toolchain bump would wait on upstream pin support.
 
-   Downgrading Plumb to Lean 4.33 is costed [below](#costed-option-downgrading-plumb-to-lean-433)
+   Downgrading Regula to Lean 4.33 is costed [below](#costed-option-downgrading-regula-to-lean-433)
    and rejected.
 
 The order was value first. On 2026-09-25 the operator directed that the claim con-leche could add
 be written down before any compatibility or export work, and that the study stop at a no-go if
 the claim did not justify the cost. It did not. So **no export was produced and con-leche was
 never run on a Plumb artifact**: the compatibility question is unperformed, not passed or failed.
-Nothing below is evidence that Plumb's export is compatible or incompatible.
+Nothing below is evidence that Regula's export is compatible or incompatible.
 
 ## What con-leche could add
 
-The strongest claim con-leche could honestly support for Plumb has this form.
+The strongest claim con-leche could honestly support for Regula has this form.
 
 - **Premise.** Given an explicit root set R, lean4export `v4.34.0` produced the NDJSON stream E
-  from the built Plumb environment, and `con-leche --verified` at a fixed pin exited `0` on E
+  from the built Regula environment, and `con-leche --verified` at a fixed pin exited `0` on E
   with the matching verdict line.
 - **Model.** By con-leche's `model_exists`, the checker's *output* environment has a set model
   in any `V` with `[SetTheory V]`. The metatheory axioms are `propext`, `Classical.choice` and
@@ -73,8 +75,8 @@ What it cannot do:
 - It is not Lean acceptance. The model theorem is neither an equivalence with official kernel
   acceptance nor a statement of all delta/iota equations. A decline is not evidence that a
   theorem is false.
-- It is not Plumb policy. Con-leche accepts a stream that declares `sorryAx` without using it,
-  while Plumb rejects project logical axioms whether used or not. Con-leche has no notion of
+- It is not Regula policy. Con-leche accepts a stream that declares `sorryAx` without using it,
+  while Regula rejects project logical axioms whether used or not. Con-leche has no notion of
   ownership, foundation profile, generated-role authentication or documentation.
 - It is not execution evidence. It is no claim about compiled code, `implemented_by`, `extern`
   or native evaluation, and it covers con-leche's own compiled binary only under trust in the
@@ -97,8 +99,8 @@ Credit: con-leche is by its authors and contributors. Its README says it was "im
 and proven to be consistent by Claude (Fable and Opus), under heavy supervision by Joachim
 Breitner at the Lean FRO" ([README](https://github.com/leanprover/con-leche/blob/ae0c0c4e4ce6a0081648aff03fe9c39d002c4526/README.md)).
 lean4export is by Lean FRO and contributors. This record quotes their theorem names, command-line
-text and design, and cites them. No con-leche or lean4export code or proof is copied into Plumb,
-and Plumb does not depend on either. No upstream endorsement is implied.
+text and design, and cites them. No con-leche or lean4export code or proof is copied into Regula,
+and Regula does not depend on either. No upstream endorsement is implied.
 
 ## Checker protocol at the pin
 
@@ -135,7 +137,7 @@ and for one missing input file; no stream was checked.
   says the verdict is not the checker's verdict on the stream. `CON_LECHE_INMODEL_CENSUS=1` stops
   after the parse and always exits `2`. `CON_LECHE_INMODEL_DUMP=OUT` writes a copy of the input
   with the generated model records spliced in. `CON_LECHE_PROJREC_TRACE`, named in `DESIGN.md`
-  rather than `--help`, writes a trace to stderr. Plumb's evidence rule, not
+  rather than `--help`, writes a trace to stderr. Regula's evidence rule, not
   upstream's, is to refuse any run with one of them set.
 - **Workers:** by default the check phase uses one worker per hardware thread. Each worker
   reserves about 1 GiB of address space, so upstream says a run under an address-space limit
@@ -160,7 +162,7 @@ and for one missing input file; no stream was checked.
 
 | Step | What holds | Status |
 | --- | --- | --- |
-| Lean source → elaborated environment | Plumb's own gate: fresh elaboration and `Admission.validate` replay with the official kernel | Plumb evidence, separate claim |
+| Lean source → elaborated environment | Regula's own gate: fresh elaboration and `Admission.validate` replay with the official kernel | Regula evidence, separate claim |
 | Environment/`.olean` → lean4export records | None. The exporter walks the imported environment. | Trusted |
 | Stream bytes → parsed declarations | The fast parser is proved equal (`@[csimp]`) to a naive reference parser, but the naive parser's faithfulness is not proved. The main corollary `no_False_declaration` is stated on raw bytes under `[SetTheory V]`, but only for streams satisfying `jsonWithTheoremFalse`. | Parse faithfulness trusted; fast = naive proved; corollary conditional and narrow |
 | Parse-time rewrites: projection rewrites, in-process `_model` generation for mutual/nested blocks | Generated records are checked like any others and cannot cause a wrong accept, but no theorem relates them to the source block. | Trusted for correspondence |
@@ -239,11 +241,11 @@ Checker runs: **none performed.** Stage 1 and stage 2 are incomplete by design, 
 value decision stopped the study first. Upstream CI and upstream PERF timings are upstream data,
 not a local bound.
 
-## Costed option: downgrading Plumb to Lean 4.33
+## Costed option: downgrading Regula to Lean 4.33
 
-This option was never taken; Plumb stays on `v4.34.0`.
+This option was never taken; Regula stays on `v4.34.0`.
 
-- **What it would unblock:** at most a same-toolchain match between Plumb's `Nat` definitions
+- **What it would unblock:** at most a same-toolchain match between Regula's `Nat` definitions
   and con-leche's primary `v4.33.0` pin, and its built-in prelude. The `v4.34.0-rc2` variant and
   the lean4export `v4.34.0` tag may already cover a `v4.34.0` export, but that is untested. A
   downgrade would fix none of the value, correspondence or name-collision findings.
@@ -253,7 +255,7 @@ This option was never taken; Plumb stays on `v4.34.0`.
     Lean `v4.34.0` and the engine producers' collectors;
   - invalidating all delivered qualification evidence: acceptance, rule examples, site and
     diagnostic campaigns;
-  - pinning Plumb *behind* upstream Lean on behalf of an optional checker.
+  - pinning Regula *behind* upstream Lean on behalf of an optional checker.
 - **Likely lag:** con-leche's `lean-toolchain` has been `v4.33.0`, unchanged, since the file
   was added in the repository's second commit (`ab16c06d`, 2026-08-19). Lean `v4.34.0`
   was released on 2026-09-14 and was still unadopted 11 days later. `v4.35.0-rc1` appeared on
@@ -278,7 +280,7 @@ git clone https://github.com/leanprover/con-leche && git -C con-leche checkout a
 ```
 
 The stage-1 and stage-2 commands were never run, and are listed only so a revival can reuse
-the fixed plan. From the Plumb root, pass `lake env` the exporter binary, the root modules, then
+the fixed plan. From the Regula root, pass `lake env` the exporter binary, the root modules, then
 `--` and every expected owned name, redirecting to a stream file. Then run
 `con-leche --verified --jobs=4` on that file under `timeout 360`. A revival must also check the
 exporter's stderr for `not found` panics and reconcile the verdict count against the stream's
@@ -294,10 +296,10 @@ removed probe.
 
 Reopen #9 only if all of these hold:
 
-- a con-leche release or tag supports Plumb's toolchain;
+- a con-leche release or tag supports Regula's toolchain;
 - a theorem, or a checked relation, covers inductive-record preservation and the
   exporter-to-environment step;
-- an adopter asks for kernel diversity through Plumb, rather than through direct use.
+- an adopter asks for kernel diversity through Regula, rather than through direct use.
 
 Until then, this record and the closed #9 stand.
 

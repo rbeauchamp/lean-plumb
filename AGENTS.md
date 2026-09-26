@@ -8,7 +8,7 @@
   correctness is critical.
 - `docs/standard/` defines normative meaning; `docs/guides/` contains practical guidance.
   `lean/Audit/` and the Lean-oriented checkers must dogfood the applicable rules.
-- `lean/Plumb/` implements mechanically checkable requirements; `examples/build-lint/`
+- `lean/Regula/` implements mechanically checkable requirements; `examples/build-lint/`
   is the reference build integration. Keep enforced rules, required proof evidence, and
   remaining semantic-review obligations distinct.
 - The normative standard excludes general software-process requirements: lifecycle,
@@ -173,7 +173,7 @@ rule-example shards and then `./scripts/verify.sh site`, which builds and checks
 rule-reference site from those exports (its own 420-second limit; never part of acceptance).
 On `main` only, after both and a gate refusing a dirty artifact, a revision that is no
 longer the head of `main` or an artifact whose snapshots differ from the append-only
-`site-archive` branch plus its own, a provisioning-free job pushes the new snapshot to that
+`site-archive-regula` branch plus its own, a provisioning-free job pushes the new snapshot to that
 branch without force; then it deploys that exact artifact to GitHub Pages and compares the
 live site with it ([website guide](docs/guides/website.md#retention)). The diagnostics workflow runs
 the producers and history campaigns when the checker, rules, rule examples, Lake
@@ -181,7 +181,7 @@ configuration or manifests change, on `main`, and nightly, and the two rule-exam
 nightly. The lint-driver workflow runs
 `diagnostics lint-driver` likewise when the `lake lint` driver or anything it imports, or
 the adopter fixtures, change. The dogfood workflow runs `diagnostics self-lint` (this
-repository's own `lake lint`), `diagnostics self-audit` (the excluded `Plumb` library under the
+repository's own `lake lint`), `diagnostics self-audit` (the excluded `Regula` library under the
 proved operational decision) and the intent screen when Lean sources, Lake configuration,
 manifests or the screen configuration change, on `main`, and nightly. Merge requires passing
 CI on the reviewed PR head, applicable focused review and diagnostics.

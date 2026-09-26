@@ -8,12 +8,12 @@ name: Diagnostics
 on:
   pull_request:
     paths:
-      - lean/Plumb/**
-      - lean/PlumbPolicy/**
-      - lean/PlumbPolicy.lean
-      - lean/PlumbCore/**
-      - lean/PlumbQualification/**
-      - lean/PlumbVerification.lean
+      - lean/Regula/**
+      - lean/RegulaPolicy/**
+      - lean/RegulaPolicy.lean
+      - lean/RegulaCore/**
+      - lean/RegulaQualification/**
+      - lean/RegulaVerification.lean
       - examples/rules/**
       - lakefile.lean
       - lake-manifest.json

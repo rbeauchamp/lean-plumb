@@ -711,18 +711,18 @@ example (n : Nat) : incrementLocal n = n + 1 := rfl
 
 When an API promises to produce a witness or make a decision at runtime, it MUST supply an executable definition and the required relation about that same definition. A theorem `∃ y, R x y` establishes existence in Lean's logic; it does not by itself deliver executable data. Existential mathematical theorems remain legitimate. Likewise, a `Decidable` argument used for execution must have a computable producer (§3.2.4).
 
-The public `Plumb.Contract` import provides `ExecutableContract f R : Prop`, whose `evidence` field requires exactly `R f`. Its `run` requires that evidence and reduces to `f` (`ExecutableContract.run_eq`); compilation erases the proof. An application can use this interface or a richer one such as `AuditApp.RequiredContracts`.
+The public `Regula.Contract` import provides `ExecutableContract f R : Prop`, whose `evidence` field requires exactly `R f`. Its `run` requires that evidence and reduces to `f` (`ExecutableContract.run_eq`); compilation erases the proof. An application can use this interface or a richer one such as `AuditApp.RequiredContracts`.
 
 Contract adequacy remains semantic. Replacing a required relation with `fun _ => True` loses that requirement. By contrast, a dependent function type may already enforce the entire intended relation: every `f : (n : Nat) → {m : Nat // m = n + 1}` supplies the stated successor property. Such evidence by construction is sufficient for that claim. Require additional input, success/refusal, frame, or composition relations only where the intended behavior needs them (§3.7).
 
 An executable may have a classical correctness proof under Standard-Logical. Proof erasure does not turn its runtime data into a noncomputable construction:
 
 ```lean
-import Plumb.Contract
+import Regula.Contract
 
 def successor (n : Nat) : Nat := n + 1
 
-theorem successorContract : Plumb.ExecutableContract successor
+theorem successorContract : Regula.ExecutableContract successor
     (fun f => ∀ n, f n = n + 1) :=
   ⟨Classical.byContradiction (fun h => h (fun _ => rfl))⟩
 
@@ -741,10 +741,10 @@ Omitting evidence while keeping the requirement fails at the proof-bearing field
 
 <!-- lean-fail: Fields missing.*evidence -->
 ```lean
-import Plumb.Contract
+import Regula.Contract
 
 def successor (n : Nat) := n + 1
-theorem missing : Plumb.ExecutableContract successor
+theorem missing : Regula.ExecutableContract successor
     (fun f => ∀ n, f n = n + 1) where
 ```
 
