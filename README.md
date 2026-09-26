@@ -2,11 +2,31 @@
 
 A strict linter and correctness standard for Lean.
 
-*Regula* is Latin for a straightedge and for a rule or standard: this project is a standard plus a linter of rules. It was formerly named Plumb for Lean, in the repository `rbeauchamp/lean-plumb`.
-
 Regula pairs a Lean linter and linked rule-reference website with a standard requiring precise types, propositions, and kernel-checked evidence.
 
-The [standard](docs/standard/README.md) defines normative meaning. The current checker enforces declaration, foundation, execution-boundary, and checked-example requirements; the [product architecture](docs/guides/linter-architecture.md) specifies the typed rule catalogue, editor integration, and GitHub Pages website. Adopters run it with `lake lint` and receive linked editor diagnostics from `import Regula.Linter` ([adoption guide](docs/guides/adoption.md)). Every diagnostic links to its explanation in the [rule reference](https://rbeauchamp.github.io/regula/dev/rules/), generated from the rule registry and checked examples and published by CI from `main` ([website guide](docs/guides/website.md)). Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
+The [standard](docs/standard/README.md) defines normative meaning. The current checker enforces declaration, foundation, execution-boundary, and checked-example requirements; the [product architecture](docs/guides/linter-architecture.md) specifies the typed rule catalogue, editor integration, and GitHub Pages website. Adopters run it with `lake lint` and receive editor diagnostics from `import Regula.Linter` ([adoption guide](docs/guides/adoption.md)). Every diagnostic carries its fix and links to its explanation in the [rule reference](https://rbeauchamp.github.io/regula/dev/rules/), generated from the rule registry and checked examples and published by CI from `main` ([website guide](docs/guides/website.md)). Its scope is Lean: dependent types, theorem statements, proofs, foundations, elaboration, modules, and executable Lean code. It serves both mathematical research and application development, with explicit assumptions and execution boundaries.
+
+## Agent-first
+
+Regula is designed first for agents, which increasingly write and fix Lean; humans can still
+review a rule or browse the site. Adopting Regula tells your agent that your Lean code and
+proofs must meet a strict standard that may not be in its training data, so Regula gives it
+that standard before code is written and complete feedback after the linter runs, from the
+installed package, with no website or other tool:
+
+- `lake exe regula agent-guide` prints a compact briefing of every rule, ordered for writing
+  code, to place in `AGENTS.md` or an agent skill (`lake exe regula skill`).
+- Every finding states what is wrong, where, and the fix. The first finding of each rule in a
+  run adds why it matters, the common compliant rewrites and a checked compliant example (or,
+  where the checked files are qualification inputs, the correction they demonstrate).
+- `lake exe regula explain <RULE-ID>` prints the full rule; `lake exe regula rules` lists them.
+- `lake lint -- --json-out PATH` writes one versioned JSON document with every finding, its
+  remedy and each fired rule's guidance; exit codes are documented and stable.
+
+All of this is generated from one typed source, the rule registry, so it cannot drift from
+the diagnostics or the website. New rules and tooling follow the same principle: a rule must
+carry its requirement, rationale, remedy and checked examples to compile. See the
+[adoption guide](docs/guides/adoption.md#0-brief-your-agent).
 
 ## Community review
 

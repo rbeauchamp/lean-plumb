@@ -65,6 +65,17 @@ import Mathlib.Data.Nat.Notation
 example : Nonempty {n : ℕ // n % 2 = 0} := ⟨⟨4, by omega⟩⟩
 ```
 
+## Agents First
+
+Lean code and proofs are increasingly written by agents, and an agent may not know this
+standard from its training data. The standard is therefore stated first for agents, while
+remaining readable by the people who review it: every mechanically checked rule says what it
+requires, why, and how to comply, so that it can be applied before code is written and acted
+on from a finding alone. Complying with the rules does not discharge semantic review: whether
+a statement expresses the intended claim, at the required strength, remains the obligation
+described above. The [adoption guide](../guides/adoption.md#0-brief-your-agent) describes how
+the checker delivers this guidance.
+
 ## Further Reading
 
 - Proof patterns and contracts: [module 3](3-logic-proof-patterns.md)

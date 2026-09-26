@@ -7,6 +7,7 @@ import RegulaQualification.Template
 import RegulaQualification.Producer
 import RegulaQualification.CorpusWindow
 import Regula.Checker.RuleExampleCorpusProjection
+import Regula.Checker.ResultProtocol
 
 /-! Source-owned corpus orchestration. Actual detector receipts are admitted by the
 existing RuleExampleQualification executable and its proof-linked policy functions.
@@ -304,6 +305,8 @@ private def produce (ctx : Context) (slot : Slot.ProducerSlot) (rule phase : Str
   let rawObservation := terminal.setObjVal! "resultIdentity" (← digest root output)
   save (raw / "terminal.json") rawObservation
   let observed ← readJson output
+  if let .error problem := Regula.Checker.ResultProtocol.admitGuidance observed then
+    throw <| IO.userError s!"{rule}/{phase}: result guidance: {problem}"
   IO.println s!"driver span: raw digest/read/parse/projection: {(← IO.monoMsNow) - evidenceStart}ms"
   let mut replacements := [("$PROJECT", project.toString), ("$SOURCE", sourcePath.toString),
     ("$MISSING", (project / "Missing.lean").toString), ("$SOURCE_TEXT", ← IO.FS.readFile sourcePath),

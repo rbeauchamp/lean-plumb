@@ -16,13 +16,6 @@ namespace Regula.Checker.Lint
 
 open Lean System
 
-def stageName : RegulaPolicy.Stage → String
-  | .configuration => "configuration" | .discovery => "discovery" | .build => "build"
-  | .admission => "admission" | .declarationPolicy => "declarationPolicy"
-  | .execution => "execution" | .transcript => "transcript" | .history => "history"
-  | .origin => "origin" | .documentationPresence => "documentationPresence"
-  | .documentScan => "documentScan" | .example => "example" | .graph => "graph"
-
 structure Options where
   project : Option String := none
   manifest : Option String := none
@@ -101,7 +94,7 @@ private def explain (options : Options) : IO Outcome := do
   discard <| IO.ofExcept <| Acceptance.surfaceAssignments manifest inventory
   AxiomGate.checkClassification manifest inventory
   IO.println s!"mode: {modeText options.fresh}"
-  IO.println s!"required stages: {", ".intercalate (projectStages.map stageName)}"
+  IO.println s!"required stages: {", ".intercalate (projectStages.map ResultProtocol.stageName)}"
   for surface in manifest.surfaces do
     let modules := ((inventory.libraries.find? (·.library == surface.library)).map (·.modules)).getD #[]
     IO.println s!"surface {surface.library}: claim {surface.claim}, execution {surface.execution}"

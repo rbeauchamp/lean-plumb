@@ -89,6 +89,11 @@ def all : List RuleId := [.projectAxiom, .proofHole, .unknownAxiom, .compilerTru
 theorem parse_spelling (id : RuleId) : parse? id.spelling = some id := by
   cases id <;> rfl
 
+/-- Parsing succeeds only on a rule's exact spelling. -/
+theorem spelling_of_parse {s : String} {id : RuleId} (h : parse? s = some id) : id.spelling = s := by
+  unfold parse? at h
+  split at h <;> first | cases h; rfl | cases h
+
 theorem spelling_injective {a b : RuleId} (h : a.spelling = b.spelling) : a = b := by
   have e := congrArg parse? h
   simpa only [parse_spelling, Option.some.injEq] using e
@@ -97,6 +102,11 @@ theorem mem_all (id : RuleId) : id ∈ all := by
   cases id <;> simp [all]
 
 theorem all_nodup : all.Nodup := by decide
+
+/-- The derived `==` is equality, so list lemmas stated for lawful `BEq` apply to rule IDs. -/
+instance : LawfulBEq RuleId where
+  eq_of_beq {a b} h := by cases a <;> cases b <;> first | rfl | cases h
+  rfl {a} := by cases a <;> rfl
 
 /-- Routes derive solely from the stable ID, with no independently writable slug. -/
 def route (id : RuleId) : String := "rules/" ++ id.spelling ++ "/"

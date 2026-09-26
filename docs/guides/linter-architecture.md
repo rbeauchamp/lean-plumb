@@ -40,8 +40,10 @@ Implement these modules under the existing root package (no mandatory Mathlib im
 | Path | Owner and contract |
 | --- | --- |
 | `lean/RegulaCore/RuleId.lean` | Closed inductive `RuleId`, stable external spelling, exhaustive descriptor dispatch. |
-| `lean/RegulaCore/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle. |
-| `lean/Regula/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message and URL rendering. |
+| `lean/RegulaCore/Rule.lean` | `RuleDescriptor`, applicability, strict defaults, normative references, evidence modes, attribution, lifecycle, and the agent-facing requirement, rationale, remedy, rewrites and checked example pair every output renders. |
+| `lean/RegulaCore/Feedback.lean` | Finding text generated from the registry and the proved run order and once-per-rule guidance of a command-line run. |
+| `lean/RegulaCore/Guidance.lean`, `lean/Regula/Cli/Main.lean` | The offline `regula` command: rule explanation, rule index, agent briefing and Agent Skills file, with a proved command parser and a byte budget. |
+| `lean/Regula/Diagnostic.lean` | Indexed diagnostic payloads, source/related locations, message rendering through `Feedback`, and run order of findings. |
 | `lean/Regula/Checker/PolicyDomain.lean` | Compatibility re-export of the pure `RegulaPolicy` domain (canonical decoded inputs and typed failures, POLICY-02 #5); it holds no policy of its own. |
 | `lean/Regula/Checker/Acceptance.lean` | Operational adapter to the pure acceptance API; see the [acceptance contract](policy-acceptance.md). |
 | `lean/Regula/Linter.lean` | Public import for editor/command and module hooks; no full build inside a hook. |
@@ -62,7 +64,7 @@ one-to-one diagnostic IDs.
 
 Descriptor fields: `id`, title, category, normative clause references, applicability predicate
 identifier, default strict severity, supported evidence modes, message form (derived from `messageLine`),
-help route, introduced version, optional retired version/replacement, attribution records.
+help route, requirement, rationale, remedy, compliant rewrites, checked example pair, introduced version, optional retired version/replacement, attribution records.
 Attribution records identify source URL, exact revision, credited authors/project, borrowed idea
 or adapted code, and applicable license notice. Derive route and ID text from `RuleId`, rather
 than accepting independent arbitrary strings in each descriptor. Reject duplicate external IDs,
@@ -86,9 +88,10 @@ Cancelled/stale/unsupported/unknown results cannot construct accepted evidence. 
 never construct a fresh whole-project result.
 
 The implemented output schemas are versioned independently from manifest schema 2: registry
-export is at schema 1 and result envelopes are at schema 2 (see [rule registry](rule-registry.md)).
+export is at schema 2 and result envelopes are at schema 3 (see [rule registry](rule-registry.md)).
 Both have top-level schemaVersion, producerVersion, toolchain and sourceRevision, plus rules
-(registry export) or scope/mode/status/diagnostics/unresolved (result export).
+(registry export) or scope/mode/status/stages/stagesCompleted/complete/stagesNotRun/diagnostics/rules/unresolved
+(result export).
 Encode `Name` reversibly, retain source positions, deterministically order exported collections,
 reject duplicate identities at admission, and prove claimed decoder/encoder laws for actual
 functions. JSON is transport; proof-bearing validated values are the in-process authority.
@@ -204,7 +207,8 @@ The separate documentation workspace follows the [package-docs template][templat
 `76c9edf5a70f14d272af0f0f354ec833ac22c350`; rendering remains distinct from checking examples.
 
 The site builder (`lake exe site`, in the root package) generates Verso source from the registry
-(`descriptor`), the typed explanations (`RegulaCore.Guide`, one exhaustive definition over
+(`descriptor`, including the requirement, rationale, remedy, rewrites and example pair that
+every finding also prints), the typed explanations (`RegulaCore.Guide`, one exhaustive definition over
 `RuleId`, the explicit prose input the design allowed in place of `website/Rules/<ID>.lean`) and
 the admitted rule-example exports of the same commit. Generation runs in the root package
 because the website package cannot import the registry without resolving the root package's
