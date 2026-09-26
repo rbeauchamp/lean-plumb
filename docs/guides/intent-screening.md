@@ -264,12 +264,12 @@ documented. The calibration below is a measurement on one corpus and one pinned 
 ## Dogfood screen
 
 The [dogfood workflow](../../.github/workflows/dogfood.yml) screens this repository's own
-claims. It uses the sample configuration users start from,
+`@[plumb_material]` claims, selected by registration. It uses the sample configuration users start from,
 [`screen.json`](../../examples/intent-screening/screen.json), whose cache is the committed
 `examples/intent-screening/cache/`:
 
 ```text
-lake exe intentScreen screen --config examples/intent-screening/screen.json --library PlumbPolicy --library PlumbVerification --library PlumbQualification --library PlumbCore --library Audit --library AuditApp --intent-sections
+lake exe intentScreen screen --config examples/intent-screening/screen.json --library PlumbPolicy --library PlumbVerification --library PlumbQualification --library PlumbCore --library Audit --library AuditApp
 ```
 
 The job is the only CI job that receives the `TYPESAFE_API_KEY` secret, and it has read-only
@@ -296,21 +296,40 @@ wrapped field type, so the rendered structure reads as its Lean declaration. Tha
 requests: `RequiredContracts` now has exclusions 0.71, coverage 0.44 and strength 0.43, and
 `requiredContracts` has strength 0.78 and coverage 0.42.
 
-The remaining answers below 0.5 are all for judgments without calibrated thresholds, so they
-raise no finding and escalate to review:
+Those runs selected the claims with `--intent-sections`, because the claimed libraries could not
+import `Plumb.MaterialClaim`. Issue #83 admitted it as a published interface (standard §8.10)
+and registered the six claims with `@[plumb_material]`, so the screen now selects them by
+registration and acceptance checks their Intent sections (PL5002/PL5003). The same change
+reviewed the low `RequiredContracts` answers against its statement. The claim was not too weak,
+and the Intent did not overstate it. Its first sentence, that the limiter never hands out more
+slots than it was created with, is enforced by the `Limiter` type, whose bound field the
+rendered field bundle does not show. The whole Intent was one paragraph, judged as a single clause.
+The Intent now lists one requirement per clause. The first clause is discharged by
+`RequiredContracts.within_capacity`, a kernel-checked proof that the contracts bound every
+script's end state, total or strict, by the capacity `admit` created. Every intermediate state
+is the end state of a prefix script, so this bounds every state. The model gives that formal
+clause correspondence p = 0.28, a warning, because it asks whether the proposition says exactly
+the English clause, no more and no less. The proposition names both runners where the English
+says "hand out". Review of the proposition finds that it states the clause, so the warning
+escalates to review and the discharge stays. Strength rose from 0.43 to 0.61, and the requirement
+clauses have coverage 0.60 to 0.85. The exclusion clause (timing, fairness and the IO shell
+are out of scope) has coverage 0.12: it states no guarantee to cover, and its `exclusions`
+answer is 0.72.
+
+Apart from that correspondence warning, the remaining answers below 0.5 are for judgments
+without calibrated thresholds, so they raise no finding and escalate to review:
 
 - `checkedExecutable`: coverage 0.32, strength 0.29. Read against the statement, the claim
   matches its Intent: the registered relation admits exactly positive capacities, starts each
   admitted limiter idle at that capacity and runs the strict interpreter.
 - `demo_checked_error`: coverage 0.41. The statement is exact for the fixed demonstration
   script at capacity 2. The model sees `demoScript` and `demoInitial` only by name.
-- `RequiredContracts`: coverage 0.44, strength 0.43. Its statement is the structure's field
-  propositions, which the model judges together against a many-sentence Intent.
+- `RequiredContracts`: coverage 0.12 on its exclusion clause, reviewed above.
 - `requiredContracts`: coverage 0.42. Its statement is the fully rendered `RequiredContracts`
   bundle.
 
-Spend: four runs sent 10 requests and were billed 19,043 input tokens, about $0.0008 at the
-list price. The last run sent 2 requests and was billed 4,936 input tokens; the other 4 answers
+Spend: six runs sent 13 requests and were billed 24,252 input tokens, about $0.0010 at the
+list price. The last run sent 1 request and was billed 474 input tokens; the other 6 answers
 came from the cache.
 
 ## Calibration protocol

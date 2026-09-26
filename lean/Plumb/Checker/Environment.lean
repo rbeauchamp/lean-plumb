@@ -23,9 +23,10 @@ their presence in an environment is not evidence about the claimed modules. -/
 def probeModuleNames : Array String :=
   PlumbPolicy.reporterModuleNames.map (·.toString)
 
-/-- The probe modules no claimed module may import. `Plumb.Contract`
-is the published contract interface (docs/standard/8 §8.12) and is the one checker module
-a claimed surface imports by design; the probe and its report records are
+/-- The probe modules no claimed module may import. `Plumb.Contract` (the
+executable-contract interface, docs/standard/8 §8.12) and `Plumb.MaterialClaim` (the
+`@[plumb_material]` registration, §5.2) are the published interfaces a claimed surface
+imports by design (§8.10); the probe and its report records are
 checker tooling that reach an audited environment only through the force
 import, never through a claimed module's own imports. -/
 def probeOnlyModuleNames : Array String :=

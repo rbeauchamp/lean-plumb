@@ -270,8 +270,8 @@ push to `main`, and nightly. None is part of acceptance.
   instead. Trusted, not verified: Lean's import and kernel replay, the collector's
   observations, the toolchain artifact paths, the worker processes and their JSON transport.
 - The dogfood workflow's intent-screen job runs the opt-in
-  [Jev intent screen](intent-screening.md#dogfood-screen) over every public declaration with
-  an Intent section in the claimed libraries. It is the only CI job that receives
+  [Jev intent screen](intent-screening.md#dogfood-screen) over every public `@[plumb_material]`
+  declaration in the claimed libraries. It is the only CI job that receives
   `TYPESAFE_API_KEY`.
 
 ## Organization

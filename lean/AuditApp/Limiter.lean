@@ -1,4 +1,5 @@
 import Plumb.Contract
+import Plumb.MaterialClaim
 
 /-!
 Proof-bearing core of the `AuditApp` complete-application dogfooding surface:
@@ -13,12 +14,14 @@ The theorems concern these exact computable definitions. The `auditApp`
 executable calls `executeChecked` and the strict interpreter; `run` remains
 the total fold used to specify successful prefixes. No declaration is promoted
 to a native-runtime or external-system claim, and no hypothesis is hidden:
-assumptions appear as binders or proof fields. This module imports nothing
-beyond Lean's prelude and the proof-requiring executable-contract interface. Its material
-claims `RequiredContracts`, `requiredContracts` and `checkedExecutable` carry Intent sections
-(docs/standard/5 §5.2). They are not registered with `@[plumb_material]`: this repository's
-positive libraries may import only `Plumb.Contract` from the excluded checker library, so
-PL5002/PL5003 do not check them here and their Intent sections are reviewed semantically.
+assumptions appear as binders or proof fields. This module directly imports only the two
+published checker interfaces: the proof-requiring executable-contract type and the
+`@[plumb_material]` registration attribute, whose import closure brings in Lean's attribute
+framework; no definition or proof here uses it. Its material
+claims `RequiredContracts`, `requiredContracts` and `checkedExecutable` are registered with
+`@[plumb_material]`, so PL5002/PL5003 require each to carry a docstring with a nonempty Intent
+section (docs/standard/5 §5.2); whether each Intent states the right requirement remains
+semantic review.
 
 Reuse account (docs/standard/1 §1.4, docs/standard/3 §3.2.5): the state, interpreter, and
 monad stack reuse `Option`, `List.foldl`, `ExceptT`, and `StateM` from the
@@ -401,17 +404,22 @@ theorem requestedCapacity_exact (args : List String) :
 /-- Explicit required propositions for the actual application definitions. These
 fields specify admission, each update, dispatch, and composition; their adequacy
 is reviewed against the application's intended behavior. The state's bound is
-already enforced by `Limiter`, so it needs no duplicate field theorem.
+already enforced by `Limiter`, so it needs no duplicate field theorem; with the frame fields
+it bounds every script's end state by the created capacity (`within_capacity`).
 
 # Intent
-A slot limiter must never hand out more slots than the capacity it was created with.
-Creation must refuse a zero capacity and start idle; a grant must take exactly one free
-slot or be refused only when none is free; a release must free one slot when any is in
-use; a reset must free every slot; no operation may change the capacity. A script must
-apply its operations in order, and the strict runner must stop at the first refused
-grant, keeping exactly the state reached before it. The command-line capacity is the
-first argument read as a natural number, defaulting to 2. Timing, fairness and the IO
-shell are deliberately out of scope. -/
+- A slot limiter must never hand out more slots than the capacity it was created with. (discharged by `AuditApp.RequiredContracts.within_capacity`)
+- Creation must refuse a zero capacity and start idle.
+- A grant must take exactly one free slot, and must be refused only when none is free.
+- A release must free one slot when any is in use.
+- A reset must free every slot.
+- No operation may change the capacity.
+- A script must apply its operations in order.
+- The strict runner must stop at the first refused grant, keeping exactly the state reached
+  before it.
+- The command-line capacity is the first argument read as a natural number, defaulting to 2.
+- Timing, fairness and the IO shell are deliberately out of scope. -/
+@[plumb_material]
 structure RequiredContracts : Prop where
   admission : ∀ capacity, admit capacity = if 0 < capacity then
     some ⟨capacity, 0, Nat.zero_le capacity⟩ else none
@@ -449,6 +457,27 @@ structure RequiredContracts : Prop where
   burst : ∀ l n, l.inUse + n ≤ l.capacity →
     (run (List.replicate n Op.grant) l).inUse = l.inUse + n
 
+/-- The required contracts bound every script's end state, total or strict, by the capacity
+the limiter was created with: the `admission` field fixes the created limiter's capacity,
+the frame fields `run_frame` and `checked_frame` preserve it, and the `Limiter` field bounds
+each end state by its own capacity. This is the formal statement of the first
+`RequiredContracts` Intent clause. -/
+theorem RequiredContracts.within_capacity (contracts : RequiredContracts) :
+    ∀ (capacity : Nat) (created : Limiter), admit capacity = some created →
+      ∀ ops : List Op,
+        (run ops created).inUse ≤ capacity ∧ (runChecked ops created).2.inUse ≤ capacity := by
+  intro capacity created admitted ops
+  have created_capacity : created.capacity = capacity := by
+    rw [contracts.admission] at admitted
+    split at admitted
+    · cases admitted; rfl
+    · cases admitted
+  have := (run ops created).bounded
+  have := (runChecked ops created).2.bounded
+  have := contracts.run_frame created ops
+  have := contracts.checked_frame ops created
+  omega
+
 /-- Evidence required by the application entrypoint. Deleting or weakening an
 assigned proof cannot inhabit its unchanged field proposition. Equivalent
 proofs are welcome; neither theorem names nor declaration counts are the rule.
@@ -456,6 +485,7 @@ proofs are welcome; neither theorem names nor declaration counts are the rule.
 # Intent
 Every required behavior of the limiter must be proved about the exact definitions the
 application executes. -/
+@[plumb_material]
 theorem requiredContracts : RequiredContracts where
   admission := admit_exact
   grant_success := grant_some
@@ -516,6 +546,7 @@ The build linter also checks executability and compiler/runtime boundaries.
 # Intent
 The function the executable calls must admit exactly the positive capacities, start
 each admitted limiter idle at that capacity, and then run the script strictly. -/
+@[plumb_material]
 theorem checkedExecutable : Plumb.ExecutableContract executeChecked
     (fun execute => ∀ (contracts : RequiredContracts) capacity ops,
       execute contracts capacity ops = if 0 < capacity then

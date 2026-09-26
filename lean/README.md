@@ -10,6 +10,7 @@ imports retain their Lean module names, such as `Audit.Research` and
 | Purpose | Start here | Boundary |
 | --- | --- | --- |
 | Use the proof-bearing contract interface | [Plumb.Contract](Plumb/Contract.lean) | Public interface tying evidence to the named executable definition. |
+| Register a material claim | [Plumb.MaterialClaim](Plumb/MaterialClaim.lean) | Public `@[plumb_material]` attribute selecting the PL5002/PL5003 docstring and Intent-section obligations. |
 | Inspect mathematical/specification examples | [Audit](Audit.lean) | Claimed abstract-specification surface; representative checks of the standard's claims. |
 | Inspect the verified application | [Main](Main.lean), [AuditApp](AuditApp.lean) | Claimed limiter application; proofs concern its actual definitions and its IO boundary remains reported. |
 | Use typed policy data and admission | [PlumbPolicy](PlumbPolicy.lean), [domain guide](../docs/guides/policy-domain.md) | Separate claimed pure library; representation proofs do not authenticate compiler observations or establish complete acceptance. |
