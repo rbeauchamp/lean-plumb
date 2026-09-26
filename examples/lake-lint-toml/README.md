@@ -29,5 +29,5 @@ the module with the warning and when the source re-enables it with
 `set_option linter.regula true`. Disabling live feedback with `set_option linter.regula false`
 does not waive the project check: `lake lint` still reports the violation (exit 1).
 `lake exe checkerSelftest --build-bound --partition lint-driver` qualifies these behaviors.
-The editor journeys are recorded in
-[session/evidence/issue-14-editor-journeys.md](../../session/evidence/issue-14-editor-journeys.md).
+The editor evidence is in the
+[product qualification](../../docs/guides/product-qualification.md#supported-routes).

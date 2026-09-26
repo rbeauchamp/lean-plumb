@@ -5,9 +5,7 @@ This is the integrated account of the Regula linter and its rule-reference websi
 code, what is checked by a command, what was observed, what is trusted and what remains
 semantic review. It is repository practice, not part of the normative standard; the rule
 predicates live in [`docs/standard/`](../standard/README.md) and the
-[coverage map](rule-coverage.md). Observations, commands, timings and revisions of the
-qualification run are recorded in
-[issue-10 evidence](../../session/evidence/issue-10-qualification.md).
+[coverage map](rule-coverage.md).
 
 Evidence classes used below:
 
@@ -98,9 +96,7 @@ the `D` theorems are stated above; the others are the observations named in each
 **Evidence commands.** Each "Qualification" entry names a campaign run by
 `./scripts/verify.sh diagnostics <partition>` (fixtures, structural, cli, environments,
 build-policy, lint-driver, producers, history, rule-examples 1/2 and 2/2) or inside ordinary
-acceptance (registry, native and CLI qualification). The runs for this change, with exact
-revision and timings, are listed in the [evidence record](../../session/evidence/issue-10-qualification.md#commands-and-results-for-the-10-change);
-campaigns not listed there were not rerun and keep their earlier recorded evidence.
+acceptance (registry, native and CLI qualification).
 
 Every declaration, context and execution finding is a `Diagnostic id` whose `helpUrl id` is the
 development route of `id` (`Regula.Site.Build.helpUrl_dev`), and whose text is
@@ -114,7 +110,7 @@ compliant example (or the correction, where the checked files are qualification 
 
 | Route | What runs | Result | Evidence |
 | --- | --- | --- | --- |
-| Editor, `import Regula.Linter` | Command and module hooks over the current snapshot | `editorSnapshot` feedback: RG1001–RG1007, RG2002, RG2005, RG5001–RG5003 at their ranges; never project acceptance | Proved editor/project equality above; observed in VS Code ([#14 journeys](../../session/evidence/issue-14-editor-journeys.md), #10 journey) |
+| Editor, `import Regula.Linter` | Command and module hooks over the current snapshot | `editorSnapshot` feedback: RG1001–RG1007, RG2002, RG2005, RG5001–RG5003 at their ranges; never project acceptance | Proved editor/project equality above; observed in VS Code ([adopter journeys](#adopter-journeys)) |
 | `lake lint` | `regula/lint` driver: builds the manifest's targets with the audit-build marker (local findings off whatever the source sets `linter.regula` to), then the `axiomGate` project audit | `incrementalProject`; exit 0/1/2/3 | `accepted_sound`, `checkedClassify`; `liveFeedback_auditBuild`; lint-driver campaign (17 controls); #10 fresh-adopter journey |
 | `lake lint -- --fresh` | Same audit in an isolated copy from empty build output | `freshProject`, the only fresh whole-project claim | Observed PASS in the fresh adopter |
 | `lake lint -- --json-out PATH` | Same audit, result schema 3 | `status`, the stage evidence `stages` and `stagesCompleted` with `complete` and `stagesNotRun`, diagnostics in run order with source ranges, `remedy` and `helpUrl`, and each fired rule's guidance (`rules`) | `ResultProtocol.admitGuidance` on every rule-example result; observed |
@@ -133,38 +129,37 @@ Incremental and cached paths re-evaluate current policy on every run: the driver
 (lint-driver repeated cached violation and build-policy cached-failure and
 configuration-change controls). Local
 options (`linter.regula`, `regula.localFoundation`, `warningAsError`) change only local feedback;
-the project audit still rejects. A cancelled editor collection reports nothing for that declaration (observed in the
-[#14 journeys](../../session/evidence/issue-14-editor-journeys.md#stale-and-cancelled-snapshots)),
+the project audit still rejects. A cancelled editor collection reports nothing for that declaration (observed in VS Code),
 and a failed one reports RG2005 (`Regula.Linter` `unavailable`), never an invented rule or a PASS. Unknown rules cannot occur: the
 registry is closed, and codecs refuse unknown IDs, fields and modes.
 
 ## Adopter journeys
 
-On a new project that requires Plumb by Git revision `a52bf1f` (the published `main` before this
-change) and follows the [adoption guide](adoption.md) (details in the evidence record). These
-runs exercised the base revision; the #10 changes to evidence modes, message rendering,
-explanations and credits are covered instead by ordinary acceptance, both corpus shards, the site
-build and the lint-driver and producers campaigns at this change's revision. They predate the
-rename to Regula, so they record the former names: package `plumb`, rule IDs `PL####` (now
-`RG####`) and option `linter.plumb`.
+On a new project that required the linter by Git revision `a52bf1f` and followed the
+[adoption guide](adoption.md). These runs exercised that revision; later changes to evidence
+modes, message rendering, explanations and credits are covered by ordinary acceptance, both
+corpus shards, the site build and the lint-driver and producers campaigns.
 
 - `lake lint` accepted the clean project (exit 0), and `lake lint -- --fresh` gave fresh
   whole-project acceptance.
-- A project axiom gave PL1001 at its declaration with the rule URL (exit 1); a Choice-Free
-  surface using `Classical.byCases` gave PL1005 (exit 1), and the documented fix (a proof with
-  fewer axioms) returned exit 0; an unclassified library gave PL2002 (exit 2), fixed by an
-  exclusion; a missing module docstring gave PL5001 (exit 1); an unused-variable warning gave
-  PL2003 (exit 3); `set_option linter.plumb false` did not hide a PL1001 violation (exit 1).
+- A project axiom gave the project-axiom finding at its declaration with the rule URL (exit 1);
+  a Choice-Free surface using `Classical.byCases` gave the foundation-profile finding (exit 1),
+  and the documented fix (a proof with fewer axioms) returned exit 0; an unclassified library
+  gave the configuration finding (exit 2), fixed by an exclusion; a missing module docstring
+  gave the module-documentation finding (exit 1); an unused-variable warning gave the build
+  finding (exit 3); turning the linter's live-feedback option off did not hide a project-axiom
+  violation (exit 1).
 - A second library importing `Mathlib.Algebra.Group.Basic` (Standard-Logical) was accepted by
   `lake lint` and `lake lint -- --fresh`.
-- A `sorry` gave PL2003 (exit 3), not PL1002: Lean's own warning stops the audit first. The
-  RG1002 page and the adoption guide now say so.
-- In VS Code, the same `sorry` showed Lean's warning and PL1002 at the declaration with code
-  `Plumb.PL1002`, the text URL and Lean's **View explanation** anchor (`target=_blank`,
-  `rel="noreferrer noopener"`, no Lean-manual link). A trusted click reached the anchor, and the configured
-  external browser started immediately afterwards; the URL it received and the page it showed
-  were not observable from this environment. The same URL served the matching PL1002 page of
-  the deployed commit. The documented fix cleared the diagnostic, and `lake lint` accepted.
+- A `sorry` gave the build finding (exit 3), not the `sorryAx` finding: Lean's own warning stops
+  the audit first. The RG1002 page and the adoption guide say so.
+- In VS Code, the same `sorry` showed Lean's warning and the `sorryAx` finding at the
+  declaration with its rule code, the text URL and Lean's **View explanation** anchor
+  (`target=_blank`, `rel="noreferrer noopener"`, no Lean-manual link). A trusted click reached
+  the anchor, and the configured external browser started immediately afterwards; the URL it
+  received and the page it showed were not observable from this environment. The same URL
+  served the matching rule page of the deployed commit. The documented fix cleared the
+  diagnostic, and `lake lint` accepted.
 
 These are bounded observations of real runs, not theorems about the tools.
 

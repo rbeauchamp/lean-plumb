@@ -5,10 +5,8 @@ in the universal standard. The sixteen former Python entrypoints listed below ha
 replacements; ordinary acceptance, the producer/history/corpus CI campaigns and the
 site build do not need a Python interpreter. The four remaining acceptance, snapshot,
 documentation-dependency and input-inventory drivers were retired after their native
-controls passed. The [earlier receipt](../../session/evidence/ci-environment-census.md)
-and [completion receipt](../../session/evidence/ci-role-retention.md) retain the
-control mapping, runtime results, failed attempts and evidence-reuse boundaries.
-Historical implementations remain in Git history; use the Lean commands below.
+controls passed. Historical implementations remain in Git history; use the Lean
+commands below.
 The former prototype's project-owned JavaScript widget was also removed. External Lean, Lake,
 Verso, runtime libraries and generated browser assets remain external dependencies, not
 claims of a wholly Lean or formally verified toolchain.

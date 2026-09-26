@@ -193,12 +193,6 @@ pushes and deletion of `site-archive-regula` would enforce rule 1 against every 
 operator setting that is not yet configured. An unreachable archive fails the build and the
 gate; an absent branch is the empty archive.
 
-The invariant is per base path. As Plumb for Lean, the project published its snapshots under
-`/lean-plumb/`. Those snapshots stay unchanged in the `site-archive` branch, but nothing reads
-that branch: their absolute links name `/lean-plumb/` and the former `PL` rule IDs, so the link
-check would reject them under `/regula/`. After the repository rename, GitHub Pages answered the
-former path with HTTP 404 (observed once, 2026-09-26).
-
 The archive grows linearly with deployments to `main`: one snapshot is about 190 files and
 about 1.9 MB (an estimate for the current build, not a measurement of the archive), so
 GitHub Pages' 1 GB limit on a published site would be reached after roughly 500 deployments.
