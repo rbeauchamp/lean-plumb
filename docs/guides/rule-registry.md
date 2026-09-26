@@ -185,13 +185,16 @@ unrecorded. `stagesNotRun` (`notRun`) is every required stage missing from `stag
 status records every required stage as completed, because its accepted account executed every
 required stage. `ResultProtocol.admitGuidance` admits a result's agent members in the same style
 as a registry: every diagnostic decodes canonically, every listed stage exists (`parseStage`,
-`parseStage_stageName`), `stages` are the required stages of the result's `mode` (`runStages`),
-with the documentation stages exactly for a recorded `projectWithDocs` request,
+`parseStage_stageName`), a result with a `mode` records its `request`, `stages` are the required
+stages of that `mode` (`runStages`), with the documentation stages exactly for a `projectWithDocs`
+request,
 `stagesCompleted`, `complete`, `stagesNotRun` and `rules` equal their `guidanceFields` derivation
 from the status, `stages`, `stagesCompleted` and diagnostics (every writer's record re-derives to
 itself, `completedStages_idem` and `guidanceFields_recorded`), and an `incomplete` result without
 an incomplete finding lists a stage not run, since only a stage that did not complete can then
 have left it incomplete. The rule-example campaign applies it to every result it admits.
+Admission establishes consistency against writer regressions and omissions, not authenticity: a
+report deliberately edited to be self-consistent, such as one with a rewritten `request.kind`, passes.
 The producer revision is captured when `ResultProtocol` is elaborated, with Git
 anchored to that source file's checker package directory, rather than reading an
 adopter's Git checkout. Unreleased working builds are explicitly

@@ -220,14 +220,16 @@ def runStages : Option EvidenceMode → List (List Stage)
 /-- Admit a result envelope's agent members in the registry-export style: it has this schema
 version; every diagnostic decodes to its canonical indexed form (`DiagnosticCodec.parseDiagnostic`,
 which includes the finding's `remedy` and `text`); every entry of `stages` and `stagesCompleted`
-is a stage, and `stages` are the required stages of the result's `mode` (`runStages`), with the
-documentation stages exactly for a recorded `projectWithDocs` request;
+is a stage, and `stages` are the required stages of the result's `mode` (`runStages`); a result
+with a `mode` records its `request`, whose documentation stages are exactly those of a
+`projectWithDocs` request;
 `stagesCompleted`, `complete`, `stagesNotRun` and `rules` equal their derivation by the writer's
 own `guidanceFields` from the status, those stages and the diagnostics
 (`guidanceFields_recorded`), so no stage a finding blocks is reported as run and a `completed`
 result reports every stage as run; and an `incomplete` result without an incomplete finding
 reports a stage not run, because only a stage that did not complete can have left it
-incomplete. -/
+incomplete. This is consistency against writer regressions and omissions, not authenticity: a
+report deliberately edited to be self-consistent, such as a rewritten `request.kind`, passes. -/
 def admitGuidance (j : Json) : Except String Unit := do
   unless (j.getObjVal? "schemaVersion").toOption == some (toJson schemaVersion) do
     throw "unsupported result schema"
@@ -242,8 +244,8 @@ def admitGuidance (j : Json) : Except String Unit := do
     | mode => some <$> RegistryCodec.parseMode (← mode.getStr?)
   unless (runStages mode).contains required do
     throw "stages are not the required stages of the result's mode"
-  if let .ok request := j.getObjVal? "request" then
-    let withDocs := (← (← request.getObjVal? "kind").getStr?) == "projectWithDocs"
+  if mode.isSome then
+    let withDocs := (← (← (← j.getObjVal? "request").getObjVal? "kind").getStr?) == "projectWithDocs"
     unless withDocs == (required == stagesOf .freshProject ++ documentationStages) do
       throw "stages are not the required stages of the result's request"
   let status ← (← j.getObjVal? "status").getStr?

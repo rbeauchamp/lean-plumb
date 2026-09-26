@@ -80,32 +80,36 @@ def main : IO Unit := do
     (.source source) .freshFile (some "standard-logical") .violation
   let json := diagnosticJson ⟨.projectAxiom, d⟩
   let fileStages := Regula.Checker.ResultProtocol.stagesOf .freshFile
-  let envelope := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshFile .rejected
-    #[⟨.projectAxiom, d⟩, ⟨.projectAxiom, d⟩] fileStages fileStages #[]
-  let partialRun := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshFile .rejected
-    #[⟨.projectAxiom, d⟩] fileStages (fileStages.filter (· ∉ [.execution, .origin])) #[]
+  -- Every writer records the request of a result with a mode.
+  let requested (kind : String) (j : Json) : Json := j.setObjVal! "request"
+    (Regula.Checker.ResultProtocol.requestJson kind "control" "control" none none #[])
+  let envelope := requested "file" <| Regula.Checker.ResultProtocol.resultJson (.str "control")
+    .freshFile .rejected #[⟨.projectAxiom, d⟩, ⟨.projectAxiom, d⟩] fileStages fileStages #[]
+  let partialRun := requested "file" <| Regula.Checker.ResultProtocol.resultJson (.str "control")
+    .freshFile .rejected #[⟨.projectAxiom, d⟩] fileStages
+    (fileStages.filter (· ∉ [.execution, .origin])) #[]
   let projectStages := Regula.Checker.ResultProtocol.stagesOf .freshProject
   let omission ← IO.ofExcept <| Regula.Findings.contextFinding .coverage "control"
     "surface-omission: Lake module M was not elaborated" .freshProject .incomplete
-  let blockedRun := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject .incomplete
-    #[omission] projectStages projectStages #[]
+  let blockedRun := requested "project" <| Regula.Checker.ResultProtocol.resultJson
+    (.str "control") .freshProject .incomplete #[omission] projectStages projectStages #[]
   -- A run whose documentation scan found nothing, and a configuration refusal.
-  let unscanned := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject .incomplete
-    #[] (projectStages ++ Regula.Checker.ResultProtocol.documentationStages) projectStages #[]
+  let unscanned := requested "projectWithDocs" <| Regula.Checker.ResultProtocol.resultJson
+    (.str "control") .freshProject .incomplete #[]
+    (projectStages ++ Regula.Checker.ResultProtocol.documentationStages) projectStages #[]
   let refusal ← IO.ofExcept <| Regula.Findings.contextFinding .configuration "control"
     "manifest-schema: surfaces[0].claim must be one of kernel-only, choice-free, standard-logical"
     .freshProject .violation
-  let refused := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject .rejected
-    #[refusal] projectStages [] #[]
+  let refused := requested "project" <| Regula.Checker.ResultProtocol.resultJson
+    (.str "control") .freshProject .rejected #[refusal] projectStages [] #[]
   -- A `--with-docs` run whose project stages found a violation, so its documentation stages
   -- never started, although its writer recorded them.
   let withDocsStages := projectStages ++ Regula.Checker.ResultProtocol.documentationStages
   let projectFinding ← IO.ofExcept <| makeDiagnostic .moduleDocumentation ⟨"M", "missing docs"⟩
     (.module `M) .freshProject none .violation
-  let projectRejected := (Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject
-    .rejected #[⟨.moduleDocumentation, projectFinding⟩] withDocsStages withDocsStages #[]).setObjVal!
-    "request" (Regula.Checker.ResultProtocol.requestJson "projectWithDocs" "control" "control"
-      none none #[])
+  let projectRejected := requested "projectWithDocs" <| Regula.Checker.ResultProtocol.resultJson
+    (.str "control") .freshProject .rejected #[⟨.moduleDocumentation, projectFinding⟩] withDocsStages
+    withDocsStages #[]
   let allStageNames := toJson (projectStages.map Regula.Checker.ResultProtocol.stageName)
   let claimAllRan (j : Json) (stages : Json) : Json :=
     ((j.setObjVal! "stagesCompleted" stages).setObjVal! "stagesNotRun"
@@ -126,6 +130,11 @@ def main : IO Unit := do
   require (succeeded (admit projectRejected)) "rejected documentation run admission"
   require ((projectRejected.getObjVal? "stagesNotRun").toOption == some (toJson ["documentScan", "example"]))
     "a project finding leaves the documentation stages not run"
+  -- The shrink-stages edit of that run with its request deleted.
+  let unrequested := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject
+    .rejected #[⟨.moduleDocumentation, projectFinding⟩] projectStages projectStages #[]
+  require (succeeded (admit (requested "project" unrequested))) "requested project run admission"
+  require (!succeeded (admit unrequested)) "result with a mode but no request"
   require (!succeeded (admit (claimAllRan projectRejected (toJson (withDocsStages.map
     Regula.Checker.ResultProtocol.stageName))))) "unstarted documentation stages reported as run"
   require (!succeeded (admit (claimAllRan (projectRejected.setObjVal! "stages" allStageNames)

@@ -1157,17 +1157,19 @@ unsafe def run (args : List String) : IO UInt32 := do
             (buildLint := options.buildLint) (acceptanceLink := acceptanceLink.isSome)
           return result
     catch error => return (← reportFailure error, none)
-  let configuration ← try
-      SourceBinding.configuration repo
-        ((options.manifest.map (resolve repo)).getD (Manifest.defaultPath repo))
-    catch error =>
-      return ← withRetainedSources resultOut composed capturedSources (reportFailure error)
+  -- A configuration-read failure still records the request, with no configuration read.
+  let (configuration, readFailure) ← try
+      pure (← SourceBinding.configuration repo
+        ((options.manifest.map (resolve repo)).getD (Manifest.defaultPath repo)), none)
+    catch error => pure (#[], some error)
   let request := ResultProtocol.requestJson (if options.file.isSome then "file" else if options.withDocs then "projectWithDocs" else "project")
     repo.toString ((options.file.map (fun path => (resolve repo path).toString)).getD repo.toString)
     (options.claim.map Profile.toString)
     (if options.file.isSome then some options.execution.toString else none) configuration
   let (code, linked) ← withRetainedSources resultOut composed capturedSources <|
-    withSourceEvidenceOr (1, none) #[] configuration repo.toString mode composed resultOut action
+    match readFailure with
+    | some error => return (← reportFailure error, none)
+    | none => withSourceEvidenceOr (1, none) #[] configuration repo.toString mode composed resultOut action
   if let some output := resultOut then
     match ResultProtocol.composeDecision code (← composed.get) with
     | some base =>

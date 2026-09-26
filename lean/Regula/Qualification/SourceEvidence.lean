@@ -86,7 +86,8 @@ def closure : IO Unit := do
           IO.println s!"closure evidence {kind}/{invocation}/{phase}: PASS"
 
 /-- Initial configuration-read IO failure must produce one exact typed incomplete
-result, not an exception without evidence or a stale successful request account. -/
+result, not an exception without evidence or a stale successful request account: its
+request records no configuration and it has no effective configuration. -/
 def configuration : IO Unit := do
   let root ← rootDirectory
   withScratch root "configuration-capture" fun project => do
@@ -118,7 +119,9 @@ def configuration : IO Unit := do
                 ("kind", .str "project"), ("identity", .str project.toString)]⟩,
               ⟨"exact unresolved IO failure", (← array result "unresolved") == #[.str why]⟩,
               ⟨"no source invented", (← array result "sourceAccount").isEmpty⟩,
-              ⟨"no request invented", (field result "request").toOption.isNone && (field result "effective").toOption.isNone⟩]
+              ⟨"request without configuration read",
+                ((← field result "request").getObjVal? "configuration").toOption == some (.arr #[]) &&
+                  (field result "effective").toOption == some .null⟩]
           else
             let effective ← text (← field result "effective") "root"
             let sources ← array result "sourceAccount"

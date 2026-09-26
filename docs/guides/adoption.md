@@ -326,13 +326,16 @@ include:
 The exit status is the stable contract for pass or fail (table above); the `status` and
 `complete` members say why. Regula checks the report form the way it checks registry exports:
 every diagnostic must decode to the canonical indexed finding (unknown fields, stale text or
-remedies are refused), `stages` must be the required stages of the result's `mode` and `request`,
+remedies are refused), a result with a `mode` must record its `request` (with no configuration
+when the configuration could not be read), `stages` must be the required stages of that `mode`
+and `request`,
 `stagesCompleted`, `complete`, `stagesNotRun` and `rules` must equal their derivation from the
 status, `stages`, `stagesCompleted` and the diagnostics by the same function the writer uses
 (so a `completed` result lists every stage as completed and no stopped stage is listed), and an
 `incomplete` result without an incomplete finding must list a stage not run
-(`Regula.Checker.ResultProtocol.admitGuidance`). Treat the report as
-observations, never as a Lean proof.
+(`Regula.Checker.ResultProtocol.admitGuidance`). These checks catch writer regressions and
+omissions, not forgeries: a report edited by hand to be self-consistent, for example with its
+`request.kind` rewritten, passes them. Treat the report as observations, never as a Lean proof.
 
 Lake details that affect what ran:
 
