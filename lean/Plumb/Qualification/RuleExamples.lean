@@ -119,15 +119,23 @@ private def digest (root path : FilePath) : IO Json := do
     value.toList.all (fun c => c.isDigit || ('a' ≤ c && c ≤ 'f'))⟩]
   return Json.mkObj [("sha256", .str value), ("bytes", toJson (← path.metadata).byteSize)]
 
+/-- Line bound of one drained process stream (`drain`). -/
+private def drainLineBound : Nat := 2 ^ 32
+
 /-- Drain textual process streams one line at a time, retaining line terminators and
 the final EOF-terminated line. A kill preserves completed lines already read; a pending
-unterminated line can remain buffered. Only terminal observations claim complete streams. -/
-private partial def drain (source target : IO.FS.Handle) : IO Unit := do
-  let line ← source.getLine
-  unless line.isEmpty do
-    target.putStr line
-    target.flush
-    drain source target
+unterminated line can remain buffered. Only terminal observations claim complete streams.
+EOF depends on the external producer, so the drain is total through `lines`, structural
+fuel started at `drainLineBound`: a stream of fewer lines drains unchanged, and a longer
+one fails closed, leaving the observation non-terminal. -/
+private def drain (source target : IO.FS.Handle) : (lines : Nat) → IO Unit
+  | 0 => throw <| IO.userError s!"process stream exceeds {drainLineBound} lines"
+  | lines + 1 => do
+    let line ← source.getLine
+    unless line.isEmpty do
+      target.putStr line
+      target.flush
+      drain source target lines
 
 /-- Observe one detector run. The returned observation is taken only after the
 direct child is waited and both stream drains reach EOF: direct-child reaping
@@ -142,8 +150,8 @@ private def observe (project binary stdout stderr : FilePath) (command : Array S
   let child ← IO.Process.spawn {
     cmd := binary.toString, args := command, cwd := some project,
     env, stdin := .null, stdout := .piped, stderr := .piped }
-  let outTask ← IO.asTask (drain child.stdout out) Task.Priority.dedicated
-  let errTask ← IO.asTask (drain child.stderr err) Task.Priority.dedicated
+  let outTask ← IO.asTask (drain child.stdout out drainLineBound) Task.Priority.dedicated
+  let errTask ← IO.asTask (drain child.stderr err drainLineBound) Task.Priority.dedicated
   -- Hold every managed outcome until both launched drains have joined. A failed
   -- wait is not successful reaping; it still owes the stream joins before
   -- unwinding. Preserve the original error order and exact error values.

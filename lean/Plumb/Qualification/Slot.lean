@@ -102,6 +102,13 @@ private def resolveSafe (path : FilePath) : IO (Option FilePath) := do
     pure (some (← IO.FS.realPath path))
   catch _ => return none
 
+/-- Directory depth bound of the slot walks (`scanTree`, `sharedWalk`), which makes them
+total. A walk that reaches it fails closed. Under the trusted OS path limit (`PATH_MAX`:
+4096 bytes on Linux, 1024 on macOS) a descent through real directories cannot reach it,
+since each level adds at least two bytes, a separator and a name. Only `scanTree`, which
+follows symlinks, can reach it, through a chain of more than 4096 distinct directories. -/
+def maxWalkDepth : Nat := 4096
+
 /-- Explicit scan-boundary traversal. Each directory scan carries the resolved
 locations of its descent chain; a directory whose resolved location is already
 on the chain is a cycle and is refused **at the scan boundary** (its entry is
@@ -111,22 +118,28 @@ did, but never produce alias-form children; where an alias re-scans a real
 subtree, duplicate pushes may remain — the preserved claim is the **unique
 legacy path-set** on finite acyclic inputs (not exactly-once). Unresolvable
 entries are classified for the materializing fallback and fail closed at
-copy. -/
-partial def scanTree (root : FilePath) (dir : FilePath) (chain : Array String) :
+copy. The walk terminates on its chain length, bounded by `maxWalkDepth`; a
+deeper chain fails closed. -/
+def scanTree (root : FilePath) (dir : FilePath) (chain : Array String) :
     IO (Array (FilePath × String × Bool)) := do
   let resolved ← IO.FS.realPath dir
   if chain.contains resolved.toString then
     return #[]
-  let chain := chain.push resolved.toString
-  let mut entries := #[]
-  for d in (← resolved.readDir) do
-    let isDir ← isDirSafe d.path
-    entries := entries.push (d.path, (relativeOf root d.path).toString, isDir)
-    if isDir then
-      match ← resolveSafe d.path with
-      | some target => entries := entries ++ (← scanTree root target chain)
-      | none => pure ()
-  return entries
+  if _h : chain.size < maxWalkDepth then
+    let chain := chain.push resolved.toString
+    let mut entries := #[]
+    for d in (← resolved.readDir) do
+      let isDir ← isDirSafe d.path
+      entries := entries.push (d.path, (relativeOf root d.path).toString, isDir)
+      if isDir then
+        match ← resolveSafe d.path with
+        | some target => entries := entries ++ (← scanTree root target chain)
+        | none => pure ()
+    return entries
+  else
+    throw <| IO.userError s!"slot copy walk exceeds {maxWalkDepth} directory levels: {resolved}"
+termination_by maxWalkDepth - chain.size
+decreasing_by simp; omega
 
 /-- Recursively copy `source` into `target`. The guarded enumeration is the
 explicit scan-boundary traversal (`scanTree`) with unchanged semantics: the
@@ -284,23 +297,27 @@ structure SharedIdentity where
   deriving BEq, Inhabited
 
 /-- `lstat` walk of one shared root, threading one accumulator. Directories are
-recursed without following symlinks; every entry is recorded. -/
-private partial def sharedWalk (root dir : FilePath) (acc : Array SharedEntry) :
-    IO (Array SharedEntry) := do
-  let mut acc := acc
-  for d in (← dir.readDir) do
-    let relative := (relativeOf root d.path).toString
-    match (← d.path.symlinkMetadata).type with
-    | .dir =>
-      acc := acc.push ⟨relative, "dir", 0, 0, ""⟩
-      acc ← sharedWalk root d.path acc
-    | .file => acc := acc.push ⟨relative, "file", 0, 0, ""⟩
-    | .symlink =>
-      let target ← try pure (← IO.FS.realPath d.path).toString
-        catch _ => pure "<unresolvable>"
-      acc := acc.push ⟨relative, "symlink", 0, 0, target⟩
-    | .other => acc := acc.push ⟨relative, "other", 0, 0, ""⟩
-  return acc
+recursed without following symlinks; every entry is recorded. `depth` is the
+number of directory levels still allowed below `dir` (structural fuel, started at
+`maxWalkDepth`); a deeper tree fails closed. -/
+private def sharedWalk (root dir : FilePath) (acc : Array SharedEntry) :
+    (depth : Nat) → IO (Array SharedEntry)
+  | 0 => throw <| IO.userError s!"shared-root walk exceeds {maxWalkDepth} directory levels: {dir}"
+  | depth + 1 => do
+    let mut acc := acc
+    for d in (← dir.readDir) do
+      let relative := (relativeOf root d.path).toString
+      match (← d.path.symlinkMetadata).type with
+      | .dir =>
+        acc := acc.push ⟨relative, "dir", 0, 0, ""⟩
+        acc ← sharedWalk root d.path acc depth
+      | .file => acc := acc.push ⟨relative, "file", 0, 0, ""⟩
+      | .symlink =>
+        let target ← try pure (← IO.FS.realPath d.path).toString
+          catch _ => pure "<unresolvable>"
+        acc := acc.push ⟨relative, "symlink", 0, 0, target⟩
+      | .other => acc := acc.push ⟨relative, "other", 0, 0, ""⟩
+    return acc
 
 /-- Complete content of one regular file: exact length and native hash. -/
 private def fileDigest (root : FilePath) (entry : SharedEntry) : IO SharedEntry := do
@@ -316,7 +333,7 @@ def sharedIdentity (roots : Array FilePath) (width : Nat := 8) : IO SharedIdenti
   let width := max width 1
   let mut result := #[]
   for root in roots do
-    let walked ← sharedWalk root root #[]
+    let walked ← sharedWalk root root #[] maxWalkDepth
     let chunk := (walked.size + width - 1) / width
     let tasks ← (Array.range width).mapM fun k =>
       IO.asTask ((walked.extract (k * chunk) ((k + 1) * chunk)).mapM (fileDigest root))

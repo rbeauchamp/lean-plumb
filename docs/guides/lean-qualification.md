@@ -169,8 +169,8 @@ from `Manifest.toJson` of it: the same surfaces, excluded libraries and excluded
 in order, with their rationales. `structuralBase` checks the claim hypothesis at run time; no
 theorem links that check to the hypothesis. The theorem does not cover the text boundary.
 `Json.compress` renders the value and `PolicyCodec.parse` reads it back; the first is `partial`
-and the second runs `partial` parsers, so no Lean theorem can describe them. They stay trusted
-to return a value that `Encodes` the manifest; `parse_of_encodes` then gives exactly that
+and the second runs core `partial` parsers, so no Lean theorem can describe them. They stay
+trusted to return a value that `Encodes` the manifest; `parse_of_encodes` then gives exactly that
 manifest from `parse`. No theorem covers the lib-only, claimed-exe and app-omitted-exe
 variants that rewrite the `AuditApp` surface after derivation. Those variants exclude every
 actual `AuditApp` executable they stop claiming, except app-omitted-exe, which leaves them
@@ -402,7 +402,7 @@ by their source-level linkage. The proof is erased at execution.
   `structuralManifest_valid` shows that the structural copy of a valid manifest is valid whenever
   it claims an actual surface, and `structural_roundtrip` combines the two for the manifest the
   structural gate reads. The text boundary is trusted: `Json.compress` is `partial`
-  and `PolicyCodec.parse` runs `partial` parsers. `parse_of_encodes` names what they must
+  and `PolicyCodec.parse` runs core `partial` parsers. `parse_of_encodes` names what they must
   deliver, a value that `Encodes` the manifest. The schema-version check compares `JsonNumber`
   fields with derived equality (`schemaVersion2`) rather than `Json`'s `partial` `BEq`, which
   no theorem can evaluate. The check has the same runtime meaning, and the proofs now state the
