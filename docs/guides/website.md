@@ -167,8 +167,9 @@ Actions are pinned by commit SHA.
 ## Retention
 
 Each deployment replaces the whole Pages site, so published `rev/<commit>/` snapshots are kept
-in the `site-archive-regula` branch and copied into every later artifact. Invariant: **a published
-snapshot is never dropped by a later deployment.** The argument:
+in the `site-archive-regula` branch and copied into every later artifact. Snapshots are archived only for
+the base path they were built for. Invariant: **a snapshot published under `/regula/` is never
+dropped by a later deployment.** The argument:
 
 1. The archive is append-only: its only writer, the `archive` job, pushes without force, so a
    push that is not a fast-forward of the current head fails.
@@ -182,7 +183,7 @@ snapshot is never dropped by a later deployment.** The argument:
 4. Deployments are serialized, so every earlier deployment finished, and archived its
    snapshots, before a later one checks the archive head.
 
-Hence every snapshot an earlier deployment published is in the archive when a later deployment
+Hence every snapshot an earlier deployment published under `/regula/` is in the archive when a later deployment
 checks it, and so in that deployment. A failed deploy after a successful `archive` leaves an
 archived, validated snapshot that is not yet published; the next deployment publishes it. The
 residual window is the time between the deploy job's archive check and `deploy-pages`

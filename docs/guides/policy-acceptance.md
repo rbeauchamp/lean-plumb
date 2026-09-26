@@ -187,8 +187,7 @@ occurrences. The helper alone is not an arbitrary raw-occurrence admission API.
 
 This establishes relations among supplied observations. Lean/Lake extraction,
 compiler admission, source reads, process completion, and compiled execution retain
-their existing trusted boundaries. Current compilation and qualification results
-belong in the CI repair evidence, not in the historical baseline receipts.
+their existing trusted boundaries.
 
 `InfrastructureOrigin` is limited to exact reporter, codec and conditional collector
 identities. The IO adapter compares canonical actual artifacts with the running
@@ -563,7 +562,8 @@ is a reference for separating these roles, not a reason to make our trust pins o
 No speculative scheduling or fast/reference implementation is proposed.
 
 The [issue 7 verification record](https://github.com/rbeauchamp/regula/blob/11e05c682ee76ddf9b7cd81fdb827b572469ed57/session/evidence/issue-7-verification.md) holds the
-implementation's compiler results, axiom coverage and qualification at its delivery.
+implementation's compiler results, axiom coverage and qualification at its 2026-09-23
+closeout, including the gates still open then.
 Earlier PRODUCT-01 runtime results remain historical, scoped evidence; they do
 not validate later implementation changes. Use the [contributor guide](contributing.md)
 for the complete acceptance command and setup requirements.

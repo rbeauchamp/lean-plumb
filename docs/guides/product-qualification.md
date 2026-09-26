@@ -115,7 +115,7 @@ compliant example (or the correction, where the checked files are qualification 
 | Editor, `import Regula.Linter` | Command and module hooks over the current snapshot | `editorSnapshot` feedback: RG1001–RG1007, RG2002, RG2005, RG5001–RG5003 at their ranges; never project acceptance | Proved editor/project equality above; observed in VS Code ([editor journeys][j14], [#10 journey][q10-editor]) |
 | `lake lint` | `regula/lint` driver: builds the manifest's targets with the audit-build marker (local findings off whatever the source sets `linter.regula` to), then the `axiomGate` project audit | `incrementalProject`; exit 0/1/2/3 | `accepted_sound`, `checkedClassify`; `liveFeedback_auditBuild`; lint-driver campaign (17 controls); [#10 fresh-adopter journey][q10-cli] |
 | `lake lint -- --fresh` | Same audit in an isolated copy from empty build output | `freshProject`, the only fresh whole-project claim | Observed PASS in the [fresh adopter][q10-cli] |
-| `lake lint -- --json-out PATH` | Same audit, result schema 3 | `status`, the stage evidence `stages` and `stagesCompleted` with `complete` and `stagesNotRun`, diagnostics in run order with source ranges, `remedy` and `helpUrl`, and each fired rule's guidance (`rules`) | `ResultProtocol.admitGuidance` on every rule-example result; observed ([fresh adopter][q10-cli]) |
+| `lake lint -- --json-out PATH` | Same audit, result schema 3 | `status`, the stage evidence `stages` and `stagesCompleted` with `complete` and `stagesNotRun`, diagnostics in run order with source ranges, `remedy` and `helpUrl`, and each fired rule's guidance (`rules`) | `ResultProtocol.admitGuidance` on every rule-example result |
 | `lake exe regula explain\|rules\|agent-guide\|skill` | Prints registry-generated Markdown; no audit | Exit 0, or 2 for an invalid invocation | `parseCommand_sound`, `parseCommand_arguments`; committed skill checked equal in acceptance |
 | `lake lint -- --explain-config`, `--help` | No audit | Exit 2; establish nothing | Observed (both, [record][q10]); lint-driver campaign covers `--explain-config` |
 | `lake exe lint` | Same driver without Lake dispatch | As `lake lint` | Observed PASS in the [fresh adopter][q10-routes]; for packages whose `lintDriver` is taken |
@@ -145,18 +145,19 @@ corpus shards, the site build and the lint-driver and producers campaigns.
 
 - `lake lint` accepted the clean project (exit 0), and `lake lint -- --fresh` gave fresh
   whole-project acceptance.
-- A project axiom gave the project-axiom finding at its declaration with the rule URL (exit 1);
-  a Choice-Free surface using `Classical.byCases` gave the foundation-profile finding (exit 1),
+- A project axiom gave the project-logical-axiom finding at its declaration with the rule URL (exit 1);
+  a Choice-Free surface using `Classical.byCases` gave the axiom-profile finding (exit 1),
   and the documented fix (a proof with fewer axioms) returned exit 0; an unclassified library
-  gave the configuration finding (exit 2), fixed by an exclusion; a missing module docstring
-  gave the module-documentation finding (exit 1); an unused-variable warning gave the build
-  finding (exit 3); turning the linter's live-feedback option off did not hide a project-axiom
-  violation (exit 1).
+  gave the configuration-classification finding (exit 2), fixed by an exclusion; a missing module docstring
+  gave the module-documentation finding (exit 1); an unused-variable warning gave the
+  warning-free-elaboration finding (exit 3); turning the linter's live-feedback option off did
+  not hide a project-logical-axiom violation (exit 1).
 - A second library importing `Mathlib.Algebra.Group.Basic` (Standard-Logical) was accepted by
   `lake lint` and `lake lint -- --fresh`.
-- A `sorry` gave the build finding (exit 3), not the `sorryAx` finding: Lean's own warning stops
-  the audit first. The RG1002 page and the adoption guide say so.
-- In VS Code, the same `sorry` showed Lean's warning and the `sorryAx` finding at the
+- A `sorry` gave the warning-free-elaboration finding (exit 3), not the proof-hole finding: Lean's
+  own warning stops the audit first. The proof-hole rule's page (RG1002) and the adoption guide
+  say so.
+- In VS Code, the same `sorry` showed Lean's warning and the proof-hole finding at the
   declaration with its rule code, the text URL and Lean's **View explanation** anchor
   (`target=_blank`, `rel="noreferrer noopener"`, no Lean-manual link). A trusted click reached
   the anchor, and the configured external browser started immediately afterwards; the URL it
