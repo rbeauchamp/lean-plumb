@@ -136,28 +136,30 @@ registry is closed, and codecs refuse unknown IDs, fields and modes.
 
 ## Adopter journeys
 
-On a new project that requires Regula by Git revision `a52bf1f` (the published `main` before this
+On a new project that requires Plumb by Git revision `a52bf1f` (the published `main` before this
 change) and follows the [adoption guide](adoption.md) (details in the evidence record). These
 runs exercised the base revision; the #10 changes to evidence modes, message rendering,
 explanations and credits are covered instead by ordinary acceptance, both corpus shards, the site
-build and the lint-driver and producers campaigns at this change's revision:
+build and the lint-driver and producers campaigns at this change's revision. They predate the
+rename to Regula, so they record the former names: package `plumb`, rule IDs `PL####` (now
+`RG####`) and option `linter.plumb`.
 
 - `lake lint` accepted the clean project (exit 0), and `lake lint -- --fresh` gave fresh
   whole-project acceptance.
-- A project axiom gave RG1001 at its declaration with the rule URL (exit 1); a Choice-Free
-  surface using `Classical.byCases` gave RG1005 (exit 1), and the documented fix (a proof with
-  fewer axioms) returned exit 0; an unclassified library gave RG2002 (exit 2), fixed by an
-  exclusion; a missing module docstring gave RG5001 (exit 1); an unused-variable warning gave
-  RG2003 (exit 3); `set_option linter.regula false` did not hide a RG1001 violation (exit 1).
+- A project axiom gave PL1001 at its declaration with the rule URL (exit 1); a Choice-Free
+  surface using `Classical.byCases` gave PL1005 (exit 1), and the documented fix (a proof with
+  fewer axioms) returned exit 0; an unclassified library gave PL2002 (exit 2), fixed by an
+  exclusion; a missing module docstring gave PL5001 (exit 1); an unused-variable warning gave
+  PL2003 (exit 3); `set_option linter.plumb false` did not hide a PL1001 violation (exit 1).
 - A second library importing `Mathlib.Algebra.Group.Basic` (Standard-Logical) was accepted by
   `lake lint` and `lake lint -- --fresh`.
-- A `sorry` gave RG2003 (exit 3), not RG1002: Lean's own warning stops the audit first. The
+- A `sorry` gave PL2003 (exit 3), not PL1002: Lean's own warning stops the audit first. The
   RG1002 page and the adoption guide now say so.
-- In VS Code, the same `sorry` showed Lean's warning and RG1002 at the declaration with code
-  `Regula.RG1002`, the text URL and Lean's **View explanation** anchor (`target=_blank`,
+- In VS Code, the same `sorry` showed Lean's warning and PL1002 at the declaration with code
+  `Plumb.PL1002`, the text URL and Lean's **View explanation** anchor (`target=_blank`,
   `rel="noreferrer noopener"`, no Lean-manual link). A trusted click reached the anchor, and the configured
   external browser started immediately afterwards; the URL it received and the page it showed
-  were not observable from this environment. The same URL serves the matching RG1002 page of
+  were not observable from this environment. The same URL served the matching PL1002 page of
   the deployed commit. The documented fix cleared the diagnostic, and `lake lint` accepted.
 
 These are bounded observations of real runs, not theorems about the tools.

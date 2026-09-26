@@ -2,23 +2,23 @@
  {"usage": {"output_tokens": 127, "input_tokens": 1508},
   "model": "jev-1.13.0",
   "answers":
-  {"totalization": {"type": "noul", "noul": 0.74},
+  {"totalization": {"type": "noul", "noul": 0.75},
    "strength":
    {"type": "choice",
     "probabilities":
     {"weaker": 0.64,
      "stronger": 0.11,
-     "incomparable": 0.07,
-     "equivalent": 0.18},
+     "incomparable": 0.09,
+     "equivalent": 0.16},
     "confidence": 0.52,
     "choice": "weaker"},
-   "quantifier_order": {"type": "noul", "noul": 0.74},
-   "exclusions": {"type": "noul", "noul": 0.51},
-   "coverage_0": {"type": "noul", "noul": 0.32}}},
+   "quantifier_order": {"type": "noul", "noul": 0.75},
+   "exclusions": {"type": "noul", "noul": 0.53},
+   "coverage_0": {"type": "noul", "noul": 0.31}}},
  "request":
  {"state":
   {"statement":
-   "Plumb.ExecutableContract AuditApp.executeChecked fun execute =>\n  ∀ (contracts : AuditApp.RequiredContracts) (capacity : ℕ) (ops : List AuditApp.Op),\n    execute contracts capacity ops =\n      if 0 < capacity then some (AuditApp.runChecked ops { capacity := capacity, inUse := 0, bounded := ⋯ }) else none",
+   "Regula.ExecutableContract AuditApp.executeChecked fun execute =>\n  ∀ (contracts : AuditApp.RequiredContracts) (capacity : ℕ) (ops : List AuditApp.Op),\n    execute contracts capacity ops =\n      if 0 < capacity then some (AuditApp.runChecked ops { capacity := capacity, inUse := 0, bounded := ⋯ }) else none",
    "intent":
    ["The function the executable calls must admit exactly the positive capacities, start each admitted limiter idle at that capacity, and then run the script strictly."],
    "explanation":
