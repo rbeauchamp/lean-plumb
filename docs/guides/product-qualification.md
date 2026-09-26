@@ -131,32 +131,32 @@ Incremental and cached paths re-evaluate current policy on every run: the driver
 (lint-driver repeated cached violation and build-policy cached-failure and
 configuration-change controls). Local
 options (`linter.regula`, `regula.localFoundation`, `warningAsError`) change only local feedback;
-the project audit still rejects. A cancelled editor collection reports nothing for that declaration (observed in VS Code,
-[record][j14-snapshots]),
-and a failed one reports RG2005 (`Regula.Linter` `unavailable`), never an invented rule or a PASS. Unknown rules cannot occur: the
-registry is closed, and codecs refuse unknown IDs, fields and modes.
+the project audit still rejects. A cancelled editor collection reports nothing for that
+declaration (observed in VS Code, [record][j14-snapshots]), and a failed one reports RG2005
+(`Regula.Linter` `unavailable`), never an invented rule or a PASS. Unknown rules cannot occur:
+the registry is closed, and codecs refuse unknown IDs, fields and modes.
 
 ## Adopter journeys
 
 On a new project that required the linter by Git revision `a52bf1f` and followed the
-[adoption guide](adoption.md) ([record][q10]). These runs exercised that revision; later changes to evidence
-modes, message rendering, explanations and credits are covered by ordinary acceptance, both
-corpus shards, the site build and the lint-driver and producers campaigns.
+[adoption guide](adoption.md) ([record][q10]). These runs exercised that revision; later
+changes to evidence modes, message rendering, explanations and credits are covered by ordinary
+acceptance, both corpus shards, the site build and the lint-driver and producers campaigns.
 
 - `lake lint` accepted the clean project (exit 0), and `lake lint -- --fresh` gave fresh
   whole-project acceptance.
-- A project axiom gave the project-logical-axiom finding at its declaration with the rule URL (exit 1);
-  a Choice-Free surface using `Classical.byCases` gave the axiom-profile finding (exit 1),
-  and the documented fix (a proof with fewer axioms) returned exit 0; an unclassified library
-  gave the configuration-classification finding (exit 2), fixed by an exclusion; a missing module docstring
-  gave the module-documentation finding (exit 1); an unused-variable warning gave the
-  warning-free-elaboration finding (exit 3); turning the linter's live-feedback option off did
-  not hide a project-logical-axiom violation (exit 1).
+- A project axiom gave the project-logical-axiom finding at its declaration with the rule URL
+  (exit 1); a Choice-Free surface using `Classical.byCases` gave the axiom-profile finding
+  (exit 1), and the documented fix (a proof with fewer axioms) returned exit 0; an unclassified
+  library gave the configuration-classification finding (exit 2), fixed by an exclusion; a
+  missing module docstring gave the module-documentation finding (exit 1); an unused-variable
+  warning gave the warning-free-elaboration finding (exit 3); turning the linter's
+  live-feedback option off did not hide a project-logical-axiom violation (exit 1).
 - A second library importing `Mathlib.Algebra.Group.Basic` (Standard-Logical) was accepted by
   `lake lint` and `lake lint -- --fresh`.
-- A `sorry` gave the warning-free-elaboration finding (exit 3), not the proof-hole finding: Lean's
-  own warning stops the audit first. The proof-hole rule's page (RG1002) and the adoption guide
-  say so.
+- A `sorry` gave the warning-free-elaboration finding (exit 3), not the proof-hole finding:
+  Lean's own warning stops the audit first. The proof-hole rule's page (RG1002) and the adoption
+  guide say so.
 - In VS Code, the same `sorry` showed Lean's warning and the proof-hole finding at the
   declaration with its rule code, the text URL and Lean's **View explanation** anchor
   (`target=_blank`, `rel="noreferrer noopener"`, no Lean-manual link). A trusted click reached
@@ -179,12 +179,13 @@ These are bounded observations of real runs, not theorems about the tools.
   set, example text in pages, `axiomGate --validate-site`, byte-identical editions, size budget.
   CI's `verify-deployment` checks the live `build.json`, every rule page of every edition and
   the 404 route byte for byte against the validated artifact.
-- **Observed** on the live site (deployed `a52bf1f`, before this change; [record][q10]): all 21 `dev/` and `rev/` rule routes return their pages;
-  unknown IDs, unreleased versions and unpublished revisions return the not-available page (HTTP
-  404) without redirecting; search finds rules; keyboard traversal reaches the table of contents
-  and rule index with visible focus; the index lists 21 rules. At 390 px every rule page scrolled
-  horizontally because the attribution's commit hash did not wrap; #10 adds wrapping for inline code and
-  links; its local build of this change showed no horizontal scroll at 390 px on any
+- **Observed** on the live site (deployed `a52bf1f`, before #10; [record][q10]): all 21 `dev/`
+  and `rev/` rule routes return their pages; unknown IDs, unreleased versions and unpublished
+  revisions return the not-available page (HTTP 404) without redirecting; search finds rules;
+  keyboard traversal reaches the table of contents and rule index with visible focus; the index
+  lists 21 rules. At 390 px every rule page scrolled horizontally because the attribution's
+  commit hash did not wrap; #10 adds wrapping for inline code and links; its local build
+  showed no horizontal scroll at 390 px on any
   rule page or on the index, versions and credits pages (the credits page's long plain-text URL,
   also present on the live site, is covered by paragraph wrapping).
 - **Hosting**: GitHub Pages project site from GitHub Actions, no custom domain, no release, no
