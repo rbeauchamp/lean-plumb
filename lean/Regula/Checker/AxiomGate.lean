@@ -795,10 +795,9 @@ private unsafe def auditSurface (repo : FilePath) (manifest : Option FilePath)
       let value := value.setObjVal! "diagnostics" (toJson (all.map Regula.RegistryCodec.diagnosticJson))
       let value := value.setObjVal! "status" (.str status.spelling)
       let scanned := combined.isSome || !docs.isEmpty
-      let notRun := ResultProtocol.stagesNotRun status (← expectedStages.get)
-        (ResultProtocol.stagesOf .freshProject ++
+      let value := ResultProtocol.guidanceFields (ResultProtocol.acceptedStatus status.spelling)
+        (← expectedStages.get) (ResultProtocol.stagesOf .freshProject ++
           (if scanned then ResultProtocol.documentationStages else [])) all
-      let value := ResultProtocol.guidanceFields notRun (all.map (·.1))
         |>.foldl (fun value (key, field) => value.setObjVal! key field) value
       let value := value.setObjVal! "scope" (scope.setObjVal! "documentation" (.str (repo / "docs").toString))
       let value := value.setObjVal! "unresolved" (toJson (if combined.isSome then (#[] : Array String)
@@ -1017,7 +1016,7 @@ def invalidateResults (args : List String) : IO Unit := do
       ("scope", Json.null), ("mode", Json.null), ("status", .str "incomplete"),
       ("diagnostics", toJson (#[] : Array Json)),
       ("unresolved", toJson #["configuration has not been validated"])] ++
-      ResultProtocol.guidanceFields ResultProtocol.allStages []))
+      ResultProtocol.guidanceFields false ResultProtocol.allStages [] []))
   -- Absolute destinations do not depend on project configuration being valid.
   for path in destinations.filter (·.isAbsolute) do invalidate path
   let relative := destinations.filter (!·.isAbsolute)

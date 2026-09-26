@@ -14,11 +14,12 @@ open Lean
 abbrev producer := Regula.Checker.Producer.identity
 
 /-- Result schema 3 adds, for agents, each diagnostic's `remedy`, the top-level `rules` (the
-guidance of every rule that fired, once each), `complete` (every stage of the run completed)
-and `stagesNotRun` (the stages that did not). Schema 2 omitted the frozen configuration and dependency
-text from the snapshot (`snapshotJson`: a clean dependency is identified by its pinned
-revision, a dirty one only by package and `dirty` status) and imported-environment module
-lists (`acceptedJson`, `ProducerReport.Environment.resultJson`); schema 1 embedded them. -/
+guidance of every rule that fired, once each), the stage evidence `stages` (the run's required
+stages) and `stagesCompleted` (those that completed), and their derivation `complete` (every
+stage of the run completed) and `stagesNotRun` (the stages that did not). Schema 2 omitted the
+frozen configuration and dependency text from the snapshot (`snapshotJson`: a clean
+dependency is identified by its pinned revision, a dirty one only by package and `dirty`
+status) and imported-environment module lists (`acceptedJson`, `ProducerReport.Environment.resultJson`); schema 1 embedded them. -/
 def schemaVersion : Nat := 3
 
 /-- Envelope identity of every result file. -/
@@ -86,9 +87,9 @@ theorem withDocs_ordered :
       (fun a b => stageRank a < stageRank b) := by
   decide
 
-/-- The stage an incomplete finding of `id` in `mode` leaves unfinished for the evidence it
-concerns; that stage and every later one cannot have completed. RG3001 has none: its verdict
-comes from the execution stage, which completed. -/
+/-- The stage a finding of `id` in `mode` that stops its run (`stops`) leaves unfinished for the
+evidence it concerns; that stage and every later one cannot have completed. RG3001 has none:
+its verdict comes from the execution stage, which completed. -/
 def blockedStage (mode : EvidenceMode) : RuleId → Option Stage
   | .environment => some .discovery
   | .configuration => some .configuration
@@ -102,72 +103,97 @@ def blockedStage (mode : EvidenceMode) : RuleId → Option Stage
   | .fenceStructure | .positiveExample | .negativeExample | .trustedExample => some .example
   | .moduleDocumentation | .materialDocumentation | .materialIntent => some .documentationPresence
 
-/-- Stage `s` is blocked: an incomplete finding among `findings` leaves `s` or an earlier stage
-unfinished. -/
+/-- A finding that stops its run at its `blockedStage`: an incomplete finding, which leaves that
+stage unfinished, and a workspace refusal of either impact (RG2002 configuration, RG2003 source
+build), after which no later stage runs. -/
+def stops (f : Finding) : Bool :=
+  match f.1 with
+  | .configuration | .sourceBuild => true
+  | _ => f.2.impact == .incomplete
+
+/-- Stage `s` is blocked: a finding among `findings` stops the run at `s` or an earlier stage. -/
 def blocked (findings : List Finding) (s : Stage) : Bool :=
-  findings.any fun f => f.2.impact == .incomplete &&
+  findings.any fun f => stops f &&
     match blockedStage f.2.mode f.1 with
     | some b => stageRank b ≤ stageRank s
     | none => false
 
-/-- The stages of `expected` that did not complete, in run order: those the writer did not
-record as `completed`, and those an incomplete finding blocks. -/
-def notRun (expected completed : List Stage) (findings : List Finding) : List Stage :=
-  expected.filter fun s => s ∉ completed || blocked findings s
-
-/-- No stage is reported as not run exactly when every expected stage completed and no
-incomplete finding blocks one. -/
-theorem notRun_eq_nil_iff (expected completed : List Stage) (findings : List Finding) :
-    notRun expected completed findings = [] ↔
-      ∀ s ∈ expected, s ∈ completed ∧ blocked findings s = false := by
-  simp [notRun, List.filter_eq_nil_iff]
-
-/-- The stages of a run in the mode of `f` that `f` blocks; `admitGuidance` requires each in
-`stagesNotRun`. -/
-def blockedIn (f : Finding) : List Stage := (stagesOf f.2.mode).filter (blocked [f])
-
-/-- Every result written by `notRun` passes that check: each stage a finding blocks in its own
-mode is reported as not run, whatever the writer recorded as completed. -/
-theorem blockedIn_subset_notRun {expected completed : List Stage} {findings : List Finding}
-    {f : Finding} (hf : f ∈ findings) (hmode : ∀ s ∈ stagesOf f.2.mode, s ∈ expected)
-    {s : Stage} (hs : s ∈ blockedIn f) : s ∈ notRun expected completed findings := by
-  simp only [blockedIn, List.mem_filter] at hs
-  simp only [notRun, List.mem_filter, Bool.or_eq_true, decide_eq_true_eq]
-  refine ⟨hmode s hs.1, .inr ?_⟩
-  simp only [blocked, List.any_eq_true, List.mem_singleton, exists_eq_left] at hs ⊢
-  exact ⟨f, hf, hs.2⟩
-
-/-- The stages a result reports as not run: none for a completed status, whose accepted
-account executed every stage its claim requires (`stagesOf_required`), otherwise `notRun`. -/
-def stagesNotRun (status : Status) (expected completed : List Stage) (findings : List Finding) :
+/-- The stages of `required` a result records as completed: every one for an accepted result,
+whose account executed every stage its claim requires (`stagesOf_required`); otherwise those its
+writer recorded in `completed` that no finding blocks. -/
+def completedStages (accepted : Bool) (required completed : List Stage) (findings : List Finding) :
     List Stage :=
-  match status with
-  | .completed _ => []
-  | _ => notRun expected completed findings
+  if accepted then required else required.filter fun s => s ∈ completed && !blocked findings s
 
-/-- The agent guidance members of every result envelope: `complete` (every stage of the run
-completed, `notRun_eq_nil_iff`), `stagesNotRun` (the stages that did not, so fixing the
+/-- The stages of `required` missing from `completed`, in run order. -/
+def notRun (required completed : List Stage) : List Stage :=
+  required.filter fun s => s ∉ completed
+
+/-- An unaccepted result reports no stage as not run exactly when its writer recorded every
+required stage as completed and no finding blocks one. -/
+theorem notRun_completedStages_eq_nil_iff (required completed : List Stage)
+    (findings : List Finding) :
+    notRun required (completedStages false required completed findings) = [] ↔
+      ∀ s ∈ required, s ∈ completed ∧ blocked findings s = false := by
+  simp [notRun, completedStages, List.filter_eq_nil_iff, List.mem_filter]
+  exact ⟨fun h s hs => (h s hs).2, fun h s hs => ⟨hs, h s hs⟩⟩
+
+/-- Re-deriving from the recorded completed stages reproduces them. -/
+theorem completedStages_idem (accepted : Bool) (required completed : List Stage)
+    (findings : List Finding) :
+    completedStages accepted required (completedStages accepted required completed findings)
+        findings = completedStages accepted required completed findings := by
+  cases accepted
+  · simp only [completedStages, Bool.false_eq_true, ite_false]
+    apply List.filter_congr
+    intro s hs
+    simp [List.mem_filter, hs]
+  · rfl
+
+/-- The accepted flag that the writer and admission both derive from a result's `status`
+spelling, which reads `completed` exactly for an accepted account
+(`Account.Status.spelling_eq_completed_iff`). -/
+def acceptedStatus (status : String) : Bool := status == "completed"
+
+/-- The agent guidance members of every result envelope, derived by this one function for the
+writer and for admission: `stages` (the run's required stages), `stagesCompleted`
+(`completedStages`), `complete` (every required stage completed,
+`notRun_completedStages_eq_nil_iff`), `stagesNotRun` (the stages that did not, so fixing the
 findings can reveal more) and `rules` (the guidance of every rule of the diagnostics). -/
-def guidanceFields (notRun : List Stage) (rules : List RuleId) : List (String × Json) :=
-  [("complete", .bool notRun.isEmpty), ("stagesNotRun", toJson (notRun.map stageName)),
-   ("rules", RegistryCodec.rulesJson rules)]
+def guidanceFields (accepted : Bool) (required completed : List Stage) (findings : List Finding) :
+    List (String × Json) :=
+  let done := completedStages accepted required completed findings
+  let missing := notRun required done
+  [("stages", toJson (required.map stageName)), ("stagesCompleted", toJson (done.map stageName)),
+   ("complete", .bool missing.isEmpty), ("stagesNotRun", toJson (missing.map stageName)),
+   ("rules", RegistryCodec.rulesJson (findings.map (·.1)))]
+
+/-- Admission derives the members again from the `stagesCompleted` a writer recorded; that
+re-derivation reproduces the writer's members, so every written result passes the check. -/
+theorem guidanceFields_recorded (accepted : Bool) (required completed : List Stage)
+    (findings : List Finding) :
+    guidanceFields accepted required (completedStages accepted required completed findings)
+        findings = guidanceFields accepted required completed findings := by
+  unfold guidanceFields
+  rw [completedStages_idem]
 
 /-- Completed is scoped observation, never a synonym for whole-standard conformance. A
 completed envelope takes its mode from the status's account, not from `mode`. `expected` are
-the run's stages and `completed` those its writer recorded as completed. -/
+the run's required stages and `completed` those its writer recorded as completed. The guidance
+members are derived from the diagnostics exactly as written, in `sortFindings` order. -/
 def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
     (findings : Array Finding) (expected completed : List Stage) (unresolved : Array String) :
     Json :=
   let mode := match status with
     | .completed account => account.val.mode
     | _ => mode
+  let findings := sortFindings findings.toList
   Json.mkObj (identityFields ++ [
     ("scope", scope), ("mode", .str (RegistryCodec.modeText mode)),
     ("status", .str (statusText status)),
-    ("diagnostics", toJson ((sortFindings findings.toList).map RegistryCodec.diagnosticJson)),
+    ("diagnostics", toJson (findings.map RegistryCodec.diagnosticJson)),
     ("unresolved", toJson unresolved)] ++
-    guidanceFields (stagesNotRun status expected completed findings.toList)
-      (findings.toList.map (·.1)))
+    guidanceFields (acceptedStatus (statusText status)) expected completed findings)
 
 /-- The stage named `name`. -/
 def parseStage (name : String) : Except String Stage :=
@@ -175,26 +201,48 @@ def parseStage (name : String) : Except String Stage :=
   | some stage => .ok stage
   | none => .error s!"unknown stage {name}"
 
+/-- Every stage name parses back to its stage, so admission decodes the stages a writer recorded. -/
+theorem parseStage_stageName (s : Stage) : parseStage (stageName s) = .ok s := by
+  cases s <;> rfl
+
+/-- The required stage lists of a result in `mode`: the mode's stages (`stagesOf_required`),
+for a fresh project also those of a `--with-docs` run, and with no mode (a destination
+invalidated before its configuration was validated) every stage. -/
+def runStages : Option EvidenceMode → List (List Stage)
+  | some .freshProject => [stagesOf .freshProject, stagesOf .freshProject ++ documentationStages]
+  | some mode => [stagesOf mode]
+  | none => [allStages]
+
 /-- Admit a result envelope's agent members in the registry-export style: it has this schema
-version, every diagnostic decodes to its canonical indexed form (`DiagnosticCodec.parseDiagnostic`,
-which includes the finding's `remedy` and `text`), every entry of `stagesNotRun` is a stage, a
-`completed` result has none, every stage an incomplete finding blocks in its mode is among
-them (`blockedIn`, `blockedIn_subset_notRun`), and `complete`, `stagesNotRun` and `rules` equal
-their derivation from those stages and diagnostics. -/
+version; every diagnostic decodes to its canonical indexed form (`DiagnosticCodec.parseDiagnostic`,
+which includes the finding's `remedy` and `text`); every entry of `stages` and `stagesCompleted`
+is a stage, and `stages` are the required stages of the result's `mode` (`runStages`);
+`stagesCompleted`, `complete`, `stagesNotRun` and `rules` equal their derivation by the writer's
+own `guidanceFields` from the status, those stages and the diagnostics
+(`guidanceFields_recorded`), so no stage a finding blocks is reported as run and a `completed`
+result reports every stage as run; and an `incomplete` result without an incomplete finding
+reports a stage not run, because only a stage that did not complete can have left it
+incomplete. -/
 def admitGuidance (j : Json) : Except String Unit := do
   unless (j.getObjVal? "schemaVersion").toOption == some (toJson schemaVersion) do
     throw "unsupported result schema"
-  let findings ← (← (← j.getObjVal? "diagnostics").getArr?).mapM DiagnosticCodec.parseDiagnostic
-  let notRun ← (← (← j.getObjVal? "stagesNotRun").getArr?).toList.mapM fun name => do
-    parseStage (← name.getStr?)
-  if (← (← j.getObjVal? "status").getStr?) == "completed" && !notRun.isEmpty then
-    throw "completed result with stages not run"
-  for f in findings do
-    for s in blockedIn f do
-      unless notRun.contains s do
-        throw s!"stage {stageName s} blocked by an incomplete {f.1.spelling} finding is reported as run"
-  for (key, value) in guidanceFields notRun (findings.toList.map (·.1)) do
+  let findings := (← (← (← j.getObjVal? "diagnostics").getArr?).mapM
+    DiagnosticCodec.parseDiagnostic).toList
+  let stages (key : String) : Except String (List Stage) := do
+    (← (← j.getObjVal? key).getArr?).toList.mapM fun name => do parseStage (← name.getStr?)
+  let required ← stages "stages"
+  let completed ← stages "stagesCompleted"
+  let mode ← match ← j.getObjVal? "mode" with
+    | .null => pure none
+    | mode => some <$> RegistryCodec.parseMode (← mode.getStr?)
+  unless (runStages mode).contains required do
+    throw "stages are not the required stages of the result's mode"
+  let status ← (← j.getObjVal? "status").getStr?
+  for (key, value) in guidanceFields (acceptedStatus status) required completed findings do
     unless (← j.getObjVal? key) == value do throw s!"noncanonical result {key}"
+  if status == "incomplete" && !findings.any (·.2.impact == .incomplete) &&
+      (notRun required completed).isEmpty then
+    throw "incomplete result without an incomplete finding reports every stage as run"
 
 def requestJson (kind project subject : String) (claim execution : Option String)
     (configuration : Array (System.FilePath × Option String)) : Json :=
@@ -358,8 +406,9 @@ worker exits. The composed accepted result value (pure): the historical
 `writeAccepted` payload construction. -/
 def acceptedValue {claim : RegulaPolicy.Claim}
     (accepted : RegulaPolicy.AcceptedRun claim) (scope : Json) : Json :=
+  let stages := stagesOf accepted.report.claim.val.mode
   (resultJson scope accepted.report.claim.val.mode
-    (.completed (Regula.Checker.Account.account accepted)) #[] [] [] #[]).setObjVal!
+    (.completed (Regula.Checker.Account.account accepted)) #[] stages stages #[]).setObjVal!
     "acceptance" (acceptedJson accepted)
 
 def writeAccepted {claim : RegulaPolicy.Claim} (path : System.FilePath)

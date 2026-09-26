@@ -15,9 +15,12 @@ run_cmd do
       ``RuleId.all_nodup, ``RuleId.route_injective, ``mode_roundtrip, ``rule_roundtrip,
       ``nameParts_roundtrip, ``name_roundtrip, ``mem_firedRules, ``firedRules_nodup,
       ``Regula.sortFindings_entries, ``Regula.sortFindings_perm,
-      ``Regula.Checker.ResultProtocol.stagesOf_required, ``Regula.Checker.ResultProtocol.notRun_eq_nil_iff,
+      ``Regula.Checker.ResultProtocol.stagesOf_required,
+      ``Regula.Checker.ResultProtocol.notRun_completedStages_eq_nil_iff,
       ``Regula.Checker.ResultProtocol.stagesOf_ordered, ``Regula.Checker.ResultProtocol.withDocs_ordered,
-      ``Regula.Checker.ResultProtocol.blockedIn_subset_notRun] do
+      ``Regula.Checker.ResultProtocol.completedStages_idem,
+      ``Regula.Checker.ResultProtocol.guidanceFields_recorded,
+      ``Regula.Checker.ResultProtocol.parseStage_stageName] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "registry theorem {name} exceeds Standard-Logical: {axioms}"
@@ -86,26 +89,48 @@ def main : IO Unit := do
     "surface-omission: Lake module M was not elaborated" .freshProject .incomplete
   let blockedRun := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject .incomplete
     #[omission] projectStages projectStages #[]
+  -- A run whose documentation scan found nothing, and a configuration refusal.
+  let unscanned := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject .incomplete
+    #[] (projectStages ++ Regula.Checker.ResultProtocol.documentationStages) projectStages #[]
+  let refusal ← IO.ofExcept <| Regula.Findings.contextFinding .configuration "control"
+    "manifest-schema: surfaces[0].claim must be one of kernel-only, choice-free, standard-logical"
+    .freshProject .violation
+  let refused := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject .rejected
+    #[refusal] projectStages [] #[]
+  let allStageNames := toJson (projectStages.map Regula.Checker.ResultProtocol.stageName)
+  let claimAllRan (j : Json) (stages : Json) : Json :=
+    ((j.setObjVal! "stagesCompleted" stages).setObjVal! "stagesNotRun"
+      (toJson ([] : List Json))).setObjVal! "complete" (.bool true)
   let admit := Regula.Checker.ResultProtocol.admitGuidance
   require (succeeded (admit envelope)) "result guidance admission"
   require (succeeded (admit partialRun)) "partial result guidance admission"
   require (succeeded (admit blockedRun)) "blocked result guidance admission"
+  require (succeeded (admit unscanned)) "unscanned documentation admission"
+  require (succeeded (admit refused)) "configuration refusal admission"
+  require ((unscanned.getObjVal? "stagesNotRun").toOption == some (toJson ["documentScan", "example"]))
+    "an empty documentation scan leaves the documentation stages not run"
+  require (!succeeded (admit (claimAllRan unscanned (unscanned.getObjValD "stagesCompleted"))))
+    "unscanned run claimed complete"
+  require (!succeeded (admit (claimAllRan unscanned (unscanned.getObjValD "stages"))))
+    "finding-free incomplete result with every stage recorded as run"
+  require (!succeeded (admit (claimAllRan refused allStageNames))) "configuration refusal claimed complete"
+  require (!succeeded (admit ((claimAllRan refused (toJson ([] : List Json))).setObjVal! "stages"
+    (toJson ([] : List Json))))) "required stages dropped"
   require ((blockedRun.getObjVal? "stagesNotRun").toOption ==
       some (toJson ["admission", "declarationPolicy", "execution", "transcript", "history", "origin",
         "documentationPresence"]))
     "an incomplete finding blocks its stage and every later stage"
-  require (!succeeded (admit ((blockedRun.setObjVal! "stagesNotRun" (toJson ([] : List Json))).setObjVal!
-    "complete" (.bool true)))) "blocked stages reported as run"
+  require (!succeeded (admit (claimAllRan blockedRun allStageNames))) "blocked stages reported as run"
   require (!succeeded (admit (blockedRun.setObjVal! "stagesNotRun" (toJson ["history"]))))
     "blocked stage reported as run"
   require (!succeeded (admit (envelope.setObjVal! "rules" (toJson ([] : List Json))))) "missing rule guidance"
   require (!succeeded (admit (envelope.setObjVal! "complete" (.bool false)))) "wrong completeness"
   require (!succeeded (admit (partialRun.setObjVal! "complete" (.bool true)))) "partial run claimed complete"
   require (!succeeded (admit (partialRun.setObjVal! "stagesNotRun" (toJson ([] : List Json))))) "omitted stages"
-  require (!succeeded (admit (partialRun.setObjVal! "stagesNotRun" (toJson ["execution", "linking"]))))
+  require (!succeeded (admit (partialRun.setObjVal! "stagesCompleted" (toJson ["discovery", "linking"]))))
     "unknown stage"
-  require (!succeeded (admit ((envelope.setObjVal! "status" (.str "completed")).setObjVal! "stagesNotRun"
-    (toJson ["execution"])))) "completed result with stages not run"
+  require (!succeeded (admit (partialRun.setObjVal! "status" (.str "completed"))))
+    "completed result with stages not run"
   require (!succeeded (admit (envelope.setObjVal! "schemaVersion" (toJson (2 : Nat))))) "superseded result schema"
   require (!succeeded (DiagnosticCodec.parseDiagnostic (json.setObjVal! "remedy" (.str "stale")))) "stale remedy"
   let parsed ← IO.ofExcept <| DiagnosticCodec.parseDiagnostic json

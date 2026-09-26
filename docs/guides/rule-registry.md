@@ -124,8 +124,9 @@ lake exe axiomGate --with-docs --legacy-json-out tmp/legacy-report.json
 ```
 
 `--json-out` now writes **result schema 3**; schema 3 adds each diagnostic's `remedy`, the
-top-level `rules` (the guidance of every rule that fired, once each, in registry order) and
-`complete` (every stage of the run completed) with `stagesNotRun` (the stages that did not),
+top-level `rules` (the guidance of every rule that fired, once each, in registry order), the
+stage evidence `stages` (the run's required stages) and `stagesCompleted` (those that completed),
+and `complete` (every stage of the run completed) with `stagesNotRun` (the stages that did not),
 and lists a project or file audit's diagnostics in run order (`Regula.sortFindings`). The [adoption guide](adoption.md#machine-readable-report) documents the
 fields for adopters. `--legacy-json-out` preserves the
 previous file/project report format, including its path-remapping behavior. The
@@ -164,22 +165,30 @@ theorem about serialized byte counts.
 Registry (schema 2, which adds each rule's guidance and example pair to schema 1) and result
 (schema 3) envelopes contain `schemaVersion`, `producerVersion`,
 `toolchain` and `sourceRevision`. Registry output contains the canonical `rules`.
-Result output contains `scope`, `mode`, `status`, `complete`, `stagesNotRun`, `diagnostics`,
-`rules` and `unresolved`. A writer records the stages its run completed: a context failure the
-stages its call site finished, and a finished audit every stage. `stagesNotRun`
-(`ResultProtocol.notRun`) is every expected stage missing from them, together with every stage
-that an incomplete finding blocks: the stage `blockedStage` assigns to its rule, which it left
+Result output contains `scope`, `mode`, `status`, `stages`, `stagesCompleted`, `complete`,
+`stagesNotRun`, `diagnostics`, `rules` and `unresolved`. A writer records the stages its run
+completed: a context failure the stages its call site finished, and a finished audit every
+stage. One function, `ResultProtocol.guidanceFields`, derives the members for the writer and for
+admission. `stagesCompleted` (`completedStages`) is the recorded stages without every stage a
+finding stops (`stops`: an incomplete finding, or an RG2002 or RG2003 refusal of either impact,
+after which no later stage runs): the stage `blockedStage` assigns to its rule, which it left
 unfinished, and every later stage (`stageRank`, which orders each mode's stages,
 `stagesOf_ordered`, `withDocs_ordered`). RG3001 blocks none, because its verdict comes from the
 execution stage, which completed. An empty documentation scan leaves the documentation stages
-unrecorded. `complete` holds exactly when no stage is missing or blocked (`notRun_eq_nil_iff`).
-The expected stages are those `RegulaPolicy.requiredStages` requires in the run's mode
+unrecorded. `stagesNotRun` (`notRun`) is every required stage missing from `stagesCompleted`, and
+`complete` holds exactly when no stage is missing or blocked
+(`notRun_completedStages_eq_nil_iff`). The required stages (`stages`) are those
+`RegulaPolicy.requiredStages` requires in the run's mode
 (`stagesOf_required`), plus the documentation stages of a `--with-docs` run. A `completed`
-status reports none, because its accepted account executed every required stage.
-`ResultProtocol.admitGuidance` admits a result's agent members in the same style as a
-registry: every diagnostic decodes canonically, every listed stage exists, every stage an
-incomplete finding blocks in its own mode is listed (`blockedIn`, which every writer satisfies,
-`blockedIn_subset_notRun`), and `complete`, `stagesNotRun` and `rules` equal their derivation; the rule-example campaign applies it to every result it admits.
+status records every required stage as completed, because its accepted account executed every
+required stage. `ResultProtocol.admitGuidance` admits a result's agent members in the same style
+as a registry: every diagnostic decodes canonically, every listed stage exists (`parseStage`,
+`parseStage_stageName`), `stages` are the required stages of the result's `mode` (`runStages`),
+`stagesCompleted`, `complete`, `stagesNotRun` and `rules` equal their `guidanceFields` derivation
+from the status, `stages`, `stagesCompleted` and diagnostics (every writer's record re-derives to
+itself, `completedStages_idem` and `guidanceFields_recorded`), and an `incomplete` result without
+an incomplete finding lists a stage not run, since only a stage that did not complete can then
+have left it incomplete. The rule-example campaign applies it to every result it admits.
 The producer revision is captured when `ResultProtocol` is elaborated, with Git
 anchored to that source file's checker package directory, rather than reading an
 adopter's Git checkout. Unreleased working builds are explicitly

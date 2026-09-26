@@ -90,7 +90,8 @@ never construct a fresh whole-project result.
 The implemented output schemas are versioned independently from manifest schema 2: registry
 export is at schema 2 and result envelopes are at schema 3 (see [rule registry](rule-registry.md)).
 Both have top-level schemaVersion, producerVersion, toolchain and sourceRevision, plus rules
-(registry export) or scope/mode/status/complete/stagesNotRun/diagnostics/rules/unresolved (result export).
+(registry export) or scope/mode/status/stages/stagesCompleted/complete/stagesNotRun/diagnostics/rules/unresolved
+(result export).
 Encode `Name` reversibly, retain source positions, deterministically order exported collections,
 reject duplicate identities at admission, and prove claimed decoder/encoder laws for actual
 functions. JSON is transport; proof-bearing validated values are the in-process authority.
