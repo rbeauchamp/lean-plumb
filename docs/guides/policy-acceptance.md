@@ -526,7 +526,7 @@ guides the new library via Lake discovery, not hardcoded declaration/file lists.
 | #13 ENGINE | Shared semantic collectors for current-document and imported modules; complete census/roots/role extraction and typed outcomes for all twenty initial rules (PL5003 was added later by #71); two scoped doc-presence checks retained. |
 | #14 ADOPTION | All actual Lake lint/build/editor adapters consume the same outcome; cached policy re-evaluation and source-located links retained; freshFile and snapshot modes honestly labeled. Delivered: `lint` driver and exit classes, upstream-widget editor links, adopter fixtures in both lakefile formats. |
 | #10 DELIVERY / #15 WEBSITE | Reconcile residual semantic accounts and same-revision rule/example/status exports. No accepted data report is full conformance; site consumes status, not exit code alone. |
-| #8/#9 optional | Separate requested graph/export jobs and result type; absence cannot block core policy/site delivery. No new export format or adapter selected here. |
+| #8/#9 optional | Separate requested graph/export jobs and result type; absence cannot block core policy/site delivery. #8 ended in a [no-go](con-leche-research.md) and #9 is not planned, so no export format or adapter is selected. |
 
 Native dependency refinements: #13 requires #5’s shared domain as well as #12;
 #15 requires #7’s complete example-result boundary as well as #12/#13. Both edges

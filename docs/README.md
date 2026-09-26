@@ -43,6 +43,8 @@ Product contract and design:
   diagnostics, configuration and website interactions.
 - [Design influences and attribution](guides/design-influences.md): actual reuse, adapted code,
   specific inspiration, optional external checking and project scope.
+- [Optional con-leche export research](guides/con-leche-research.md): the no-go decision, pins,
+  checker protocol, boundary account and coverage ledger.
 
 Implementation accounts:
 
