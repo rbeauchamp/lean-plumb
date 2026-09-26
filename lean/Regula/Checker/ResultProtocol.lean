@@ -111,12 +111,16 @@ def stops (f : Finding) : Bool :=
   | .configuration | .sourceBuild => true
   | _ => f.2.impact == .incomplete
 
-/-- Stage `s` is blocked: a finding among `findings` stops the run at `s` or an earlier stage. -/
+/-- Stage `s` is blocked: a finding among `findings` stops the run at `s` or an earlier stage, or
+comes from an earlier phase of a composed run, every stage of the finding's mode preceding `s`:
+a `--with-docs` run starts its documentation stages only after its project stages produced no
+finding. -/
 def blocked (findings : List Finding) (s : Stage) : Bool :=
-  findings.any fun f => stops f &&
-    match blockedStage f.2.mode f.1 with
-    | some b => stageRank b ≤ stageRank s
-    | none => false
+  findings.any fun f =>
+    (stagesOf f.2.mode).all (stageRank · < stageRank s) ||
+    stops f && match blockedStage f.2.mode f.1 with
+      | some b => stageRank b ≤ stageRank s
+      | none => false
 
 /-- The stages of `required` a result records as completed: every one for an accepted result,
 whose account executed every stage its claim requires (`stagesOf_required`); otherwise those its
@@ -216,7 +220,8 @@ def runStages : Option EvidenceMode → List (List Stage)
 /-- Admit a result envelope's agent members in the registry-export style: it has this schema
 version; every diagnostic decodes to its canonical indexed form (`DiagnosticCodec.parseDiagnostic`,
 which includes the finding's `remedy` and `text`); every entry of `stages` and `stagesCompleted`
-is a stage, and `stages` are the required stages of the result's `mode` (`runStages`);
+is a stage, and `stages` are the required stages of the result's `mode` (`runStages`), with the
+documentation stages exactly for a recorded `projectWithDocs` request;
 `stagesCompleted`, `complete`, `stagesNotRun` and `rules` equal their derivation by the writer's
 own `guidanceFields` from the status, those stages and the diagnostics
 (`guidanceFields_recorded`), so no stage a finding blocks is reported as run and a `completed`
@@ -237,6 +242,10 @@ def admitGuidance (j : Json) : Except String Unit := do
     | mode => some <$> RegistryCodec.parseMode (← mode.getStr?)
   unless (runStages mode).contains required do
     throw "stages are not the required stages of the result's mode"
+  if let .ok request := j.getObjVal? "request" then
+    let withDocs := (← (← request.getObjVal? "kind").getStr?) == "projectWithDocs"
+    unless withDocs == (required == stagesOf .freshProject ++ documentationStages) do
+      throw "stages are not the required stages of the result's request"
   let status ← (← j.getObjVal? "status").getStr?
   for (key, value) in guidanceFields (acceptedStatus status) required completed findings do
     unless (← j.getObjVal? key) == value do throw s!"noncanonical result {key}"

@@ -97,6 +97,15 @@ def main : IO Unit := do
     .freshProject .violation
   let refused := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject .rejected
     #[refusal] projectStages [] #[]
+  -- A `--with-docs` run whose project stages found a violation, so its documentation stages
+  -- never started, although its writer recorded them.
+  let withDocsStages := projectStages ++ Regula.Checker.ResultProtocol.documentationStages
+  let projectFinding ← IO.ofExcept <| makeDiagnostic .moduleDocumentation ⟨"M", "missing docs"⟩
+    (.module `M) .freshProject none .violation
+  let projectRejected := (Regula.Checker.ResultProtocol.resultJson (.str "control") .freshProject
+    .rejected #[⟨.moduleDocumentation, projectFinding⟩] withDocsStages withDocsStages #[]).setObjVal!
+    "request" (Regula.Checker.ResultProtocol.requestJson "projectWithDocs" "control" "control"
+      none none #[])
   let allStageNames := toJson (projectStages.map Regula.Checker.ResultProtocol.stageName)
   let claimAllRan (j : Json) (stages : Json) : Json :=
     ((j.setObjVal! "stagesCompleted" stages).setObjVal! "stagesNotRun"
@@ -114,6 +123,13 @@ def main : IO Unit := do
   require (!succeeded (admit (claimAllRan unscanned (unscanned.getObjValD "stages"))))
     "finding-free incomplete result with every stage recorded as run"
   require (!succeeded (admit (claimAllRan refused allStageNames))) "configuration refusal claimed complete"
+  require (succeeded (admit projectRejected)) "rejected documentation run admission"
+  require ((projectRejected.getObjVal? "stagesNotRun").toOption == some (toJson ["documentScan", "example"]))
+    "a project finding leaves the documentation stages not run"
+  require (!succeeded (admit (claimAllRan projectRejected (toJson (withDocsStages.map
+    Regula.Checker.ResultProtocol.stageName))))) "unstarted documentation stages reported as run"
+  require (!succeeded (admit (claimAllRan (projectRejected.setObjVal! "stages" allStageNames)
+    allStageNames))) "documentation stages dropped from a documentation request"
   require (!succeeded (admit ((claimAllRan refused (toJson ([] : List Json))).setObjVal! "stages"
     (toJson ([] : List Json))))) "required stages dropped"
   require ((blockedRun.getObjVal? "stagesNotRun").toOption ==

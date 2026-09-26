@@ -316,7 +316,7 @@ include:
 | `schemaVersion` | `3`. Also `producerVersion`, `toolchain` and `sourceRevision` of the Regula build. |
 | `status` | `completed` (accepted), `rejected` (a violation was established), `incomplete` (evidence was missing) or `classified` (a file inspection with no conforming claim). |
 | `stages` | The run's required stages, in run order: those its mode requires, plus the documentation stages of a `--with-docs` run. |
-| `stagesCompleted` | The required stages that completed. A stage a finding stops (an incomplete finding, or an RG2002 or RG2003 refusal) is never among them, nor is any later stage. |
+| `stagesCompleted` | The required stages that completed. A stage a finding stops (an incomplete finding, or an RG2002 or RG2003 refusal) is never among them, nor is any later stage. In a `--with-docs` run, a finding from the project stages leaves the documentation stages out, because they start only after the project stages pass. |
 | `complete` | `true` exactly when every stage of the run completed. `false` when the run stopped early (for example at an RG2002 configuration refusal or a failed build) or an incomplete finding left a stage unfinished (for example an unelaborated module, RG2004): fixing the reported findings can then reveal more. An incomplete RG3001 does not, because its stage completed. |
 | `stagesNotRun` | The required stages missing from `stagesCompleted`, in run order (for example `build`, `admission`, `declarationPolicy`); empty exactly when `complete` is `true`. |
 | `diagnostics` | Every finding; for a project or file audit, in the printed run order. Each has `id` (rule ID), `impact` (`violation` or `incomplete`), `severity`, `mode`, `claim`, `location` (for source: `uri`, byte `range` and `selectionRange`, and zero-based LSP `lspRange` and `lspSelectionRange`; otherwise a module or project scope), `related` locations, `arguments` (subject and detail), `text` (the printed finding without the once-per-run guidance), `remedy` and `helpUrl`. |
@@ -326,7 +326,7 @@ include:
 The exit status is the stable contract for pass or fail (table above); the `status` and
 `complete` members say why. Regula checks the report form the way it checks registry exports:
 every diagnostic must decode to the canonical indexed finding (unknown fields, stale text or
-remedies are refused), `stages` must be the required stages of the result's `mode`,
+remedies are refused), `stages` must be the required stages of the result's `mode` and `request`,
 `stagesCompleted`, `complete`, `stagesNotRun` and `rules` must equal their derivation from the
 status, `stages`, `stagesCompleted` and the diagnostics by the same function the writer uses
 (so a `completed` result lists every stage as completed and no stopped stage is listed), and an

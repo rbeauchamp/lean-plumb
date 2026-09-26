@@ -174,7 +174,9 @@ finding stops (`stops`: an incomplete finding, or an RG2002 or RG2003 refusal of
 after which no later stage runs): the stage `blockedStage` assigns to its rule, which it left
 unfinished, and every later stage (`stageRank`, which orders each mode's stages,
 `stagesOf_ordered`, `withDocs_ordered`). RG3001 blocks none, because its verdict comes from the
-execution stage, which completed. An empty documentation scan leaves the documentation stages
+execution stage, which completed. Nor does it keep a stage after every stage of a finding's mode
+(`blocked`): a `--with-docs` run starts its documentation stages only after its project stages
+produced no finding. An empty documentation scan leaves the documentation stages
 unrecorded. `stagesNotRun` (`notRun`) is every required stage missing from `stagesCompleted`, and
 `complete` holds exactly when no stage is missing or blocked
 (`notRun_completedStages_eq_nil_iff`). The required stages (`stages`) are those
@@ -184,6 +186,7 @@ status records every required stage as completed, because its accepted account e
 required stage. `ResultProtocol.admitGuidance` admits a result's agent members in the same style
 as a registry: every diagnostic decodes canonically, every listed stage exists (`parseStage`,
 `parseStage_stageName`), `stages` are the required stages of the result's `mode` (`runStages`),
+with the documentation stages exactly for a recorded `projectWithDocs` request,
 `stagesCompleted`, `complete`, `stagesNotRun` and `rules` equal their `guidanceFields` derivation
 from the status, `stages`, `stagesCompleted` and diagnostics (every writer's record re-derives to
 itself, `completedStages_idem` and `guidanceFields_recorded`), and an `incomplete` result without
