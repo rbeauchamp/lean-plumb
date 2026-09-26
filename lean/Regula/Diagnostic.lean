@@ -127,18 +127,33 @@ def Diagnostic.text {id : RuleId} (d : Diagnostic id) : String :=
 /-- The finding as an entry of a run's rendering (`Feedback.render`). -/
 def Finding.entry (f : Finding) : Feedback.Entry := ⟨f.1, f.2.location.place, f.2.message⟩
 
+/-- Each finding paired with its entry, so a sort renders every entry once. -/
+def keyedFindings (fs : List Finding) : List (Feedback.Entry × Finding) :=
+  fs.map fun f => (f.entry, f)
+
 /-- A run's findings in run order: the order `Feedback.sortEntries` gives their entries. -/
 def sortFindings (fs : List Finding) : List Finding :=
-  fs.mergeSort fun a b => Feedback.Entry.le a.entry b.entry
+  ((keyedFindings fs).mergeSort fun a b => Feedback.Entry.le a.1 b.1).map (·.2)
 
 /-- Findings are reported in exactly the order their text is printed. -/
 theorem sortFindings_entries (fs : List Finding) :
-    (sortFindings fs).map Finding.entry = Feedback.sortEntries (fs.map Finding.entry) :=
-  List.map_mergeSort (fun _ _ _ _ => rfl)
+    (sortFindings fs).map Finding.entry = Feedback.sortEntries (fs.map Finding.entry) := by
+  let sorted := (keyedFindings fs).mergeSort fun a b => Feedback.Entry.le a.1 b.1
+  have keyed : ∀ p ∈ sorted, Finding.entry p.2 = p.1 := by
+    intro p hp
+    obtain ⟨f, -, rfl⟩ := List.mem_map.mp ((List.mergeSort_perm _ _).mem_iff.mp hp)
+    rfl
+  calc (sortFindings fs).map Finding.entry = sorted.map Prod.fst := by
+        rw [sortFindings, List.map_map]; exact List.map_congr_left keyed
+    _ = ((keyedFindings fs).map Prod.fst).mergeSort Feedback.Entry.le :=
+        List.map_mergeSort (fun _ _ _ _ => rfl)
+    _ = Feedback.sortEntries (fs.map Finding.entry) := by
+        simp [keyedFindings, Feedback.sortEntries, Function.comp_def]
 
 /-- Every finding is reported exactly once. -/
-theorem sortFindings_perm (fs : List Finding) : List.Perm (sortFindings fs) fs :=
-  List.mergeSort_perm _ _
+theorem sortFindings_perm (fs : List Finding) : List.Perm (sortFindings fs) fs := by
+  have := (List.mergeSort_perm (keyedFindings fs) fun a b => Feedback.Entry.le a.1 b.1).map Prod.snd
+  simpa [sortFindings, keyedFindings, Function.comp_def] using this
 
 /-- Native logging consumes the same typed diagnostic and genuine selection span. -/
 def Diagnostic.nativeMessage {id : RuleId} (d : Diagnostic id) : Except String Message := do

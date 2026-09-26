@@ -26,7 +26,10 @@ it does not compile: a one-line `requirement`, a short `rationale`, a one-line i
 `remedy`, the common compliant `rewrites` (at least one, `descriptor_rewrites_nonempty`) and
 the checked `examples` pair. The pair is the exact bytes of the corpus files
 `examples/rules/<ID>/Fixed.<ext>` and `Violation.<ext>`, embedded with `include_str`, with
-the `correction` sentence; the `RegulaCore` library `needs` the corpus directory as a Lake
+the `correction` sentence and its `audience`: `adopter` files are shown to agents as written,
+while `qualification` inputs (RG1003's stand-in dependency and RG2001's runner requests) say
+what they are, and agent-facing output (`ExamplePair.adopterExample`) states their correction
+instead of showing them; the `RegulaCore` library `needs` the corpus directory as a Lake
 input, so editing an example rebuilds the registry, and `RegistryChecks` rereads every file
 and refuses a mismatch. `RuleDescriptor.wellFormed` (nonempty fields within byte budgets,
 one-line requirement and remedy, distinct examples) is checked for every rule when
@@ -122,8 +125,8 @@ lake exe axiomGate --with-docs --legacy-json-out tmp/legacy-report.json
 
 `--json-out` now writes **result schema 3**; schema 3 adds each diagnostic's `remedy`, the
 top-level `rules` (the guidance of every rule that fired, once each, in registry order) and
-`complete` (`status` is not `incomplete`), and lists diagnostics in run order
-(`Regula.sortFindings`). The [adoption guide](adoption.md#machine-readable-report) documents the
+`complete` (every stage of the run completed) with `stagesNotRun` (the stages that did not),
+and lists a project or file audit's diagnostics in run order (`Regula.sortFindings`). The [adoption guide](adoption.md#machine-readable-report) documents the
 fields for adopters. `--legacy-json-out` preserves the
 previous file/project report format, including its path-remapping behavior. The
 two options are mutually exclusive. Internal worker transport remains separately
@@ -161,10 +164,16 @@ theorem about serialized byte counts.
 Registry (schema 2, which adds each rule's guidance and example pair to schema 1) and result
 (schema 3) envelopes contain `schemaVersion`, `producerVersion`,
 `toolchain` and `sourceRevision`. Registry output contains the canonical `rules`.
-Result output contains `scope`, `mode`, `status`, `complete`, `diagnostics`, `rules` and
-`unresolved`. `ResultProtocol.admitGuidance` admits a result's agent members in the same
-style as a registry: every diagnostic decodes canonically, and `complete` and `rules` equal
-their derivation; the rule-example campaign applies it to every result it admits.
+Result output contains `scope`, `mode`, `status`, `complete`, `stagesNotRun`, `diagnostics`,
+`rules` and `unresolved`. A writer records the stages its run completed; `stagesNotRun` is
+every expected stage missing from them (`ResultProtocol.notRun`), and `complete` holds exactly
+when there is none (`notRun_eq_nil_iff`). The expected stages are those
+`RegulaPolicy.requiredStages` requires in the run's mode (`stagesOf_required`), plus the
+documentation stages of a `--with-docs` run. A `completed` status reports none, because its
+accepted account executed every required stage; a context finding credits only the stages
+that always precede it (`contextCompleted`). `ResultProtocol.admitGuidance` admits a result's
+agent members in the same style as a registry: every diagnostic decodes canonically, every
+listed stage exists, and `complete`, `stagesNotRun` and `rules` equal their derivation; the rule-example campaign applies it to every result it admits.
 The producer revision is captured when `ResultProtocol` is elaborated, with Git
 anchored to that source file's checker package directory, rather than reading an
 adopter's Git checkout. Unreleased working builds are explicitly
@@ -266,7 +275,9 @@ carries its rule's guidance exactly when no earlier finding has that rule (`tag_
 so the rules with guidance are exactly the rules that fired, each once (`mem_firsts`,
 `firsts_nodup`), at most one block per registered rule whatever the number of findings
 (`firsts_length_le`). The checker's streaming emitter executes `Feedback.step`
-(`renderFrom_cons`), and the JSON lists diagnostics in the same order (`sortFindings_entries`).
+(`renderFrom_cons`). A project or file audit prints its findings through `sortFindings`, and
+its JSON lists them in the same order (`sortFindings_entries`); a documentation audit prints
+each fence's findings as it decides that fence.
 `RegulaCore.Guidance` proves that the agent briefing lists every rule exactly once
 (`writingSections_perm`) and that the `regula` command parser admits exactly its documented
 commands (`parseCommand_arguments`, `parseCommand_sound`). `descriptor_rewrites_nonempty` and

@@ -286,7 +286,7 @@ def ruleSections (ident : Identity) (id : RuleId) (g : Guide) (ex : String)
   ("What triggers it", "trigger", paragraphs ident g.trigger),
   ("Why it matters", "rationale", paragraphs ident ((descriptor id).rationale :: g.rationaleDetail)),
   ("How to fix it", "fix", numbered ident (descriptor id).rewrites),
-  ("Checked example", "example", ex ++ "\n" ++ resolveProse ident (descriptor id).examples.correction ++ "\n\n"),
+  ("Checked example", "example", ex ++ "\n" ++ resolveProse ident (descriptor id).examples.caption ++ "\n\n"),
   ("Required proof shape", "proof-shape", paragraphs ident g.proofShape),
   ("What a passing result establishes", "established",
     paragraphs ident g.established ++ "It does not establish:\n\n" ++ bullets ident g.notEstablished ++

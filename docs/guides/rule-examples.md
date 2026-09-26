@@ -76,6 +76,8 @@ checked compliant and noncompliant examples (`examples` of `descriptor` in
 [`RegulaCore.Rule`](../../lean/RegulaCore/Rule.lean), by `include_str`; the `RegulaCore` library
 `needs` this directory, and `RegistryChecks` refuses any mismatch), so the first finding of a
 rule, `lake exe regula`, the agent briefing and the rule page all show exactly these files.
+The exceptions are the qualification inputs of RG1003 and RG2001 (`ExampleAudience.qualification`),
+which only the rule page shows; agent-facing output states their correction instead.
 What each correction preserves and changes is the pair's `correction` sentence, rendered with
 the exact inputs, findings and diff on the rule's [reference page](website.md). Keep that
 sentence and the fixtures in the same change.

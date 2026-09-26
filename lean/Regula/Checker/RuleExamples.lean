@@ -53,6 +53,7 @@ unsafe def inspectNegative (repo path output : FilePath) : IO UInt32 := do
           ("report", inspected.report.resultJson), ("frontendTranscripts", toJson inspected.transcripts)], findings)
   ResultProtocol.write output scopeJson .freshFile
     (if findings.isEmpty then .classified else .rejected) findings
+    (ResultProtocol.notRun (ResultProtocol.stagesOf .freshFile) [.discovery, .build, .admission, .declarationPolicy])
   let value ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile output)
   let request := ResultProtocol.requestJson "policyNegative" repo.toString path.toString none none configuration
   writeJson output ((value.setObjVal! "request" request).setObjVal! "effective"
@@ -110,7 +111,7 @@ unsafe def documentation (repo docsRoot output : FilePath) : IO UInt32 := do
     ("fences", toJson classifications),
     ("documents", toJson (sources.map fun (path, source) => Json.mkObj [
       ("uri", toJson path.toString), ("source", toJson source)]))])
-    .documentationExample completion actual
+    .documentationExample completion actual []
   let value ← IO.ofExcept <| PolicyCodec.parse (← IO.FS.readFile output)
   let value := match certificate with
     | some ⟨_, accepted⟩ => value.setObjVal! "acceptance" (ResultProtocol.acceptedJson accepted)

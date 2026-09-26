@@ -14,8 +14,8 @@ open Lean
 abbrev producer := Regula.Checker.Producer.identity
 
 /-- Result schema 3 adds, for agents, each diagnostic's `remedy`, the top-level `rules` (the
-guidance of every rule that fired, once each) and `complete` (the run reached a decision, that
-is its status is not `incomplete`). Schema 2 omitted the frozen configuration and dependency
+guidance of every rule that fired, once each), `complete` (every stage of the run completed)
+and `stagesNotRun` (the stages that did not). Schema 2 omitted the frozen configuration and dependency
 text from the snapshot (`snapshotJson`: a clean dependency is identified by its pinned
 revision, a dirty one only by package and `dirty` status) and imported-environment module
 lists (`acceptedJson`, `ProducerReport.Environment.resultJson`); schema 1 embedded them. -/
@@ -30,20 +30,80 @@ abbrev Status := Regula.Checker.Account.Status
 
 def statusText (status : Status) : String := status.spelling
 
-/-- The run reached a decision (accepted, rejected or classified) rather than stopping on
-missing evidence: its status is not `incomplete`. A rejection reports every finding of the
-stages it ran; stages after a configuration (RG2002) or failed-build refusal did not run. -/
-def complete (status : String) : Bool := status != "incomplete"
+/-- A stage of a run (`RegulaPolicy.Stage`). -/
+abbrev Stage := RegulaPolicy.Stage
 
-/-- The agent guidance members of every result envelope, from its status and the rules of its
-diagnostics. -/
-def guidanceFields (status : String) (rules : List RuleId) : List (String × Json) :=
-  [("complete", .bool (complete status)), ("rules", RegistryCodec.rulesJson rules)]
+def stageName : Stage → String
+  | .configuration => "configuration" | .discovery => "discovery" | .build => "build"
+  | .admission => "admission" | .declarationPolicy => "declarationPolicy"
+  | .execution => "execution" | .transcript => "transcript" | .history => "history"
+  | .origin => "origin" | .documentationPresence => "documentationPresence"
+  | .documentScan => "documentScan" | .example => "example" | .graph => "graph"
+
+/-- Every stage. -/
+def allStages : List Stage :=
+  [.configuration, .discovery, .build, .admission, .declarationPolicy, .execution, .transcript,
+   .history, .origin, .documentationPresence, .documentScan, .example, .graph]
+
+theorem mem_allStages (s : Stage) : s ∈ allStages := by
+  cases s <;> simp [allStages]
+
+/-- The stages a run in `mode` performs: exactly those `RegulaPolicy.requiredStages` requires
+of every claim in that mode (`stagesOf_required`). -/
+def stagesOf : EvidenceMode → List Stage
+  | .freshProject | .incrementalProject =>
+      [.configuration, .discovery, .build, .admission, .declarationPolicy, .execution,
+       .transcript, .history, .origin, .documentationPresence]
+  | .freshFile => [.discovery, .build, .admission, .declarationPolicy, .execution,
+      .transcript, .history, .origin]
+  | .documentationExample => [.discovery, .build, .documentScan, .example]
+  | .serializedGraph => [.configuration, .discovery, .build, .graph]
+  | .editorSnapshot => [.discovery, .admission, .declarationPolicy, .execution,
+      .transcript, .history, .origin, .documentationPresence]
+
+theorem stagesOf_required (c : RegulaPolicy.Claim) :
+    RegulaPolicy.requiredStages c = stagesOf c.val.mode := by
+  unfold RegulaPolicy.requiredStages stagesOf
+  cases c.val.mode <;> rfl
+
+/-- The stages a `--with-docs` project audit adds after the project stages. -/
+def documentationStages : List Stage := [.documentScan, .example]
+
+/-- The stages of `expected` that are not among `completed`, in run order. -/
+def notRun (expected completed : List Stage) : List Stage :=
+  expected.filter (· ∉ completed)
+
+/-- No stage is reported as not run exactly when every expected stage completed. -/
+theorem notRun_eq_nil_iff (expected completed : List Stage) :
+    notRun expected completed = [] ↔ ∀ s ∈ expected, s ∈ completed := by
+  simp [notRun, List.filter_eq_nil_iff]
+
+/-- The stages completed before a context finding of `id` stopped a run: configuration and
+discovery precede every failed build (RG2003). Any other context finding, such as an RG2001
+environment, RG2002 configuration or RG2005 admission failure, can arise before any stage
+completes, so none is credited. -/
+def contextCompleted : RuleId → List Stage
+  | .sourceBuild => [.configuration, .discovery]
+  | _ => []
+
+/-- The stages a result reports as not run: none for a completed status, whose accepted
+account executed every stage its claim requires (`stagesOf_required`), otherwise `notRun`. -/
+def stagesNotRun (status : Status) (notRun : List Stage) : List Stage :=
+  match status with
+  | .completed _ => []
+  | _ => notRun
+
+/-- The agent guidance members of every result envelope: `complete` (every stage of the run
+completed, `notRun_eq_nil_iff`), `stagesNotRun` (the stages that did not, so fixing the
+findings can reveal more) and `rules` (the guidance of every rule of the diagnostics). -/
+def guidanceFields (notRun : List Stage) (rules : List RuleId) : List (String × Json) :=
+  [("complete", .bool notRun.isEmpty), ("stagesNotRun", toJson (notRun.map stageName)),
+   ("rules", RegistryCodec.rulesJson rules)]
 
 /-- Completed is scoped observation, never a synonym for whole-standard conformance. A
 completed envelope takes its mode from the status's account, not from `mode`. -/
 def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
-    (findings : Array Finding) (unresolved : Array String) : Json :=
+    (findings : Array Finding) (notRun : List Stage) (unresolved : Array String) : Json :=
   let mode := match status with
     | .completed account => account.val.mode
     | _ => mode
@@ -52,18 +112,28 @@ def resultJson (scope : Json) (mode : EvidenceMode) (status : Status)
     ("status", .str (statusText status)),
     ("diagnostics", toJson ((sortFindings findings.toList).map RegistryCodec.diagnosticJson)),
     ("unresolved", toJson unresolved)] ++
-    guidanceFields (statusText status) (findings.toList.map (·.1)))
+    guidanceFields (stagesNotRun status notRun) (findings.toList.map (·.1)))
+
+/-- The stage named `name`. -/
+def parseStage (name : String) : Except String Stage :=
+  match allStages.find? (stageName · == name) with
+  | some stage => .ok stage
+  | none => .error s!"unknown stage {name}"
 
 /-- Admit a result envelope's agent members in the registry-export style: it has this schema
 version, every diagnostic decodes to its canonical indexed form (`DiagnosticCodec.parseDiagnostic`,
-which includes the finding's `remedy` and `text`), and `complete` and `rules` equal their
-derivation from the envelope's `status` and those diagnostics. -/
+which includes the finding's `remedy` and `text`), every entry of `stagesNotRun` is a stage
+and a `completed` result has none, and `complete`, `stagesNotRun` and `rules` equal their
+derivation from those stages and diagnostics. -/
 def admitGuidance (j : Json) : Except String Unit := do
   unless (j.getObjVal? "schemaVersion").toOption == some (toJson schemaVersion) do
     throw "unsupported result schema"
   let findings ← (← (← j.getObjVal? "diagnostics").getArr?).mapM DiagnosticCodec.parseDiagnostic
-  let status ← (← j.getObjVal? "status").getStr?
-  for (key, value) in guidanceFields status (findings.toList.map (·.1)) do
+  let notRun ← (← (← j.getObjVal? "stagesNotRun").getArr?).toList.mapM fun name => do
+    parseStage (← name.getStr?)
+  if (← (← j.getObjVal? "status").getStr?) == "completed" && !notRun.isEmpty then
+    throw "completed result with stages not run"
+  for (key, value) in guidanceFields notRun (findings.toList.map (·.1)) do
     unless (← j.getObjVal? key) == value do throw s!"noncanonical result {key}"
 
 def requestJson (kind project subject : String) (claim execution : Option String)
@@ -72,10 +142,10 @@ def requestJson (kind project subject : String) (claim execution : Option String
     configuration.map fun (path, source) => (path.toString, source)⟩ : Website.ExampleRequest)
 
 def write (path : System.FilePath) (scope : Json) (mode : EvidenceMode) (status : Status)
-    (findings : Array Finding) (unresolved : Array String := #[]) : IO Unit := do
+    (findings : Array Finding) (notRun : List Stage) (unresolved : Array String := #[]) : IO Unit := do
   if let some parent := path.parent then IO.FS.createDirAll parent
   let spanStart ← IO.monoMsNow
-  let encoded := Json.compress (resultJson scope mode status findings unresolved) ++ "\n"
+  let encoded := Json.compress (resultJson scope mode status findings notRun unresolved) ++ "\n"
   IO.println s!"diagnostic span: ResultProtocol.write encode: {(← IO.monoMsNow) - spanStart}ms"
   let writeStart ← IO.monoMsNow
   IO.FS.writeFile path encoded
@@ -228,7 +298,7 @@ worker exits. The composed accepted result value (pure): the historical
 def acceptedValue {claim : RegulaPolicy.Claim}
     (accepted : RegulaPolicy.AcceptedRun claim) (scope : Json) : Json :=
   (resultJson scope accepted.report.claim.val.mode
-    (.completed (Regula.Checker.Account.account accepted)) #[] #[]).setObjVal!
+    (.completed (Regula.Checker.Account.account accepted)) #[] [] #[]).setObjVal!
     "acceptance" (acceptedJson accepted)
 
 def writeAccepted {claim : RegulaPolicy.Claim} (path : System.FilePath)

@@ -18,8 +18,16 @@ each step are in [docs/standard/8 §8.11](../standard/8-tooling-and-machine-audi
 ## 0. Brief your agent
 
 Regula is designed first for agents. Adopting it tells your agent that your Lean code and
-proofs must meet a strict standard that may not be in its training data. Once the package is
-required (step 1), give the agent that standard before it writes Lean:
+proofs must meet a strict standard that may not be in its training data. Each mechanically
+checked rule is one typed registry definition stating what it requires, why it matters, how
+to comply (with the common compliant rewrites) and a checked compliant and noncompliant
+example pair. The checker's findings, the offline rule reference and agent briefing below,
+the machine-readable report and the rule-reference website are all generated from that
+definition, so an agent can apply a rule before writing code and act on a finding without
+consulting another source. Where a rule's checked files are qualification inputs rather than
+project files (RG1003's stand-in dependency and RG2001's runner requests), agent-facing output
+states the correction instead of showing them. Once the package is required (step 1), give
+the agent the standard before it writes Lean:
 
 ```sh
 lake exe regula agent-guide      # compact briefing of every rule, ordered for writing code
@@ -177,8 +185,10 @@ lake exe docFenceAudit --jobs 4                            # elaborate every doc
 
 ## 5. Read a failure
 
-Every finding is printed with everything needed to fix it, in a deterministic order (project
-and configuration findings, then module findings, then source findings by file and position):
+Every finding is printed with everything needed to fix it. A project or file audit prints its
+findings in a deterministic order (project and configuration findings, then module findings,
+then source findings by file and position); a documentation audit prints each fence's findings
+with that fence, in fence order:
 
 ```text
 RG1001 [violation; freshFile; claim=kernel-only; Widget/Basic.lean:2:6]: reflexive: …
@@ -198,7 +208,8 @@ RG1001 [violation; freshFile; claim=kernel-only; Widget/Basic.lean:3:6]: symmetr
 
 The first line states what is wrong and where (`FILE:LINE:COLUMN` in Lean's own coordinates).
 The first finding of each rule in a run adds the rule's requirement, rationale, common
-rewrites and checked compliant example; later findings of that rule keep their own message and
+rewrites and checked compliant example (or, for a rule whose checked files are qualification
+inputs, the correction they demonstrate); later findings of that rule keep their own message and
 fix and point back to it, so a run with hundreds of findings prints each rule's guidance once.
 The rule page is a pointer for humans, never the only source of the fix.
 
@@ -304,16 +315,18 @@ include:
 | --- | --- |
 | `schemaVersion` | `3`. Also `producerVersion`, `toolchain` and `sourceRevision` of the Regula build. |
 | `status` | `completed` (accepted), `rejected` (a violation was established), `incomplete` (evidence was missing) or `classified` (a file inspection with no conforming claim). |
-| `complete` | `true` exactly when `status` is not `incomplete`: the run reached a decision. A rejection lists every finding of the stages it ran; stages after an RG2002 configuration refusal or a failed build did not run. |
-| `diagnostics` | Every finding, in the printed run order. Each has `id` (rule ID), `impact` (`violation` or `incomplete`), `severity`, `mode`, `claim`, `location` (for source: `uri`, byte `range` and `selectionRange`, and zero-based LSP `lspRange` and `lspSelectionRange`; otherwise a module or project scope), `related` locations, `arguments` (subject and detail), `text` (the printed finding without the once-per-run guidance), `remedy` and `helpUrl`. |
-| `rules` | Once per rule that fired, in registry order: `id`, `title`, `requirement`, `rationale`, `remedy`, `rewrites`, `compliantExample` (`path`, `language`, `text`), `helpUrl` and `explain` (the offline command). |
+| `complete` | `true` exactly when every stage of the run completed. `false` when the run stopped early, for example at an RG2002 configuration refusal or a failed build: fixing the reported findings can then reveal more. |
+| `stagesNotRun` | The stages that did not complete, in run order (for example `build`, `admission`, `declarationPolicy`); empty exactly when `complete` is `true`. |
+| `diagnostics` | Every finding; for a project or file audit, in the printed run order. Each has `id` (rule ID), `impact` (`violation` or `incomplete`), `severity`, `mode`, `claim`, `location` (for source: `uri`, byte `range` and `selectionRange`, and zero-based LSP `lspRange` and `lspSelectionRange`; otherwise a module or project scope), `related` locations, `arguments` (subject and detail), `text` (the printed finding without the once-per-run guidance), `remedy` and `helpUrl`. |
+| `rules` | Once per rule that fired, in registry order: `id`, `title`, `requirement`, `rationale`, `remedy`, `rewrites`, `compliantExample` (`path`, `language`, `text`; `null` where the checked files are qualification inputs), `correction`, `helpUrl` and `explain` (the offline command). |
 | `unresolved` | Unresolved evidence, when the run is incomplete. |
 
 The exit status is the stable contract for pass or fail (table above); the `status` and
 `complete` members say why. Regula checks the report form the way it checks registry exports:
 every diagnostic must decode to the canonical indexed finding (unknown fields, stale text or
-remedies are refused), and `complete` and `rules` must equal their derivation from `status`
-and the diagnostics (`Regula.Checker.ResultProtocol.admitGuidance`). Treat the report as
+remedies are refused), every `stagesNotRun` entry must name a stage (none for a `completed`
+result), and `complete`, `stagesNotRun` and `rules` must equal their derivation from those
+stages and the diagnostics (`Regula.Checker.ResultProtocol.admitGuidance`). Treat the report as
 observations, never as a Lean proof.
 
 Lake details that affect what ran:

@@ -68,17 +68,13 @@ example : Nonempty {n : ℕ // n % 2 = 0} := ⟨⟨4, by omega⟩⟩
 ## Agents First
 
 Lean code and proofs are increasingly written by agents, and an agent may not know this
-standard from its training data. The standard and its checker are therefore designed first
-for agents, while remaining readable by the people who review them. Every mechanically
-checked rule states, in one typed definition, what it requires, why it matters, how to comply
-(including the common compliant rewrites), and a checked compliant and noncompliant example.
-The checker's findings, its offline rule reference and agent briefing, its machine-readable
-report and the rule-reference website are all generated from that definition, so an agent can
-apply a rule before writing code and act on a finding without consulting another source. A new
-rule or tool follows the same principle. The briefing does not discharge semantic review:
-whether a statement expresses the intended claim, at the required strength, remains the
-obligation described above. See the
-[adoption guide](../guides/adoption.md#0-brief-your-agent) for the commands.
+standard from its training data. The standard is therefore stated first for agents, while
+remaining readable by the people who review it: every mechanically checked rule says what it
+requires, why, and how to comply, so that it can be applied before code is written and acted
+on from a finding alone. Complying with the rules does not discharge semantic review: whether
+a statement expresses the intended claim, at the required strength, remains the obligation
+described above. The [adoption guide](../guides/adoption.md#0-brief-your-agent) describes how
+the checker delivers this guidance.
 
 ## Further Reading
 

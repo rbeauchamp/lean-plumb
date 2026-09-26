@@ -124,16 +124,41 @@ def ExampleLanguage.extension : ExampleLanguage → String
 def ExampleLanguage.fence : ExampleLanguage → String
   | .lean => "lean" | .json => "json" | .markdown => "markdown"
 
+/-- Who can apply a rule's checked example files as shown. -/
+inductive ExampleAudience where
+  /-- The compliant file is Lean, configuration or Markdown an adopting project writes as shown. -/
+  | adopter
+  /-- The files are qualification inputs, such as a runner request or a stand-in dependency of
+  the audited file; `files` says what they are. Agent guidance states `correction` instead of
+  showing either file. -/
+  | qualification (files : String)
+  deriving Repr, BEq, DecidableEq
+
 /-- A rule's checked example pair: the exact bytes of `examples/rules/<ID>/Fixed.<ext>`
 (compliant) and `Violation.<ext>` (noncompliant), embedded with `include_str`. These are the
 corpus sources that the rule-example qualification runs (docs/guides/rule-examples.md): the
 fixed phase passes a completed positive check, and the violating phase produces this rule's
-findings. `correction` states what the correction changes and preserves. -/
+findings. `correction` states what the correction changes and preserves; for qualification
+inputs it is the adopter-facing form of the fix. -/
 structure ExamplePair where
   language : ExampleLanguage
+  audience : ExampleAudience
   compliant : String
   noncompliant : String
   correction : String
+
+/-- The compliant file an agent can apply as shown; none for qualification inputs. -/
+def ExamplePair.adopterExample (p : ExamplePair) : Option String :=
+  match p.audience with
+  | .adopter => some p.compliant
+  | .qualification _ => none
+
+/-- The caption beside both files where they are shown: what qualification files are, then
+the correction. -/
+def ExamplePair.caption (p : ExamplePair) : String :=
+  match p.audience with
+  | .adopter => p.correction
+  | .qualification files => files ++ " " ++ p.correction
 
 /-- Repository path of the compliant example of rule `id`, derived from its identity. -/
 def ExamplePair.compliantPath (id : RuleId) (p : ExamplePair) : String :=
@@ -192,9 +217,10 @@ def withinBudget (text : String) (budget : Nat) : Bool :=
   0 < text.utf8ByteSize && text.utf8ByteSize ≤ budget
 
 /-- Every agent-facing field has content within its budget, the one-line fields contain no
-line break, and the two examples differ. The registry checks this for every rule when
-`RegulaCore.Guidance` is built (`#guard` over the complete `RuleId.all`): evaluation, because
-kernel reduction of these long string literals costs seconds per field. -/
+line break, the two examples differ, and qualification inputs say what they are. The registry
+checks this for every rule when `RegulaCore.Guidance` is built (`#guard` over the complete
+`RuleId.all`): evaluation, because kernel reduction of these long string literals costs seconds
+per field. -/
 def RuleDescriptor.wellFormed {id : RuleId} (d : RuleDescriptor id) : Bool :=
   withinBudget d.requirement requirementBudget && !d.requirement.contains '\n' &&
   withinBudget d.rationale rationaleBudget &&
@@ -204,7 +230,10 @@ def RuleDescriptor.wellFormed {id : RuleId} (d : RuleDescriptor id) : Bool :=
   withinBudget d.examples.compliant exampleBudget &&
   withinBudget d.examples.noncompliant exampleBudget &&
   d.examples.compliant != d.examples.noncompliant &&
-  0 < d.examples.correction.utf8ByteSize
+  0 < d.examples.correction.utf8ByteSize &&
+  (match d.examples.audience with
+    | .adopter => true
+    | .qualification files => 0 < files.utf8ByteSize)
 
 def declarationModes : List EvidenceMode :=
   [.incrementalProject, .freshProject, .freshFile, .documentationExample]
@@ -260,6 +289,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "If it states an open research target, define it as a `Prop` (`def Target : Prop := P`) and state results conditionally on it; do not assert it."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG1001/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG1001/Violation.lean"
         correction := "The correction proves the same `∀ n : Nat, n = n` by `rfl` instead of assuming it, under the unchanged Kernel-only claim." } }
@@ -278,6 +308,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "For an open target, write `def Target : Prop := …` and prove `Target → Result`, which states exactly what is established."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG1002/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG1002/Violation.lean"
         correction := "The correction fills the same reflexivity proof with `rfl`. The checked violation records Lean's original `sorry` warning as well; the corrected file passes the ordinary warning-rejecting gate." } }
@@ -296,9 +327,10 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "If the dependency cannot change, do not claim the affected declarations on a conforming surface."]
       examples := {
         language := .lean
+        audience := .qualification "The examples are the imported dependency."
         compliant := include_str "../../examples/rules/RG1003/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG1003/Violation.lean"
-        correction := "The examples are the imported dependency; the client file is unchanged. The dependency supplies a proof of the same reflexivity statement instead of declaring it as an axiom." } }
+        correction := "The dependency proves the same reflexivity statement instead of declaring it as an axiom, and the file that imports it is unchanged." } }
   | .compilerTrusting => {
       title := "Compiler-trusting proofs require separate classification", category := .foundation
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.5"]
@@ -314,6 +346,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "If the example exists only to teach the mechanism, keep it in documentation as a trusted-compiler teaching fence (RG4004), never on a claimed surface."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG1004/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG1004/Violation.lean"
         correction := "The correction proves the same concrete equality `(2 : Nat) = 2` by `rfl`. The violation reports both the generated axiom and its parent theorem." } }
@@ -332,6 +365,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "If the stronger foundation is intended, change the surface's `claim` and rationale explicitly; this changes the published claim and needs review."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG1005/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG1005/Violation.lean"
         correction := "The correction proves the same universally quantified reflexivity with an empty axiom set, under the unchanged Kernel-only claim, instead of routing through `propext`." } }
@@ -350,6 +384,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "If the computation must stay unsafe or partial, move it to a separate, unclaimed dependency package; a claimed module cannot import an excluded module of its own package (RG2004). Where a claimed executable reaches it, it is reported as a trusted `unsafe-computation` or `partial-computation` boundary, which fails under checked execution (RG3002)."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG1006/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG1006/Violation.lean"
         correction := "The correction keeps identity's domain and body and removes the unnecessary `unsafe` marker." } }
@@ -368,6 +403,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Universe-polymorphic implementations are supported; explicit universe instantiation is recorded."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG1007/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG1007/Violation.lean"
         correction := "The correction moves the complete natural-number domain inside the identity contract's predicate, retaining the same pointwise equality." } }
@@ -386,9 +422,10 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Rerun the audit; a new run produces new, complete evidence."]
       examples := {
         language := .json
+        audience := .qualification "The examples are the qualification runner's requests for the same `Example.lean`."
         compliant := include_str "../../examples/rules/RG2001/Fixed.json"
         noncompliant := include_str "../../examples/rules/RG2001/Violation.json"
-        correction := "The examples are the qualification runner's requests for the same `Example.lean`. The violating request adds `require unavailable from \"./missing\"` to the workspace; the correction removes that unavailable Lake dependency, and the source is unchanged." } }
+        correction := "The correction removes a Lake dependency that cannot be resolved (the violating workspace adds `require unavailable from \"./missing\"`); the Lean source is unchanged." } }
   | .configuration => {
       title := "Configuration must classify the complete Lake surface", category := .configuration
       normativeClauses := ["docs/standard/8-tooling-and-machine-audit.md §8.2"]
@@ -405,6 +442,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Run `lake lint -- --explain-config` to see the manifest, scope, profiles and stages the driver would use, without auditing."]
       examples := {
         language := .json
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG2002/Fixed.json"
         noncompliant := include_str "../../examples/rules/RG2002/Violation.json"
         correction := "The examples are `foundation_manifest.json` files. The correction removes the unknown manifest key without changing the selected source, profile or execution requirement." } }
@@ -423,6 +461,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Do not add `set_option linter.… false`: disabling a linter hides its warning but does not discharge the property it checks."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG2003/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG2003/Violation.lean"
         correction := "The correction removes a dead lambda binding while preserving identity's complete natural-number behavior. No warning or linter is disabled." } }
@@ -441,6 +480,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Classify any new root library or executable in the manifest (RG2002)."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG2004/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG2004/Violation.lean"
         correction := "The correction removes an unused forbidden reporter import; the reflexivity statement and its assumptions are unchanged." } }
@@ -459,6 +499,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "For an editor pending result, run `lake lint` (or `lake lint -- --fresh`)."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG2005/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG2005/Violation.lean"
         correction := "The correction replaces ill-typed unchecked evidence with a checked proof of the same reflexivity statement." } }
@@ -477,6 +518,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Break cycles consisting only of replacement edges."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG3001/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG3001/Violation.lean"
         correction := "The correction removes a no-effect `run_cmd` metaprogramming command that prevents history authentication; the reference, replacement and correspondence theorem are unchanged." } }
@@ -495,6 +537,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "If an external boundary is intended (an `extern` implementation, or unsafe or partial code in an unclaimed dependency), claim `report` execution, where it is reported as trusted and not failed. An owned `unsafe` or `partial` declaration on a claimed surface still fails RG1006 in either mode."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG3002/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG3002/Violation.lean"
         correction := "The correction adds the missing equality between the reference and its replacement on the full natural-number domain, keeping the checked execution claim and both implementations." } }
@@ -513,6 +556,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Use the exact marker spelling; write non-Lean sketches with another fence language."]
       examples := {
         language := .markdown
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG4001/Fixed.md"
         noncompliant := include_str "../../examples/rules/RG4001/Violation.md"
         correction := "The correction removes the orphan marker; the positive reflexivity fence is unchanged." } }
@@ -531,6 +575,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Import what the example needs inside the fence; the checker inserts nothing."]
       examples := {
         language := .markdown
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG4002/Fixed.md"
         noncompliant := include_str "../../examples/rules/RG4002/Violation.md"
         correction := "The correction proves the same reflexivity claim in the positive fence; the violation reports the RG1001 underlying rejection alongside RG4002." } }
@@ -549,6 +594,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Keep patterns to literal fragments joined by `.*` and alternatives separated by `|`."]
       examples := {
         language := .markdown
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG4003/Fixed.md"
         noncompliant := include_str "../../examples/rules/RG4003/Violation.md"
         correction := "The correction labels an already valid reflexivity proof as a positive example instead of inventing a compiler failure." } }
@@ -566,6 +612,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "For a genuine teaching example, keep the `native_decide` proof and import only the module that provides it (for example `import Init`)."]
       examples := {
         language := .markdown
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG4004/Fixed.md"
         noncompliant := include_str "../../examples/rules/RG4004/Violation.md"
         correction := "The correction labels the same kernel proof as a positive example rather than as native teaching." } }
@@ -583,6 +630,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Follow the template in standard §5.3: purpose, main declarations with their results and hypotheses, assumptions and dependencies, design notes. Keep only sections that help."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG5001/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG5001/Violation.lean"
         correction := "The correction adds module documentation to the unchanged reflexivity evidence." } }
@@ -600,6 +648,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Include a `# Intent` section with the requirement the claim must meet (standard §5.2); a missing Intent section is RG5003."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG5002/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG5002/Violation.lean"
         correction := "The correction adds the registered theorem's docstring, including its `# Intent` section; registration, proposition and proof are unchanged." } }
@@ -617,6 +666,7 @@ def descriptor : (id : RuleId) → RuleDescriptor id
         "Prefer a level-one heading; a top-level Verso docstring header must be `#`."]
       examples := {
         language := .lean
+        audience := .adopter
         compliant := include_str "../../examples/rules/RG5003/Fixed.lean"
         noncompliant := include_str "../../examples/rules/RG5003/Violation.lean"
         correction := "The correction adds a nonempty `# Intent` section, structured with a `## Requirement` subsection, to the registered theorem's existing docstring; the explanation, registration, proposition and proof are unchanged." } }

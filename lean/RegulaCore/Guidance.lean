@@ -59,11 +59,23 @@ def exitCodes : String :=
   ", ".intercalate ([Outcome.accepted, .violation, .configuration, .incomplete].map fun o =>
     toString o.exitCode ++ " " ++ o.label)
 
+/-- The checked example pair when an adopter can apply it as shown; otherwise where the
+qualification inputs are and the correction they demonstrate. -/
+def examples (id : RuleId) : String :=
+  let e := (descriptor id).examples
+  match e.adopterExample with
+  | some compliant =>
+      "Noncompliant (`" ++ e.noncompliantPath id ++ "`):\n\n" ++ fenced e.language.fence e.noncompliant ++ "\n" ++
+      "Compliant (`" ++ e.compliantPath id ++ "`):\n\n" ++ fenced e.language.fence compliant ++ "\n" ++
+      e.correction ++ "\n\n"
+  | none =>
+      "The checked pair (`" ++ e.noncompliantPath id ++ "`, `" ++ e.compliantPath id ++
+      "`) consists of qualification inputs, not project files. " ++ e.caption ++ "\n\n"
+
 /-- The full rule as Markdown. -/
 def explain (id : RuleId) : String :=
   let d := descriptor id
   let g := guide id
-  let e := d.examples
   "# " ++ id.spelling ++ ": " ++ d.title ++ "\n\n" ++
   "**Requirement.** " ++ d.requirement ++ "\n\n" ++
   "- Category: " ++ d.category.label ++ "; scope: " ++ d.scope.label ++ "; subreason: `" ++
@@ -75,10 +87,7 @@ def explain (id : RuleId) : String :=
   "## Problem\n\n" ++ packageProse g.problem ++ "\n\n" ++
   "## Why it matters\n\n" ++ paragraphs (d.rationale :: g.rationaleDetail) ++
   "## How to fix it\n\n" ++ d.remedy ++ "\n\n" ++ "Common compliant rewrites:\n\n" ++ numbered d.rewrites ++ "\n" ++
-  "## Examples\n\n" ++
-  "Noncompliant (`" ++ e.noncompliantPath id ++ "`):\n\n" ++ fenced e.language.fence e.noncompliant ++ "\n" ++
-  "Compliant (`" ++ e.compliantPath id ++ "`):\n\n" ++ fenced e.language.fence e.compliant ++ "\n" ++
-  e.correction ++ "\n\n" ++
+  "## Examples\n\n" ++ examples id ++
   "## What triggers it\n\n" ++ paragraphs g.trigger ++
   "## Configuration and exceptions\n\n" ++ paragraphs g.configuration ++
   "## Limitations\n\n" ++ paragraphs g.limitations ++
@@ -110,11 +119,14 @@ def writingSections : List (String × String × List RuleId) := [
 theorem writingSections_perm : List.Perm (writingSections.flatMap (·.2.2)) RuleId.all := by
   decide
 
-/-- One rule of the briefing: identity, requirement, remedy and the compliant example. -/
+/-- One rule of the briefing: identity, requirement, remedy and the compliant example, or the
+correction where the checked files are qualification inputs. -/
 def briefRule (id : RuleId) : String :=
   let d := descriptor id
   "### " ++ id.spelling ++ " " ++ d.title ++ "\n\n" ++ d.requirement ++ "\nFix: " ++ d.remedy ++ "\n\n" ++
-  fenced d.examples.language.fence d.examples.compliant
+  match d.examples.adopterExample with
+  | some compliant => fenced d.examples.language.fence compliant
+  | none => "Compliant form: " ++ d.examples.correction ++ "\n"
 
 /-- The agent briefing: how to check, how findings read, and every rule for writing code. -/
 def agentGuide : String :=
@@ -124,7 +136,8 @@ def agentGuide : String :=
   "installed Regula version, ordered for writing code.\n\n" ++
   "- Check with `lake lint` (`lake lint -- --fresh` for a fresh-source audit). Exit codes: " ++ exitCodes ++ ".\n" ++
   "- `lake lint -- --json-out tmp/regula.json` also writes every finding with its location, " ++
-  "remedy and rule guidance (result schema 3); `complete` is false when evidence was missing.\n" ++
+  "remedy and rule guidance (result schema 3). When a stage did not run, `complete` is false and " ++
+  "`stagesNotRun` names the stages, so fixing these findings can reveal more.\n" ++
   "- A finding names its rule ID, what is wrong and where, and the fix. The first finding of " ++
   "each rule adds why, common rewrites and a compliant example. `lake exe regula explain <ID>` " ++
   "prints the full rule offline; `lake exe regula rules` lists all rules.\n" ++
@@ -149,7 +162,7 @@ def skill : String :=
 /-- No agent-facing field carries a site-only `@repo/` link token. -/
 def plainFields (id : RuleId) : Bool :=
   let d := descriptor id
-  ([d.requirement, d.rationale, d.remedy, d.examples.correction] ++ d.rewrites).all fun s =>
+  ([d.requirement, d.rationale, d.remedy, d.examples.caption] ++ d.rewrites).all fun s =>
     (s.splitOn "@repo/").length == 1
 
 #guard RuleId.all.all fun id => (descriptor id).wellFormed && plainFields id

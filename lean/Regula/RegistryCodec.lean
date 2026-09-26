@@ -54,11 +54,15 @@ private def evidenceText : EvidenceKind → String
 private def languageText : ExampleLanguage → String
   | .lean => "lean" | .json => "json" | .markdown => "markdown"
 
+private def audienceJson : ExampleAudience → Json
+  | .adopter => Json.mkObj [("kind", .str "adopter")]
+  | .qualification files => Json.mkObj [("kind", .str "qualification"), ("files", toJson files)]
+
 /-- A rule's checked example pair with its derived repository paths. -/
 def examplesJson (id : RuleId) : Json :=
   let e := (descriptor id).examples
   Json.mkObj [
-    ("language", toJson (languageText e.language)),
+    ("language", toJson (languageText e.language)), ("audience", audienceJson e.audience),
     ("compliant", Json.mkObj [("path", toJson (e.compliantPath id)), ("text", toJson e.compliant)]),
     ("noncompliant", Json.mkObj [("path", toJson (e.noncompliantPath id)), ("text", toJson e.noncompliant)]),
     ("correction", toJson e.correction)]
@@ -158,14 +162,17 @@ def diagnosticJson (f : Finding) : Json :=
     ("text", toJson d.text), ("remedy", toJson (descriptor id).remedy), ("helpUrl", toJson (helpUrl id))]
 
 /-- The guidance of one rule that fired in a run: what a consumer needs to comply without the
-website. -/
+website. `compliantExample` is null where the checked files are qualification inputs, and
+`correction` states the fix the pair demonstrates. -/
 def guidanceJson (id : RuleId) : Json :=
   let d := descriptor id
   Json.mkObj [
     ("id", ruleJson id), ("title", toJson d.title), ("requirement", toJson d.requirement),
     ("rationale", toJson d.rationale), ("remedy", toJson d.remedy), ("rewrites", toJson d.rewrites),
-    ("compliantExample", Json.mkObj [("path", toJson (d.examples.compliantPath id)),
-      ("language", toJson (languageText d.examples.language)), ("text", toJson d.examples.compliant)]),
+    ("compliantExample", (d.examples.adopterExample.map fun text => Json.mkObj [
+      ("path", toJson (d.examples.compliantPath id)),
+      ("language", toJson (languageText d.examples.language)), ("text", toJson text)]).getD .null),
+    ("correction", toJson d.examples.correction),
     ("helpUrl", toJson (helpUrl id)), ("explain", toJson (Feedback.explainCommand id))]
 
 /-- The rules among `ids`, each once, in registry order. -/

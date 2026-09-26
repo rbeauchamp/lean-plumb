@@ -14,7 +14,8 @@ run_cmd do
   for name in #[``RuleId.parse_spelling, ``RuleId.spelling_injective, ``RuleId.mem_all,
       ``RuleId.all_nodup, ``RuleId.route_injective, ``mode_roundtrip, ``rule_roundtrip,
       ``nameParts_roundtrip, ``name_roundtrip, ``mem_firedRules, ``firedRules_nodup,
-      ``Regula.sortFindings_entries, ``Regula.sortFindings_perm] do
+      ``Regula.sortFindings_entries, ``Regula.sortFindings_perm,
+      ``Regula.Checker.ResultProtocol.stagesOf_required, ``Regula.Checker.ResultProtocol.notRun_eq_nil_iff] do
     let axioms ← Lean.collectAxioms name
     unless axioms.all (fun ax => #[`propext, `Quot.sound, `Classical.choice].contains ax) do
       throwError "registry theorem {name} exceeds Standard-Logical: {axioms}"
@@ -74,11 +75,20 @@ def main : IO Unit := do
     (.source source) .freshFile (some "standard-logical") .violation
   let json := diagnosticJson ⟨.projectAxiom, d⟩
   let envelope := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshFile .rejected
-    #[⟨.projectAxiom, d⟩, ⟨.projectAxiom, d⟩] #[]
+    #[⟨.projectAxiom, d⟩, ⟨.projectAxiom, d⟩] [] #[]
+  let partialRun := Regula.Checker.ResultProtocol.resultJson (.str "control") .freshFile .rejected
+    #[⟨.projectAxiom, d⟩] [.execution, .origin] #[]
   let admit := Regula.Checker.ResultProtocol.admitGuidance
   require (succeeded (admit envelope)) "result guidance admission"
+  require (succeeded (admit partialRun)) "partial result guidance admission"
   require (!succeeded (admit (envelope.setObjVal! "rules" (toJson ([] : List Json))))) "missing rule guidance"
   require (!succeeded (admit (envelope.setObjVal! "complete" (.bool false)))) "wrong completeness"
+  require (!succeeded (admit (partialRun.setObjVal! "complete" (.bool true)))) "partial run claimed complete"
+  require (!succeeded (admit (partialRun.setObjVal! "stagesNotRun" (toJson ([] : List Json))))) "omitted stages"
+  require (!succeeded (admit (partialRun.setObjVal! "stagesNotRun" (toJson ["execution", "linking"]))))
+    "unknown stage"
+  require (!succeeded (admit ((envelope.setObjVal! "status" (.str "completed")).setObjVal! "stagesNotRun"
+    (toJson ["execution"])))) "completed result with stages not run"
   require (!succeeded (admit (envelope.setObjVal! "schemaVersion" (toJson (2 : Nat))))) "superseded result schema"
   require (!succeeded (DiagnosticCodec.parseDiagnostic (json.setObjVal! "remedy" (.str "stale")))) "stale remedy"
   let parsed ← IO.ofExcept <| DiagnosticCodec.parseDiagnostic json

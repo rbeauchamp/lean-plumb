@@ -11,7 +11,8 @@ the checker needs no website or other tool to say how to comply. A finding's tex
 is wrong and where (`messageLine`), the rule's one-line remedy, and the rule's page and offline
 `lake exe regula explain` command as pointers. The first time a rule fires in a run its finding
 also carries the requirement, the rationale, the common compliant rewrites and a minimal
-compliant example. Later findings of the same rule carry their own message and remedy and
+compliant example (or, where the checked files are qualification inputs, the correction
+they demonstrate). Later findings of the same rule carry their own message and remedy and
 point back to that first finding by rule ID, so a run with hundreds of findings prints each
 rule's guidance once.
 
@@ -61,14 +62,21 @@ empty line as the end of a finding never split one. -/
 def indented (pre text : String) : String :=
   "\n".intercalate ((textLines text).map (pre ++ ·))
 
+/-- The rule's compliant example when an adopter can apply it as shown, otherwise the
+correction it demonstrates (`ExamplePair.adopterExample`). -/
+def compliantForm (id : RuleId) : String :=
+  let e := (descriptor id).examples
+  match e.adopterExample with
+  | some text => "  compliant example (" ++ e.compliantPath id ++ "):\n" ++ indented "    " text
+  | none => "  compliant form: " ++ e.correction
+
 /-- The rule's guidance, printed once per run under its first finding. -/
 def guidance (id : RuleId) : String :=
   let d := descriptor id
   "  requirement: " ++ d.requirement ++ "\n" ++
   "  why: " ++ d.rationale ++ "\n" ++
   "  common rewrites:\n" ++ String.join (d.rewrites.map fun r => "  - " ++ r ++ "\n") ++
-  "  compliant example (" ++ d.examples.compliantPath id ++ "):\n" ++
-  indented "    " d.examples.compliant
+  compliantForm id
 
 /-- A finding's complete text on its own: what and where, the remedy, and the pointers.
 `message` is the finding's `messageLine`. -/
