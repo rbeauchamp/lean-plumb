@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      (function(){
+  const {protocol:proto, host:hostName, pathname:path, search:srch, hash:hsh} = window.location;
+  if (!(path.endsWith("/") || path.endsWith(".html"))) {
+    window.location.replace(`${proto}//${hostName}${path}/${srch}${hsh}`);
+  }
+})()</script>
+    <script>
+      // Enable TypeScript checking.
+// @ts-check
+
+// Applies a saved table-of-contents width before the first paint.
+//
+// This is a tiny inline counterpart to toc-resize.js: it runs in the page head so that
+// returning desktop readers do not see the default width flash to their saved width.
+// It only records the width in the --verso-toc-user-width custom property; the
+// stylesheet clamps it and ignores it on mobile, and toc-resize.js then takes over the
+// interactive resizing. Keep the storage key in sync with toc-resize.js.
+
+(function () {
+    try {
+        const saved = localStorage.getItem("verso-toc-width");
+        // Parse to a number (as toc-resize.js does) and write that back, so a stored
+        // value with stray whitespace becomes a valid length rather than `" 420 px"`.
+        const width = saved === null ? NaN : Number(saved);
+        if (Number.isFinite(width)) {
+            document.documentElement.style.setProperty("--verso-toc-user-width", `${width}px`);
+        }
+    } catch (_) {
+        // Leave the default width in place when local storage is unavailable.
+    }
+})();
+</script>
+    <base href="./../"><meta charset="utf-8">
+    <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>Rule index</title><link rel="stylesheet" href="book.css">
+    <link rel="stylesheet" href="verso-vars.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" integrity="sha384-zbcZAIxlvJtNE3Dp5nxLXdXtXyxwOdnILY1TDPVmKFhl4r4nSUG1r8bcFXGVa4Te" crossorigin="anonymous"></script>
+    <script defer="defer" src="-verso-search/elasticlunr.min.js"></script>
+    <script defer="defer" src="-verso-search/fuzzysort.min.js"></script>
+    <script defer="defer" src="-verso-search/searchIndex.js"></script>
+    <script defer="defer" src="-verso-search/search-config.js"></script>
+    <script type="module" src="-verso-search/search-init.js"></script>
+    <link rel="stylesheet" href="-verso-search/search-box.css">
+    <link rel="stylesheet" href="-verso-search/search-page.css">
+    <link rel="stylesheet" href="-verso-search/search-highlight.css">
+    <link rel="stylesheet" href="-verso-search/domain-display.css">
+    <script src="-verso-search/search-highlight.js" defer="defer"></script>
+    <script src="toc-resize.js" defer="defer"></script>
+    <script src="-verso-data/katex/katex.js"></script>
+    <script src="-verso-data/katex/math.js"></script>
+    <link rel="stylesheet" href="-verso-data/katex/katex.css">
+    <style>
+.regula-edition { border-left: 4px solid #5b4bb7; background: #f4f2fc; padding: 0.4rem 0.9rem; margin: 1rem 0; font-size: 0.95em; }
+.regula-edition p { margin: 0.25rem 0; }
+.regula-scroll { overflow-x: auto; max-width: 100%; }
+.regula-scroll:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+main :not(pre) > code { overflow-wrap: anywhere; }
+main :is(p, li, a) { overflow-wrap: break-word; }
+table.regula-facts, table.regula-rules { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.regula-index, .regula-example, table.regula-facts, table.regula-rules, figure.regula-file figcaption, .regula-filters, .regula-filters input { font-family: var(--verso-text-font-family); }
+.regula-finding pre.regula-code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.regula-facts caption, table.regula-rules caption { text-align: left; font-weight: 600; padding: 0.25rem 0; }
+table.regula-facts th, table.regula-facts td, table.regula-rules th, table.regula-rules td {
+  text-align: left; vertical-align: top; padding: 0.35rem 0.55rem; border-bottom: 1px solid #d8d8d8; overflow-wrap: anywhere; }
+table.regula-facts th { width: 11rem; }
+table.regula-rules thead th { border-bottom: 2px solid #999; }
+table.regula-rules td, table.regula-rules th { min-width: 6rem; }
+tr.regula-no-match { display: none; }
+tr.regula-no-match td { font-weight: 600; }
+.regula-muted { color: #57606a; font-size: 0.9em; }
+pre.regula-code, pre.regula-diff { overflow-x: auto; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
+  padding: 0.75rem; font-size: 0.9em; line-height: 1.45; white-space: pre; }
+.regula-diff del, .regula-diff ins, .regula-diff .regula-keep { display: inline-block; min-width: 100%; text-decoration: none; }
+.regula-diff del { background: #ffebe9; }
+.regula-diff ins { background: #dafbe1; }
+.regula-diff .regula-keep { color: #57606a; }
+figure.regula-file { margin: 1rem 0; }
+figure.regula-file figcaption { font-size: 0.9em; margin-bottom: 0.25rem; overflow-wrap: anywhere; }
+.regula-finding { border: 1px solid #d0d7de; border-left: 4px solid #b3261e; border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.75rem 0; }
+.regula-finding p { margin: 0.25rem 0; overflow-wrap: anywhere; }
+.regula-badge { display: inline-block; border: 1px solid #6e7781; border-radius: 999px; padding: 0 0.5rem; font-size: 0.85em; }
+.regula-impact-incomplete { border-style: dashed; }
+.regula-status { font-weight: 600; }
+.regula-example h3 { margin-top: 1.5rem; }
+.regula-filters fieldset { border: 1px solid #d0d7de; border-radius: 6px; margin: 0.5rem 0; padding: 0.4rem 0.75rem; }
+.regula-filters legend { font-weight: 600; padding: 0 0.25rem; }
+.regula-choice { display: inline-block; margin: 0.15rem 0.9rem 0.15rem 0; }
+.regula-filters input:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+.regula-filters input:checked + label { font-weight: 700; text-decoration: underline; }
+.regula-filters input[type=reset] { font: inherit; padding: 0.25rem 0.75rem; }
+</style></head>
+  <body>
+    <header>
+      <div class="header-logo-wrapper"></div>
+      <div class="header-title-wrapper">
+        <a href="" class="header-title"><h1>
+            Regula rule reference</h1>
+          </a></div>
+      </header>
+    <label for="toggle-toc" id="toggle-toc-click"><span class="line line1"></span><span class="line line2"></span><span class="line line3"></span></label><div class="with-toc">
+      <div class="toc-backdrop" onclick="document.getElementById('toggle-toc-click')?.click()"></div>
+      <nav id="toc">
+        <input type="checkbox" id="toggle-toc"><div class="first">
+          <a href="" class="toc-title"><h1>
+              Regula rule reference</h1>
+            </a><div class="split-tocs">
+            <div class="split-toc book">
+              <div class="title">
+                <label for="--verso-manual-toc-----bookRoot" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-----bookRoot" checked="checked"></label><span class="">Table of Contents</span></div>
+              <table><tr class="current unnumbered"><td class="num"><td><a href="rules/#rules">Rule index</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="versions/#versions">Versions and evidence</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="credits/#credits">Credits and licenses</a></td></tr></table></div>
+            <div class="split-toc">
+              <div class="title">
+                <label for="--verso-manual-toc-rules" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-rules" checked="checked"></label><span class="unnumbered"></span><span class="current"><a href="rules/#rules">Rule index</a></span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="rules/RG1001/#RG1001">RG1001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002">RG1002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1003/#RG1003">RG1003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1004/#RG1004">RG1004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1005/#RG1005">RG1005</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1006/#RG1006">RG1006</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1007/#RG1007">RG1007</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2001/#RG2001">RG2001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2002/#RG2002">RG2002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2003/#RG2003">RG2003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2004/#RG2004">RG2004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2005/#RG2005">RG2005</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3001/#RG3001">RG3001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002">RG3002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4001/#RG4001">RG4001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4002/#RG4002">RG4002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4003/#RG4003">RG4003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4004/#RG4004">RG4004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5001/#RG5001">RG5001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5002/#RG5002">RG5002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5003/#RG5003">RG5003</a></td></tr></table></div>
+            </div>
+          </div>
+        <div class="last">
+          <ul id="meta-links">
+            <li>
+              <a href="https://github.com/rbeauchamp/regula">Source Code</a></li>
+            <li>
+              <a href="https://github.com/rbeauchamp/regula/issues">Report Issues</a></li>
+            </ul>
+          </div>
+        </nav>
+      <div class="toc-resize-handle"></div>
+      <main><div class="content-wrapper">
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="#" rel="prev" title=" Regula rule reference"><span class="arrow">←</span><span class="where"> Regula rule reference</span></a><a class="local-button active" href="rules/RG1001/#RG1001" rel="next" title="RG1001: Project logical axioms are forbidden"><span class="where">RG1001: Project logical axioms are forbidden</span><span class="arrow">→</span></a></nav>
+          <section>
+            <h1>
+              Rule index<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=rules" title="Permalink">🔗</a></span></h1>
+            <span id="rules"></span><aside class="regula-edition" aria-label="Documentation version"><p><strong>Development documentation</strong> generated from commit <a href="https://github.com/rbeauchamp/regula/tree/c7442d95759b653faac8952bf480c22cff9ca2df"><code>c7442d95759b</code></a> with Lean 4.34.0; linter version <code>unreleased</code> (no released package). Moving route: <a href="/regula/dev/rules/"><code>/regula/dev/rules/</code></a>. Snapshot route for this commit: <a href="/regula/rev/c7442d95759b653faac8952bf480c22cff9ca2df/rules/"><code>/regula/rev/c7442d95759b…/rules/</code></a>. Once this commit is published, its snapshot is kept by every later deployment. See <a href="/regula/dev/versions/">versions and evidence</a>.</p></aside>
+<p>
+              Every rule the linter can emit, generated from its typed registry. Filter by category, evidence mode or availability; the filters work without JavaScript, and <strong>Reset filters</strong> restores the full catalogue. Rows link to each rule's explanation. Search rule IDs, titles and messages with the search box above, or with your browser's find-in-page on this table.</p>
+            <div class="regula-index"><form class="regula-filters" aria-label="Filter rules" action="#"><fieldset><legend>Category</legend><span class="regula-choice"><input type="radio" name="category" id="f-category-all" value="all" checked><label for="f-category-all">All</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-foundation" value="foundation"><label for="f-category-foundation">Foundation</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-declaration" value="declaration"><label for="f-category-declaration">Declaration</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-execution" value="execution"><label for="f-category-execution">Execution</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-environment" value="environment"><label for="f-category-environment">Environment</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-configuration" value="configuration"><label for="f-category-configuration">Configuration</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-elaboration" value="elaboration"><label for="f-category-elaboration">Elaboration</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-coverage" value="coverage"><label for="f-category-coverage">Coverage</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-admission" value="admission"><label for="f-category-admission">Admission</label></span><span class="regula-choice"><input type="radio" name="category" id="f-category-documentation" value="documentation"><label for="f-category-documentation">Documentation</label></span></fieldset><fieldset><legend>Evidence mode</legend><span class="regula-choice"><input type="radio" name="mode" id="f-mode-all" value="all" checked><label for="f-mode-all">All</label></span><span class="regula-choice"><input type="radio" name="mode" id="f-mode-editorSnapshot" value="editorSnapshot"><label for="f-mode-editorSnapshot">editor snapshot</label></span><span class="regula-choice"><input type="radio" name="mode" id="f-mode-incrementalProject" value="incrementalProject"><label for="f-mode-incrementalProject">incremental project</label></span><span class="regula-choice"><input type="radio" name="mode" id="f-mode-freshProject" value="freshProject"><label for="f-mode-freshProject">fresh project</label></span><span class="regula-choice"><input type="radio" name="mode" id="f-mode-freshFile" value="freshFile"><label for="f-mode-freshFile">fresh file</label></span><span class="regula-choice"><input type="radio" name="mode" id="f-mode-documentationExample" value="documentationExample"><label for="f-mode-documentationExample">documentation example</label></span><span class="regula-choice"><input type="radio" name="mode" id="f-mode-serializedGraph" value="serializedGraph"><label for="f-mode-serializedGraph">serialized graph</label></span></fieldset><fieldset><legend>Availability</legend><span class="regula-choice"><input type="radio" name="availability" id="f-availability-all" value="all" checked><label for="f-availability-all">All</label></span><span class="regula-choice"><input type="radio" name="availability" id="f-availability-existingChecker" value="existingChecker"><label for="f-availability-existingChecker">Enforced by the checker</label></span><span class="regula-choice"><input type="radio" name="availability" id="f-availability-plannedEngine" value="plannedEngine"><label for="f-availability-plannedEngine">Planned</label></span></fieldset><p><input type="reset" value="Reset filters"></p></form><div class="regula-scroll" role="region" aria-label="Rule catalogue" tabindex="0"><table class="regula-rules"><caption>All 21 registered rules</caption><thead><tr><th scope="col">ID</th><th scope="col">Rule and subreason</th><th scope="col">Category and scope</th><th scope="col">Evidence modes</th><th scope="col">Status and checked example</th></tr></thead><tbody><tr class="regula-rule category-foundation availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile mode-documentationExample"><th scope="row"><a href="rules/RG1001/"><code>RG1001</code></a></th><td><a href="rules/RG1001/">Project logical axioms are forbidden</a><br><span class="regula-muted">subreason <code>project-axiom</code></span></td><td>Foundation<br><span class="regula-muted">declaration</span></td><td>editor snapshot, incremental project, fresh project, fresh file, documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-foundation availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile mode-documentationExample"><th scope="row"><a href="rules/RG1002/"><code>RG1002</code></a></th><td><a href="rules/RG1002/">Proof holes are forbidden</a><br><span class="regula-muted">subreason <code>hole</code></span></td><td>Foundation<br><span class="regula-muted">declaration</span></td><td>editor snapshot, incremental project, fresh project, fresh file, documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-foundation availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile mode-documentationExample"><th scope="row"><a href="rules/RG1003/"><code>RG1003</code></a></th><td><a href="rules/RG1003/">Unknown transitive axioms are forbidden</a><br><span class="regula-muted">subreason <code>unknown-axiom</code></span></td><td>Foundation<br><span class="regula-muted">declaration</span></td><td>editor snapshot, incremental project, fresh project, fresh file, documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-foundation availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile mode-documentationExample"><th scope="row"><a href="rules/RG1004/"><code>RG1004</code></a></th><td><a href="rules/RG1004/">Compiler-trusting proofs require separate classification</a><br><span class="regula-muted">subreason <code>compiler-trusting</code></span></td><td>Foundation<br><span class="regula-muted">declaration</span></td><td>editor snapshot, incremental project, fresh project, fresh file, documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-foundation availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile"><th scope="row"><a href="rules/RG1005/"><code>RG1005</code></a></th><td><a href="rules/RG1005/">Transitive axioms must fit the selected profile</a><br><span class="regula-muted">subreason <code>label-exceeds-claim</code></span></td><td>Foundation<br><span class="regula-muted">declaration</span></td><td>editor snapshot, incremental project, fresh project, fresh file</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-declaration availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile mode-documentationExample"><th scope="row"><a href="rules/RG1006/"><code>RG1006</code></a></th><td><a href="rules/RG1006/">Unsafe and partial declarations require exact helper authentication</a><br><span class="regula-muted">subreason <code>escape-hatch</code></span></td><td>Declaration<br><span class="regula-muted">declaration</span></td><td>editor snapshot, incremental project, fresh project, fresh file, documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-execution availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile mode-documentationExample"><th scope="row"><a href="rules/RG1007/"><code>RG1007</code></a></th><td><a href="rules/RG1007/">Executable contracts require supported closed evidence</a><br><span class="regula-muted">subreason <code>executable-contract</code></span></td><td>Execution<br><span class="regula-muted">declaration</span></td><td>editor snapshot, incremental project, fresh project, fresh file, documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-environment availability-existingChecker mode-incrementalProject mode-freshProject mode-freshFile"><th scope="row"><a href="rules/RG2001/"><code>RG2001</code></a></th><td><a href="rules/RG2001/">The declared Lean environment must be available</a><br><span class="regula-muted">subreason <code>environment</code></span></td><td>Environment<br><span class="regula-muted">project</span></td><td>incremental project, fresh project, fresh file</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Diagnostic demonstration</span></td></tr><tr class="regula-rule category-configuration availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile"><th scope="row"><a href="rules/RG2002/"><code>RG2002</code></a></th><td><a href="rules/RG2002/">Configuration must classify the complete Lake surface</a><br><span class="regula-muted">subreason <code>configuration</code></span></td><td>Configuration<br><span class="regula-muted">project</span></td><td>editor snapshot, incremental project, fresh project, fresh file</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-elaboration availability-existingChecker mode-incrementalProject mode-freshProject mode-freshFile"><th scope="row"><a href="rules/RG2003/"><code>RG2003</code></a></th><td><a href="rules/RG2003/">Claimed source must elaborate warning-free</a><br><span class="regula-muted">subreason <code>source-build</code></span></td><td>Elaboration<br><span class="regula-muted">project</span></td><td>incremental project, fresh project, fresh file</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-coverage availability-existingChecker mode-incrementalProject mode-freshProject"><th scope="row"><a href="rules/RG2004/"><code>RG2004</code></a></th><td><a href="rules/RG2004/">Owned coverage must match the exact Lake inventory</a><br><span class="regula-muted">subreason <code>coverage</code></span></td><td>Coverage<br><span class="regula-muted">project</span></td><td>incremental project, fresh project</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-admission availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject mode-freshFile mode-documentationExample"><th scope="row"><a href="rules/RG2005/"><code>RG2005</code></a></th><td><a href="rules/RG2005/">Required admission and source evidence must be complete</a><br><span class="regula-muted">subreason <code>admission</code></span></td><td>Admission<br><span class="regula-muted">project</span></td><td>editor snapshot, incremental project, fresh project, fresh file, documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Diagnostic demonstration</span></td></tr><tr class="regula-rule category-execution availability-existingChecker mode-incrementalProject mode-freshProject mode-freshFile"><th scope="row"><a href="rules/RG3001/"><code>RG3001</code></a></th><td><a href="rules/RG3001/">Execution closure must have no unresolved paths</a><br><span class="regula-muted">subreason <code>execution-unresolved</code></span></td><td>Execution<br><span class="regula-muted">execution root</span></td><td>incremental project, fresh project, fresh file</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Diagnostic demonstration</span></td></tr><tr class="regula-rule category-execution availability-existingChecker mode-incrementalProject mode-freshProject mode-freshFile"><th scope="row"><a href="rules/RG3002/"><code>RG3002</code></a></th><td><a href="rules/RG3002/">Checked execution requires admitted correspondence</a><br><span class="regula-muted">subreason <code>execution-trusted-boundary</code></span></td><td>Execution<br><span class="regula-muted">execution root</span></td><td>incremental project, fresh project, fresh file</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-documentation availability-existingChecker mode-documentationExample"><th scope="row"><a href="rules/RG4001/"><code>RG4001</code></a></th><td><a href="rules/RG4001/">Documentation fences must have a valid classification</a><br><span class="regula-muted">subreason <code>fence-structure</code></span></td><td>Documentation<br><span class="regula-muted">documentation fence</span></td><td>documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-documentation availability-existingChecker mode-documentationExample"><th scope="row"><a href="rules/RG4002/"><code>RG4002</code></a></th><td><a href="rules/RG4002/">Positive examples require warning-free elaboration and admission</a><br><span class="regula-muted">subreason <code>positive-example</code></span></td><td>Documentation<br><span class="regula-muted">documentation fence</span></td><td>documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-documentation availability-existingChecker mode-documentationExample"><th scope="row"><a href="rules/RG4003/"><code>RG4003</code></a></th><td><a href="rules/RG4003/">Negative examples require completed intended rejection</a><br><span class="regula-muted">subreason <code>negative-example</code></span></td><td>Documentation<br><span class="regula-muted">documentation fence</span></td><td>documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-documentation availability-existingChecker mode-documentationExample"><th scope="row"><a href="rules/RG4004/"><code>RG4004</code></a></th><td><a href="rules/RG4004/">Teaching examples require authenticated compiler classification</a><br><span class="regula-muted">subreason <code>trusted-example</code></span></td><td>Documentation<br><span class="regula-muted">documentation fence</span></td><td>documentation example</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-documentation availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject"><th scope="row"><a href="rules/RG5001/"><code>RG5001</code></a></th><td><a href="rules/RG5001/">Claimed modules require module documentation</a><br><span class="regula-muted">subreason <code>module-documentation</code></span></td><td>Documentation<br><span class="regula-muted">module</span></td><td>editor snapshot, incremental project, fresh project</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-documentation availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject"><th scope="row"><a href="rules/RG5002/"><code>RG5002</code></a></th><td><a href="rules/RG5002/">Registered public material declarations require docstrings</a><br><span class="regula-muted">subreason <code>material-documentation</code></span></td><td>Documentation<br><span class="regula-muted">registered material declaration</span></td><td>editor snapshot, incremental project, fresh project</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-rule category-documentation availability-existingChecker mode-editorSnapshot mode-incrementalProject mode-freshProject"><th scope="row"><a href="rules/RG5003/"><code>RG5003</code></a></th><td><a href="rules/RG5003/">Registered public material declarations require an Intent section</a><br><span class="regula-muted">subreason <code>material-intent</code></span></td><td>Documentation<br><span class="regula-muted">registered material declaration</span></td><td>editor snapshot, incremental project, fresh project</td><td>Enforced by the checker<br><span class="regula-muted">Active since unreleased; Checked policy rejection</span></td></tr><tr class="regula-no-match"><td colspan="5">No registered rule matches the selected filters. Use <strong>Reset filters</strong> to show every rule.</td></tr></tbody></table></div><style>.regula-index:has(#f-category-foundation:checked) tr.regula-rule:not(.category-foundation){display:none}
+.regula-index:has(#f-category-declaration:checked) tr.regula-rule:not(.category-declaration){display:none}
+.regula-index:has(#f-category-execution:checked) tr.regula-rule:not(.category-execution){display:none}
+.regula-index:has(#f-category-environment:checked) tr.regula-rule:not(.category-environment){display:none}
+.regula-index:has(#f-category-configuration:checked) tr.regula-rule:not(.category-configuration){display:none}
+.regula-index:has(#f-category-elaboration:checked) tr.regula-rule:not(.category-elaboration){display:none}
+.regula-index:has(#f-category-coverage:checked) tr.regula-rule:not(.category-coverage){display:none}
+.regula-index:has(#f-category-admission:checked) tr.regula-rule:not(.category-admission){display:none}
+.regula-index:has(#f-category-documentation:checked) tr.regula-rule:not(.category-documentation){display:none}
+.regula-index:has(#f-mode-editorSnapshot:checked) tr.regula-rule:not(.mode-editorSnapshot){display:none}
+.regula-index:has(#f-mode-incrementalProject:checked) tr.regula-rule:not(.mode-incrementalProject){display:none}
+.regula-index:has(#f-mode-freshProject:checked) tr.regula-rule:not(.mode-freshProject){display:none}
+.regula-index:has(#f-mode-freshFile:checked) tr.regula-rule:not(.mode-freshFile){display:none}
+.regula-index:has(#f-mode-documentationExample:checked) tr.regula-rule:not(.mode-documentationExample){display:none}
+.regula-index:has(#f-mode-serializedGraph:checked) tr.regula-rule:not(.mode-serializedGraph){display:none}
+.regula-index:has(#f-availability-existingChecker:checked) tr.regula-rule:not(.availability-existingChecker){display:none}
+.regula-index:has(#f-availability-plannedEngine:checked) tr.regula-rule:not(.availability-plannedEngine){display:none}
+.regula-index:has(#f-category-all:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-all:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-all:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-all:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-all:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-all:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-all:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-all:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-all:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-foundation:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-declaration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-execution:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-documentationExample:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-documentationExample:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-environment:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-documentationExample:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-documentationExample:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-configuration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-documentationExample:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-documentationExample:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-elaboration:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-freshFile:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-freshFile:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-documentationExample:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-documentationExample:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-coverage:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-admission:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-all:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-editorSnapshot:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-incrementalProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-freshProject:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-freshFile:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-freshFile:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-freshFile:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-documentationExample:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-all:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-existingChecker:checked) tr.regula-no-match{display:table-row}
+.regula-index:has(#f-category-documentation:checked):has(#f-mode-serializedGraph:checked):has(#f-availability-plannedEngine:checked) tr.regula-no-match{display:table-row}
+</style></div>
+<ol class="section-toc">
+              <li>
+                <a href="rules/RG1001/#RG1001"><span class="unnumbered"></span>RG1001: Project logical axioms are forbidden</a></li>
+              <li>
+                <a href="rules/RG1002/#RG1002"><span class="unnumbered"></span>RG1002: Proof holes are forbidden</a></li>
+              <li>
+                <a href="rules/RG1003/#RG1003"><span class="unnumbered"></span>RG1003: Unknown transitive axioms are forbidden</a></li>
+              <li>
+                <a href="rules/RG1004/#RG1004"><span class="unnumbered"></span>RG1004: Compiler-trusting proofs require separate classification</a></li>
+              <li>
+                <a href="rules/RG1005/#RG1005"><span class="unnumbered"></span>RG1005: Transitive axioms must fit the selected profile</a></li>
+              <li>
+                <a href="rules/RG1006/#RG1006"><span class="unnumbered"></span>RG1006: Unsafe and partial declarations require exact helper authentication</a></li>
+              <li>
+                <a href="rules/RG1007/#RG1007"><span class="unnumbered"></span>RG1007: Executable contracts require supported closed evidence</a></li>
+              <li>
+                <a href="rules/RG2001/#RG2001"><span class="unnumbered"></span>RG2001: The declared Lean environment must be available</a></li>
+              <li>
+                <a href="rules/RG2002/#RG2002"><span class="unnumbered"></span>RG2002: Configuration must classify the complete Lake surface</a></li>
+              <li>
+                <a href="rules/RG2003/#RG2003"><span class="unnumbered"></span>RG2003: Claimed source must elaborate warning-free</a></li>
+              <li>
+                <a href="rules/RG2004/#RG2004"><span class="unnumbered"></span>RG2004: Owned coverage must match the exact Lake inventory</a></li>
+              <li>
+                <a href="rules/RG2005/#RG2005"><span class="unnumbered"></span>RG2005: Required admission and source evidence must be complete</a></li>
+              <li>
+                <a href="rules/RG3001/#RG3001"><span class="unnumbered"></span>RG3001: Execution closure must have no unresolved paths</a></li>
+              <li>
+                <a href="rules/RG3002/#RG3002"><span class="unnumbered"></span>RG3002: Checked execution requires admitted correspondence</a></li>
+              <li>
+                <a href="rules/RG4001/#RG4001"><span class="unnumbered"></span>RG4001: Documentation fences must have a valid classification</a></li>
+              <li>
+                <a href="rules/RG4002/#RG4002"><span class="unnumbered"></span>RG4002: Positive examples require warning-free elaboration and admission</a></li>
+              <li>
+                <a href="rules/RG4003/#RG4003"><span class="unnumbered"></span>RG4003: Negative examples require completed intended rejection</a></li>
+              <li>
+                <a href="rules/RG4004/#RG4004"><span class="unnumbered"></span>RG4004: Teaching examples require authenticated compiler classification</a></li>
+              <li>
+                <a href="rules/RG5001/#RG5001"><span class="unnumbered"></span>RG5001: Claimed modules require module documentation</a></li>
+              <li>
+                <a href="rules/RG5002/#RG5002"><span class="unnumbered"></span>RG5002: Registered public material declarations require docstrings</a></li>
+              <li>
+                <a href="rules/RG5003/#RG5003"><span class="unnumbered"></span>RG5003: Registered public material declarations require an Intent section</a></li>
+              </ol>
+            </section>
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="#" rel="prev" title=" Regula rule reference"><span class="arrow">←</span><span class="where"> Regula rule reference</span></a><a class="local-button active" href="rules/RG1001/#RG1001" rel="next" title="RG1001: Project logical axioms are forbidden"><span class="where">RG1001: Project logical axioms are forbidden</span><span class="arrow">→</span></a></nav>
+          </div>
+        </main></div>
+    </body>
+  </html>
+

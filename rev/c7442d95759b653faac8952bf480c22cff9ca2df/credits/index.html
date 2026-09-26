@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      (function(){
+  const {protocol:proto, host:hostName, pathname:path, search:srch, hash:hsh} = window.location;
+  if (!(path.endsWith("/") || path.endsWith(".html"))) {
+    window.location.replace(`${proto}//${hostName}${path}/${srch}${hsh}`);
+  }
+})()</script>
+    <script>
+      // Enable TypeScript checking.
+// @ts-check
+
+// Applies a saved table-of-contents width before the first paint.
+//
+// This is a tiny inline counterpart to toc-resize.js: it runs in the page head so that
+// returning desktop readers do not see the default width flash to their saved width.
+// It only records the width in the --verso-toc-user-width custom property; the
+// stylesheet clamps it and ignores it on mobile, and toc-resize.js then takes over the
+// interactive resizing. Keep the storage key in sync with toc-resize.js.
+
+(function () {
+    try {
+        const saved = localStorage.getItem("verso-toc-width");
+        // Parse to a number (as toc-resize.js does) and write that back, so a stored
+        // value with stray whitespace becomes a valid length rather than `" 420 px"`.
+        const width = saved === null ? NaN : Number(saved);
+        if (Number.isFinite(width)) {
+            document.documentElement.style.setProperty("--verso-toc-user-width", `${width}px`);
+        }
+    } catch (_) {
+        // Leave the default width in place when local storage is unavailable.
+    }
+})();
+</script>
+    <base href="./../"><meta charset="utf-8">
+    <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>Credits and licenses</title><link rel="stylesheet" href="book.css">
+    <link rel="stylesheet" href="verso-vars.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" integrity="sha384-zbcZAIxlvJtNE3Dp5nxLXdXtXyxwOdnILY1TDPVmKFhl4r4nSUG1r8bcFXGVa4Te" crossorigin="anonymous"></script>
+    <script defer="defer" src="-verso-search/elasticlunr.min.js"></script>
+    <script defer="defer" src="-verso-search/fuzzysort.min.js"></script>
+    <script defer="defer" src="-verso-search/searchIndex.js"></script>
+    <script defer="defer" src="-verso-search/search-config.js"></script>
+    <script type="module" src="-verso-search/search-init.js"></script>
+    <link rel="stylesheet" href="-verso-search/search-box.css">
+    <link rel="stylesheet" href="-verso-search/search-page.css">
+    <link rel="stylesheet" href="-verso-search/search-highlight.css">
+    <link rel="stylesheet" href="-verso-search/domain-display.css">
+    <script src="-verso-search/search-highlight.js" defer="defer"></script>
+    <script src="toc-resize.js" defer="defer"></script>
+    <script src="-verso-data/katex/katex.js"></script>
+    <script src="-verso-data/katex/math.js"></script>
+    <link rel="stylesheet" href="-verso-data/katex/katex.css">
+    <style>
+.regula-edition { border-left: 4px solid #5b4bb7; background: #f4f2fc; padding: 0.4rem 0.9rem; margin: 1rem 0; font-size: 0.95em; }
+.regula-edition p { margin: 0.25rem 0; }
+.regula-scroll { overflow-x: auto; max-width: 100%; }
+.regula-scroll:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+main :not(pre) > code { overflow-wrap: anywhere; }
+main :is(p, li, a) { overflow-wrap: break-word; }
+table.regula-facts, table.regula-rules { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.regula-index, .regula-example, table.regula-facts, table.regula-rules, figure.regula-file figcaption, .regula-filters, .regula-filters input { font-family: var(--verso-text-font-family); }
+.regula-finding pre.regula-code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.regula-facts caption, table.regula-rules caption { text-align: left; font-weight: 600; padding: 0.25rem 0; }
+table.regula-facts th, table.regula-facts td, table.regula-rules th, table.regula-rules td {
+  text-align: left; vertical-align: top; padding: 0.35rem 0.55rem; border-bottom: 1px solid #d8d8d8; overflow-wrap: anywhere; }
+table.regula-facts th { width: 11rem; }
+table.regula-rules thead th { border-bottom: 2px solid #999; }
+table.regula-rules td, table.regula-rules th { min-width: 6rem; }
+tr.regula-no-match { display: none; }
+tr.regula-no-match td { font-weight: 600; }
+.regula-muted { color: #57606a; font-size: 0.9em; }
+pre.regula-code, pre.regula-diff { overflow-x: auto; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
+  padding: 0.75rem; font-size: 0.9em; line-height: 1.45; white-space: pre; }
+.regula-diff del, .regula-diff ins, .regula-diff .regula-keep { display: inline-block; min-width: 100%; text-decoration: none; }
+.regula-diff del { background: #ffebe9; }
+.regula-diff ins { background: #dafbe1; }
+.regula-diff .regula-keep { color: #57606a; }
+figure.regula-file { margin: 1rem 0; }
+figure.regula-file figcaption { font-size: 0.9em; margin-bottom: 0.25rem; overflow-wrap: anywhere; }
+.regula-finding { border: 1px solid #d0d7de; border-left: 4px solid #b3261e; border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.75rem 0; }
+.regula-finding p { margin: 0.25rem 0; overflow-wrap: anywhere; }
+.regula-badge { display: inline-block; border: 1px solid #6e7781; border-radius: 999px; padding: 0 0.5rem; font-size: 0.85em; }
+.regula-impact-incomplete { border-style: dashed; }
+.regula-status { font-weight: 600; }
+.regula-example h3 { margin-top: 1.5rem; }
+.regula-filters fieldset { border: 1px solid #d0d7de; border-radius: 6px; margin: 0.5rem 0; padding: 0.4rem 0.75rem; }
+.regula-filters legend { font-weight: 600; padding: 0 0.25rem; }
+.regula-choice { display: inline-block; margin: 0.15rem 0.9rem 0.15rem 0; }
+.regula-filters input:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+.regula-filters input:checked + label { font-weight: 700; text-decoration: underline; }
+.regula-filters input[type=reset] { font: inherit; padding: 0.25rem 0.75rem; }
+</style></head>
+  <body>
+    <header>
+      <div class="header-logo-wrapper"></div>
+      <div class="header-title-wrapper">
+        <a href="" class="header-title"><h1>
+            Regula rule reference</h1>
+          </a></div>
+      </header>
+    <label for="toggle-toc" id="toggle-toc-click"><span class="line line1"></span><span class="line line2"></span><span class="line line3"></span></label><div class="with-toc">
+      <div class="toc-backdrop" onclick="document.getElementById('toggle-toc-click')?.click()"></div>
+      <nav id="toc">
+        <input type="checkbox" id="toggle-toc"><div class="first">
+          <a href="" class="toc-title"><h1>
+              Regula rule reference</h1>
+            </a><div class="split-tocs">
+            <div class="split-toc book">
+              <div class="title">
+                <label for="--verso-manual-toc-----bookRoot" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-----bookRoot" checked="checked"></label><span class="">Table of Contents</span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="rules/#rules">Rule index</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="versions/#versions">Versions and evidence</a></td></tr><tr class="current unnumbered"><td class="num"><td><a href="credits/#credits">Credits and licenses</a></td></tr></table></div>
+            <div class="split-toc">
+              <div class="title">
+                <span class="no-toggle"></span><span class="unnumbered"></span><span class="current"><a href="credits/#credits">Credits and licenses</a></span></div>
+              </div>
+            </div>
+          </div>
+        <div class="last">
+          <ul id="meta-links">
+            <li>
+              <a href="https://github.com/rbeauchamp/regula">Source Code</a></li>
+            <li>
+              <a href="https://github.com/rbeauchamp/regula/issues">Report Issues</a></li>
+            </ul>
+          </div>
+        </nav>
+      <div class="toc-resize-handle"></div>
+      <main><div class="content-wrapper">
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="versions/#versions" rel="prev" title="Versions and evidence"><span class="arrow">←</span><span class="where">Versions and evidence</span></a><div></div>
+            </nav>
+          <section>
+            <h1>
+              Credits and licenses<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=credits" title="Permalink">🔗</a></span></h1>
+            <span id="credits"></span><aside class="regula-edition" aria-label="Documentation version"><p><strong>Development documentation</strong> generated from commit <a href="https://github.com/rbeauchamp/regula/tree/c7442d95759b653faac8952bf480c22cff9ca2df"><code>c7442d95759b</code></a> with Lean 4.34.0; linter version <code>unreleased</code> (no released package). Moving route: <a href="/regula/dev/credits/"><code>/regula/dev/credits/</code></a>. Snapshot route for this commit: <a href="/regula/rev/c7442d95759b653faac8952bf480c22cff9ca2df/credits/"><code>/regula/rev/c7442d95759b…/credits/</code></a>. Once this commit is published, its snapshot is kept by every later deployment. See <a href="/regula/dev/versions/">versions and evidence</a>.</p></aside>
+<p>
+              Regula and this site's generated content are released under the <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/LICENSE">MIT license</a>. The rule explanations are original.</p>
+            <p>
+              <strong>Lean and Lake.</strong> The linter, its editor messages and its Lake integration are built on Lean 4 and Lake by the Lean FRO and contributors (Apache 2.0), used through the pinned toolchain as dependencies. The editor's <strong>View explanation</strong> link is Lean's own error-description widget, shown in the infoview of the VS Code Lean 4 extension (leanprover/vscode-lean4). The linter's strict JSON parser adapts the container recursion of Lean's <code>Lean/Data/Json/Parser.lean</code> (Copyright (c) 2019 Gabriel Ebner; authors Gabriel Ebner and Marc Huisinga; Apache 2.0) to reject duplicate keys; its notice is kept in the source and the <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/LICENSES/Apache-2.0.txt">Apache 2.0 license text</a> is in the repository.</p>
+            <p>
+              <strong>Verso.</strong> This site is generated with <a href="https://github.com/leanprover/verso">Verso</a> by the Lean FRO and contributors (Apache 2.0), pinned at revision <code>cad4b633e75ea769b851f12f9ca3b4f0dfcc625f</code> (<a href="https://github.com/leanprover/verso/blob/cad4b633e75ea769b851f12f9ca3b4f0dfcc625f/LICENSE">license</a>). The stylesheets and the search and table-of-contents scripts served with every page come from Verso. The separation of documentation and example toolchains follows David Thrane Christiansen's <a href="https://github.com/leanprover/verso-templates/tree/76c9edf5a70f14d272af0f0f354ec833ac22c350/package-docs">package-docs template</a>; no template text is copied. Verso bundles the third-party JavaScript components listed below with their licenses. Pages also load the <a href="https://github.com/markedjs/marked">marked</a> Markdown library (MIT) from the jsDelivr CDN, as Verso configures by default.</p>
+            <p>
+              <strong>con-leche.</strong> The closed typed rule registry, its canonical metadata, the complete, request-indexed acceptance design and the proved equality of executed decisions with their reference definitions follow ideas from <a href="https://github.com/leanprover/con-leche/tree/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0">con-leche</a> by Joachim Breitner and contributors (Lean FRO), in particular <code>Kernel/PropWhen.lean</code>, <code>Cached/Installed.lean</code> and <code>Frontend/Scan/Equiv.lean</code>. No con-leche code or proof is copied, and con-leche's theorems are not claimed for Regula. con-leche did not design this site.</p>
+            <p>
+              <strong>Rule-page structure.</strong> The page layout of cause, rationale, fix, configuration, examples and limitations follows <a href="https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1416">Microsoft's CA1416 code-analysis rule page</a> as one illustrative reference; no .NET content is used, and no affiliation with or endorsement by Microsoft is implied. Other linters' references (Clippy, ESLint, Ruff, HLint) informed the design as documented in the <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/guides/ecosystem-design.md">ecosystem study</a>.</p>
+            <p>
+              <strong>Mathlib.</strong> The checker repository's audit surface depends on <a href="https://github.com/leanprover-community/mathlib4">Mathlib</a> (Apache 2.0); the linter itself imports only Lean's core libraries. The repository's qualification and site tooling also use <a href="https://github.com/leanprover-community/batteries">Batteries</a> (Apache 2.0), which Mathlib requires.</p>
+            <p>
+              Crediting a project does not imply its endorsement of Regula. The complete attribution account is in the <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/guides/design-influences.md">design-influences guide</a>.</p>
+            <section class="license-info">
+              <h2>
+                Editable Combobox With Both List and Inline Autocomplete Example, from the W3C's ARIA Authoring Practices Guide (APG)</h2>
+              <a class="link" href="https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-autocomplete-both/">https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-autocomplete-both/</a><p>
+                The search box component includes code derived from the example code in the linked article from the W3C's ARIA Authoring Practices Guide (APG).</p>
+              <code class="spdx">W3C-20150513</code><section>
+                <h3>
+                  Software and Document License - 2023 Version</h3>
+                <p>
+                  Permission to copy, modify, and distribute this work, with or without modification, for any purpose and without fee or royalty is hereby granted, provided that you include the following on ALL copies of the work or portions thereof, including modifications:</p>
+                <p>
+                   * The full text of this NOTICE in a location viewable to users of the redistributed or derivative work.</p>
+                <p>
+                   * Any pre-existing intellectual property disclaimers, notices, or terms and conditions. If none exist, the W3C software and document short notice should be included.</p>
+                <p>
+                   * Notice of any changes or modifications, through a copyright statement on the new code or document such as "This software or document includes material copied from or derived from "Editable Combobox With Both List and Inline Autocomplete Example" at https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-autocomplete-both/. Copyright © 2024 World Wide Web Consortium. https://www.w3.org/copyright/software-license-2023/"</p>
+                </section>
+              </section>
+            <section class="license-info">
+              <h2>
+                elasticlunr.js</h2>
+              <a class="link" href="http://elasticlunr.com/">http://elasticlunr.com/</a><p>
+                Elasticlunr.js is used for full-text search</p>
+              <code class="spdx">MIT</code><section>
+                <h3>
+                  The MIT License</h3>
+                <p>
+                  Copyright (C) 2017 by Wei Song</p>
+                <p>
+                  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+                <p>
+                  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+                <p>
+                  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+                </section>
+              </section>
+            <section class="license-info">
+              <h2>
+                fuzzysort v3.1.0</h2>
+              <a class="link" href="https://github.com/farzher/fuzzysort">https://github.com/farzher/fuzzysort</a><p>
+                The fuzzysort library is used in the search box to quickly filter results.</p>
+              <code class="spdx">MIT</code><section>
+                <h3>
+                  The MIT License</h3>
+                <p>
+                  Copyright (c) 2018 Stephen Kamenar</p>
+                <p>
+                  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+                <p>
+                  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+                <p>
+                  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+                </section>
+              </section>
+            <section class="license-info">
+              <h2>
+                KaTeX</h2>
+              <a class="link" href="https://katex.org/">https://katex.org/</a><p>
+                KaTeX is used to render mathematical notation.</p>
+              <code class="spdx">MIT</code><section>
+                <h3>
+                  The MIT License</h3>
+                <p>
+                  Copyright (c) 2013-2020 Khan Academy and other contributors</p>
+                <p>
+                  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+                <p>
+                  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+                <p>
+                  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+                </section>
+              </section>
+            </section>
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="versions/#versions" rel="prev" title="Versions and evidence"><span class="arrow">←</span><span class="where">Versions and evidence</span></a><div></div>
+            </nav>
+          </div>
+        </main></div>
+    </body>
+  </html>
+

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      (function(){
+  const {protocol:proto, host:hostName, pathname:path, search:srch, hash:hsh} = window.location;
+  if (!(path.endsWith("/") || path.endsWith(".html"))) {
+    window.location.replace(`${proto}//${hostName}${path}/${srch}${hsh}`);
+  }
+})()</script>
+    <script>
+      // Enable TypeScript checking.
+// @ts-check
+
+// Applies a saved table-of-contents width before the first paint.
+//
+// This is a tiny inline counterpart to toc-resize.js: it runs in the page head so that
+// returning desktop readers do not see the default width flash to their saved width.
+// It only records the width in the --verso-toc-user-width custom property; the
+// stylesheet clamps it and ignores it on mobile, and toc-resize.js then takes over the
+// interactive resizing. Keep the storage key in sync with toc-resize.js.
+
+(function () {
+    try {
+        const saved = localStorage.getItem("verso-toc-width");
+        // Parse to a number (as toc-resize.js does) and write that back, so a stored
+        // value with stray whitespace becomes a valid length rather than `" 420 px"`.
+        const width = saved === null ? NaN : Number(saved);
+        if (Number.isFinite(width)) {
+            document.documentElement.style.setProperty("--verso-toc-user-width", `${width}px`);
+        }
+    } catch (_) {
+        // Leave the default width in place when local storage is unavailable.
+    }
+})();
+</script>
+    <base href="./../../"><meta charset="utf-8">
+    <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>RG1002: Proof holes are forbidden</title><link rel="stylesheet" href="book.css">
+    <link rel="stylesheet" href="verso-vars.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" integrity="sha384-zbcZAIxlvJtNE3Dp5nxLXdXtXyxwOdnILY1TDPVmKFhl4r4nSUG1r8bcFXGVa4Te" crossorigin="anonymous"></script>
+    <script defer="defer" src="-verso-search/elasticlunr.min.js"></script>
+    <script defer="defer" src="-verso-search/fuzzysort.min.js"></script>
+    <script defer="defer" src="-verso-search/searchIndex.js"></script>
+    <script defer="defer" src="-verso-search/search-config.js"></script>
+    <script type="module" src="-verso-search/search-init.js"></script>
+    <link rel="stylesheet" href="-verso-search/search-box.css">
+    <link rel="stylesheet" href="-verso-search/search-page.css">
+    <link rel="stylesheet" href="-verso-search/search-highlight.css">
+    <link rel="stylesheet" href="-verso-search/domain-display.css">
+    <script src="-verso-search/search-highlight.js" defer="defer"></script>
+    <script src="toc-resize.js" defer="defer"></script>
+    <script src="-verso-data/katex/katex.js"></script>
+    <script src="-verso-data/katex/math.js"></script>
+    <link rel="stylesheet" href="-verso-data/katex/katex.css">
+    <style>
+.regula-edition { border-left: 4px solid #5b4bb7; background: #f4f2fc; padding: 0.4rem 0.9rem; margin: 1rem 0; font-size: 0.95em; }
+.regula-edition p { margin: 0.25rem 0; }
+.regula-scroll { overflow-x: auto; max-width: 100%; }
+.regula-scroll:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+main :not(pre) > code { overflow-wrap: anywhere; }
+main :is(p, li, a) { overflow-wrap: break-word; }
+table.regula-facts, table.regula-rules { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.regula-index, .regula-example, table.regula-facts, table.regula-rules, figure.regula-file figcaption, .regula-filters, .regula-filters input { font-family: var(--verso-text-font-family); }
+.regula-finding pre.regula-code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.regula-facts caption, table.regula-rules caption { text-align: left; font-weight: 600; padding: 0.25rem 0; }
+table.regula-facts th, table.regula-facts td, table.regula-rules th, table.regula-rules td {
+  text-align: left; vertical-align: top; padding: 0.35rem 0.55rem; border-bottom: 1px solid #d8d8d8; overflow-wrap: anywhere; }
+table.regula-facts th { width: 11rem; }
+table.regula-rules thead th { border-bottom: 2px solid #999; }
+table.regula-rules td, table.regula-rules th { min-width: 6rem; }
+tr.regula-no-match { display: none; }
+tr.regula-no-match td { font-weight: 600; }
+.regula-muted { color: #57606a; font-size: 0.9em; }
+pre.regula-code, pre.regula-diff { overflow-x: auto; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
+  padding: 0.75rem; font-size: 0.9em; line-height: 1.45; white-space: pre; }
+.regula-diff del, .regula-diff ins, .regula-diff .regula-keep { display: inline-block; min-width: 100%; text-decoration: none; }
+.regula-diff del { background: #ffebe9; }
+.regula-diff ins { background: #dafbe1; }
+.regula-diff .regula-keep { color: #57606a; }
+figure.regula-file { margin: 1rem 0; }
+figure.regula-file figcaption { font-size: 0.9em; margin-bottom: 0.25rem; overflow-wrap: anywhere; }
+.regula-finding { border: 1px solid #d0d7de; border-left: 4px solid #b3261e; border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.75rem 0; }
+.regula-finding p { margin: 0.25rem 0; overflow-wrap: anywhere; }
+.regula-badge { display: inline-block; border: 1px solid #6e7781; border-radius: 999px; padding: 0 0.5rem; font-size: 0.85em; }
+.regula-impact-incomplete { border-style: dashed; }
+.regula-status { font-weight: 600; }
+.regula-example h3 { margin-top: 1.5rem; }
+.regula-filters fieldset { border: 1px solid #d0d7de; border-radius: 6px; margin: 0.5rem 0; padding: 0.4rem 0.75rem; }
+.regula-filters legend { font-weight: 600; padding: 0 0.25rem; }
+.regula-choice { display: inline-block; margin: 0.15rem 0.9rem 0.15rem 0; }
+.regula-filters input:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+.regula-filters input:checked + label { font-weight: 700; text-decoration: underline; }
+.regula-filters input[type=reset] { font: inherit; padding: 0.25rem 0.75rem; }
+</style></head>
+  <body>
+    <header>
+      <div class="header-logo-wrapper"></div>
+      <div class="header-title-wrapper">
+        <a href="" class="header-title"><h1>
+            Regula rule reference</h1>
+          </a></div>
+      </header>
+    <label for="toggle-toc" id="toggle-toc-click"><span class="line line1"></span><span class="line line2"></span><span class="line line3"></span></label><div class="with-toc">
+      <div class="toc-backdrop" onclick="document.getElementById('toggle-toc-click')?.click()"></div>
+      <nav id="toc">
+        <input type="checkbox" id="toggle-toc"><div class="first">
+          <a href="" class="toc-title"><h1>
+              Regula rule reference</h1>
+            </a><div class="split-tocs">
+            <div class="split-toc book">
+              <div class="title">
+                <label for="--verso-manual-toc-----bookRoot" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-----bookRoot"></label><span class="">Table of Contents</span></div>
+              <table><tr class="current unnumbered"><td class="num"><td><a href="rules/#rules">Rule index</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="versions/#versions">Versions and evidence</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="credits/#credits">Credits and licenses</a></td></tr></table></div>
+            <div class="split-toc">
+              <div class="title">
+                <label for="--verso-manual-toc-rules" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-rules" checked="checked"></label><span class="unnumbered"></span><span class=""><a href="rules/#rules">Rule index</a></span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="rules/RG1001/#RG1001">RG1001</a></td></tr><tr class="current unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002">RG1002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1003/#RG1003">RG1003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1004/#RG1004">RG1004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1005/#RG1005">RG1005</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1006/#RG1006">RG1006</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1007/#RG1007">RG1007</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2001/#RG2001">RG2001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2002/#RG2002">RG2002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2003/#RG2003">RG2003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2004/#RG2004">RG2004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2005/#RG2005">RG2005</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3001/#RG3001">RG3001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002">RG3002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4001/#RG4001">RG4001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4002/#RG4002">RG4002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4003/#RG4003">RG4003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4004/#RG4004">RG4004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5001/#RG5001">RG5001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5002/#RG5002">RG5002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5003/#RG5003">RG5003</a></td></tr></table></div>
+            <div class="split-toc">
+              <div class="title">
+                <label for="--verso-manual-toc-RG1002" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-RG1002" checked="checked"></label><span class="unnumbered"></span><span class="current"><a href="rules/RG1002/#RG1002">RG1002</a></span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-trigger">What triggers it</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-rationale">Why it matters</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-fix">How to fix it</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-example">Checked example</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-proof-shape">Required proof shape</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-established">What a passing result establishes</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-configuration">Configuration and exceptions</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-limitations">Limitations and unsupported cases</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002-sources">Sources and credit</a></td></tr></table></div>
+            </div>
+          </div>
+        <div class="last">
+          <ul id="meta-links">
+            <li>
+              <a href="https://github.com/rbeauchamp/regula">Source Code</a></li>
+            <li>
+              <a href="https://github.com/rbeauchamp/regula/issues">Report Issues</a></li>
+            </ul>
+          </div>
+        </nav>
+      <div class="toc-resize-handle"></div>
+      <main><div class="content-wrapper">
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="rules/RG1001/#RG1001" rel="prev" title="RG1001: Project logical axioms are forbidden"><span class="arrow">←</span><span class="where">RG1001: Project logical axioms are forbidden</span></a><a class="local-button active" href="rules/RG1003/#RG1003" rel="next" title="RG1003: Unknown transitive axioms are forbidden"><span class="where">RG1003: Unknown transitive axioms are forbidden</span><span class="arrow">→</span></a></nav>
+          <section>
+            <h1>
+              RG1002: Proof holes are forbidden<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002" title="Permalink">🔗</a></span></h1>
+            <span id="RG1002"></span><aside class="regula-edition" aria-label="Documentation version"><p><strong>Development documentation</strong> generated from commit <a href="https://github.com/rbeauchamp/regula/tree/c7442d95759b653faac8952bf480c22cff9ca2df"><code>c7442d95759b</code></a> with Lean 4.34.0; linter version <code>unreleased</code> (no released package). Moving route: <a href="/regula/dev/rules/RG1002/"><code>/regula/dev/rules/RG1002/</code></a>. Snapshot route for this commit: <a href="/regula/rev/c7442d95759b653faac8952bf480c22cff9ca2df/rules/RG1002/"><code>/regula/rev/c7442d95759b…/rules/RG1002/</code></a>. Once this commit is published, its snapshot is kept by every later deployment. See <a href="/regula/dev/versions/">versions and evidence</a>.</p></aside>
+<p>
+              <strong>Problem.</strong> The declaration depends on <code>sorryAx</code>: a <code>sorry</code>, an <code>admit</code>, an unfinished tactic proof, or an imported declaration with such a hole occurs in its transitive axiom set. The proposition is not proved.</p>
+            <p>
+              <strong>Action.</strong> Complete the proof. If the statement is an open problem, define it as a <code>Prop</code> and state results conditionally on it instead of asserting it.</p>
+            <table class="regula-facts"><caption>Rule facts from the registry</caption><tbody><tr><th scope="row">Rule</th><td><code>RG1002</code></td></tr><tr><th scope="row">Category</th><td>Foundation</td></tr><tr><th scope="row">Scope</th><td>declaration</td></tr><tr><th scope="row">Subreason</th><td><code>hole</code></td></tr><tr><th scope="row">Strict impact</th><td>Error in every project and documentation audit where the rule applies. An established violation makes the result FAIL; missing or unsupported evidence makes it INCOMPLETE. Neither is accepted. Under <code>lake lint</code> a FAIL exits 1 and an INCOMPLETE exits 3. The editor shows its local findings as warnings (errors under <code>warningAsError</code>); they are not project results.</td></tr><tr><th scope="row">Evidence modes</th><td>editor snapshot, incremental project, fresh project, fresh file, documentation example</td></tr><tr><th scope="row">Availability</th><td>Enforced by the checker</td></tr><tr><th scope="row">Lifecycle</th><td>Active since unreleased</td></tr><tr><th scope="row">Message form</th><td><code>RG1002 [{impact}; {mode}; claim={claim}; {location}]: {subject}: {detail}</code></td></tr><tr><th scope="row">Normative clauses</th><td><a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/standard/8-tooling-and-machine-audit.md#85-proof-completeness-and-foundation-strength">docs/standard/8-tooling-and-machine-audit.md §8.5</a></td></tr><tr><th scope="row">Checklist rows</th><td>FOUND-02, THEOREM-06, TYPE-04, THEOREM-01, THEOREM-09, BUILD-01</td></tr><tr><th scope="row">Help URL</th><td><code>https://rbeauchamp.github.io/regula/dev/rules/RG1002/</code></td></tr></tbody></table>
+<section>
+              <h2 id="RG1002-trigger">
+                What triggers it<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-trigger" title="Permalink">🔗</a></span></h2>
+              <p>
+                The checker computes the exact transitive axiom set of every owned declaration with Lean's <code>collectAxioms</code>. If <code>sorryAx</code> belongs to it, the declaration is rejected with applicability <code>hole</code>.</p>
+              <p>
+                Theorems, proof-valued definitions and instances, and data definitions are all inspected; alternate syntax (<code>admit</code>, a tactic <code>sorry</code>) is caught because the kernel term contains <code>sorryAx</code>.</p>
+              <p>
+                Lean itself warns <code>declaration uses 'sorry'</code> by default, and an elaboration error recovered as <code>sorry</code> is an error. In <code>lake lint</code>, <code>axiomGate</code> and the build-lint <code>policy</code> target that warning or error stops the audit at the warning-free build check before policy inspection, so an owned <code>sorry</code> in a claimed module is reported as RG2003 and the result is INCOMPLETE (<code>lake lint</code> exit 3); a single-file <code>axiomGate --file F --claim P</code> audit reports it as a RG2003 violation. This rule's own finding appears in the editor, in a file audit without <code>--claim</code> (which does not reject warnings), and in project and claimed-file audits when no warning was emitted (for example a hole inherited from an imported declaration, or <code>set_option warn.sorry false</code>, which does not waive the rule).</p>
+              </section>
+            <section>
+              <h2 id="RG1002-rationale">
+                Why it matters<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-rationale" title="Permalink">🔗</a></span></h2>
+              <p>
+                <code>sorryAx</code> proves every proposition. A declaration that depends on it has no evidence, even if Lean elaborated the file, and every theorem that uses it inherits the gap.</p>
+              </section>
+            <section>
+              <h2 id="RG1002-fix">
+                How to fix it<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-fix" title="Permalink">🔗</a></span></h2>
+              <ol start="1">
+                <li>
+                  <p>
+                    Replace the <code>sorry</code> or <code>admit</code> with a complete proof.</p>
+                  </li>
+                <li>
+                  <p>
+                    If the hole comes from an imported declaration, fix or replace that dependency; imported holes are not exempt.</p>
+                  </li>
+                <li>
+                  <p>
+                    For an open target, write <code>def Target : Prop := …</code> and prove <code>Target → Result</code>, which states exactly what is established.</p>
+                  </li>
+                </ol>
+              </section>
+            <section>
+              <h2 id="RG1002-example">
+                Checked example<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-example" title="Permalink">🔗</a></span></h2>
+              <div class="regula-example"><p class="regula-status">Checked policy rejection: the violating input was completed by the checker and rejected with the findings below; the corrected input passed a completed positive check.</p><p>Invocation: single-file policy inspection of &lt;example&gt;/Fixture.lean that keeps Lean&#39;s original compiler warning; evidence mode freshFile; run by the qualification runner&#39;s ruleExamples entry, which executes the same detector with dependency Git facts captured once for the campaign. Violating run status: <code>rejected</code>; corrected run status: <code>completed</code>.</p><h3>Violating input</h3><figure class="regula-file"><figcaption><code>Fixture.lean</code> — source <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/examples/rules/RG1002/Violation.lean"><code>examples/rules/RG1002/Violation.lean</code></a></figcaption><pre class="regula-code"><code>/-! Reflexivity for every natural number. -/
+theorem reflexive (n : Nat) : n = n := by sorry
+</code></pre></figure><h3>Findings of the violating run</h3><div class="regula-finding"><p><code>RG1002</code> <span class="regula-badge">error</span> <span class="regula-badge regula-impact-violation">violation</span> fresh file, claim <code>standard-logical</code></p><p>Declaration <code>reflexive</code> at Fixture.lean, line 2, column 9</p><pre class="regula-code"><code>reflexive (theorem) [Prop] type=∀ (n : Nat), n = n axioms=[&quot;sorryAx&quot;] -&gt; hole</code></pre></div><h3>Correction</h3><p>Change to <code>Fixture.lean</code>:</p><pre class="regula-diff"><code><span class="regula-keep">  /-! Reflexivity for every natural number. -/</span>
+<del class="regula-remove">- theorem reflexive (n : Nat) : n = n := by sorry</del>
+<ins class="regula-add">+ theorem reflexive (n : Nat) : n = n := rfl</ins>
+</code></pre><figure class="regula-file"><figcaption><code>Fixture.lean</code> — source <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/examples/rules/RG1002/Fixed.lean"><code>examples/rules/RG1002/Fixed.lean</code></a></figcaption><pre class="regula-code"><code>/-! Reflexivity for every natural number. -/
+theorem reflexive (n : Nat) : n = n := rfl
+</code></pre></figure></div>
+<p>
+                The correction fills the same reflexivity proof with <code>rfl</code>. The checked violation records Lean's original <code>sorry</code> warning as well; the corrected file passes the ordinary warning-rejecting gate.</p>
+              </section>
+            <section>
+              <h2 id="RG1002-proof-shape">
+                Required proof shape<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-proof-shape" title="Permalink">🔗</a></span></h2>
+              <p>
+                The completed declaration keeps the same statement. Weakening the proposition until it is easy to prove changes the requirement and is a semantic review failure, even though this rule then passes.</p>
+              </section>
+            <section>
+              <h2 id="RG1002-established">
+                What a passing result establishes<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-established" title="Permalink">🔗</a></span></h2>
+              <p>
+                No owned declaration of the checked scope has <code>sorryAx</code> in its exact transitive axiom set.</p>
+              <p>
+                It does not establish:</p>
+              <ul>
+                <li>
+                  <p>
+                    That the completed proof proves the intended statement; the proposition itself is reviewed against its intent.</p>
+                  </li>
+                <li>
+                  <p>
+                    Lean's own warning for <code>sorry</code> is a separate compiler diagnostic (RG2003); this rule does not depend on it, and disabling that warning does not waive this rule.</p>
+                  </li>
+                </ul>
+              <p>
+                Review obligations the rule-coverage map associates with this rule (identifiers of the checker's <code>Residual</code> account):</p>
+              <ul>
+                <li>
+                  <p>
+                    <code>R-QUALIFY</code>: the checker's detection is qualified for this invocation, toolchain and capability</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>R-INTENT</code>: the proposition expresses the intended requirement, with its quantifiers, hypotheses and limits</p>
+                  </li>
+                </ul>
+              <p>
+                Every accepted result lists all residual obligations as open, whatever rules it checked: <code>R-INTENT</code>, <code>R-INVARIANT</code>, <code>R-LAWS</code>, <code>R-BOUNDARY</code>, <code>R-NONVACUITY</code>, <code>R-DOC</code>, <code>R-COST</code>, <code>R-QUALIFY</code> (and <code>R-GRAPH</code> for a serialized-graph claim). A listed identifier is an open obligation, never a completed review.</p>
+              <p>
+                Every accepted result also relies on these trusted mechanisms (the checker's <code>Trusted</code> account), which no rule verifies:</p>
+              <ul>
+                <li>
+                  <p>
+                    <code>toolchain</code>: Lean elaborator, kernel and compiler at the snapshot's toolchain identity</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>acquisition</code>: manifest parsing, Lake loading, and source, configuration and dependency acquisition</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>extraction</code>: environment extraction, compiler and worker processes, and JSON transport</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>runtime</code>: native runtime and every execution boundary reported as trusted</p>
+                  </li>
+                </ul>
+              </section>
+            <section>
+              <h2 id="RG1002-configuration">
+                Configuration and exceptions<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-configuration" title="Permalink">🔗</a></span></h2>
+              <p>
+                No source option, attribute or command-line flag makes this rule pass on a claimed surface. <code>set_option linter.regula false</code> and <code>regula.localFoundation</code> never waive it: <code>lake lint</code>, the build-lint <code>policy</code> target and <code>axiomGate</code> still apply the rule. Where Regula's local linter reports a finding during a project build (<code>axiomGate</code> and the <code>policy</code> target keep it on by default; <code>lake lint</code> builds with it off, whatever the source sets <code>linter.regula</code> to), that finding is a build warning, so the result is INCOMPLETE under RG2003 instead of carrying this rule's finding. Switching the local linter off changes which finding is reported, never whether the result is accepted. Hiding the diagnostic does not establish the property it checks.</p>
+              <p>
+                Project enforcement runs through <code>lake lint</code> (incremental), <code>lake lint -- --fresh</code> and <code>lake exe axiomGate</code> (fresh whole-project audits from empty build output), and the build-lint <code>policy</code> target. See the <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/guides/adoption.md">adoption guide</a>.</p>
+              </section>
+            <section>
+              <h2 id="RG1002-limitations">
+                Limitations and unsupported cases<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-limitations" title="Permalink">🔗</a></span></h2>
+              <p>
+                In the editor the rule is reported for completed declarations of the current snapshot. A cancelled collection reports nothing for that declaration; a failed one is reported as RG2005 (incomplete), never as an invented RG1002.</p>
+              <p>
+                The checked example below comes from a diagnostic single-file inspection that keeps Lean's <code>sorry</code> warning as related evidence and continues to policy inspection; the ordinary project commands stop earlier with RG2003, as described above.</p>
+              </section>
+            <section>
+              <h2 id="RG1002-sources">
+                Sources and credit<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG1002-sources" title="Permalink">🔗</a></span></h2>
+              <p>
+                Normative text: <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/standard/8-tooling-and-machine-audit.md#85-proof-completeness-and-foundation-strength">docs/standard/8-tooling-and-machine-audit.md §8.5</a>.</p>
+              <p>
+                Detector, policy and proof sources at this revision: <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/lean/RegulaCore/Policy.lean"><code>lean/RegulaCore/Policy.lean</code></a>, <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/lean/RegulaPolicy/Decision.lean"><code>lean/RegulaPolicy/Decision.lean</code></a>, <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/lean/Regula/Findings.lean"><code>lean/Regula/Findings.lean</code></a>.</p>
+              <p>
+                The rule's typed identity and canonical metadata follow the canonical-representation design of <a href="https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean">con-leche</a> (Joachim Breitner and contributors, Lean FRO, revision <code>c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0</code>); no con-leche code or proof is used. The explanation is original; its structure follows <a href="https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1416">Microsoft's CA1416 rule page</a> as one illustrative reference. See <a href="credits/">credits</a>.</p>
+              </section>
+            </section>
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="rules/RG1001/#RG1001" rel="prev" title="RG1001: Project logical axioms are forbidden"><span class="arrow">←</span><span class="where">RG1001: Project logical axioms are forbidden</span></a><a class="local-button active" href="rules/RG1003/#RG1003" rel="next" title="RG1003: Unknown transitive axioms are forbidden"><span class="where">RG1003: Unknown transitive axioms are forbidden</span><span class="arrow">→</span></a></nav>
+          </div>
+        </main></div>
+    </body>
+  </html>
+

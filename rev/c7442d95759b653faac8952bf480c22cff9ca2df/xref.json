@@ -1,0 +1,3477 @@
+{"Verso.Genre.Manual.section":
+ {"title": "Sections or chapters of the manual",
+  "description": null,
+  "contents":
+  {"versions-routes":
+   [{"id": "versions-routes",
+     "data":
+     {"title": "Routes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Versions and evidence", "shortTitle": null, "number": null},
+       {"title": "Routes", "shortTitle": null, "number": null}]},
+     "address": "/versions/"}],
+   "versions-hosting":
+   [{"id": "versions-hosting",
+     "data":
+     {"title": "Hosting limits",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Versions and evidence", "shortTitle": null, "number": null},
+       {"title": "Hosting limits", "shortTitle": null, "number": null}]},
+     "address": "/versions/"}],
+   "versions-evidence":
+   [{"id": "versions-evidence",
+     "data":
+     {"title": "Evidence",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Versions and evidence", "shortTitle": null, "number": null},
+       {"title": "Evidence", "shortTitle": null, "number": null}]},
+     "address": "/versions/"}],
+   "versions":
+   [{"id": "versions",
+     "data":
+     {"title": "Versions and evidence",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Versions and evidence", "shortTitle": null, "number": null}]},
+     "address": "/versions/"}],
+   "rules":
+   [{"id": "rules",
+     "data":
+     {"title": "Rule index",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null}]},
+     "address": "/rules/"}],
+   "regula":
+   [{"id": "regula",
+     "data":
+     {"title": "Regula rule reference",
+      "shortTitle": null,
+      "sectionNum": "",
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null}]},
+     "address": "/"}],
+   "credits":
+   [{"id": "credits",
+     "data":
+     {"title": "Credits and licenses",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Credits and licenses", "shortTitle": null, "number": null}]},
+     "address": "/credits/"}],
+   "RG5003-trigger":
+   [{"id": "RG5003-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003-sources":
+   [{"id": "RG5003-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003-rationale":
+   [{"id": "RG5003-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003-proof-shape":
+   [{"id": "RG5003-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003-limitations":
+   [{"id": "RG5003-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003-fix":
+   [{"id": "RG5003-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003-example":
+   [{"id": "RG5003-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003-established":
+   [{"id": "RG5003-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003-configuration":
+   [{"id": "RG5003-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5003":
+   [{"id": "RG5003",
+     "data":
+     {"title":
+      "RG5003: Registered public material declarations require an Intent section",
+      "shortTitle": "RG5003",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5003: Registered public material declarations require an Intent section",
+        "shortTitle": "RG5003",
+        "number": null}]},
+     "address": "/rules/RG5003/"}],
+   "RG5002-trigger":
+   [{"id": "RG5002-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002-sources":
+   [{"id": "RG5002-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002-rationale":
+   [{"id": "RG5002-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002-proof-shape":
+   [{"id": "RG5002-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002-limitations":
+   [{"id": "RG5002-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002-fix":
+   [{"id": "RG5002-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002-example":
+   [{"id": "RG5002-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002-established":
+   [{"id": "RG5002-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002-configuration":
+   [{"id": "RG5002-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5002":
+   [{"id": "RG5002",
+     "data":
+     {"title":
+      "RG5002: Registered public material declarations require docstrings",
+      "shortTitle": "RG5002",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG5002: Registered public material declarations require docstrings",
+        "shortTitle": "RG5002",
+        "number": null}]},
+     "address": "/rules/RG5002/"}],
+   "RG5001-trigger":
+   [{"id": "RG5001-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001-sources":
+   [{"id": "RG5001-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001-rationale":
+   [{"id": "RG5001-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001-proof-shape":
+   [{"id": "RG5001-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001-limitations":
+   [{"id": "RG5001-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001-fix":
+   [{"id": "RG5001-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001-example":
+   [{"id": "RG5001-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001-established":
+   [{"id": "RG5001-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001-configuration":
+   [{"id": "RG5001-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG5001":
+   [{"id": "RG5001",
+     "data":
+     {"title": "RG5001: Claimed modules require module documentation",
+      "shortTitle": "RG5001",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG5001: Claimed modules require module documentation",
+        "shortTitle": "RG5001",
+        "number": null}]},
+     "address": "/rules/RG5001/"}],
+   "RG4004-trigger":
+   [{"id": "RG4004-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004-sources":
+   [{"id": "RG4004-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004-rationale":
+   [{"id": "RG4004-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004-proof-shape":
+   [{"id": "RG4004-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004-limitations":
+   [{"id": "RG4004-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004-fix":
+   [{"id": "RG4004-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004-example":
+   [{"id": "RG4004-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004-established":
+   [{"id": "RG4004-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004-configuration":
+   [{"id": "RG4004-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4004":
+   [{"id": "RG4004",
+     "data":
+     {"title":
+      "RG4004: Teaching examples require authenticated compiler classification",
+      "shortTitle": "RG4004",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4004: Teaching examples require authenticated compiler classification",
+        "shortTitle": "RG4004",
+        "number": null}]},
+     "address": "/rules/RG4004/"}],
+   "RG4003-trigger":
+   [{"id": "RG4003-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003-sources":
+   [{"id": "RG4003-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003-rationale":
+   [{"id": "RG4003-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003-proof-shape":
+   [{"id": "RG4003-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003-limitations":
+   [{"id": "RG4003-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003-fix":
+   [{"id": "RG4003-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003-example":
+   [{"id": "RG4003-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003-established":
+   [{"id": "RG4003-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003-configuration":
+   [{"id": "RG4003-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4003":
+   [{"id": "RG4003",
+     "data":
+     {"title": "RG4003: Negative examples require completed intended rejection",
+      "shortTitle": "RG4003",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4003: Negative examples require completed intended rejection",
+        "shortTitle": "RG4003",
+        "number": null}]},
+     "address": "/rules/RG4003/"}],
+   "RG4002-trigger":
+   [{"id": "RG4002-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002-sources":
+   [{"id": "RG4002-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002-rationale":
+   [{"id": "RG4002-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002-proof-shape":
+   [{"id": "RG4002-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002-limitations":
+   [{"id": "RG4002-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002-fix":
+   [{"id": "RG4002-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002-example":
+   [{"id": "RG4002-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002-established":
+   [{"id": "RG4002-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002-configuration":
+   [{"id": "RG4002-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4002":
+   [{"id": "RG4002",
+     "data":
+     {"title":
+      "RG4002: Positive examples require warning-free elaboration and admission",
+      "shortTitle": "RG4002",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4002: Positive examples require warning-free elaboration and admission",
+        "shortTitle": "RG4002",
+        "number": null}]},
+     "address": "/rules/RG4002/"}],
+   "RG4001-trigger":
+   [{"id": "RG4001-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001-sources":
+   [{"id": "RG4001-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001-rationale":
+   [{"id": "RG4001-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001-proof-shape":
+   [{"id": "RG4001-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001-limitations":
+   [{"id": "RG4001-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001-fix":
+   [{"id": "RG4001-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001-example":
+   [{"id": "RG4001-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001-established":
+   [{"id": "RG4001-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001-configuration":
+   [{"id": "RG4001-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG4001":
+   [{"id": "RG4001",
+     "data":
+     {"title": "RG4001: Documentation fences must have a valid classification",
+      "shortTitle": "RG4001",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG4001: Documentation fences must have a valid classification",
+        "shortTitle": "RG4001",
+        "number": null}]},
+     "address": "/rules/RG4001/"}],
+   "RG3002-trigger":
+   [{"id": "RG3002-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002-sources":
+   [{"id": "RG3002-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002-rationale":
+   [{"id": "RG3002-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002-proof-shape":
+   [{"id": "RG3002-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002-limitations":
+   [{"id": "RG3002-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002-fix":
+   [{"id": "RG3002-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002-example":
+   [{"id": "RG3002-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002-established":
+   [{"id": "RG3002-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002-configuration":
+   [{"id": "RG3002-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3002":
+   [{"id": "RG3002",
+     "data":
+     {"title": "RG3002: Checked execution requires admitted correspondence",
+      "shortTitle": "RG3002",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3002: Checked execution requires admitted correspondence",
+        "shortTitle": "RG3002",
+        "number": null}]},
+     "address": "/rules/RG3002/"}],
+   "RG3001-trigger":
+   [{"id": "RG3001-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001-sources":
+   [{"id": "RG3001-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001-rationale":
+   [{"id": "RG3001-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001-proof-shape":
+   [{"id": "RG3001-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001-limitations":
+   [{"id": "RG3001-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001-fix":
+   [{"id": "RG3001-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001-example":
+   [{"id": "RG3001-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001-established":
+   [{"id": "RG3001-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001-configuration":
+   [{"id": "RG3001-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG3001":
+   [{"id": "RG3001",
+     "data":
+     {"title": "RG3001: Execution closure must have no unresolved paths",
+      "shortTitle": "RG3001",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG3001: Execution closure must have no unresolved paths",
+        "shortTitle": "RG3001",
+        "number": null}]},
+     "address": "/rules/RG3001/"}],
+   "RG2005-trigger":
+   [{"id": "RG2005-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005-sources":
+   [{"id": "RG2005-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005-rationale":
+   [{"id": "RG2005-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005-proof-shape":
+   [{"id": "RG2005-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005-limitations":
+   [{"id": "RG2005-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005-fix":
+   [{"id": "RG2005-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005-example":
+   [{"id": "RG2005-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005-established":
+   [{"id": "RG2005-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005-configuration":
+   [{"id": "RG2005-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2005":
+   [{"id": "RG2005",
+     "data":
+     {"title":
+      "RG2005: Required admission and source evidence must be complete",
+      "shortTitle": "RG2005",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2005: Required admission and source evidence must be complete",
+        "shortTitle": "RG2005",
+        "number": null}]},
+     "address": "/rules/RG2005/"}],
+   "RG2004-trigger":
+   [{"id": "RG2004-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004-sources":
+   [{"id": "RG2004-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004-rationale":
+   [{"id": "RG2004-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004-proof-shape":
+   [{"id": "RG2004-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004-limitations":
+   [{"id": "RG2004-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004-fix":
+   [{"id": "RG2004-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004-example":
+   [{"id": "RG2004-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004-established":
+   [{"id": "RG2004-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004-configuration":
+   [{"id": "RG2004-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2004":
+   [{"id": "RG2004",
+     "data":
+     {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+      "shortTitle": "RG2004",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2004: Owned coverage must match the exact Lake inventory",
+        "shortTitle": "RG2004",
+        "number": null}]},
+     "address": "/rules/RG2004/"}],
+   "RG2003-trigger":
+   [{"id": "RG2003-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003-sources":
+   [{"id": "RG2003-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003-rationale":
+   [{"id": "RG2003-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003-proof-shape":
+   [{"id": "RG2003-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003-limitations":
+   [{"id": "RG2003-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003-fix":
+   [{"id": "RG2003-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003-example":
+   [{"id": "RG2003-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003-established":
+   [{"id": "RG2003-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003-configuration":
+   [{"id": "RG2003-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2003":
+   [{"id": "RG2003",
+     "data":
+     {"title": "RG2003: Claimed source must elaborate warning-free",
+      "shortTitle": "RG2003",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2003: Claimed source must elaborate warning-free",
+        "shortTitle": "RG2003",
+        "number": null}]},
+     "address": "/rules/RG2003/"}],
+   "RG2002-trigger":
+   [{"id": "RG2002-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002-sources":
+   [{"id": "RG2002-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002-rationale":
+   [{"id": "RG2002-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002-proof-shape":
+   [{"id": "RG2002-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002-limitations":
+   [{"id": "RG2002-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002-fix":
+   [{"id": "RG2002-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002-example":
+   [{"id": "RG2002-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002-established":
+   [{"id": "RG2002-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002-configuration":
+   [{"id": "RG2002-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2002":
+   [{"id": "RG2002",
+     "data":
+     {"title": "RG2002: Configuration must classify the complete Lake surface",
+      "shortTitle": "RG2002",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG2002: Configuration must classify the complete Lake surface",
+        "shortTitle": "RG2002",
+        "number": null}]},
+     "address": "/rules/RG2002/"}],
+   "RG2001-trigger":
+   [{"id": "RG2001-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001-sources":
+   [{"id": "RG2001-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001-rationale":
+   [{"id": "RG2001-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001-proof-shape":
+   [{"id": "RG2001-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001-limitations":
+   [{"id": "RG2001-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001-fix":
+   [{"id": "RG2001-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001-example":
+   [{"id": "RG2001-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001-established":
+   [{"id": "RG2001-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001-configuration":
+   [{"id": "RG2001-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG2001":
+   [{"id": "RG2001",
+     "data":
+     {"title": "RG2001: The declared Lean environment must be available",
+      "shortTitle": "RG2001",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG2001: The declared Lean environment must be available",
+        "shortTitle": "RG2001",
+        "number": null}]},
+     "address": "/rules/RG2001/"}],
+   "RG1007-trigger":
+   [{"id": "RG1007-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007-sources":
+   [{"id": "RG1007-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007-rationale":
+   [{"id": "RG1007-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007-proof-shape":
+   [{"id": "RG1007-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007-limitations":
+   [{"id": "RG1007-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007-fix":
+   [{"id": "RG1007-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007-example":
+   [{"id": "RG1007-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007-established":
+   [{"id": "RG1007-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007-configuration":
+   [{"id": "RG1007-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1007":
+   [{"id": "RG1007",
+     "data":
+     {"title": "RG1007: Executable contracts require supported closed evidence",
+      "shortTitle": "RG1007",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1007: Executable contracts require supported closed evidence",
+        "shortTitle": "RG1007",
+        "number": null}]},
+     "address": "/rules/RG1007/"}],
+   "RG1006-trigger":
+   [{"id": "RG1006-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006-sources":
+   [{"id": "RG1006-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006-rationale":
+   [{"id": "RG1006-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006-proof-shape":
+   [{"id": "RG1006-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006-limitations":
+   [{"id": "RG1006-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006-fix":
+   [{"id": "RG1006-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006-example":
+   [{"id": "RG1006-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006-established":
+   [{"id": "RG1006-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006-configuration":
+   [{"id": "RG1006-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1006":
+   [{"id": "RG1006",
+     "data":
+     {"title":
+      "RG1006: Unsafe and partial declarations require exact helper authentication",
+      "shortTitle": "RG1006",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1006: Unsafe and partial declarations require exact helper authentication",
+        "shortTitle": "RG1006",
+        "number": null}]},
+     "address": "/rules/RG1006/"}],
+   "RG1005-trigger":
+   [{"id": "RG1005-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005-sources":
+   [{"id": "RG1005-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005-rationale":
+   [{"id": "RG1005-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005-proof-shape":
+   [{"id": "RG1005-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005-limitations":
+   [{"id": "RG1005-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005-fix":
+   [{"id": "RG1005-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005-example":
+   [{"id": "RG1005-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005-established":
+   [{"id": "RG1005-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005-configuration":
+   [{"id": "RG1005-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1005":
+   [{"id": "RG1005",
+     "data":
+     {"title": "RG1005: Transitive axioms must fit the selected profile",
+      "shortTitle": "RG1005",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1005: Transitive axioms must fit the selected profile",
+        "shortTitle": "RG1005",
+        "number": null}]},
+     "address": "/rules/RG1005/"}],
+   "RG1004-trigger":
+   [{"id": "RG1004-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004-sources":
+   [{"id": "RG1004-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004-rationale":
+   [{"id": "RG1004-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004-proof-shape":
+   [{"id": "RG1004-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004-limitations":
+   [{"id": "RG1004-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004-fix":
+   [{"id": "RG1004-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004-example":
+   [{"id": "RG1004-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004-established":
+   [{"id": "RG1004-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004-configuration":
+   [{"id": "RG1004-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1004":
+   [{"id": "RG1004",
+     "data":
+     {"title":
+      "RG1004: Compiler-trusting proofs require separate classification",
+      "shortTitle": "RG1004",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title":
+        "RG1004: Compiler-trusting proofs require separate classification",
+        "shortTitle": "RG1004",
+        "number": null}]},
+     "address": "/rules/RG1004/"}],
+   "RG1003-trigger":
+   [{"id": "RG1003-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003-sources":
+   [{"id": "RG1003-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003-rationale":
+   [{"id": "RG1003-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003-proof-shape":
+   [{"id": "RG1003-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003-limitations":
+   [{"id": "RG1003-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003-fix":
+   [{"id": "RG1003-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003-example":
+   [{"id": "RG1003-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003-established":
+   [{"id": "RG1003-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003-configuration":
+   [{"id": "RG1003-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1003":
+   [{"id": "RG1003",
+     "data":
+     {"title": "RG1003: Unknown transitive axioms are forbidden",
+      "shortTitle": "RG1003",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1003: Unknown transitive axioms are forbidden",
+        "shortTitle": "RG1003",
+        "number": null}]},
+     "address": "/rules/RG1003/"}],
+   "RG1002-trigger":
+   [{"id": "RG1002-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002-sources":
+   [{"id": "RG1002-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002-rationale":
+   [{"id": "RG1002-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002-proof-shape":
+   [{"id": "RG1002-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002-limitations":
+   [{"id": "RG1002-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002-fix":
+   [{"id": "RG1002-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002-example":
+   [{"id": "RG1002-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002-established":
+   [{"id": "RG1002-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002-configuration":
+   [{"id": "RG1002-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1002":
+   [{"id": "RG1002",
+     "data":
+     {"title": "RG1002: Proof holes are forbidden",
+      "shortTitle": "RG1002",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1002: Proof holes are forbidden",
+        "shortTitle": "RG1002",
+        "number": null}]},
+     "address": "/rules/RG1002/"}],
+   "RG1001-trigger":
+   [{"id": "RG1001-trigger",
+     "data":
+     {"title": "What triggers it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "What triggers it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001-sources":
+   [{"id": "RG1001-sources",
+     "data":
+     {"title": "Sources and credit",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "Sources and credit", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001-rationale":
+   [{"id": "RG1001-rationale",
+     "data":
+     {"title": "Why it matters",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "Why it matters", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001-proof-shape":
+   [{"id": "RG1001-proof-shape",
+     "data":
+     {"title": "Required proof shape",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "Required proof shape", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001-limitations":
+   [{"id": "RG1001-limitations",
+     "data":
+     {"title": "Limitations and unsupported cases",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "Limitations and unsupported cases",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001-fix":
+   [{"id": "RG1001-fix",
+     "data":
+     {"title": "How to fix it",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "How to fix it", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001-example":
+   [{"id": "RG1001-example",
+     "data":
+     {"title": "Checked example",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "Checked example", "shortTitle": null, "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001-established":
+   [{"id": "RG1001-established",
+     "data":
+     {"title": "What a passing result establishes",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "What a passing result establishes",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001-configuration":
+   [{"id": "RG1001-configuration",
+     "data":
+     {"title": "Configuration and exceptions",
+      "shortTitle": null,
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null},
+       {"title": "Configuration and exceptions",
+        "shortTitle": null,
+        "number": null}]},
+     "address": "/rules/RG1001/"}],
+   "RG1001":
+   [{"id": "RG1001",
+     "data":
+     {"title": "RG1001: Project logical axioms are forbidden",
+      "shortTitle": "RG1001",
+      "sectionNum": null,
+      "searchPriority": 50,
+      "context":
+      [{"title": "Regula rule reference", "shortTitle": null, "number": null},
+       {"title": "Rule index", "shortTitle": null, "number": null},
+       {"title": "RG1001: Project logical axioms are forbidden",
+        "shortTitle": "RG1001",
+        "number": null}]},
+     "address": "/rules/RG1001/"}]}},
+ "Verso.Genre.Manual.doc.tech":
+ {"title": "Terminology",
+  "description": "Definitions of technical terms",
+  "contents": {}},
+ "Verso.Genre.Manual.doc.tactic.conv":
+ {"title": "Conversion Tactics",
+  "description": "Tactics for performing targeted rewriting of subterms",
+  "contents": {}},
+ "Verso.Genre.Manual.doc.tactic":
+ {"title": "Tactic Documentation",
+  "description": "Detailed descriptions of tactics",
+  "contents": {}},
+ "Verso.Genre.Manual.doc.suggestion":
+ {"title": "Lean constant suggestions",
+  "description": "Search suggestions for Lean constants",
+  "contents": {}},
+ "Verso.Genre.Manual.doc.option":
+ {"title": "Compiler options", "description": null, "contents": {}},
+ "Verso.Genre.Manual.doc":
+ {"title": "Lean constant reference",
+  "description": "Documentation for Lean constants",
+  "contents": {}}}

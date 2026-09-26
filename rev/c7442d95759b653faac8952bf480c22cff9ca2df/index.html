@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      (function(){
+  const {protocol:proto, host:hostName, pathname:path, search:srch, hash:hsh} = window.location;
+  if (!(path.endsWith("/") || path.endsWith(".html"))) {
+    window.location.replace(`${proto}//${hostName}${path}/${srch}${hsh}`);
+  }
+})()</script>
+    <script>
+      // Enable TypeScript checking.
+// @ts-check
+
+// Applies a saved table-of-contents width before the first paint.
+//
+// This is a tiny inline counterpart to toc-resize.js: it runs in the page head so that
+// returning desktop readers do not see the default width flash to their saved width.
+// It only records the width in the --verso-toc-user-width custom property; the
+// stylesheet clamps it and ignores it on mobile, and toc-resize.js then takes over the
+// interactive resizing. Keep the storage key in sync with toc-resize.js.
+
+(function () {
+    try {
+        const saved = localStorage.getItem("verso-toc-width");
+        // Parse to a number (as toc-resize.js does) and write that back, so a stored
+        // value with stray whitespace becomes a valid length rather than `" 420 px"`.
+        const width = saved === null ? NaN : Number(saved);
+        if (Number.isFinite(width)) {
+            document.documentElement.style.setProperty("--verso-toc-user-width", `${width}px`);
+        }
+    } catch (_) {
+        // Leave the default width in place when local storage is unavailable.
+    }
+})();
+</script>
+    <base href="./"><meta charset="utf-8">
+    <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>Regula rule reference</title><link rel="stylesheet" href="book.css">
+    <link rel="stylesheet" href="verso-vars.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" integrity="sha384-zbcZAIxlvJtNE3Dp5nxLXdXtXyxwOdnILY1TDPVmKFhl4r4nSUG1r8bcFXGVa4Te" crossorigin="anonymous"></script>
+    <script defer="defer" src="-verso-search/elasticlunr.min.js"></script>
+    <script defer="defer" src="-verso-search/fuzzysort.min.js"></script>
+    <script defer="defer" src="-verso-search/searchIndex.js"></script>
+    <script defer="defer" src="-verso-search/search-config.js"></script>
+    <script type="module" src="-verso-search/search-init.js"></script>
+    <link rel="stylesheet" href="-verso-search/search-box.css">
+    <link rel="stylesheet" href="-verso-search/search-page.css">
+    <link rel="stylesheet" href="-verso-search/search-highlight.css">
+    <link rel="stylesheet" href="-verso-search/domain-display.css">
+    <script src="-verso-search/search-highlight.js" defer="defer"></script>
+    <script src="toc-resize.js" defer="defer"></script>
+    <script src="-verso-data/katex/katex.js"></script>
+    <script src="-verso-data/katex/math.js"></script>
+    <link rel="stylesheet" href="-verso-data/katex/katex.css">
+    <style>
+.regula-edition { border-left: 4px solid #5b4bb7; background: #f4f2fc; padding: 0.4rem 0.9rem; margin: 1rem 0; font-size: 0.95em; }
+.regula-edition p { margin: 0.25rem 0; }
+.regula-scroll { overflow-x: auto; max-width: 100%; }
+.regula-scroll:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+main :not(pre) > code { overflow-wrap: anywhere; }
+main :is(p, li, a) { overflow-wrap: break-word; }
+table.regula-facts, table.regula-rules { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.regula-index, .regula-example, table.regula-facts, table.regula-rules, figure.regula-file figcaption, .regula-filters, .regula-filters input { font-family: var(--verso-text-font-family); }
+.regula-finding pre.regula-code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.regula-facts caption, table.regula-rules caption { text-align: left; font-weight: 600; padding: 0.25rem 0; }
+table.regula-facts th, table.regula-facts td, table.regula-rules th, table.regula-rules td {
+  text-align: left; vertical-align: top; padding: 0.35rem 0.55rem; border-bottom: 1px solid #d8d8d8; overflow-wrap: anywhere; }
+table.regula-facts th { width: 11rem; }
+table.regula-rules thead th { border-bottom: 2px solid #999; }
+table.regula-rules td, table.regula-rules th { min-width: 6rem; }
+tr.regula-no-match { display: none; }
+tr.regula-no-match td { font-weight: 600; }
+.regula-muted { color: #57606a; font-size: 0.9em; }
+pre.regula-code, pre.regula-diff { overflow-x: auto; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
+  padding: 0.75rem; font-size: 0.9em; line-height: 1.45; white-space: pre; }
+.regula-diff del, .regula-diff ins, .regula-diff .regula-keep { display: inline-block; min-width: 100%; text-decoration: none; }
+.regula-diff del { background: #ffebe9; }
+.regula-diff ins { background: #dafbe1; }
+.regula-diff .regula-keep { color: #57606a; }
+figure.regula-file { margin: 1rem 0; }
+figure.regula-file figcaption { font-size: 0.9em; margin-bottom: 0.25rem; overflow-wrap: anywhere; }
+.regula-finding { border: 1px solid #d0d7de; border-left: 4px solid #b3261e; border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.75rem 0; }
+.regula-finding p { margin: 0.25rem 0; overflow-wrap: anywhere; }
+.regula-badge { display: inline-block; border: 1px solid #6e7781; border-radius: 999px; padding: 0 0.5rem; font-size: 0.85em; }
+.regula-impact-incomplete { border-style: dashed; }
+.regula-status { font-weight: 600; }
+.regula-example h3 { margin-top: 1.5rem; }
+.regula-filters fieldset { border: 1px solid #d0d7de; border-radius: 6px; margin: 0.5rem 0; padding: 0.4rem 0.75rem; }
+.regula-filters legend { font-weight: 600; padding: 0 0.25rem; }
+.regula-choice { display: inline-block; margin: 0.15rem 0.9rem 0.15rem 0; }
+.regula-filters input:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+.regula-filters input:checked + label { font-weight: 700; text-decoration: underline; }
+.regula-filters input[type=reset] { font: inherit; padding: 0.25rem 0.75rem; }
+</style></head>
+  <body>
+    <header>
+      <div class="header-logo-wrapper"></div>
+      <div class="header-title-wrapper">
+        <a href="" class="header-title"><h1>
+            Regula rule reference</h1>
+          </a></div>
+      </header>
+    <label for="toggle-toc" id="toggle-toc-click"><span class="line line1"></span><span class="line line2"></span><span class="line line3"></span></label><div class="with-toc">
+      <div class="toc-backdrop" onclick="document.getElementById('toggle-toc-click')?.click()"></div>
+      <nav id="toc">
+        <input type="checkbox" id="toggle-toc"><div class="first">
+          <a href="" class="toc-title"><h1>
+              Regula rule reference</h1>
+            </a><div class="split-tocs">
+            <div class="split-toc book">
+              <div class="title">
+                <label for="--verso-manual-toc-----bookRoot" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-----bookRoot" checked="checked"></label><span class="">Table of Contents</span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="rules/#rules">Rule index</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="versions/#versions">Versions and evidence</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="credits/#credits">Credits and licenses</a></td></tr></table></div>
+            </div>
+          </div>
+        <div class="last">
+          <ul id="meta-links">
+            <li>
+              <a href="https://github.com/rbeauchamp/regula">Source Code</a></li>
+            <li>
+              <a href="https://github.com/rbeauchamp/regula/issues">Report Issues</a></li>
+            </ul>
+          </div>
+        </nav>
+      <div class="toc-resize-handle"></div>
+      <main><div class="content-wrapper">
+          <nav class="prev-next-buttons">
+            <div></div>
+            <a class="local-button active" href="rules/#rules" rel="next" title="Rule index"><span class="where">Rule index</span><span class="arrow">→</span></a></nav>
+          <section>
+            <div class="titlepage">
+              <h1>
+                 Regula rule reference<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=regula" title="Permalink">🔗</a></span></h1>
+              <div class="authors"></div>
+              <span id="regula"></span><aside class="regula-edition" aria-label="Documentation version"><p><strong>Development documentation</strong> generated from commit <a href="https://github.com/rbeauchamp/regula/tree/c7442d95759b653faac8952bf480c22cff9ca2df"><code>c7442d95759b</code></a> with Lean 4.34.0; linter version <code>unreleased</code> (no released package). Moving route: <a href="/regula/dev/"><code>/regula/dev/</code></a>. Snapshot route for this commit: <a href="/regula/rev/c7442d95759b653faac8952bf480c22cff9ca2df/"><code>/regula/rev/c7442d95759b…/</code></a>. Once this commit is published, its snapshot is kept by every later deployment. See <a href="/regula/dev/versions/">versions and evidence</a>.</p></aside>
+<p>
+                Regula is a strict linter for Lean 4 projects. This reference explains every diagnostic it reports: what triggers it, why it matters, how to fix it, a checked example produced by the real checker, and exactly what a passing result does and does not establish.</p>
+              <p>
+                <strong>If you followed a diagnostic link.</strong> Every Regula diagnostic carries a stable rule ID such as <code>RG1001</code> (editor code <code>Regula.RG1001</code>) and ends with its explanation URL, for example <code>https://rbeauchamp.github.io/regula/dev/rules/RG1001/</code>. In VS Code the infoview's <strong>View explanation</strong> link opens the same page. The page's ID is the diagnostic's ID.</p>
+              <p>
+                <strong>Reading a result.</strong> A finding's impact is either a violation, which makes the result FAIL, or incomplete, which means required evidence is missing and the result is INCOMPLETE. Neither is accepted. A passing result is mechanical: every rule page lists the review obligations it leaves open.</p>
+              <p>
+                <strong>Find a rule.</strong> The <a href="rules/">rule index</a> lists all 21 rules with filters by category, evidence mode and availability; it needs no JavaScript. The search box searches rule IDs, titles and page text.</p>
+              <p>
+                <strong>Adopt and learn.</strong> <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/guides/adoption.md">Adoption guide</a> (installation, <code>lake lint</code>, editor feedback and CI); <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/standard/README.md">the standard</a>; <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/standard/9-compliance-audit.md">compliance checklist</a>; <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/guides/rule-coverage.md">rule coverage and residual obligations</a>; <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/guides/website.md">how this site is built and published</a>.</p>
+              <p>
+                <strong>Versions.</strong> This is development documentation; no package has been released. See <a href="versions/">versions and evidence</a> for the exact build identity and the route policy.</p>
+              </div>
+            <section>
+              <h2>
+                Contents</h2>
+              <ol class="section-toc">
+                <li>
+                  <a href="rules/#rules"><span class="unnumbered"></span>Rule index</a></li>
+                <li>
+                  <a href="versions/#versions"><span class="unnumbered"></span>Versions and evidence</a></li>
+                <li>
+                  <a href="credits/#credits"><span class="unnumbered"></span>Credits and licenses</a></li>
+                </ol>
+              </section>
+            </section>
+          <nav class="prev-next-buttons">
+            <div></div>
+            <a class="local-button active" href="rules/#rules" rel="next" title="Rule index"><span class="where">Rule index</span><span class="arrow">→</span></a></nav>
+          </div>
+        </main></div>
+    </body>
+  </html>
+

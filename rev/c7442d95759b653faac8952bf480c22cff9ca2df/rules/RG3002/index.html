@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      (function(){
+  const {protocol:proto, host:hostName, pathname:path, search:srch, hash:hsh} = window.location;
+  if (!(path.endsWith("/") || path.endsWith(".html"))) {
+    window.location.replace(`${proto}//${hostName}${path}/${srch}${hsh}`);
+  }
+})()</script>
+    <script>
+      // Enable TypeScript checking.
+// @ts-check
+
+// Applies a saved table-of-contents width before the first paint.
+//
+// This is a tiny inline counterpart to toc-resize.js: it runs in the page head so that
+// returning desktop readers do not see the default width flash to their saved width.
+// It only records the width in the --verso-toc-user-width custom property; the
+// stylesheet clamps it and ignores it on mobile, and toc-resize.js then takes over the
+// interactive resizing. Keep the storage key in sync with toc-resize.js.
+
+(function () {
+    try {
+        const saved = localStorage.getItem("verso-toc-width");
+        // Parse to a number (as toc-resize.js does) and write that back, so a stored
+        // value with stray whitespace becomes a valid length rather than `" 420 px"`.
+        const width = saved === null ? NaN : Number(saved);
+        if (Number.isFinite(width)) {
+            document.documentElement.style.setProperty("--verso-toc-user-width", `${width}px`);
+        }
+    } catch (_) {
+        // Leave the default width in place when local storage is unavailable.
+    }
+})();
+</script>
+    <base href="./../../"><meta charset="utf-8">
+    <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>RG3002: Checked execution requires admitted correspondence</title><link rel="stylesheet" href="book.css">
+    <link rel="stylesheet" href="verso-vars.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" integrity="sha384-zbcZAIxlvJtNE3Dp5nxLXdXtXyxwOdnILY1TDPVmKFhl4r4nSUG1r8bcFXGVa4Te" crossorigin="anonymous"></script>
+    <script defer="defer" src="-verso-search/elasticlunr.min.js"></script>
+    <script defer="defer" src="-verso-search/fuzzysort.min.js"></script>
+    <script defer="defer" src="-verso-search/searchIndex.js"></script>
+    <script defer="defer" src="-verso-search/search-config.js"></script>
+    <script type="module" src="-verso-search/search-init.js"></script>
+    <link rel="stylesheet" href="-verso-search/search-box.css">
+    <link rel="stylesheet" href="-verso-search/search-page.css">
+    <link rel="stylesheet" href="-verso-search/search-highlight.css">
+    <link rel="stylesheet" href="-verso-search/domain-display.css">
+    <script src="-verso-search/search-highlight.js" defer="defer"></script>
+    <script src="toc-resize.js" defer="defer"></script>
+    <script src="-verso-data/katex/katex.js"></script>
+    <script src="-verso-data/katex/math.js"></script>
+    <link rel="stylesheet" href="-verso-data/katex/katex.css">
+    <style>
+.regula-edition { border-left: 4px solid #5b4bb7; background: #f4f2fc; padding: 0.4rem 0.9rem; margin: 1rem 0; font-size: 0.95em; }
+.regula-edition p { margin: 0.25rem 0; }
+.regula-scroll { overflow-x: auto; max-width: 100%; }
+.regula-scroll:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+main :not(pre) > code { overflow-wrap: anywhere; }
+main :is(p, li, a) { overflow-wrap: break-word; }
+table.regula-facts, table.regula-rules { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.regula-index, .regula-example, table.regula-facts, table.regula-rules, figure.regula-file figcaption, .regula-filters, .regula-filters input { font-family: var(--verso-text-font-family); }
+.regula-finding pre.regula-code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.regula-facts caption, table.regula-rules caption { text-align: left; font-weight: 600; padding: 0.25rem 0; }
+table.regula-facts th, table.regula-facts td, table.regula-rules th, table.regula-rules td {
+  text-align: left; vertical-align: top; padding: 0.35rem 0.55rem; border-bottom: 1px solid #d8d8d8; overflow-wrap: anywhere; }
+table.regula-facts th { width: 11rem; }
+table.regula-rules thead th { border-bottom: 2px solid #999; }
+table.regula-rules td, table.regula-rules th { min-width: 6rem; }
+tr.regula-no-match { display: none; }
+tr.regula-no-match td { font-weight: 600; }
+.regula-muted { color: #57606a; font-size: 0.9em; }
+pre.regula-code, pre.regula-diff { overflow-x: auto; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
+  padding: 0.75rem; font-size: 0.9em; line-height: 1.45; white-space: pre; }
+.regula-diff del, .regula-diff ins, .regula-diff .regula-keep { display: inline-block; min-width: 100%; text-decoration: none; }
+.regula-diff del { background: #ffebe9; }
+.regula-diff ins { background: #dafbe1; }
+.regula-diff .regula-keep { color: #57606a; }
+figure.regula-file { margin: 1rem 0; }
+figure.regula-file figcaption { font-size: 0.9em; margin-bottom: 0.25rem; overflow-wrap: anywhere; }
+.regula-finding { border: 1px solid #d0d7de; border-left: 4px solid #b3261e; border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.75rem 0; }
+.regula-finding p { margin: 0.25rem 0; overflow-wrap: anywhere; }
+.regula-badge { display: inline-block; border: 1px solid #6e7781; border-radius: 999px; padding: 0 0.5rem; font-size: 0.85em; }
+.regula-impact-incomplete { border-style: dashed; }
+.regula-status { font-weight: 600; }
+.regula-example h3 { margin-top: 1.5rem; }
+.regula-filters fieldset { border: 1px solid #d0d7de; border-radius: 6px; margin: 0.5rem 0; padding: 0.4rem 0.75rem; }
+.regula-filters legend { font-weight: 600; padding: 0 0.25rem; }
+.regula-choice { display: inline-block; margin: 0.15rem 0.9rem 0.15rem 0; }
+.regula-filters input:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+.regula-filters input:checked + label { font-weight: 700; text-decoration: underline; }
+.regula-filters input[type=reset] { font: inherit; padding: 0.25rem 0.75rem; }
+</style></head>
+  <body>
+    <header>
+      <div class="header-logo-wrapper"></div>
+      <div class="header-title-wrapper">
+        <a href="" class="header-title"><h1>
+            Regula rule reference</h1>
+          </a></div>
+      </header>
+    <label for="toggle-toc" id="toggle-toc-click"><span class="line line1"></span><span class="line line2"></span><span class="line line3"></span></label><div class="with-toc">
+      <div class="toc-backdrop" onclick="document.getElementById('toggle-toc-click')?.click()"></div>
+      <nav id="toc">
+        <input type="checkbox" id="toggle-toc"><div class="first">
+          <a href="" class="toc-title"><h1>
+              Regula rule reference</h1>
+            </a><div class="split-tocs">
+            <div class="split-toc book">
+              <div class="title">
+                <label for="--verso-manual-toc-----bookRoot" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-----bookRoot"></label><span class="">Table of Contents</span></div>
+              <table><tr class="current unnumbered"><td class="num"><td><a href="rules/#rules">Rule index</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="versions/#versions">Versions and evidence</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="credits/#credits">Credits and licenses</a></td></tr></table></div>
+            <div class="split-toc">
+              <div class="title">
+                <label for="--verso-manual-toc-rules" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-rules" checked="checked"></label><span class="unnumbered"></span><span class=""><a href="rules/#rules">Rule index</a></span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="rules/RG1001/#RG1001">RG1001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1002/#RG1002">RG1002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1003/#RG1003">RG1003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1004/#RG1004">RG1004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1005/#RG1005">RG1005</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1006/#RG1006">RG1006</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG1007/#RG1007">RG1007</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2001/#RG2001">RG2001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2002/#RG2002">RG2002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2003/#RG2003">RG2003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2004/#RG2004">RG2004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG2005/#RG2005">RG2005</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3001/#RG3001">RG3001</a></td></tr><tr class="current unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002">RG3002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4001/#RG4001">RG4001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4002/#RG4002">RG4002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4003/#RG4003">RG4003</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG4004/#RG4004">RG4004</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5001/#RG5001">RG5001</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5002/#RG5002">RG5002</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG5003/#RG5003">RG5003</a></td></tr></table></div>
+            <div class="split-toc">
+              <div class="title">
+                <label for="--verso-manual-toc-RG3002" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-RG3002" checked="checked"></label><span class="unnumbered"></span><span class="current"><a href="rules/RG3002/#RG3002">RG3002</a></span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-trigger">What triggers it</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-rationale">Why it matters</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-fix">How to fix it</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-example">Checked example</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-proof-shape">Required proof shape</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-established">What a passing result establishes</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-configuration">Configuration and exceptions</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-limitations">Limitations and unsupported cases</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="rules/RG3002/#RG3002-sources">Sources and credit</a></td></tr></table></div>
+            </div>
+          </div>
+        <div class="last">
+          <ul id="meta-links">
+            <li>
+              <a href="https://github.com/rbeauchamp/regula">Source Code</a></li>
+            <li>
+              <a href="https://github.com/rbeauchamp/regula/issues">Report Issues</a></li>
+            </ul>
+          </div>
+        </nav>
+      <div class="toc-resize-handle"></div>
+      <main><div class="content-wrapper">
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="rules/RG3001/#RG3001" rel="prev" title="RG3001: Execution closure must have no unresolved paths"><span class="arrow">←</span><span class="where">RG3001: Execution closure must have no unresolved paths</span></a><a class="local-button active" href="rules/RG4001/#RG4001" rel="next" title="RG4001: Documentation fences must have a valid classification"><span class="where">RG4001: Documentation fences must have a valid classification</span><span class="arrow">→</span></a></nav>
+          <section>
+            <h1>
+              RG3002: Checked execution requires admitted correspondence<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002" title="Permalink">🔗</a></span></h1>
+            <span id="RG3002"></span><aside class="regula-edition" aria-label="Documentation version"><p><strong>Development documentation</strong> generated from commit <a href="https://github.com/rbeauchamp/regula/tree/c7442d95759b653faac8952bf480c22cff9ca2df"><code>c7442d95759b</code></a> with Lean 4.34.0; linter version <code>unreleased</code> (no released package). Moving route: <a href="/regula/dev/rules/RG3002/"><code>/regula/dev/rules/RG3002/</code></a>. Snapshot route for this commit: <a href="/regula/rev/c7442d95759b653faac8952bf480c22cff9ca2df/rules/RG3002/"><code>/regula/rev/c7442d95759b…/rules/RG3002/</code></a>. Once this commit is published, its snapshot is kept by every later deployment. See <a href="/regula/dev/versions/">versions and evidence</a>.</p></aside>
+<p>
+              <strong>Problem.</strong> On a surface claiming <code>"execution": "checked"</code>, a reachable boundary other than a toolchain native-runtime primitive lacks kernel-checked correspondence: for example an <code>implemented_by</code> replacement without an admitted equality proof, an external <code>extern</code>, or unsafe or partial computation.</p>
+            <p>
+              <strong>Action.</strong> Prove the replacement equal to its reference on the complete domain, or remove the trusted boundary, or claim <code>report</code> execution instead and keep the boundary reported.</p>
+            <table class="regula-facts"><caption>Rule facts from the registry</caption><tbody><tr><th scope="row">Rule</th><td><code>RG3002</code></td></tr><tr><th scope="row">Category</th><td>Execution</td></tr><tr><th scope="row">Scope</th><td>execution root</td></tr><tr><th scope="row">Subreason</th><td><code>execution-trusted-boundary</code></td></tr><tr><th scope="row">Strict impact</th><td>Error in every project and documentation audit where the rule applies. An established violation makes the result FAIL; missing or unsupported evidence makes it INCOMPLETE. Neither is accepted. Under <code>lake lint</code> a FAIL exits 1 and an INCOMPLETE exits 3. The editor does not report this rule.</td></tr><tr><th scope="row">Evidence modes</th><td>incremental project, fresh project, fresh file</td></tr><tr><th scope="row">Availability</th><td>Enforced by the checker</td></tr><tr><th scope="row">Lifecycle</th><td>Active since unreleased</td></tr><tr><th scope="row">Message form</th><td><code>RG3002 [{impact}; {mode}; claim={claim}; {location}]: {subject}: {detail}</code></td></tr><tr><th scope="row">Normative clauses</th><td><a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly">docs/standard/8-tooling-and-machine-audit.md §8.6</a></td></tr><tr><th scope="row">Checklist rows</th><td>COMP-03, COMP-04, SCOPE-03, SCOPE-05, THEOREM-05, BUILD-01, BUILD-03</td></tr><tr><th scope="row">Help URL</th><td><code>https://rbeauchamp.github.io/regula/dev/rules/RG3002/</code></td></tr></tbody></table>
+<section>
+              <h2 id="RG3002-trigger">
+                What triggers it<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-trigger" title="Permalink">🔗</a></span></h2>
+              <p>
+                Each reached boundary gets a kind and a correspondence state. Under checked execution, a boundary that is <code>trusted</code> rather than <code>checked</code> (other than origin-checked <code>Init</code> runtime primitives) is rejected with applicability <code>execution-trusted-boundary</code>.</p>
+              <p>
+                A correspondence is checked only when a closed proof of <code>∀ xs, f xs = g xs</code> over the reference's complete elaborated domain passes kernel admission, with only standard logical axioms and no extra premises.</p>
+              </section>
+            <section>
+              <h2 id="RG3002-rationale">
+                Why it matters<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-rationale" title="Permalink">🔗</a></span></h2>
+              <p>
+                <code>@[implemented_by g] def f</code> makes the kernel reason about <code>f</code> while compiled code runs <code>g</code>. Without a proof relating them, theorems about <code>f</code> say nothing about the program's behavior.</p>
+              </section>
+            <section>
+              <h2 id="RG3002-fix">
+                How to fix it<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-fix" title="Permalink">🔗</a></span></h2>
+              <ol start="1">
+                <li>
+                  <p>
+                    State and prove <code>theorem f_eq (x) : f x = g x</code> (either direction, any prefix of the domain with congruence) for the full domain, including implicit and instance arguments.</p>
+                  </li>
+                <li>
+                  <p>
+                    Replace <code>implemented_by</code> with a proof-backed <code>@[csimp]</code> equality where it fits.</p>
+                  </li>
+                <li>
+                  <p>
+                    If an external boundary is intended (an <code>extern</code> implementation, or unsafe or partial code in an unclaimed dependency), claim <code>report</code> execution, where it is reported as trusted and not failed. An owned <code>unsafe</code> or <code>partial</code> declaration on a claimed surface still fails RG1006 in either mode.</p>
+                  </li>
+                </ol>
+              </section>
+            <section>
+              <h2 id="RG3002-example">
+                Checked example<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-example" title="Permalink">🔗</a></span></h2>
+              <div class="regula-example"><p class="regula-status">Checked policy rejection: the violating input was completed by the checker and rejected with the findings below; the corrected input passed a completed positive check.</p><p>Invocation: fresh single-file audit (axiomGate --file) of &lt;example&gt;/Fixture.lean with claim kernel-only and execution checked; evidence mode freshFile; run by the qualification runner&#39;s ruleExamples entry, which executes the same detector with dependency Git facts captured once for the campaign. Violating run status: <code>rejected</code>; corrected run status: <code>completed</code>.</p><h3>Violating input</h3><figure class="regula-file"><figcaption><code>Fixture.lean</code> — source <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/examples/rules/RG3002/Violation.lean"><code>examples/rules/RG3002/Violation.lean</code></a></figcaption><pre class="regula-code"><code>/-! The identity specification is replaced with extensionally equal code. -/
+def alternative (n : Nat) : Nat := 0 + n
+@[implemented_by alternative] def identity (n : Nat) : Nat := n
+</code></pre></figure><h3>Findings of the violating run</h3><div class="regula-finding"><p><code>RG3002</code> <span class="regula-badge">error</span> <span class="regula-badge regula-impact-violation">violation</span> fresh file, claim <code>checked</code></p><p>Execution root <code>identity</code> at Fixture.lean, line 3, column 35</p><pre class="regula-code"><code>identity reaches identity (runtime-replacement)</code></pre></div><h3>Correction</h3><p>Change to <code>Fixture.lean</code>:</p><pre class="regula-diff"><code><del class="regula-remove">- /-! The identity specification is replaced with extensionally equal code. -/</del>
+<del class="regula-remove">- def alternative (n : Nat) : Nat := 0 + n</del>
+<del class="regula-remove">- @[implemented_by alternative] def identity (n : Nat) : Nat := n</del>
+<ins class="regula-add">+ /-! The identity specification and replacement agree on every input. -/</ins>
+<ins class="regula-add">+ def alternative (n : Nat) : Nat := 0 + n</ins>
+<ins class="regula-add">+ @[implemented_by alternative] def identity (n : Nat) : Nat := n</ins>
+<ins class="regula-add">+ theorem correspondence (n : Nat) : identity n = alternative n := (Nat.zero_add n).symm</ins>
+</code></pre><figure class="regula-file"><figcaption><code>Fixture.lean</code> — source <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/examples/rules/RG3002/Fixed.lean"><code>examples/rules/RG3002/Fixed.lean</code></a></figcaption><pre class="regula-code"><code>/-! The identity specification and replacement agree on every input. -/
+def alternative (n : Nat) : Nat := 0 + n
+@[implemented_by alternative] def identity (n : Nat) : Nat := n
+theorem correspondence (n : Nat) : identity n = alternative n := (Nat.zero_add n).symm
+</code></pre></figure></div>
+<p>
+                The correction adds the missing equality between the reference and its replacement on the full natural-number domain, keeping the checked execution claim and both implementations.</p>
+              </section>
+            <section>
+              <h2 id="RG3002-proof-shape">
+                Required proof shape<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-proof-shape" title="Permalink">🔗</a></span></h2>
+              <p>
+                <code>∀ xs, f.{us} xs = g.{us} xs</code> over the reference's complete dependent domain, closed, with no additional hypotheses, admitted by the kernel. An actual domain hypothesis is legitimate; an extra premise such as <code>False</code> is not.</p>
+              </section>
+            <section>
+              <h2 id="RG3002-established">
+                What a passing result establishes<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-established" title="Permalink">🔗</a></span></h2>
+              <p>
+                Every reached non-native-runtime boundary of a checked surface has kernel-admitted correspondence.</p>
+              <p>
+                It does not establish:</p>
+              <ul>
+                <li>
+                  <p>
+                    Correctness of native-runtime primitives, the compiler or external code; a Lean equality does not prove external machine code. These stay trusted and reported.</p>
+                  </li>
+                <li>
+                  <p>
+                    That the executable roots are the ones the project intends to cover (R-INVARIANT).</p>
+                  </li>
+                </ul>
+              <p>
+                Review obligations the rule-coverage map associates with this rule (identifiers of the checker's <code>Residual</code> account):</p>
+              <ul>
+                <li>
+                  <p>
+                    <code>R-INTENT</code>: the proposition expresses the intended requirement, with its quantifiers, hypotheses and limits</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>R-INVARIANT</code>: the intended invariants, write paths and callers are all covered by proof-bearing interfaces</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>R-QUALIFY</code>: the checker's detection is qualified for this invocation, toolchain and capability</p>
+                  </li>
+                </ul>
+              <p>
+                Every accepted result lists all residual obligations as open, whatever rules it checked: <code>R-INTENT</code>, <code>R-INVARIANT</code>, <code>R-LAWS</code>, <code>R-BOUNDARY</code>, <code>R-NONVACUITY</code>, <code>R-DOC</code>, <code>R-COST</code>, <code>R-QUALIFY</code> (and <code>R-GRAPH</code> for a serialized-graph claim). A listed identifier is an open obligation, never a completed review.</p>
+              <p>
+                Every accepted result also relies on these trusted mechanisms (the checker's <code>Trusted</code> account), which no rule verifies:</p>
+              <ul>
+                <li>
+                  <p>
+                    <code>toolchain</code>: Lean elaborator, kernel and compiler at the snapshot's toolchain identity</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>acquisition</code>: manifest parsing, Lake loading, and source, configuration and dependency acquisition</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>extraction</code>: environment extraction, compiler and worker processes, and JSON transport</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>runtime</code>: native runtime and every execution boundary reported as trusted</p>
+                  </li>
+                </ul>
+              </section>
+            <section>
+              <h2 id="RG3002-configuration">
+                Configuration and exceptions<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-configuration" title="Permalink">🔗</a></span></h2>
+              <p>
+                <code>execution</code> in the surface manifest (<code>report</code> or <code>checked</code>), or <code>--execution checked</code> for a single-file audit, selects the mode. <code>report</code> mode reports trusted boundaries without failing them; it is not a fix for a checked claim.</p>
+              <p>
+                Project enforcement runs through <code>lake lint</code> (incremental), <code>lake lint -- --fresh</code> and <code>lake exe axiomGate</code> (fresh whole-project audits from empty build output), and the build-lint <code>policy</code> target. See the <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/guides/adoption.md">adoption guide</a>.</p>
+              </section>
+            <section>
+              <h2 id="RG3002-limitations">
+                Limitations and unsupported cases<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-limitations" title="Permalink">🔗</a></span></h2>
+              <p>
+                Proof search is deliberately incomplete: a candidate whose remaining premises cannot be instantiated supplies no evidence, and the boundary stays trusted.</p>
+              </section>
+            <section>
+              <h2 id="RG3002-sources">
+                Sources and credit<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=RG3002-sources" title="Permalink">🔗</a></span></h2>
+              <p>
+                Normative text: <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/standard/8-tooling-and-machine-audit.md#86-classify-lean-computation-mechanisms-exactly">docs/standard/8-tooling-and-machine-audit.md §8.6</a>.</p>
+              <p>
+                Detector, policy and proof sources at this revision: <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/lean/Regula/Probe.lean"><code>lean/Regula/Probe.lean</code></a>, <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/lean/RegulaCore/Policy.lean"><code>lean/RegulaCore/Policy.lean</code></a>, <a href="https://github.com/rbeauchamp/regula/blob/c7442d95759b653faac8952bf480c22cff9ca2df/docs/standard/8-tooling-and-machine-audit.md"><code>docs/standard/8-tooling-and-machine-audit.md</code></a>.</p>
+              <p>
+                The rule's typed identity and canonical metadata follow the canonical-representation design of <a href="https://github.com/leanprover/con-leche/blob/c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0/ConLeche/Kernel/PropWhen.lean">con-leche</a> (Joachim Breitner and contributors, Lean FRO, revision <code>c431b1ca1b7a93486dd3e0440d3ee82abe90ccd0</code>); no con-leche code or proof is used. The explanation is original; its structure follows <a href="https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1416">Microsoft's CA1416 rule page</a> as one illustrative reference. See <a href="credits/">credits</a>.</p>
+              </section>
+            </section>
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="rules/RG3001/#RG3001" rel="prev" title="RG3001: Execution closure must have no unresolved paths"><span class="arrow">←</span><span class="where">RG3001: Execution closure must have no unresolved paths</span></a><a class="local-button active" href="rules/RG4001/#RG4001" rel="next" title="RG4001: Documentation fences must have a valid classification"><span class="where">RG4001: Documentation fences must have a valid classification</span><span class="arrow">→</span></a></nav>
+          </div>
+        </main></div>
+    </body>
+  </html>
+

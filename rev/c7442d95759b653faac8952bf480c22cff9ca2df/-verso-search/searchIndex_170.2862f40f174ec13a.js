@@ -1,0 +1,1 @@
+window.docContents[170].resolve({"/rules/RG1001/#RG1001-example":{"contents":"\n\nThe correction proves the same ∀ n : Nat, n = n by rfl instead of assuming it, under the unchanged Kernel-only claim.\n\n","context":"Regula rule reference\u0009Rule index\u0009RG1001: Project logical axioms are forbidden","header":"Checked example","id":"/rules/RG1001/#RG1001-example"}});
