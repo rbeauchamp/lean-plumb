@@ -37,8 +37,8 @@ this example qualifier does not authorize configuration relocation transformatio
 `--with-docs` requests. After initial configuration capture succeeds, early terminal failures
 retain the producer request and any effective configuration captured before failure. If the
 initial configuration read itself fails, the terminal result retains the original IO diagnostic
-as RG2001/incomplete with an empty source account and no request/effective account; it cannot
-qualify as an example or demonstration. The [producer transport contract](engine-producers.md#transport-and-consumer-boundary)
+as RG2001/incomplete with an empty source account, a request with no configuration read and a
+null effective account; it cannot qualify as an example or demonstration. The [producer transport contract](engine-producers.md#transport-and-consumer-boundary)
 owns source retention on terminal exits; absent source evidence refuses qualification. The shared
 `admitExampleSources` guard requires every observed source to belong to the frozen snapshot
 and the displayed source text to occur in that account. File requests additionally require
