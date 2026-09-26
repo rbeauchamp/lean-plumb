@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      (function(){
+  const {protocol:proto, host:hostName, pathname:path, search:srch, hash:hsh} = window.location;
+  if (!(path.endsWith("/") || path.endsWith(".html"))) {
+    window.location.replace(`${proto}//${hostName}${path}/${srch}${hsh}`);
+  }
+})()</script>
+    <script>
+      // Enable TypeScript checking.
+// @ts-check
+
+// Applies a saved table-of-contents width before the first paint.
+//
+// This is a tiny inline counterpart to toc-resize.js: it runs in the page head so that
+// returning desktop readers do not see the default width flash to their saved width.
+// It only records the width in the --verso-toc-user-width custom property; the
+// stylesheet clamps it and ignores it on mobile, and toc-resize.js then takes over the
+// interactive resizing. Keep the storage key in sync with toc-resize.js.
+
+(function () {
+    try {
+        const saved = localStorage.getItem("verso-toc-width");
+        // Parse to a number (as toc-resize.js does) and write that back, so a stored
+        // value with stray whitespace becomes a valid length rather than `" 420 px"`.
+        const width = saved === null ? NaN : Number(saved);
+        if (Number.isFinite(width)) {
+            document.documentElement.style.setProperty("--verso-toc-user-width", `${width}px`);
+        }
+    } catch (_) {
+        // Leave the default width in place when local storage is unavailable.
+    }
+})();
+</script>
+    <base href="./../"><meta charset="utf-8">
+    <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>Versions and evidence</title><link rel="stylesheet" href="book.css">
+    <link rel="stylesheet" href="verso-vars.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js" integrity="sha384-zbcZAIxlvJtNE3Dp5nxLXdXtXyxwOdnILY1TDPVmKFhl4r4nSUG1r8bcFXGVa4Te" crossorigin="anonymous"></script>
+    <script defer="defer" src="-verso-search/elasticlunr.min.js"></script>
+    <script defer="defer" src="-verso-search/fuzzysort.min.js"></script>
+    <script defer="defer" src="-verso-search/searchIndex.js"></script>
+    <script defer="defer" src="-verso-search/search-config.js"></script>
+    <script type="module" src="-verso-search/search-init.js"></script>
+    <link rel="stylesheet" href="-verso-search/search-box.css">
+    <link rel="stylesheet" href="-verso-search/search-page.css">
+    <link rel="stylesheet" href="-verso-search/search-highlight.css">
+    <link rel="stylesheet" href="-verso-search/domain-display.css">
+    <script src="-verso-search/search-highlight.js" defer="defer"></script>
+    <script src="toc-resize.js" defer="defer"></script>
+    <script src="-verso-data/katex/katex.js"></script>
+    <script src="-verso-data/katex/math.js"></script>
+    <link rel="stylesheet" href="-verso-data/katex/katex.css">
+    <style>
+.regula-edition { border-left: 4px solid #5b4bb7; background: #f4f2fc; padding: 0.4rem 0.9rem; margin: 1rem 0; font-size: 0.95em; }
+.regula-edition p { margin: 0.25rem 0; }
+.regula-scroll { overflow-x: auto; max-width: 100%; }
+.regula-scroll:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+main :not(pre) > code { overflow-wrap: anywhere; }
+main :is(p, li, a) { overflow-wrap: break-word; }
+table.regula-facts, table.regula-rules { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.regula-index, .regula-example, table.regula-facts, table.regula-rules, figure.regula-file figcaption, .regula-filters, .regula-filters input { font-family: var(--verso-text-font-family); }
+.regula-finding pre.regula-code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.regula-facts caption, table.regula-rules caption { text-align: left; font-weight: 600; padding: 0.25rem 0; }
+table.regula-facts th, table.regula-facts td, table.regula-rules th, table.regula-rules td {
+  text-align: left; vertical-align: top; padding: 0.35rem 0.55rem; border-bottom: 1px solid #d8d8d8; overflow-wrap: anywhere; }
+table.regula-facts th { width: 11rem; }
+table.regula-rules thead th { border-bottom: 2px solid #999; }
+table.regula-rules td, table.regula-rules th { min-width: 6rem; }
+tr.regula-no-match { display: none; }
+tr.regula-no-match td { font-weight: 600; }
+.regula-muted { color: #57606a; font-size: 0.9em; }
+pre.regula-code, pre.regula-diff { overflow-x: auto; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
+  padding: 0.75rem; font-size: 0.9em; line-height: 1.45; white-space: pre; }
+.regula-diff del, .regula-diff ins, .regula-diff .regula-keep { display: inline-block; min-width: 100%; text-decoration: none; }
+.regula-diff del { background: #ffebe9; }
+.regula-diff ins { background: #dafbe1; }
+.regula-diff .regula-keep { color: #57606a; }
+figure.regula-file { margin: 1rem 0; }
+figure.regula-file figcaption { font-size: 0.9em; margin-bottom: 0.25rem; overflow-wrap: anywhere; }
+.regula-finding { border: 1px solid #d0d7de; border-left: 4px solid #b3261e; border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.75rem 0; }
+.regula-finding p { margin: 0.25rem 0; overflow-wrap: anywhere; }
+.regula-badge { display: inline-block; border: 1px solid #6e7781; border-radius: 999px; padding: 0 0.5rem; font-size: 0.85em; }
+.regula-impact-incomplete { border-style: dashed; }
+.regula-status { font-weight: 600; }
+.regula-example h3 { margin-top: 1.5rem; }
+.regula-filters fieldset { border: 1px solid #d0d7de; border-radius: 6px; margin: 0.5rem 0; padding: 0.4rem 0.75rem; }
+.regula-filters legend { font-weight: 600; padding: 0 0.25rem; }
+.regula-choice { display: inline-block; margin: 0.15rem 0.9rem 0.15rem 0; }
+.regula-filters input:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+.regula-filters input:checked + label { font-weight: 700; text-decoration: underline; }
+.regula-filters input[type=reset] { font: inherit; padding: 0.25rem 0.75rem; }
+</style></head>
+  <body>
+    <header>
+      <div class="header-logo-wrapper"></div>
+      <div class="header-title-wrapper">
+        <a href="" class="header-title"><h1>
+            Regula rule reference</h1>
+          </a></div>
+      </header>
+    <label for="toggle-toc" id="toggle-toc-click"><span class="line line1"></span><span class="line line2"></span><span class="line line3"></span></label><div class="with-toc">
+      <div class="toc-backdrop" onclick="document.getElementById('toggle-toc-click')?.click()"></div>
+      <nav id="toc">
+        <input type="checkbox" id="toggle-toc"><div class="first">
+          <a href="" class="toc-title"><h1>
+              Regula rule reference</h1>
+            </a><div class="split-tocs">
+            <div class="split-toc book">
+              <div class="title">
+                <label for="--verso-manual-toc-----bookRoot" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-----bookRoot" checked="checked"></label><span class="">Table of Contents</span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="rules/#rules">Rule index</a></td></tr><tr class="current unnumbered"><td class="num"><td><a href="versions/#versions">Versions and evidence</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="credits/#credits">Credits and licenses</a></td></tr></table></div>
+            <div class="split-toc">
+              <div class="title">
+                <label for="--verso-manual-toc-versions" class="toggle-split-toc"><input type="checkbox" class="toggle-split-toc" id="--verso-manual-toc-versions" checked="checked"></label><span class="unnumbered"></span><span class="current"><a href="versions/#versions">Versions and evidence</a></span></div>
+              <table><tr class="unnumbered"><td class="num"><td><a href="versions/#versions-routes">Routes</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="versions/#versions-evidence">Evidence</a></td></tr><tr class="unnumbered"><td class="num"><td><a href="versions/#versions-hosting">Hosting limits</a></td></tr></table></div>
+            </div>
+          </div>
+        <div class="last">
+          <ul id="meta-links">
+            <li>
+              <a href="https://github.com/rbeauchamp/regula">Source Code</a></li>
+            <li>
+              <a href="https://github.com/rbeauchamp/regula/issues">Report Issues</a></li>
+            </ul>
+          </div>
+        </nav>
+      <div class="toc-resize-handle"></div>
+      <main><div class="content-wrapper">
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="rules/RG5003/#RG5003" rel="prev" title="RG5003: Registered public material declarations require an Intent section"><span class="arrow">←</span><span class="where">RG5003: Registered public material declarations require an Intent section</span></a><a class="local-button active" href="credits/#credits" rel="next" title="Credits and licenses"><span class="where">Credits and licenses</span><span class="arrow">→</span></a></nav>
+          <section>
+            <h1>
+              Versions and evidence<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=versions" title="Permalink">🔗</a></span></h1>
+            <span id="versions"></span><aside class="regula-edition" aria-label="Documentation version"><p><strong>Development documentation</strong> generated from commit <a href="https://github.com/rbeauchamp/regula/tree/11e05c682ee76ddf9b7cd81fdb827b572469ed57"><code>11e05c682ee7</code></a> with Lean 4.34.0; linter version <code>unreleased</code> (no released package). Moving route: <a href="/regula/dev/versions/"><code>/regula/dev/versions/</code></a>. Snapshot route for this commit: <a href="/regula/rev/11e05c682ee76ddf9b7cd81fdb827b572469ed57/versions/"><code>/regula/rev/11e05c682ee7…/versions/</code></a>. Once this commit is published, its snapshot is kept by every later deployment. See <a href="/regula/dev/versions/">versions and evidence</a>.</p></aside>
+<table class="regula-facts"><caption>Build identity</caption><tbody><tr><th scope="row">Commit</th><td><a href="https://github.com/rbeauchamp/regula/tree/11e05c682ee76ddf9b7cd81fdb827b572469ed57"><code>11e05c682ee76ddf9b7cd81fdb827b572469ed57</code></a></td></tr><tr><th scope="row">Lean toolchain (linter and examples)</th><td><code>4.34.0</code></td></tr><tr><th scope="row">Linter version</th><td><code>unreleased</code> (no released package)</td></tr><tr><th scope="row">Verso revision</th><td><code>cad4b633e75ea769b851f12f9ca3b4f0dfcc625f</code></td></tr><tr><th scope="row">Rules</th><td>21 registered, 21 with checked examples</td></tr></tbody></table>
+<section>
+              <h2 id="versions-routes">
+                Routes<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=versions-routes" title="Permalink">🔗</a></span></h2>
+              <ul>
+                <li>
+                  <p>
+                    <code>https://rbeauchamp.github.io/regula/dev/rules/&lt;ID&gt;/</code> is the development explanation. It always shows the most recent successfully deployed revision of <code>main</code>; the linter's diagnostics link here.</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>https://rbeauchamp.github.io/regula/rev/&lt;commit&gt;/rules/&lt;ID&gt;/</code> is the snapshot of one published commit. Each deployment publishes the snapshot of its own commit and every earlier published snapshot, byte for byte: a snapshot is archived before it is deployed, the archive is append-only, and a deployment must contain every archived snapshot.</p>
+                  </li>
+                <li>
+                  <p>
+                    <code>https://rbeauchamp.github.io/regula/v/&lt;version&gt;/rules/&lt;ID&gt;/</code> is reserved for immutable pages of released packages. No package has been released, so no such page exists.</p>
+                  </li>
+                </ul>
+              <p>
+                A route that is not published shows the site's not-available page, which names the source of every revision on GitHub. It never redirects to the latest rules: an old link cannot silently acquire changed semantics. Rule IDs are never reused for a changed rule; a retired rule keeps a page that says so.</p>
+              </section>
+            <section>
+              <h2 id="versions-evidence">
+                Evidence<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=versions-evidence" title="Permalink">🔗</a></span></h2>
+              <p>
+                Every example on this site was produced for this exact commit by the rule-example corpus campaign, admitted by the rule-example qualifier (whose admission relations are proved; capture and process authenticity are trusted), and checked against the commit's checker, corpus and configuration sources before the site was generated. The site build refuses stale, incomplete or partial evidence.</p>
+              <div class="regula-scroll" role="region" aria-label="Checked rule examples" tabindex="0"><table class="regula-rules"><caption>Checked rule examples of this build</caption><thead><tr><th scope="col">Rule</th><th scope="col">Example kind</th><th scope="col">Violating run</th><th scope="col">Corrected run</th><th scope="col">Emitted rule IDs</th><th scope="col">Corpus shard</th></tr></thead><tbody><tr><th scope="row"><a href="rules/RG1001/"><code>RG1001</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG1001</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG1002/"><code>RG1002</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG1002</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG1003/"><code>RG1003</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG1003</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG1004/"><code>RG1004</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG1004</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG1005/"><code>RG1005</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG1005</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG1006/"><code>RG1006</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG1006</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG1007/"><code>RG1007</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG1007</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG2001/"><code>RG2001</code></a></th><td>diagnosticDemonstration</td><td><code>incomplete</code></td><td><code>completed</code></td><td>RG2001</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG2002/"><code>RG2002</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG2002</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG2003/"><code>RG2003</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG2003</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG2004/"><code>RG2004</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG2004</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG2005/"><code>RG2005</code></a></th><td>diagnosticDemonstration</td><td><code>incomplete</code></td><td><code>completed</code></td><td>RG2005</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG3001/"><code>RG3001</code></a></th><td>diagnosticDemonstration</td><td><code>incomplete</code></td><td><code>completed</code></td><td>RG3001</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG3002/"><code>RG3002</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG3002</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG4001/"><code>RG4001</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG4001</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG4002/"><code>RG4002</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG4002, RG1001</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG4003/"><code>RG4003</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG4003</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG4004/"><code>RG4004</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG4004</td><td>2/2</td></tr><tr><th scope="row"><a href="rules/RG5001/"><code>RG5001</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG5001</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG5002/"><code>RG5002</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG5002</td><td>1/2</td></tr><tr><th scope="row"><a href="rules/RG5003/"><code>RG5003</code></a></th><td>policyRejection</td><td><code>rejected</code></td><td><code>completed</code></td><td>RG5003</td><td>1/2</td></tr></tbody></table></div>
+<p>
+                A diagnostic demonstration shows an INCOMPLETE result by design; it is not accepted negative evidence. The corpus campaign is scoped qualification of the detectors for these inputs, not a proof that the detectors are correct for every input.</p>
+              </section>
+            <section>
+              <h2 id="versions-hosting">
+                Hosting limits<span class="permalink-widget inline"><a href="find/?domain=Verso.Genre.Manual.section&amp;name=versions-hosting" title="Permalink">🔗</a></span></h2>
+              <p>
+                The site is a static GitHub Pages project site. It uses no cookies, accounts or analytics. Search and the page table of contents use Verso's JavaScript, and pages load one library from the jsDelivr CDN (see the credits); every explanation, link and the rule catalogue work without it. A deployment can lag <code>main</code> while checks run or after they fail; each page states the commit it was built from. Every published snapshot is kept, so the site grows with each deployment; the build refuses an artifact larger than 900 MB, below GitHub Pages' 1 GB limit on a published site. Removing snapshots would change what their routes mean and needs a separate decision.
+</p>
+              </section>
+            </section>
+          <nav class="prev-next-buttons">
+            <a class="local-button active" href="rules/RG5003/#RG5003" rel="prev" title="RG5003: Registered public material declarations require an Intent section"><span class="arrow">←</span><span class="where">RG5003: Registered public material declarations require an Intent section</span></a><a class="local-button active" href="credits/#credits" rel="next" title="Credits and licenses"><span class="where">Credits and licenses</span><span class="arrow">→</span></a></nav>
+          </div>
+        </main></div>
+    </body>
+  </html>
+
