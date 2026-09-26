@@ -22,8 +22,9 @@ pointer, not an authority.
 
 ## Open work outside core delivery
 
-- [#8](https://github.com/rbeauchamp/lean-plumb/issues/8) optional con-leche export research:
+- [#8](https://github.com/rbeauchamp/regula/issues/8) optional con-leche export research:
   no-go, recorded in [con-leche research](../docs/guides/con-leche-research.md).
-  [#9](https://github.com/rbeauchamp/lean-plumb/issues/9) adapter: not planned.
+  [#9](https://github.com/rbeauchamp/regula/issues/9) adapter: not planned.
 - Operator settings (not code): require `site` and the corpus shards as status checks; protect
-  `site-archive` against force-push and deletion.
+  `site-archive-regula` against force-push and deletion
+  ([retention](../docs/guides/website.md#retention)).
