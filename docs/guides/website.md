@@ -221,8 +221,9 @@ pages would need the same kind of retention as revision snapshots.
 `verify.sh` mode; it is separate from, and never a partition of, the two acceptance commands.
 In CI the site tooling is built in the preceding step (20-minute step limit) and Verso is
 provisioned from cache (20-minute step limit on a miss). The site build's work grows with the
-number of archived snapshots ([retention](#retention)). Observed timings are recorded in the
-delivery evidence of the change that measured them; they are observations, not guarantees.
+number of archived snapshots ([retention](#retention)). Observed timings are recorded with the
+change that measured them, such as the [site delivery record](https://github.com/rbeauchamp/regula/blob/11e05c682ee76ddf9b7cd81fdb827b572469ed57/session/evidence/issue-15-site.md#observed-locally);
+they are observations, not guarantees.
 
 ## Changing a rule
 
@@ -250,10 +251,10 @@ category, evidence-mode and availability filters are radio buttons driven by gen
 **Reset filters** is a form reset. The no-match notice is emitted for exactly the filter
 combinations that list no rule (`mem_emptySelections`); that the generated CSS rules and row
 classes implement `Selection.admits` holds by construction of the generator and was observed
-for several combinations, not proved. Status is carried by text and `+`/`-`
+for several combinations ([record](https://github.com/rbeauchamp/regula/blob/11e05c682ee76ddf9b7cd81fdb827b572469ed57/session/evidence/issue-15-site.md#browser-observations-bounded-not-proofs)), not proved. Status is carried by text and `+`/`-`
 diff markers, not colour alone. Tables that can exceed a narrow screen scroll inside a
 keyboard-focusable region. Search and the collapsible table of contents are Verso's bundled
-JavaScript. Browser observations of these behaviors are recorded with the delivering change;
+JavaScript. Browser observations of these behaviors are in the same record;
 they are bounded observations, not proofs of usability. The site sets no cookies and has no
 accounts or analytics.
 

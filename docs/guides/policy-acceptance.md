@@ -562,6 +562,8 @@ not freely variable candidate data. Con-leche's [parameterized pin/check pattern
 is a reference for separating these roles, not a reason to make our trust pins optional.
 No speculative scheduling or fast/reference implementation is proposed.
 
+The [issue 7 verification record](https://github.com/rbeauchamp/regula/blob/11e05c682ee76ddf9b7cd81fdb827b572469ed57/session/evidence/issue-7-verification.md) holds the
+implementation's compiler results, axiom coverage and qualification at its delivery.
 Earlier PRODUCT-01 runtime results remain historical, scoped evidence; they do
 not validate later implementation changes. Use the [contributor guide](contributing.md)
 for the complete acceptance command and setup requirements.
